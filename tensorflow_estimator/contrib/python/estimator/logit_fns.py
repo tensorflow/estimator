@@ -41,8 +41,8 @@ from __future__ import print_function
 
 import six
 
-from tensorflow_estimator.python.canned import dnn as dnn_core
-from tensorflow_estimator.python.canned import linear as linear_core
+from tensorflow_estimator.python.estimator.canned import dnn as dnn_core
+from tensorflow_estimator.python.estimator.canned import linear as linear_core
 from tensorflow.python.framework import ops
 from tensorflow.python.util import function_utils
 

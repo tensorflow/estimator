@@ -20,7 +20,7 @@ from __future__ import print_function
 
 import os
 
-from tensorflow_estimator.python import estimator as estimator_lib
+from tensorflow_estimator.python.estimator import estimator as estimator_lib
 from tensorflow.python.framework import ops
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import control_flow_ops

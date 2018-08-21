@@ -20,11 +20,11 @@ from __future__ import print_function
 
 import six
 
-from tensorflow_estimator.python import model_fn
-from tensorflow_estimator.python.canned import head as head_lib
-from tensorflow_estimator.python.canned import metric_keys
-from tensorflow_estimator.python.canned import prediction_keys
-from tensorflow_estimator.python.export import export_output
+from tensorflow_estimator.python.estimator import model_fn
+from tensorflow_estimator.python.estimator.canned import head as head_lib
+from tensorflow_estimator.python.estimator.canned import metric_keys
+from tensorflow_estimator.python.estimator.canned import prediction_keys
+from tensorflow_estimator.python.estimator.export import export_output
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import sparse_tensor

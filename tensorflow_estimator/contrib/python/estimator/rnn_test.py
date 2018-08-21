@@ -31,12 +31,12 @@ from tensorflow_estimator.contrib.python.estimator import rnn
 from tensorflow.contrib.feature_column.python.feature_column import sequence_feature_column as seq_fc
 from tensorflow.core.example import example_pb2
 from tensorflow.core.example import feature_pb2
-from tensorflow_estimator.python import model_fn
-from tensorflow_estimator.python.canned import metric_keys
-from tensorflow_estimator.python.canned import parsing_utils
-from tensorflow_estimator.python.canned import prediction_keys
-from tensorflow_estimator.python.export import export
-from tensorflow_estimator.python.inputs import numpy_io
+from tensorflow_estimator.python.estimator import model_fn
+from tensorflow_estimator.python.estimator.canned import metric_keys
+from tensorflow_estimator.python.estimator.canned import parsing_utils
+from tensorflow_estimator.python.estimator.canned import prediction_keys
+from tensorflow_estimator.python.estimator.export import export
+from tensorflow_estimator.python.estimator.inputs import numpy_io
 from tensorflow.python.feature_column import feature_column as fc
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops

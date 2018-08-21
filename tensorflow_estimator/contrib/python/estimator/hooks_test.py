@@ -24,8 +24,8 @@ import os
 
 from tensorflow_estimator.contrib.python.estimator import hooks as hooks_lib
 from tensorflow.python.data.ops import dataset_ops
-from tensorflow_estimator.python import estimator_lib
-from tensorflow_estimator.python import run_config as run_config_lib
+from tensorflow_estimator.python.estimator import estimator_lib
+from tensorflow_estimator.python.estimator import run_config as run_config_lib
 from tensorflow.python.feature_column import feature_column as feature_column_lib
 from tensorflow.python.framework import constant_op
 from tensorflow.python.framework import dtypes

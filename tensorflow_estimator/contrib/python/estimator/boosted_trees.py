@@ -18,8 +18,8 @@ from __future__ import division
 from __future__ import print_function
 
 from tensorflow.python.data.ops import dataset_ops
-from tensorflow_estimator.python import estimator
-from tensorflow_estimator.python.canned import boosted_trees as canned_boosted_trees
+from tensorflow_estimator.python.estimator import estimator
+from tensorflow_estimator.python.estimator.canned import boosted_trees as canned_boosted_trees
 
 
 def _validate_input_fn_and_repeat_dataset(train_input_fn):

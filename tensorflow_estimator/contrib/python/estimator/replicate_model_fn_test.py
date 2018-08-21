@@ -26,14 +26,14 @@ import numpy as np
 import six
 
 from tensorflow_estimator.contrib.python.estimator import replicate_model_fn
-from tensorflow_estimator.python import estimator as estimator_lib
-from tensorflow_estimator.python import model_fn as model_fn_lib
-from tensorflow_estimator.python.canned import dnn
-from tensorflow_estimator.python.canned import optimizers
-from tensorflow_estimator.python.canned import prediction_keys
-from tensorflow_estimator.python.export import export
-from tensorflow_estimator.python.export import export_output
-from tensorflow_estimator.python.inputs import numpy_io
+from tensorflow_estimator.python.estimator import estimator as estimator_lib
+from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
+from tensorflow_estimator.python.estimator.canned import dnn
+from tensorflow_estimator.python.estimator.canned import optimizers
+from tensorflow_estimator.python.estimator.canned import prediction_keys
+from tensorflow_estimator.python.estimator.export import export
+from tensorflow_estimator.python.estimator.export import export_output
+from tensorflow_estimator.python.estimator.inputs import numpy_io
 from tensorflow.python.feature_column import feature_column
 from tensorflow.python.framework import constant_op
 from tensorflow.python.framework import dtypes

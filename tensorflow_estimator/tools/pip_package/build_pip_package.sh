@@ -44,11 +44,12 @@ function build_wheel() {
   touch "${TMPDIR}/tensorflow_estimator/contrib/python/__init__.py"
   touch "${TMPDIR}/tensorflow_estimator/contrib/python/estimator/__init__.py"
   touch "${TMPDIR}/tensorflow_estimator/python/__init__.py"
-  touch "${TMPDIR}/tensorflow_estimator/python/api/__init__.py"
-  touch "${TMPDIR}/tensorflow_estimator/python/canned/__init__.py"
-  touch "${TMPDIR}/tensorflow_estimator/python/export/__init__.py"
-  touch "${TMPDIR}/tensorflow_estimator/python/inputs/__init__.py"
-  touch "${TMPDIR}/tensorflow_estimator/python/inputs/queues/__init__.py"
+  touch "${TMPDIR}/tensorflow_estimator/python/estimator/__init__.py"
+  touch "${TMPDIR}/tensorflow_estimator/python/estimator/api/__init__.py"
+  touch "${TMPDIR}/tensorflow_estimator/python/estimator/canned/__init__.py"
+  touch "${TMPDIR}/tensorflow_estimator/python/estimator/export/__init__.py"
+  touch "${TMPDIR}/tensorflow_estimator/python/estimator/inputs/__init__.py"
+  touch "${TMPDIR}/tensorflow_estimator/python/estimator/inputs/queues/__init__.py"
 
   pushd ${TMPDIR} > /dev/null
   echo $(date) : "=== Building wheel"

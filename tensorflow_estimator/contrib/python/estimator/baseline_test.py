@@ -28,9 +28,9 @@ import six
 from tensorflow_estimator.contrib.python.estimator import baseline
 from tensorflow_estimator.contrib.python.estimator import head as head_lib
 from tensorflow.python.client import session as tf_session
-from tensorflow_estimator.python.canned import metric_keys
-from tensorflow_estimator.python.export import export
-from tensorflow_estimator.python.inputs import numpy_io
+from tensorflow_estimator.python.estimator.canned import metric_keys
+from tensorflow_estimator.python.estimator.export import export
+from tensorflow_estimator.python.estimator.inputs import numpy_io
 from tensorflow.python.feature_column import feature_column as feature_column_lib
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops

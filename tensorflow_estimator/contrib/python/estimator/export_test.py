@@ -28,10 +28,10 @@ import tempfile
 
 from tensorflow_estimator.contrib.python.estimator import export as contrib_export
 from tensorflow.python.client import session
-from tensorflow_estimator.python import estimator
-from tensorflow_estimator.python import model_fn as model_fn_lib
-from tensorflow_estimator.python.export import export
-from tensorflow_estimator.python.export import export_output
+from tensorflow_estimator.python.estimator import estimator
+from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
+from tensorflow_estimator.python.estimator.export import export
+from tensorflow_estimator.python.estimator.export import export_output
 from tensorflow.python.framework import constant_op
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops

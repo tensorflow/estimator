@@ -31,8 +31,8 @@ import six
 
 from tensorflow.core.framework import node_def_pb2
 from tensorflow.python.client import device_lib
-from tensorflow_estimator.python import model_fn as model_fn_lib
-from tensorflow_estimator.python.export import export_output as export_output_lib
+from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
+from tensorflow_estimator.python.estimator.export import export_output as export_output_lib
 from tensorflow.python.framework import device as framework_device
 from tensorflow.python.framework import ops as ops_lib
 from tensorflow.python.framework import sparse_tensor

@@ -20,10 +20,10 @@ from __future__ import print_function
 
 import six
 
-from tensorflow_estimator.python import model_fn
-from tensorflow_estimator.python.canned import head as head_lib
-from tensorflow_estimator.python.canned import metric_keys
-from tensorflow_estimator.python.export import export_output as export_output_lib
+from tensorflow_estimator.python.estimator import model_fn
+from tensorflow_estimator.python.estimator.canned import head as head_lib
+from tensorflow_estimator.python.estimator.canned import metric_keys
+from tensorflow_estimator.python.estimator.export import export_output as export_output_lib
 from tensorflow.python.framework import ops
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import control_flow_ops

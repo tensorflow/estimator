@@ -24,9 +24,9 @@ import six
 from tensorflow_estimator.contrib.python.estimator import head as head_lib
 from tensorflow_estimator.contrib.python.estimator import multi_head as multi_head_lib
 from tensorflow.core.framework import summary_pb2
-from tensorflow_estimator.python import model_fn
-from tensorflow_estimator.python.canned import metric_keys
-from tensorflow_estimator.python.canned import prediction_keys
+from tensorflow_estimator.python.estimator import model_fn
+from tensorflow_estimator.python.estimator.canned import metric_keys
+from tensorflow_estimator.python.estimator.canned import prediction_keys
 from tensorflow.python.framework import constant_op
 from tensorflow.python.framework import ops
 from tensorflow.python.ops import string_ops

@@ -20,9 +20,9 @@ from __future__ import print_function
 
 import six
 
-from tensorflow_estimator.python import estimator as estimator_lib
-from tensorflow_estimator.python import model_fn as model_fn_lib
-from tensorflow_estimator.python.export.export_output import PredictOutput
+from tensorflow_estimator.python.estimator import estimator as estimator_lib
+from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
+from tensorflow_estimator.python.estimator.export.export_output import PredictOutput
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import sparse_tensor as sparse_tensor_lib
 from tensorflow.python.ops import clip_ops

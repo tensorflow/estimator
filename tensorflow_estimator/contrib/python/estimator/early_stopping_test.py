@@ -23,8 +23,8 @@ import tempfile
 
 from absl.testing import parameterized
 from tensorflow_estimator.contrib.python.estimator import early_stopping
-from tensorflow_estimator.python import estimator
-from tensorflow_estimator.python import run_config
+from tensorflow_estimator.python.estimator import estimator
+from tensorflow_estimator.python.estimator import run_config
 from tensorflow.python.framework import ops
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import state_ops

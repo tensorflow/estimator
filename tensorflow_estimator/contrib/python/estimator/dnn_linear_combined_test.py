@@ -26,11 +26,11 @@ import six
 
 from tensorflow_estimator.contrib.python.estimator import dnn_linear_combined
 from tensorflow_estimator.contrib.python.estimator import head as head_lib
-from tensorflow_estimator.python.canned import dnn_testing_utils
-from tensorflow_estimator.python.canned import linear_testing_utils
-from tensorflow_estimator.python.canned import prediction_keys
-from tensorflow_estimator.python.export import export
-from tensorflow_estimator.python.inputs import numpy_io
+from tensorflow_estimator.python.estimator.canned import dnn_testing_utils
+from tensorflow_estimator.python.estimator.canned import linear_testing_utils
+from tensorflow_estimator.python.estimator.canned import prediction_keys
+from tensorflow_estimator.python.estimator.export import export
+from tensorflow_estimator.python.estimator.inputs import numpy_io
 from tensorflow.python.feature_column import feature_column
 from tensorflow.python.framework import ops
 from tensorflow.python.ops import nn

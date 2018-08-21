@@ -25,8 +25,8 @@ import numpy as np
 from tensorflow_estimator.contrib.python.estimator import extenders
 from tensorflow.contrib.predictor import from_saved_model
 from tensorflow.python.data.ops import dataset_ops
-from tensorflow_estimator.python import estimator_lib
-from tensorflow_estimator.python.canned import linear
+from tensorflow_estimator.python.estimator import estimator_lib
+from tensorflow_estimator.python.estimator.canned import linear
 from tensorflow.python.feature_column import feature_column as fc
 from tensorflow.python.framework import constant_op
 from tensorflow.python.framework import dtypes

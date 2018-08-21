@@ -20,7 +20,7 @@ from __future__ import print_function
 
 from tensorflow_estimator.contrib.python.estimator import logit_fns
 from tensorflow.python.client import session
-from tensorflow_estimator.python import model_fn
+from tensorflow_estimator.python.estimator import model_fn
 from tensorflow.python.framework import constant_op
 from tensorflow.python.platform import test
 

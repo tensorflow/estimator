@@ -5,8 +5,8 @@ package(default_visibility = ["//tensorflow_estimator:internal"])
 
 COMMON_PIP_DEPS = [
     "//tensorflow_estimator/contrib:estimator_py",
-    "//tensorflow_estimator/python:estimator_py",
-    "//tensorflow_estimator/python/api:estimator_python_api_gen",
+    "//tensorflow_estimator/python/estimator:estimator_py",
+    "//tensorflow_estimator/python/estimator/api:estimator_python_api_gen",
 ]
 
 sh_binary(

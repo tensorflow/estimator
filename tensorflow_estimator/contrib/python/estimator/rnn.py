@@ -22,9 +22,9 @@ import six
 
 from tensorflow_estimator.contrib.python.estimator import extenders
 from tensorflow.contrib.feature_column.python.feature_column import sequence_feature_column as seq_fc
-from tensorflow_estimator.python import estimator
-from tensorflow_estimator.python.canned import head as head_lib
-from tensorflow_estimator.python.canned import optimizers
+from tensorflow_estimator.python.estimator import estimator
+from tensorflow_estimator.python.estimator.canned import head as head_lib
+from tensorflow_estimator.python.estimator.canned import optimizers
 from tensorflow.python.feature_column import feature_column as feature_column_lib
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
