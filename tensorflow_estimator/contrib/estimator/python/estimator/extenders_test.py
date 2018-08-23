@@ -22,7 +22,7 @@ import os
 import tempfile
 import numpy as np
 
-from tensorflow_estimator.contrib.python.estimator import extenders
+from tensorflow_estimator.contrib.estimator.python.estimator import extenders
 from tensorflow.contrib.predictor import from_saved_model
 from tensorflow.python.data.ops import dataset_ops
 from tensorflow_estimator.python.estimator import estimator_lib

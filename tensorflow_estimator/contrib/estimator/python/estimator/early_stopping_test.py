@@ -22,7 +22,7 @@ import os
 import tempfile
 
 from absl.testing import parameterized
-from tensorflow_estimator.contrib.python.estimator import early_stopping
+from tensorflow_estimator.contrib.estimator.python.estimator import early_stopping
 from tensorflow_estimator.python.estimator import estimator
 from tensorflow_estimator.python.estimator import run_config
 from tensorflow.python.framework import ops
@@ -91,6 +91,19 @@ class ReadEvalMetricsTest(test.TestCase):
             'accuracy': 6
         },
     }, early_stopping.read_eval_metrics(eval_dir))
+
+  def test_read_eval_metrics_when_no_events(self):
+    eval_dir = tempfile.mkdtemp()
+    self.assertTrue(os.path.exists(eval_dir))
+
+    # No error should be raised when eval directory exists with no event files.
+    self.assertEqual({}, early_stopping.read_eval_metrics(eval_dir))
+
+    os.rmdir(eval_dir)
+    self.assertFalse(os.path.exists(eval_dir))
+
+    # No error should be raised when eval directory does not exist.
+    self.assertEqual({}, early_stopping.read_eval_metrics(eval_dir))
 
 
 class EarlyStoppingHooksTest(test.TestCase, parameterized.TestCase):

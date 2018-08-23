@@ -25,8 +25,8 @@ import tempfile
 import numpy as np
 import six
 
-from tensorflow_estimator.contrib.python.estimator import baseline
-from tensorflow_estimator.contrib.python.estimator import head as head_lib
+from tensorflow_estimator.contrib.estimator.python.estimator import baseline
+from tensorflow_estimator.contrib.estimator.python.estimator import head as head_lib
 from tensorflow.python.client import session as tf_session
 from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.export import export

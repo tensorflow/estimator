@@ -21,7 +21,7 @@ from __future__ import print_function
 import numpy as np
 import six
 
-from tensorflow_estimator.contrib.python.estimator import head as head_lib
+from tensorflow_estimator.contrib.estimator.python.estimator import head as head_lib
 from tensorflow.core.framework import summary_pb2
 from tensorflow_estimator.python.estimator import model_fn
 from tensorflow_estimator.python.estimator.canned import metric_keys
@@ -689,17 +689,26 @@ class MultiLabelHead(test.TestCase):
     keys = metric_keys.MetricKeys
     expected_metrics = {
         # Average loss over examples.
-        keys.LOSS_MEAN: expected_loss,
+        keys.LOSS_MEAN:
+            expected_loss,
         # auc and auc_pr cannot be reliably calculated for only 4 samples, but
         # this assert tests that the algorithm remains consistent.
-        keys.AUC: 0.3333,
-        keys.AUC_PR: 0.7639,
-        keys.PROBABILITY_MEAN_AT_CLASS % 0: np.sum(_sigmoid(logits[:, 0])) / 2.,
-        keys.AUC_AT_CLASS % 0: 0.,
-        keys.AUC_PR_AT_CLASS % 0: 1.,
-        keys.PROBABILITY_MEAN_AT_CLASS % 1: np.sum(_sigmoid(logits[:, 1])) / 2.,
-        keys.AUC_AT_CLASS % 1: 1.,
-        keys.AUC_PR_AT_CLASS % 1: 1.,
+        keys.AUC:
+            0.3333,
+        keys.AUC_PR:
+            0.7639,
+        keys.PROBABILITY_MEAN_AT_NAME % 'a':
+            np.sum(_sigmoid(logits[:, 0])) / 2.,
+        keys.AUC_AT_NAME % 'a':
+            0.,
+        keys.AUC_PR_AT_NAME % 'a':
+            1.,
+        keys.PROBABILITY_MEAN_AT_NAME % 'b':
+            np.sum(_sigmoid(logits[:, 1])) / 2.,
+        keys.AUC_AT_NAME % 'b':
+            1.,
+        keys.AUC_PR_AT_NAME % 'b':
+            1.,
     }
 
     self._test_eval(

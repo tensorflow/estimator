@@ -24,8 +24,8 @@ import tempfile
 import numpy as np
 import six
 
-from tensorflow_estimator.contrib.python.estimator import dnn
-from tensorflow_estimator.contrib.python.estimator import head as head_lib
+from tensorflow_estimator.contrib.estimator.python.estimator import dnn
+from tensorflow_estimator.contrib.estimator.python.estimator import head as head_lib
 from tensorflow_estimator.python.estimator.canned import dnn_testing_utils
 from tensorflow_estimator.python.estimator.canned import prediction_keys
 from tensorflow_estimator.python.estimator.export import export

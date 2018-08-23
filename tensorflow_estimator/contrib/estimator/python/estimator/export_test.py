@@ -26,7 +26,7 @@ from __future__ import print_function
 import os
 import tempfile
 
-from tensorflow_estimator.contrib.python.estimator import export as contrib_export
+from tensorflow_estimator.contrib.estimator.python.estimator import export as contrib_export
 from tensorflow.python.client import session
 from tensorflow_estimator.python.estimator import estimator
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib

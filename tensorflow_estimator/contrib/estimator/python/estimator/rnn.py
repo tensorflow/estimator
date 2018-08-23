@@ -20,7 +20,7 @@ from __future__ import print_function
 
 import six
 
-from tensorflow_estimator.contrib.python.estimator import extenders
+from tensorflow_estimator.contrib.estimator.python.estimator import extenders
 from tensorflow.contrib.feature_column.python.feature_column import sequence_feature_column as seq_fc
 from tensorflow_estimator.python.estimator import estimator
 from tensorflow_estimator.python.estimator.canned import head as head_lib

@@ -26,8 +26,8 @@ import numpy as np
 import six
 
 from tensorflow.contrib.data.python.ops import readers
-from tensorflow_estimator.contrib.python.estimator import head as head_lib
-from tensorflow_estimator.contrib.python.estimator import rnn
+from tensorflow_estimator.contrib.estimator.python.estimator import head as head_lib
+from tensorflow_estimator.contrib.estimator.python.estimator import rnn
 from tensorflow.contrib.feature_column.python.feature_column import sequence_feature_column as seq_fc
 from tensorflow.core.example import example_pb2
 from tensorflow.core.example import feature_pb2
