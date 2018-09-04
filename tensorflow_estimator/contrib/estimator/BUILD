@@ -10,7 +10,7 @@ licenses(["notice"])  # Apache 2.0
 
 py_library(
     name = "estimator_py",
-    srcs = ["estimator/__init__.py"],
+    srcs = ["__init__.py"],
     srcs_version = "PY2AND3",
     deps = [
         ":baseline",
@@ -33,7 +33,7 @@ py_library(
 
 py_library(
     name = "baseline",
-    srcs = ["estimator/python/estimator/baseline.py"],
+    srcs = ["python/estimator/baseline.py"],
     srcs_version = "PY2AND3",
     deps = [
         "//tensorflow_estimator/python/estimator",
@@ -44,7 +44,7 @@ py_library(
 py_test(
     name = "baseline_test",
     size = "small",
-    srcs = ["estimator/python/estimator/baseline_test.py"],
+    srcs = ["python/estimator/baseline_test.py"],
     srcs_version = "PY2AND3",
     tags = [
         "no_pip",
@@ -64,7 +64,7 @@ py_test(
 
 py_library(
     name = "boosted_trees",
-    srcs = ["estimator/python/estimator/boosted_trees.py"],
+    srcs = ["python/estimator/boosted_trees.py"],
     srcs_version = "PY2AND3",
     deps = [
         "//tensorflow_estimator/python/estimator",
@@ -75,7 +75,7 @@ py_library(
 py_test(
     name = "boosted_trees_test",
     size = "medium",
-    srcs = ["estimator/python/estimator/boosted_trees_test.py"],
+    srcs = ["python/estimator/boosted_trees_test.py"],
     srcs_version = "PY2AND3",
     tags = [
         "no_pip",
@@ -91,7 +91,7 @@ py_test(
 
 py_library(
     name = "dnn",
-    srcs = ["estimator/python/estimator/dnn.py"],
+    srcs = ["python/estimator/dnn.py"],
     srcs_version = "PY2AND3",
     deps = [
         "//tensorflow_estimator/python/estimator",
@@ -103,7 +103,7 @@ py_library(
 py_test(
     name = "dnn_test",
     size = "medium",
-    srcs = ["estimator/python/estimator/dnn_test.py"],
+    srcs = ["python/estimator/dnn_test.py"],
     srcs_version = "PY2AND3",
     tags = [
         "no_pip",
@@ -125,7 +125,7 @@ py_test(
 
 py_library(
     name = "dnn_linear_combined",
-    srcs = ["estimator/python/estimator/dnn_linear_combined.py"],
+    srcs = ["python/estimator/dnn_linear_combined.py"],
     srcs_version = "PY2AND3",
     deps = [
         "//tensorflow_estimator/python/estimator",
@@ -137,7 +137,7 @@ py_library(
 py_test(
     name = "dnn_linear_combined_test",
     size = "medium",
-    srcs = ["estimator/python/estimator/dnn_linear_combined_test.py"],
+    srcs = ["python/estimator/dnn_linear_combined_test.py"],
     shard_count = 3,
     srcs_version = "PY2AND3",
     tags = [
@@ -161,7 +161,7 @@ py_test(
 py_library(
     name = "extenders",
     srcs = [
-        "estimator/python/estimator/extenders.py",
+        "python/estimator/extenders.py",
     ],
     srcs_version = "PY2AND3",
     deps = [
@@ -176,7 +176,7 @@ py_library(
 py_test(
     name = "extenders_test",
     size = "medium",
-    srcs = ["estimator/python/estimator/extenders_test.py"],
+    srcs = ["python/estimator/extenders_test.py"],
     srcs_version = "PY2AND3",
     tags = ["notsan"],  # b/62863147
     deps = [
@@ -191,7 +191,7 @@ py_test(
 py_library(
     name = "export",
     srcs = [
-        "estimator/python/estimator/export.py",
+        "python/estimator/export.py",
     ],
     srcs_version = "PY2AND3",
     deps = [
@@ -202,7 +202,7 @@ py_library(
 py_test(
     name = "export_test",
     size = "medium",
-    srcs = ["estimator/python/estimator/export_test.py"],
+    srcs = ["python/estimator/export_test.py"],
     srcs_version = "PY2AND3",
     tags = ["notsan"],  # b/62863147
     deps = [
@@ -218,7 +218,7 @@ py_test(
 py_library(
     name = "head",
     srcs = [
-        "estimator/python/estimator/head.py",
+        "python/estimator/head.py",
     ],
     srcs_version = "PY2AND3",
     deps = [
@@ -234,7 +234,7 @@ py_library(
 py_test(
     name = "head_test",
     size = "medium",
-    srcs = ["estimator/python/estimator/head_test.py"],
+    srcs = ["python/estimator/head_test.py"],
     srcs_version = "PY2AND3",
     deps = [
         ":head",
@@ -250,7 +250,7 @@ py_test(
 py_library(
     name = "hooks",
     srcs = [
-        "estimator/python/estimator/hooks.py",
+        "python/estimator/hooks.py",
     ],
     srcs_version = "PY2AND3",
     deps = [
@@ -262,7 +262,7 @@ py_library(
 py_test(
     name = "hooks_test",
     size = "medium",
-    srcs = ["estimator/python/estimator/hooks_test.py"],
+    srcs = ["python/estimator/hooks_test.py"],
     srcs_version = "PY2AND3",
     tags = ["notsan"],
     deps = [
@@ -276,7 +276,7 @@ py_test(
 
 py_library(
     name = "linear",
-    srcs = ["estimator/python/estimator/linear.py"],
+    srcs = ["python/estimator/linear.py"],
     srcs_version = "PY2AND3",
     deps = [
         "//tensorflow_estimator/python/estimator",
@@ -287,7 +287,7 @@ py_library(
 py_test(
     name = "linear_test",
     size = "medium",
-    srcs = ["estimator/python/estimator/linear_test.py"],
+    srcs = ["python/estimator/linear_test.py"],
     srcs_version = "PY2AND3",
     tags = [
         "no_pip",
@@ -309,7 +309,7 @@ py_test(
 py_library(
     name = "logit_fns",
     srcs = [
-        "estimator/python/estimator/logit_fns.py",
+        "python/estimator/logit_fns.py",
     ],
     srcs_version = "PY2AND3",
     deps = [
@@ -322,7 +322,7 @@ py_library(
 py_test(
     name = "logit_fns_test",
     size = "small",
-    srcs = ["estimator/python/estimator/logit_fns_test.py"],
+    srcs = ["python/estimator/logit_fns_test.py"],
     srcs_version = "PY2AND3",
     deps = [
         ":logit_fns",
@@ -334,7 +334,7 @@ py_test(
 py_library(
     name = "multi_head",
     srcs = [
-        "estimator/python/estimator/multi_head.py",
+        "python/estimator/multi_head.py",
     ],
     srcs_version = "PY2AND3",
     deps = [
@@ -350,7 +350,7 @@ py_library(
 py_test(
     name = "multi_head_test",
     size = "small",
-    srcs = ["estimator/python/estimator/multi_head_test.py"],
+    srcs = ["python/estimator/multi_head_test.py"],
     srcs_version = "PY2AND3",
     deps = [
         ":head",
@@ -367,7 +367,7 @@ py_test(
 py_library(
     name = "replicate_model_fn",
     srcs = [
-        "estimator/python/estimator/replicate_model_fn.py",
+        "python/estimator/replicate_model_fn.py",
     ],
     srcs_version = "PY2AND3",
     deps = [
@@ -381,7 +381,7 @@ py_library(
 
 py_library(
     name = "rnn",
-    srcs = ["estimator/python/estimator/rnn.py"],
+    srcs = ["python/estimator/rnn.py"],
     srcs_version = "PY2AND3",
     deps = [
         ":extenders",
@@ -396,7 +396,7 @@ py_library(
 py_test(
     name = "rnn_test",
     size = "medium",
-    srcs = ["estimator/python/estimator/rnn_test.py"],
+    srcs = ["python/estimator/rnn_test.py"],
     srcs_version = "PY2AND3",
     tags = [
         "no_pip",
@@ -417,7 +417,7 @@ py_test(
 
 py_library(
     name = "early_stopping",
-    srcs = ["estimator/python/estimator/early_stopping.py"],
+    srcs = ["python/estimator/early_stopping.py"],
     srcs_version = "PY2AND3",
     deps = [
         "//tensorflow_estimator/python/estimator",
@@ -427,7 +427,7 @@ py_library(
 
 py_test(
     name = "early_stopping_test",
-    srcs = ["estimator/python/estimator/early_stopping_test.py"],
+    srcs = ["python/estimator/early_stopping_test.py"],
     srcs_version = "PY2AND3",
     deps = [
         ":early_stopping",

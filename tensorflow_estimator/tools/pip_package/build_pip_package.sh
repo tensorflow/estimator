@@ -41,8 +41,9 @@ function build_wheel() {
   # Make sure init files exist.
   touch "${TMPDIR}/tensorflow_estimator/__init__.py"
   touch "${TMPDIR}/tensorflow_estimator/contrib/__init__.py"
-  touch "${TMPDIR}/tensorflow_estimator/contrib/python/__init__.py"
-  touch "${TMPDIR}/tensorflow_estimator/contrib/python/estimator/__init__.py"
+  touch "${TMPDIR}/tensorflow_estimator/contrib/estimator/__init__.py"
+  touch "${TMPDIR}/tensorflow_estimator/contrib/estimator/python/__init__.py"
+  touch "${TMPDIR}/tensorflow_estimator/contrib/estimator/python/estimator/__init__.py"
   touch "${TMPDIR}/tensorflow_estimator/python/__init__.py"
   touch "${TMPDIR}/tensorflow_estimator/python/estimator/__init__.py"
   touch "${TMPDIR}/tensorflow_estimator/python/estimator/api/__init__.py"
@@ -53,7 +54,7 @@ function build_wheel() {
 
   pushd ${TMPDIR} > /dev/null
   echo $(date) : "=== Building wheel"
-  "${PYTHON_BIN_PATH:-python}" setup.py bdist_wheel >/dev/null
+  "${PYTHON_BIN_PATH:-python}" setup.py bdist_wheel --universal
   mkdir -p ${DEST}
   cp dist/* ${DEST}
   popd > /dev/null

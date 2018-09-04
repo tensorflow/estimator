@@ -4,7 +4,7 @@ package(default_visibility = ["//tensorflow_estimator:internal"])
 #  Tools for building the TensorFlow pip package.
 
 COMMON_PIP_DEPS = [
-    "//tensorflow_estimator/contrib:estimator_py",
+    "//tensorflow_estimator/contrib/estimator:estimator_py",
     "//tensorflow_estimator/python/estimator:estimator_py",
     "//tensorflow_estimator/python/estimator/api:estimator_python_api_gen",
 ]
