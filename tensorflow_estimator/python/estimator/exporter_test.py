@@ -352,7 +352,7 @@ class LatestExporterTest(test.TestCase):
           os.path.basename(export_dir_2) + b"/",
           os.path.basename(export_dir_3) + b"/",
           os.path.basename(export_dir_4) + b"/",
-      ]
+          ]
       exporter.export(estimator, export_dir_base, None, None, False)
 
     self.assertFalse(gfile.Exists(export_dir_1))

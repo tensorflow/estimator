@@ -146,11 +146,11 @@ class GcTest(test_util.TensorFlowTestCase):
       # gfile.ListDirectory returns directory names with separator '/'
       mock_list_directory.return_value = ["0/", "1/"]
       self.assertEqual(
-          gc._get_paths(base_dir, _create_parser(base_dir)), [
+          gc._get_paths(base_dir, _create_parser(base_dir)),
+          [
               gc.Path(os.path.join(base_dir, "0"), 0),
               gc.Path(os.path.join(base_dir, "1"), 1)
           ])
-
 
 if __name__ == "__main__":
   test.main()

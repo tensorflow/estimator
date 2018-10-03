@@ -42,7 +42,7 @@ class NumpyIoTest(test.TestCase):
     x = {'a': a, 'b': b}
     y = np.arange(-32, -28)
 
-    with self.test_session() as session:
+    with self.cached_session() as session:
       input_fn = numpy_io.numpy_input_fn(
           x, y, batch_size=2, shuffle=False, num_epochs=1)
       features, target = input_fn()
@@ -68,7 +68,7 @@ class NumpyIoTest(test.TestCase):
     x = {'a': a, 'b': b}
     y = np.arange(-32, -30)
 
-    with self.test_session() as session:
+    with self.cached_session() as session:
       input_fn = numpy_io.numpy_input_fn(
           x, y, batch_size=128, shuffle=False, num_epochs=2)
       features, target = input_fn()
@@ -93,7 +93,7 @@ class NumpyIoTest(test.TestCase):
     x = {'a': a, 'b': b}
     y = np.arange(-32, -28)
 
-    with self.test_session() as session:
+    with self.cached_session() as session:
       input_fn = numpy_io.numpy_input_fn(
           x, y, batch_size=2, shuffle=False, num_epochs=0)
       features, target = input_fn()
@@ -114,7 +114,7 @@ class NumpyIoTest(test.TestCase):
     x = {'a': a, 'b': b}
     y = np.arange(-32, -27)
 
-    with self.test_session() as session:
+    with self.cached_session() as session:
       input_fn = numpy_io.numpy_input_fn(
           x, y, batch_size=batch_size, shuffle=False, num_epochs=1)
       features, target = input_fn()
@@ -150,7 +150,7 @@ class NumpyIoTest(test.TestCase):
     x = {'a': a, 'b': b}
     y = np.arange(-32, -29)
 
-    with self.test_session() as session:
+    with self.cached_session() as session:
       input_fn = numpy_io.numpy_input_fn(
           x, y, batch_size=batch_size, shuffle=False, num_epochs=3)
       features, target = input_fn()
@@ -196,7 +196,7 @@ class NumpyIoTest(test.TestCase):
     x = {'a': a, 'b': b}
     y = np.arange(-32, -28)
 
-    with self.test_session() as session:
+    with self.cached_session() as session:
       input_fn = numpy_io.numpy_input_fn(
           x, y, batch_size=batch_size, shuffle=False, num_epochs=1)
       features, target = input_fn()
@@ -221,7 +221,7 @@ class NumpyIoTest(test.TestCase):
     x = {'a': a, 'b': b}
     y = np.arange(-32, -30)
 
-    with self.test_session() as session:
+    with self.cached_session() as session:
       input_fn = numpy_io.numpy_input_fn(
           x, y, batch_size=2, shuffle=False, num_epochs=1)
       features, target = input_fn()
@@ -240,7 +240,7 @@ class NumpyIoTest(test.TestCase):
   def testNumpyInputFnWithXAsNonDict(self):
     x = list(range(32, 36))
     y = np.arange(4)
-    with self.test_session():
+    with self.cached_session():
       with self.assertRaisesRegexp(TypeError, 'x must be a dict or array'):
         failing_input_fn = numpy_io.numpy_input_fn(
             x, y, batch_size=2, shuffle=False, num_epochs=1)
@@ -249,7 +249,7 @@ class NumpyIoTest(test.TestCase):
   def testNumpyInputFnWithXIsEmptyDict(self):
     x = {}
     y = np.arange(4)
-    with self.test_session():
+    with self.cached_session():
       with self.assertRaisesRegexp(ValueError, 'x cannot be an empty'):
         failing_input_fn = numpy_io.numpy_input_fn(x, y, shuffle=False)
         failing_input_fn()
@@ -257,7 +257,7 @@ class NumpyIoTest(test.TestCase):
   def testNumpyInputFnWithXIsEmptyArray(self):
     x = np.array([[], []])
     y = np.arange(4)
-    with self.test_session():
+    with self.cached_session():
       with self.assertRaisesRegexp(ValueError, 'x cannot be an empty'):
         failing_input_fn = numpy_io.numpy_input_fn(x, y, shuffle=False)
         failing_input_fn()
@@ -268,7 +268,7 @@ class NumpyIoTest(test.TestCase):
     x = {'a': a, 'b': b}
     y = None
 
-    with self.test_session() as session:
+    with self.cached_session() as session:
       input_fn = numpy_io.numpy_input_fn(
           x, y, batch_size=2, shuffle=False, num_epochs=1)
       features_tensor = input_fn()
@@ -291,7 +291,7 @@ class NumpyIoTest(test.TestCase):
   def testNumpyInputFnWithNonBoolShuffle(self):
     x = np.arange(32, 36)
     y = np.arange(4)
-    with self.test_session():
+    with self.cached_session():
       with self.assertRaisesRegexp(ValueError,
                                    'shuffle must be provided and explicitly '
                                    'set as boolean'):
@@ -303,7 +303,7 @@ class NumpyIoTest(test.TestCase):
     x = {'__target_key__': array}
     y = np.arange(4)
 
-    with self.test_session():
+    with self.cached_session():
       input_fn = numpy_io.numpy_input_fn(
           x, y, batch_size=2, shuffle=False, num_epochs=1)
       input_fn()
@@ -318,7 +318,7 @@ class NumpyIoTest(test.TestCase):
     x_mismatch_length = {'a': np.arange(1), 'b': b}
     y_longer_length = np.arange(10)
 
-    with self.test_session():
+    with self.cached_session():
       with self.assertRaisesRegexp(
           ValueError, 'Length of tensors in x and y is mismatched.'):
         failing_input_fn = numpy_io.numpy_input_fn(
@@ -341,7 +341,7 @@ class NumpyIoTest(test.TestCase):
     x = {'a': a, 'b': b}
     y = {'y1': np.arange(-32, -28), 'y2': np.arange(32, 28, -1)}
 
-    with self.test_session() as session:
+    with self.cached_session() as session:
       input_fn = numpy_io.numpy_input_fn(
           x, y, batch_size=2, shuffle=False, num_epochs=1)
       features_tensor, targets_tensor = input_fn()
@@ -369,7 +369,7 @@ class NumpyIoTest(test.TestCase):
     b = np.arange(32, 36)
     x = {'a': a, 'b': b}
     y = {}
-    with self.test_session():
+    with self.cached_session():
       with self.assertRaisesRegexp(ValueError, 'y cannot be empty'):
         failing_input_fn = numpy_io.numpy_input_fn(x, y, shuffle=False)
         failing_input_fn()
@@ -379,7 +379,7 @@ class NumpyIoTest(test.TestCase):
     b = np.arange(32, 36)
     x = {'a': a, 'b': b}
     y = {'y1': np.arange(-32, -28), 'a': a, 'y2': np.arange(32, 28, -1), 'b': b}
-    with self.test_session():
+    with self.cached_session():
       with self.assertRaisesRegexp(
           ValueError, '2 duplicate keys are found in both x and y'):
         failing_input_fn = numpy_io.numpy_input_fn(x, y, shuffle=False)
@@ -478,14 +478,15 @@ class FeatureColumnIntegrationTest(test.TestCase):
     return ops.get_collection(ops.GraphKeys.GLOBAL_VARIABLES,
                               name + '/' + column.name)[0]
 
-  def _get_keras_linear_model_predictions(self,
-                                          features,
-                                          feature_columns,
-                                          units=1,
-                                          sparse_combiner='sum',
-                                          weight_collections=None,
-                                          trainable=True,
-                                          cols_to_vars=None):
+  def _get_keras_linear_model_predictions(
+      self,
+      features,
+      feature_columns,
+      units=1,
+      sparse_combiner='sum',
+      weight_collections=None,
+      trainable=True,
+      cols_to_vars=None):
     keras_linear_model = _LinearModel(
         feature_columns,
         units,
@@ -500,12 +501,7 @@ class FeatureColumnIntegrationTest(test.TestCase):
 
   def test_linear_model_numpy_input_fn(self):
     price = fc.numeric_column('price')
-    price_buckets = fc.bucketized_column(
-        price, boundaries=[
-            0.,
-            10.,
-            100.,
-        ])
+    price_buckets = fc.bucketized_column(price, boundaries=[0., 10., 100.,])
     body_style = fc.categorical_column_with_vocabulary_list(
         'body-style', vocabulary_list=['hardtop', 'wagon', 'sedan'])
 
@@ -555,8 +551,8 @@ class FeatureColumnIntegrationTest(test.TestCase):
         batch_size=2,
         shuffle=False)
     features = input_fn()
-    net = self._get_keras_linear_model_predictions(features,
-                                                   [price_buckets, body_style])
+    net = self._get_keras_linear_model_predictions(
+        features, [price_buckets, body_style])
     # self.assertEqual(1 + 3 + 5, net.shape[1])
     with self._initialized_session() as sess:
       coord = coordinator.Coordinator()
@@ -581,7 +577,6 @@ class FeatureColumnIntegrationTest(test.TestCase):
         (6., 7., 8., 9., 10.),  # id 1
         (11., 12., 13., 14., 15.)  # id 2
     )
-
     def _initializer(shape, dtype, partition_info):
       del shape, dtype, partition_info
       return embedding_values
@@ -593,8 +588,8 @@ class FeatureColumnIntegrationTest(test.TestCase):
     # one_hot_body_style has 3 dims in input_layer.
     one_hot_body_style = fc.indicator_column(body_style)
     # embedded_body_style has 5 dims in input_layer.
-    embedded_body_style = fc.embedding_column(
-        body_style, dimension=5, initializer=_initializer)
+    embedded_body_style = fc.embedding_column(body_style, dimension=5,
+                                              initializer=_initializer)
 
     input_fn = numpy_io.numpy_input_fn(
         x={
@@ -613,12 +608,13 @@ class FeatureColumnIntegrationTest(test.TestCase):
 
       # Each row is formed by concatenating `embedded_body_style`,
       # `one_hot_body_style`, and `price` in order.
-      self.assertAllEqual([[11., 12., 13., 14., 15., 0., 0., 1., 11.],
-                           [1., 2., 3., 4., 5., 1., 0., 0., 12]], sess.run(net))
+      self.assertAllEqual(
+          [[11., 12., 13., 14., 15., 0., 0., 1., 11.],
+           [1., 2., 3., 4., 5., 1., 0., 0., 12]],
+          sess.run(net))
 
       coord.request_stop()
       coord.join(threads)
-
 
 if __name__ == '__main__':
   test.main()

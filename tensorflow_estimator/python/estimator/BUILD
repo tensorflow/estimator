@@ -198,6 +198,7 @@ py_library(
     srcs = ["canned/boosted_trees.py"],
     srcs_version = "PY2AND3",
     deps = [
+        ":boosted_trees_utils",
         ":estimator",
         ":head",
         ":model_fn",
@@ -209,6 +210,38 @@ py_test(
     name = "boosted_trees_test",
     size = "medium",
     srcs = ["canned/boosted_trees_test.py"],
+    shard_count = 2,
+    srcs_version = "PY2AND3",
+    tags = [
+        "manual",
+        "no_oss",
+        "notap",
+        "optonly",
+    ],
+    deps = [
+        ":boosted_trees",
+        ":inputs",
+        "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
+py_library(
+    name = "boosted_trees_utils",
+    srcs = ["canned/boosted_trees_utils.py"],
+    srcs_version = "PY2AND3",
+    deps = [
+        ":estimator",
+        ":head",
+        ":model_fn",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
+py_test(
+    name = "boosted_trees_utils_test",
+    size = "medium",
+    srcs = ["canned/boosted_trees_utils_test.py"],
     shard_count = 2,
     srcs_version = "PY2AND3",
     tags = [
@@ -248,6 +281,7 @@ py_library(
         ":model_fn",
         ":numpy_io",
         ":prediction_keys",
+        "//tensorflow_estimator/python/estimator:expect_absl_installed",
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
         "//tensorflow_estimator/python/estimator:expect_six_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
@@ -271,6 +305,7 @@ py_test(
         ":numpy_io",
         ":pandas_io",
         ":prediction_keys",
+        "//tensorflow_estimator/python/estimator:expect_absl_installed",
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
         "//tensorflow_estimator/python/estimator:expect_pandas_installed",
         "//tensorflow_estimator/python/estimator:expect_six_installed",
@@ -312,6 +347,7 @@ py_test(
         ":numpy_io",
         ":pandas_io",
         ":prediction_keys",
+        "//tensorflow_estimator/python/estimator:expect_absl_installed",
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
         "//tensorflow_estimator/python/estimator:expect_pandas_installed",
         "//tensorflow_estimator/python/estimator:expect_six_installed",
@@ -703,7 +739,7 @@ py_test(
     srcs_version = "PY2AND3",
     tags = [
         "no_windows",
-        "notsan",
+        "notsan",  # b/67510291
     ],
     deps = [
         ":keras",
@@ -713,6 +749,14 @@ py_test(
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
     ],
+)
+
+py_library(
+    name = "expect_absl_installed",
+    # This is a dummy rule used as a absl dependency in open-source.
+    # We expect absl to already be installed on the system, e.g. via
+    # `pip install absl`
+    visibility = ["//visibility:public"],
 )
 
 py_library(

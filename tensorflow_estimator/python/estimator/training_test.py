@@ -1301,7 +1301,9 @@ class TrainingExecutorRunEvaluatorTest(test.TestCase):
   def test_warning_if_throttle_secs_is_zero(self):
     training_max_step = 200
     mock_est = test.mock.Mock(spec=estimator_lib.Estimator)
-    mock_est.evaluate.side_effect = [{_GLOBAL_STEP_KEY: training_max_step}]
+    mock_est.evaluate.side_effect = [
+        {_GLOBAL_STEP_KEY: training_max_step}
+    ]
     mock_train_spec = test.mock.Mock(spec=training.TrainSpec)
     mock_train_spec.max_steps = training_max_step
 

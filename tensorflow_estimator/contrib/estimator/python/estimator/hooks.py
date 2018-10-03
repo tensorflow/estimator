@@ -53,6 +53,7 @@ class InMemoryEvaluatorHook(training.SessionRunHook):
   ```
 
   Current limitations of this approach are:
+
   * It doesn't support multi-node distributed mode.
   * It doesn't support saveable objects other than variables (such as boosted
     tree support)
@@ -220,7 +221,8 @@ class _StopAtCheckpointStepHook(training.SessionRunHook):
   hook.
   """
 
-  def __init__(self, model_dir, last_step, wait_after_file_check_secs=30):
+  def __init__(self, model_dir, last_step,
+               wait_after_file_check_secs=30):
     """Initializes a `StopAtCheckpointStepHook`.
 
     This hook requests stop after a last step has been reached. It checks latest

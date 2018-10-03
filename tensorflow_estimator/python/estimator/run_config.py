@@ -26,6 +26,7 @@ import six
 
 from tensorflow.core.protobuf import config_pb2
 from tensorflow.core.protobuf import rewriter_config_pb2
+from tensorflow.python.distribute import estimator_training as distribute_coordinator_training
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.training import server_lib
 from tensorflow.python.util import compat_internal
@@ -51,6 +52,7 @@ _DEFAULT_REPLACEABLE_LIST = [
     'device_fn',
     'protocol',
     'eval_distribute',
+    'experimental_distribute',
 ]
 
 _SAVE_CKPT_ERR = (
@@ -290,10 +292,9 @@ def _validate_properties(run_config):
             message='device_fn must be callable with exactly'
                     ' one argument "op".')
 
-  _validate(
-      'protocol',
-      lambda protocol: protocol in (None, 'grpc', 'grpc+verbs'),
-      message='protocol should be grpc or grpc+verbs')
+  _validate('protocol',
+            lambda protocol: protocol in (None, "grpc", "grpc+verbs"),
+            message='protocol should be grpc or grpc+verbs')
 
 
 def get_default_session_config():
@@ -303,8 +304,8 @@ def get_default_session_config():
       meta_optimizer_iterations=rewriter_config_pb2.RewriterConfig.ONE)
   graph_opts = config_pb2.GraphOptions(rewrite_options=rewrite_opts)
 
-  return config_pb2.ConfigProto(
-      allow_soft_placement=True, graph_options=graph_opts)
+  return config_pb2.ConfigProto(allow_soft_placement=True,
+                                graph_options=graph_opts)
 
 
 class TaskType(object):
@@ -332,7 +333,8 @@ class RunConfig(object):
                train_distribute=None,
                device_fn=None,
                protocol=None,
-               eval_distribute=None):
+               eval_distribute=None,
+               experimental_distribute=None):
     """Constructs a RunConfig.
 
     All distributed training related properties `cluster_spec`, `is_chief`,
@@ -459,7 +461,8 @@ class RunConfig(object):
       train_distribute: An optional instance of
         `tf.contrib.distribute.DistributionStrategy`. If specified,
         then Estimator will distribute the user's model during training,
-        according to the policy specified by that strategy.
+        according to the policy specified by that strategy. Setting
+        `experimental_distribute.train_distribute` is preferred.
       device_fn: A callable invoked for every `Operation` that takes the
         `Operation` and returns the device string. If `None`, defaults to
         the device function returned by `tf.train.replica_device_setter`
@@ -469,7 +472,13 @@ class RunConfig(object):
       eval_distribute: An optional instance of
         `tf.contrib.distribute.DistributionStrategy`. If specified,
         then Estimator will distribute the user's model during evaluation,
-        according to the policy specified by that strategy.
+        according to the policy specified by that strategy. Setting
+        `experimental_distribute.eval_distribute` is preferred.
+      experimental_distribute: an optional
+        `tf.contrib.distribute.DistributeConfig` object specifying
+        DistributionStrategy-related configuration. The `train_distribute` and
+        `eval_distribute` can be passed as parameters to `RunConfig` or set in
+        `experimental_distribute` but not both.
 
     Raises:
       ValueError: If both `save_checkpoints_steps` and `save_checkpoints_secs`
@@ -509,11 +518,20 @@ class RunConfig(object):
         train_distribute=train_distribute,
         device_fn=device_fn,
         protocol=protocol,
-        eval_distribute=eval_distribute)
+        eval_distribute=eval_distribute,
+        experimental_distribute=experimental_distribute)
 
-    self._init_distributed_setting_from_environment_var(tf_config)
-
-    self._maybe_overwrite_session_config_for_distributed_training()
+    # TODO(frankchn,priyag): Eventually use distributed coordinator for TPUs.
+    if ((train_distribute and
+         train_distribute.__class__.__name__ != 'TPUStrategy') or
+        (eval_distribute and
+         eval_distribute.__class__.__name__ != 'TPUStrategy') or
+        experimental_distribute):
+      logging.info('Initializing RunConfig with distribution strategies.')
+      distribute_coordinator_training.init_run_config(self, tf_config)
+    else:
+      self._init_distributed_setting_from_environment_var(tf_config)
+      self._maybe_overwrite_session_config_for_distributed_training()
 
   def _maybe_overwrite_session_config_for_distributed_training(self):
     """Overwrites the session_config for distributed training.
@@ -811,6 +829,7 @@ class RunConfig(object):
       - `device_fn`,
       - `protocol`.
       - `eval_distribute`,
+      - `experimental_distribute`,
 
     In addition, either `save_checkpoints_steps` or `save_checkpoints_secs`
     can be set (should not be both).
