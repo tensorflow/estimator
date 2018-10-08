@@ -22,11 +22,6 @@ import math
 
 import six
 
-from tensorflow_estimator.python.estimator import estimator
-from tensorflow_estimator.python.estimator.canned import dnn
-from tensorflow_estimator.python.estimator.canned import head as head_lib
-from tensorflow_estimator.python.estimator.canned import linear
-from tensorflow_estimator.python.estimator.canned import optimizers
 from tensorflow.python.feature_column import feature_column_v2
 from tensorflow.python.framework import ops
 from tensorflow.python.ops import control_flow_ops
@@ -39,6 +34,11 @@ from tensorflow.python.summary import summary
 from tensorflow.python.training import sync_replicas_optimizer
 from tensorflow.python.training import training_util
 from tensorflow.python.util.tf_export import estimator_export
+from tensorflow_estimator.python.estimator import estimator
+from tensorflow_estimator.python.estimator.canned import dnn
+from tensorflow_estimator.python.estimator.canned import head as head_lib
+from tensorflow_estimator.python.estimator.canned import linear
+from tensorflow_estimator.python.estimator.canned import optimizers
 
 # The default learning rates are a historical artifact of the initial
 # implementation.
@@ -167,7 +167,7 @@ def _dnn_linear_combined_model_fn(features,
         values=tuple(six.itervalues(features)),
         partitioner=dnn_partitioner) as scope:
       dnn_absolute_scope = scope.name
-      dnn_logit_fn = dnn._dnn_logit_fn_builder(  # pylint: disable=protected-access
+      dnn_logit_fn = dnn.dnn_logit_fn_builder(
           units=head.logits_dimension,
           hidden_units=dnn_hidden_units,
           feature_columns=dnn_feature_columns,
@@ -192,7 +192,7 @@ def _dnn_linear_combined_model_fn(features,
         values=tuple(six.itervalues(features)),
         partitioner=input_layer_partitioner) as scope:
       linear_absolute_scope = scope.name
-      logit_fn = linear._linear_logit_fn_builder(  # pylint: disable=protected-access
+      logit_fn = linear.linear_logit_fn_builder(
           units=head.logits_dimension,
           feature_columns=linear_feature_columns,
           sparse_combiner=linear_sparse_combiner)

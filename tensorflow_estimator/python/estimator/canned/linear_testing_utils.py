@@ -30,13 +30,6 @@ from tensorflow.core.example import example_pb2
 from tensorflow.core.example import feature_pb2
 from tensorflow.python.client import session as tf_session
 from tensorflow.python.data.ops import dataset_ops
-from tensorflow_estimator.python.estimator import estimator
-from tensorflow_estimator.python.estimator import run_config
-from tensorflow_estimator.python.estimator.canned import linear
-from tensorflow_estimator.python.estimator.canned import metric_keys
-from tensorflow_estimator.python.estimator.export import export
-from tensorflow_estimator.python.estimator.inputs import numpy_io
-from tensorflow_estimator.python.estimator.inputs import pandas_io
 from tensorflow.python.feature_column import feature_column
 from tensorflow.python.feature_column import feature_column_v2
 from tensorflow.python.framework import dtypes
@@ -62,6 +55,13 @@ from tensorflow.python.training import optimizer as optimizer_lib
 from tensorflow.python.training import queue_runner
 from tensorflow.python.training import saver
 from tensorflow.python.training import session_run_hook
+from tensorflow_estimator.python.estimator import estimator
+from tensorflow_estimator.python.estimator import run_config
+from tensorflow_estimator.python.estimator.canned import linear
+from tensorflow_estimator.python.estimator.canned import metric_keys
+from tensorflow_estimator.python.estimator.export import export
+from tensorflow_estimator.python.estimator.inputs import numpy_io
+from tensorflow_estimator.python.estimator.inputs import pandas_io
 
 try:
   # pylint: disable=g-import-not-at-top
@@ -1974,7 +1974,7 @@ class BaseLinearLogitFnTest(object):
     """linear_logit_fn simply wraps feature_column_lib.linear_model."""
     age = self._fc_lib.numeric_column('age')
     with ops.Graph().as_default():
-      logit_fn = linear._linear_logit_fn_builder(units=2, feature_columns=[age])
+      logit_fn = linear.linear_logit_fn_builder(units=2, feature_columns=[age])
       logits = logit_fn(features={'age': [[23.], [31.]]})
       bias_var = ops.get_collection(ops.GraphKeys.GLOBAL_VARIABLES,
                                     'linear_model/bias_weights')[0]

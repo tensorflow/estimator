@@ -22,9 +22,6 @@ import math
 
 import six
 
-from tensorflow_estimator.python.estimator import estimator
-from tensorflow_estimator.python.estimator.canned import head as head_lib
-from tensorflow_estimator.python.estimator.canned import optimizers
 from tensorflow.python.feature_column import feature_column
 from tensorflow.python.feature_column import feature_column_v2
 from tensorflow.python.ops import array_ops
@@ -38,7 +35,9 @@ from tensorflow.python.summary import summary
 from tensorflow.python.training import ftrl
 from tensorflow.python.util import nest
 from tensorflow.python.util.tf_export import estimator_export
-
+from tensorflow_estimator.python.estimator import estimator
+from tensorflow_estimator.python.estimator.canned import head as head_lib
+from tensorflow_estimator.python.estimator.canned import optimizers
 
 # The default learning rate of 0.2 is a historical artifact of the initial
 # implementation, but seems a reasonable choice.
@@ -89,7 +88,8 @@ def _compute_fraction_of_zero(variables):
   return nn.zero_fraction(array_ops.concat(all_weight_vars, axis=0))
 
 
-def _linear_logit_fn_builder(units, feature_columns, sparse_combiner='sum'):
+@estimator_export('estimator.experimental.linear_logit_fn_builder')
+def linear_logit_fn_builder(units, feature_columns, sparse_combiner='sum'):
   """Function builder for a linear logit_fn.
 
   Args:
@@ -202,7 +202,7 @@ def _linear_model_fn(features, labels, mode, head, feature_columns, optimizer,
       values=tuple(six.itervalues(features)),
       partitioner=partitioner):
 
-    logit_fn = _linear_logit_fn_builder(
+    logit_fn = linear_logit_fn_builder(
         units=head.logits_dimension, feature_columns=feature_columns,
         sparse_combiner=sparse_combiner)
     logits = logit_fn(features=features)

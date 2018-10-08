@@ -14,6 +14,7 @@ ESTIMATOR_API_INIT_FILES = [
     # BEGIN GENERATED ESTIMATOR FILES
     "__init__.py",
     "estimator/__init__.py",
+    "estimator/experimental/__init__.py",
     "estimator/export/__init__.py",
     "estimator/inputs/__init__.py",
     # END GENERATED ESTIMATOR FILES

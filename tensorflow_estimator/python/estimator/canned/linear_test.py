@@ -18,11 +18,11 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from tensorflow_estimator.python.estimator.canned import linear
-from tensorflow_estimator.python.estimator.canned import linear_testing_utils
 from tensorflow.python.feature_column import feature_column
 from tensorflow.python.feature_column import feature_column_v2
 from tensorflow.python.platform import test
+from tensorflow_estimator.python.estimator.canned import linear
+from tensorflow_estimator.python.estimator.canned import linear_testing_utils
 
 
 def _linear_regressor_fn(*args, **kwargs):

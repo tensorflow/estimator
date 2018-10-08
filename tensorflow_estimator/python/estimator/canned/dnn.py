@@ -20,10 +20,6 @@ from __future__ import print_function
 
 import six
 
-from tensorflow_estimator.python.estimator import estimator
-from tensorflow_estimator.python.estimator import model_fn
-from tensorflow_estimator.python.estimator.canned import head as head_lib
-from tensorflow_estimator.python.estimator.canned import optimizers
 from tensorflow.python.feature_column import feature_column
 from tensorflow.python.feature_column import feature_column_v2
 from tensorflow.python.framework import ops
@@ -37,6 +33,10 @@ from tensorflow.python.ops import variable_scope
 from tensorflow.python.ops.losses import losses
 from tensorflow.python.summary import summary
 from tensorflow.python.util.tf_export import estimator_export
+from tensorflow_estimator.python.estimator import estimator
+from tensorflow_estimator.python.estimator import model_fn
+from tensorflow_estimator.python.estimator.canned import head as head_lib
+from tensorflow_estimator.python.estimator.canned import optimizers
 
 # The default learning rate of 0.05 is a historical artifact of the initial
 # implementation, but seems a reasonable choice.
@@ -48,14 +48,15 @@ def _add_hidden_layer_summary(value, tag):
   summary.histogram('%s/activation' % tag, value)
 
 
-def _dnn_logit_fn_builder(units,
-                          hidden_units,
-                          feature_columns,
-                          activation_fn,
-                          dropout,
-                          input_layer_partitioner,
-                          batch_norm,
-                          shared_state_manager=None):
+@estimator_export('estimator.experimental.dnn_logit_fn_builder')
+def dnn_logit_fn_builder(units,
+                         hidden_units,
+                         feature_columns,
+                         activation_fn,
+                         dropout,
+                         input_layer_partitioner,
+                         batch_norm,
+                         shared_state_manager=None):
   """Function builder for a dnn logit_fn.
 
   Args:
@@ -288,7 +289,7 @@ def _dnn_model_fn(features,
             max_partitions=num_ps_replicas,
             min_slice_size=64 << 20))
 
-    logit_fn = _dnn_logit_fn_builder(
+    logit_fn = dnn_logit_fn_builder(
         units=head.logits_dimension,
         hidden_units=hidden_units,
         feature_columns=feature_columns,

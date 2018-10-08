@@ -41,15 +41,13 @@ from __future__ import print_function
 
 import six
 
-from tensorflow_estimator.python.estimator.canned import dnn as dnn_core
-from tensorflow_estimator.python.estimator.canned import linear as linear_core
 from tensorflow.python.framework import ops
 from tensorflow.python.util import function_utils
+from tensorflow_estimator.python.estimator.canned import dnn as dnn_core
+from tensorflow_estimator.python.estimator.canned import linear as linear_core
 
-# pylint: disable=protected-access
-dnn_logit_fn_builder = dnn_core._dnn_logit_fn_builder
-linear_logit_fn_builder = linear_core._linear_logit_fn_builder
-# pylint: enable=protected-access
+dnn_logit_fn_builder = dnn_core.dnn_logit_fn_builder
+linear_logit_fn_builder = linear_core.linear_logit_fn_builder
 
 
 def call_logit_fn(logit_fn, features, mode, params, config):

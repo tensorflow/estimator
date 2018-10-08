@@ -27,12 +27,6 @@ import six
 
 from tensorflow.core.example import example_pb2
 from tensorflow.core.example import feature_pb2
-from tensorflow_estimator.python.estimator.canned import dnn
-from tensorflow_estimator.python.estimator.canned import dnn_testing_utils
-from tensorflow_estimator.python.estimator.canned import prediction_keys
-from tensorflow_estimator.python.estimator.export import export
-from tensorflow_estimator.python.estimator.inputs import numpy_io
-from tensorflow_estimator.python.estimator.inputs import pandas_io
 from tensorflow.python.feature_column import feature_column
 from tensorflow.python.feature_column import feature_column_v2
 from tensorflow.python.framework import dtypes
@@ -44,6 +38,12 @@ from tensorflow.python.platform import test
 from tensorflow.python.summary.writer import writer_cache
 from tensorflow.python.training import input as input_lib
 from tensorflow.python.training import queue_runner
+from tensorflow_estimator.python.estimator.canned import dnn
+from tensorflow_estimator.python.estimator.canned import dnn_testing_utils
+from tensorflow_estimator.python.estimator.canned import prediction_keys
+from tensorflow_estimator.python.estimator.export import export
+from tensorflow_estimator.python.estimator.inputs import numpy_io
+from tensorflow_estimator.python.estimator.inputs import pandas_io
 
 try:
   # pylint: disable=g-import-not-at-top
@@ -81,7 +81,7 @@ class DNNLogitFnTest(dnn_testing_utils.BaseDNNLogitFnTest, test.TestCase):
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
     test.TestCase.__init__(self, methodName)
     dnn_testing_utils.BaseDNNLogitFnTest.__init__(
-        self, dnn._dnn_logit_fn_builder, fc_impl=feature_column)
+        self, dnn.dnn_logit_fn_builder, fc_impl=feature_column)
 
 
 class DNNLogitFnV2Test(dnn_testing_utils.BaseDNNLogitFnTest, test.TestCase):
@@ -89,7 +89,7 @@ class DNNLogitFnV2Test(dnn_testing_utils.BaseDNNLogitFnTest, test.TestCase):
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
     test.TestCase.__init__(self, methodName)
     dnn_testing_utils.BaseDNNLogitFnTest.__init__(
-        self, dnn._dnn_logit_fn_builder, fc_impl=feature_column_v2)
+        self, dnn.dnn_logit_fn_builder, fc_impl=feature_column_v2)
 
 
 class DNNWarmStartingTest(dnn_testing_utils.BaseDNNWarmStartingTest,

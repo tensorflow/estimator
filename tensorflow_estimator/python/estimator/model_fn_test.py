@@ -19,8 +19,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from tensorflow_estimator.python.estimator import model_fn
-from tensorflow_estimator.python.estimator.export import export_output
 from tensorflow.python.framework import constant_op
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import sparse_tensor
@@ -30,6 +28,8 @@ from tensorflow.python.platform import test
 from tensorflow.python.saved_model import signature_constants
 from tensorflow.python.training import monitored_session
 from tensorflow.python.training import session_run_hook
+from tensorflow_estimator.python.estimator import model_fn
+from tensorflow_estimator.python.estimator.export import export_output
 
 
 class _FakeHook(session_run_hook.SessionRunHook):
@@ -656,6 +656,75 @@ class EstimatorSpecInferTest(test.TestCase):
     serving_output = spec.export_outputs[
         signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY]
     self.assertEqual(serving_output.outputs, expected)
+
+
+class LogitFnTest(test.TestCase):
+
+  def test_simple_call_logit_fn(self):
+
+    def dummy_logit_fn(features, mode):
+      if mode == model_fn.ModeKeys.TRAIN:
+        return features['f1']
+      else:
+        return features['f2']
+
+    features = {
+        'f1': constant_op.constant([[2., 3.]]),
+        'f2': constant_op.constant([[4., 5.]])
+    }
+    logit_fn_result = model_fn.call_logit_fn(dummy_logit_fn, features,
+                                             model_fn.ModeKeys.EVAL,
+                                             'fake_params', 'fake_config')
+    with self.cached_session():
+      self.assertAllClose([[4., 5.]], logit_fn_result.eval())
+
+  def test_simple_call_multi_logit_fn(self):
+
+    def dummy_logit_fn(features):
+      return {u'head1': features['f1'], 'head2': features['f2']}
+
+    features = {
+        'f1': constant_op.constant([[2., 3.]]),
+        'f2': constant_op.constant([[4., 5.]])
+    }
+    logit_fn_result = model_fn.call_logit_fn(dummy_logit_fn, features,
+                                             model_fn.ModeKeys.TRAIN,
+                                             'fake_params', 'fake_config')
+    with self.cached_session():
+      self.assertAllClose([[2., 3.]], logit_fn_result['head1'].eval())
+      self.assertAllClose([[4., 5.]], logit_fn_result['head2'].eval())
+
+  def test_invalid_logit_fn_results(self):
+
+    def invalid_logit_fn(features, params):
+      return [
+          features['f1'] * params['input_multiplier'],
+          features['f2'] * params['input_multiplier']
+      ]
+
+    features = {
+        'f1': constant_op.constant([[2., 3.]]),
+        'f2': constant_op.constant([[4., 5.]])
+    }
+    params = {'learning_rate': 0.001, 'input_multiplier': 2.0}
+    with self.assertRaisesRegexp(
+        ValueError, 'logit_fn should return a Tensor or a dictionary mapping '
+        'strings to Tensors'):
+      model_fn.call_logit_fn(invalid_logit_fn, features, 'fake_mode', params,
+                             'fake_config')
+
+  def test_invalid_logit_fn_results_dict(self):
+
+    def invalid_logit_fn(features):
+      return {'head1': features['f1'], 'head2': features['f2']}
+
+    features = {'f1': constant_op.constant([[2., 3.]]), 'f2': 'some string'}
+    with self.assertRaisesRegexp(
+        ValueError, 'logit_fn should return a Tensor or a dictionary mapping '
+        'strings to Tensors'):
+      model_fn.call_logit_fn(invalid_logit_fn, features, 'fake_mode',
+                             'fake_params', 'fake_config')
+
 
 if __name__ == '__main__':
   test.main()

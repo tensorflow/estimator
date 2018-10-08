@@ -27,12 +27,6 @@ import six
 
 from tensorflow.core.framework import summary_pb2
 from tensorflow.python.client import session as tf_session
-from tensorflow_estimator.python.estimator import estimator
-from tensorflow_estimator.python.estimator import model_fn
-from tensorflow_estimator.python.estimator.canned import head as head_lib
-from tensorflow_estimator.python.estimator.canned import metric_keys
-from tensorflow_estimator.python.estimator.canned import prediction_keys
-from tensorflow_estimator.python.estimator.inputs import numpy_io
 from tensorflow.python.feature_column import feature_column
 from tensorflow.python.framework import constant_op
 from tensorflow.python.framework import dtypes
@@ -57,6 +51,12 @@ from tensorflow.python.training import optimizer as optimizer_lib
 from tensorflow.python.training import saver
 from tensorflow.python.training import session_run_hook
 from tensorflow.python.training import training_util
+from tensorflow_estimator.python.estimator import estimator
+from tensorflow_estimator.python.estimator import model_fn
+from tensorflow_estimator.python.estimator.canned import head as head_lib
+from tensorflow_estimator.python.estimator.canned import metric_keys
+from tensorflow_estimator.python.estimator.canned import prediction_keys
+from tensorflow_estimator.python.estimator.inputs import numpy_io
 
 # pylint rules which are disabled by default for test files.
 # pylint: disable=invalid-name,protected-access,missing-docstring

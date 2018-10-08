@@ -27,14 +27,6 @@ import six
 
 from tensorflow.core.example import example_pb2
 from tensorflow.core.example import feature_pb2
-from tensorflow_estimator.python.estimator import estimator
-from tensorflow_estimator.python.estimator.canned import dnn_linear_combined
-from tensorflow_estimator.python.estimator.canned import dnn_testing_utils
-from tensorflow_estimator.python.estimator.canned import linear_testing_utils
-from tensorflow_estimator.python.estimator.canned import prediction_keys
-from tensorflow_estimator.python.estimator.export import export
-from tensorflow_estimator.python.estimator.inputs import numpy_io
-from tensorflow_estimator.python.estimator.inputs import pandas_io
 from tensorflow.python.feature_column import feature_column
 from tensorflow.python.feature_column import feature_column_v2
 from tensorflow.python.framework import dtypes
@@ -49,6 +41,14 @@ from tensorflow.python.training import checkpoint_utils
 from tensorflow.python.training import gradient_descent
 from tensorflow.python.training import input as input_lib
 from tensorflow.python.training import optimizer as optimizer_lib
+from tensorflow_estimator.python.estimator import estimator
+from tensorflow_estimator.python.estimator.canned import dnn_linear_combined
+from tensorflow_estimator.python.estimator.canned import dnn_testing_utils
+from tensorflow_estimator.python.estimator.canned import linear_testing_utils
+from tensorflow_estimator.python.estimator.canned import prediction_keys
+from tensorflow_estimator.python.estimator.export import export
+from tensorflow_estimator.python.estimator.inputs import numpy_io
+from tensorflow_estimator.python.estimator.inputs import pandas_io
 
 
 try:
