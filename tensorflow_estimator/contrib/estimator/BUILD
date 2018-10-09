@@ -12,6 +12,7 @@ py_library(
     name = "estimator_py",
     srcs = ["__init__.py"],
     srcs_version = "PY2AND3",
+    visibility = ["//visibility:public"],
     deps = [
         ":baseline",
         ":boosted_trees",

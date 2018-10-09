@@ -9,11 +9,7 @@ py_library(
         "estimator_lib.py",
     ],
     srcs_version = "PY2AND3",
-    visibility = [
-        "//tensorflow_estimator:internal",
-        "//tensorflow_estimator/python/estimator/api:__pkg__",
-        "//third_party/py/tensorflow:__subpackages__",
-    ],
+    visibility = ["//visibility:public"],
     deps = [
         ":baseline",
         ":boosted_trees",
@@ -274,6 +270,7 @@ py_library(
     testonly = 1,
     srcs = ["canned/dnn_testing_utils.py"],
     srcs_version = "PY2AND3",
+    visibility = ["//visibility:public"],
     deps = [
         ":estimator",
         ":head",
@@ -560,6 +557,7 @@ py_library(
     testonly = 1,
     srcs = ["canned/linear_testing_utils.py"],
     srcs_version = "PY2AND3",
+    visibility = ["//visibility:public"],
     deps = [
         ":estimator",
         ":export_export",
