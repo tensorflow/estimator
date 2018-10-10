@@ -189,6 +189,31 @@ py_test(
     ],
 )
 
+py_test(
+    name = "baseline_estimator_test",
+    size = "medium",
+    srcs = ["canned/baseline_estimator_test.py"],
+    shard_count = 4,
+    srcs_version = "PY2AND3",
+    tags = [
+        "no_pip",
+        "noasan",  # test flakily times out in asan mode.
+        "notsan",  # b/67510291
+        "optonly",  # flakily times out in fastbuild
+    ],
+    deps = [
+        ":baseline",
+        ":estimator",
+        ":export_export",
+        ":metric_keys",
+        ":numpy_io",
+        ":run_config",
+        "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_six_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
 py_library(
     name = "boosted_trees",
     srcs = ["canned/boosted_trees.py"],

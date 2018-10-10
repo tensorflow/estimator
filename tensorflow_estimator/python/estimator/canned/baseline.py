@@ -24,10 +24,14 @@ Example:
 classifier = BaselineClassifier(n_classes=3)
 
 # Input builders
-def input_fn_train(): # returns x, y (where y represents label's class index).
+def input_fn_train():
+  # Returns tf.data.Dataset of (x, y) tuple where y represents label's class
+  # index.
   pass
 
-def input_fn_eval(): # returns x, y (where y represents label's class index).
+def input_fn_eval():
+  # Returns tf.data.Dataset of (x, y) tuple where y represents label's class
+  # index.
   pass
 
 # Fit model.
@@ -192,10 +196,14 @@ class BaselineClassifier(estimator.Estimator):
   classifier = BaselineClassifier(n_classes=3)
 
   # Input builders
-  def input_fn_train: # returns x, y (where y represents label's class index).
+  def input_fn_train:
+    # Returns tf.data.Dataset of (x, y) tuple where y represents label's class
+    # index.
     pass
 
-  def input_fn_eval: # returns x, y (where y represents label's class index).
+  def input_fn_eval:
+    # Returns tf.data.Dataset of (x, y) tuple where y represents label's class
+    # index.
     pass
 
   # Fit model.
@@ -260,11 +268,14 @@ class BaselineClassifier(estimator.Estimator):
       ValueError: If `n_classes` < 2.
     """
     if n_classes == 2:
+
+      # TODO(b/117517419): Update this reference once head moves to core.
       head = head_lib._binary_logistic_head_with_sigmoid_cross_entropy_loss(  # pylint: disable=protected-access
           weight_column=weight_column,
           label_vocabulary=label_vocabulary,
           loss_reduction=loss_reduction)
     else:
+      # TODO(b/117517419): Update this reference once head moves to core.
       head = head_lib._multi_class_head_with_softmax_cross_entropy_loss(  # pylint: disable=protected-access
           n_classes, weight_column=weight_column,
           label_vocabulary=label_vocabulary,
@@ -279,6 +290,91 @@ class BaselineClassifier(estimator.Estimator):
           weight_column=weight_column,
           config=config)
     super(BaselineClassifier, self).__init__(
+        model_fn=_model_fn,
+        model_dir=model_dir,
+        config=config)
+
+
+# TODO(b/117517419): Update these contrib references once head moves to core.
+# Also references to the "_Head" class need to be replaced with "Head".
+@estimator_export('estimator.BaselineEstimator')
+class BaselineEstimator(estimator.Estimator):
+  """An estimator that can establish a simple baseline.
+
+  The estimator uses a user-specified head.
+
+  This estimator ignores feature values and will learn to predict the average
+  value of each label. E.g. for single-label classification problems, this will
+  predict the probability distribution of the classes as seen in the labels.
+  For multi-label classification problems, it will predict the ratio of examples
+  that contain each class.
+
+  Example:
+
+  ```python
+
+  # Build baseline multi-label classifier.
+  estimator = BaselineEstimator(
+      head=tf.contrib.estimator.multi_label_head(n_classes=3))
+
+  # Input builders
+  def input_fn_train:
+    # Returns tf.data.Dataset of (x, y) tuple where y represents label's class
+    # index.
+    pass
+
+  def input_fn_eval:
+    # Returns tf.data.Dataset of (x, y) tuple where y represents label's class
+    # index.
+    pass
+
+  # Fit model.
+  estimator.train(input_fn=input_fn_train)
+
+  # Evaluates cross entropy between the test and train labels.
+  loss = estimator.evaluate(input_fn=input_fn_eval)["loss"]
+
+  # For each class, predicts the ratio of training examples that contain the
+  # class.
+  predictions = estimator.predict(new_samples)
+
+  ```
+
+  Input of `train` and `evaluate` should have following features,
+    otherwise there will be a `KeyError`:
+
+  * if `weight_column` is specified in the `head` constructor (and not None) for
+    the head passed to BaselineEstimator's constructor, a feature with
+    `key=weight_column` whose value is a `Tensor`.
+  """
+
+  def __init__(self,
+               head,
+               model_dir=None,
+               optimizer='Ftrl',
+               config=None):
+    """Initializes a BaselineEstimator instance.
+
+    Args:
+      head: A `_Head` instance constructed with a method such as
+        `tf.contrib.estimator.multi_label_head`.
+      model_dir: Directory to save model parameters, graph and etc. This can
+        also be used to load checkpoints from the directory into a estimator to
+        continue training a previously saved model.
+      optimizer: String, `tf.Optimizer` object, or callable that creates the
+        optimizer to use for training. If not specified, will use
+        `FtrlOptimizer` with a default learning rate of 0.3.
+      config: `RunConfig` object to configure the runtime settings.
+    """
+    def _model_fn(features, labels, mode, config):
+      return _baseline_model_fn(
+          features=features,
+          labels=labels,
+          mode=mode,
+          head=head,
+          optimizer=optimizer,
+          config=config)
+    super(BaselineEstimator, self).__init__(
         model_fn=_model_fn,
         model_dir=model_dir,
         config=config)
@@ -299,10 +395,14 @@ class BaselineRegressor(estimator.Estimator):
   regressor = BaselineRegressor()
 
   # Input builders
-  def input_fn_train: # returns x, y (where y is the label).
+  def input_fn_train:
+    # Returns tf.data.Dataset of (x, y) tuple where y represents label's class
+    # index.
     pass
 
-  def input_fn_eval: # returns x, y (where y is the label).
+  def input_fn_eval:
+    # Returns tf.data.Dataset of (x, y) tuple where y represents label's class
+    # index.
     pass
 
   # Fit model.
@@ -358,6 +458,7 @@ class BaselineRegressor(estimator.Estimator):
       A `BaselineRegressor` estimator.
     """
 
+    # TODO(b/117517419): Update this reference once head moves to core.
     head = head_lib._regression_head(  # pylint: disable=protected-access
         label_dimension=label_dimension,
         weight_column=weight_column,
