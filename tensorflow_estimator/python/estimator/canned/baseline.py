@@ -297,9 +297,7 @@ class BaselineClassifier(estimator.Estimator):
 
 # TODO(b/117517419): Update these contrib references once head moves to core.
 # Also references to the "_Head" class need to be replaced with "Head".
-# TODO(mikecase): Uncomment once API compat test has been switched over to
-# point towards Estimator code in tensorflow_estimator.
-# @estimator_export('estimator.BaselineEstimator')
+@estimator_export('estimator.BaselineEstimator')
 class BaselineEstimator(estimator.Estimator):
   """An estimator that can establish a simple baseline.
 
