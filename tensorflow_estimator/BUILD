@@ -11,5 +11,6 @@ package_group(
         "//learning/brain/...",
         "//tensorflow_estimator/...",
         "//third_party/tensorflow/contrib/...",
+        "//third_party/tensorflow/python/estimator/...",
     ],
 )

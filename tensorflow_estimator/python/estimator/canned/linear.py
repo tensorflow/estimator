@@ -88,7 +88,9 @@ def _compute_fraction_of_zero(variables):
   return nn.zero_fraction(array_ops.concat(all_weight_vars, axis=0))
 
 
-@estimator_export('estimator.experimental.linear_logit_fn_builder')
+# TODO(mikecase): Uncomment once API compat test has been switched over to
+# point towards Estimator code in tensorflow_estimator.
+# @estimator_export('estimator.experimental.linear_logit_fn_builder')
 def linear_logit_fn_builder(units, feature_columns, sparse_combiner='sum'):
   """Function builder for a linear logit_fn.
 
