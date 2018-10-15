@@ -268,7 +268,6 @@ class BaselineClassifier(estimator.Estimator):
       ValueError: If `n_classes` < 2.
     """
     if n_classes == 2:
-
       # TODO(b/117517419): Update this reference once head moves to core.
       head = head_lib._binary_logistic_head_with_sigmoid_cross_entropy_loss(  # pylint: disable=protected-access
           weight_column=weight_column,
