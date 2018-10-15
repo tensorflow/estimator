@@ -20,6 +20,7 @@ from __future__ import print_function
 
 # pylint: disable=unused-import,line-too-long,wildcard-import
 from tensorflow_estimator.python.estimator.canned.baseline import BaselineClassifier
+from tensorflow_estimator.python.estimator.canned.baseline import BaselineEstimator
 from tensorflow_estimator.python.estimator.canned.baseline import BaselineRegressor
 from tensorflow_estimator.python.estimator.canned.boosted_trees import BoostedTreesClassifier
 from tensorflow_estimator.python.estimator.canned.boosted_trees import BoostedTreesRegressor
