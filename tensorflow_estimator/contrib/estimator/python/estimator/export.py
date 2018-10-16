@@ -178,8 +178,8 @@ def export_all_saved_models(
       export_dir_base='my_model/',
       input_receiver_fn_map=rcvr_fn_map)
 
-  # export_dirs is a dict of directories with SavedModels, which
-  # can be used for serving, analysis with TFMA, or directly loaded in.
+  # export_dir is a directory with SavedModels, which can be used for serving,
+  # analysis with TFMA, or directly loaded in.
   with ops.Graph().as_default() as graph:
     with session.Session(graph=graph) as sess:
       loader.load(sess, [tag_constants.TRAINING], export_dir)
@@ -204,8 +204,7 @@ def export_all_saved_models(
       [Stripping Default-Valued Attributes](https://github.com/tensorflow/tensorflow/blob/master/tensorflow/python/saved_model/README.md#stripping-default-valued-attributes).
 
   Returns:
-    A dict of tf.estimator.ModeKeys value to string path for each exported
-    directory.
+    The string path to the exported directory.
 
   Raises:
     ValueError: if any input_receiver_fn is None, no export_outputs

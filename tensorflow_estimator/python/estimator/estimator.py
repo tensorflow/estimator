@@ -860,8 +860,7 @@ class Estimator(object):
         Attributes](https://github.com/tensorflow/tensorflow/blob/master/tensorflow/python/saved_model/README.md#stripping-default-valued-attributes).
 
     Returns:
-      A dict of `tf.estimator.ModeKeys` value to string path for each exported
-      directory.
+      The string path to the exported directory.
 
     Raises:
       ValueError: if any `input_receiver_fn` is `None`, no `export_outputs`
