@@ -352,30 +352,6 @@ py_library(
 )
 
 py_test(
-    name = "dnn_linear_combined_estimator_test",
-    size = "medium",
-    srcs = ["canned/dnn_linear_combined_estimator_test.py"],
-    shard_count = 3,
-    srcs_version = "PY2AND3",
-    tags = [
-        "no_pip",
-        "notsan",
-    ],
-    deps = [
-        ":dnn_linear_combined",
-        ":head",
-        "//tensorflow_estimator/python/estimator:expect_numpy_installed",
-        "//tensorflow_estimator/python/estimator:expect_six_installed",
-        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
-        "//third_party/tensorflow/python/estimator:dnn_testing_utils",
-        "//third_party/tensorflow/python/estimator:export_export",
-        "//third_party/tensorflow/python/estimator:linear_testing_utils",
-        "//third_party/tensorflow/python/estimator:numpy_io",
-        "//third_party/tensorflow/python/estimator:prediction_keys",
-    ],
-)
-
-py_test(
     name = "dnn_linear_combined_test",
     size = "medium",
     srcs = ["canned/dnn_linear_combined_test.py"],
