@@ -100,7 +100,7 @@ class EstimatorSpecTrainTest(test.TestCase):
 
   def testLossMissing(self):
     with ops.Graph().as_default(), self.cached_session():
-      with self.assertRaisesRegexp(ValueError, '`loss` cannot be None'):
+      with self.assertRaisesRegexp(ValueError, 'Missing loss'):
         model_fn.EstimatorSpec(
             mode=model_fn.ModeKeys.TRAIN, train_op=control_flow_ops.no_op())
 
@@ -137,7 +137,7 @@ class EstimatorSpecTrainTest(test.TestCase):
 
   def testTrainOpMissing(self):
     with ops.Graph().as_default(), self.cached_session():
-      with self.assertRaisesRegexp(ValueError, '`train_op` cannot be None'):
+      with self.assertRaisesRegexp(ValueError, 'Missing train_op'):
         model_fn.EstimatorSpec(
             mode=model_fn.ModeKeys.TRAIN, loss=constant_op.constant(1.))
 
@@ -277,7 +277,7 @@ class EstimatorSpecEvalTest(test.TestCase):
 
   def testLossMissing(self):
     with ops.Graph().as_default(), self.cached_session():
-      with self.assertRaisesRegexp(ValueError, '`loss` cannot be None'):
+      with self.assertRaisesRegexp(ValueError, 'Missing loss'):
         model_fn.EstimatorSpec(
             mode=model_fn.ModeKeys.EVAL,
             predictions={'loss': constant_op.constant(1.)})
@@ -523,7 +523,7 @@ class EstimatorSpecInferTest(test.TestCase):
 
   def testPredictionsMissing(self):
     with ops.Graph().as_default(), self.cached_session():
-      with self.assertRaisesRegexp(ValueError, '`predictions` cannot be None'):
+      with self.assertRaisesRegexp(ValueError, 'Missing predictions'):
         model_fn.EstimatorSpec(mode=model_fn.ModeKeys.PREDICT)
 
   def testPredictionsTensor(self):

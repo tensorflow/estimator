@@ -185,16 +185,14 @@ class EstimatorSpec(
     # Validate train_op.
     if train_op is None:
       if mode == ModeKeys.TRAIN:
-        raise ValueError('`train_op` cannot be None in TRAIN mode. '
-                         'Please add a valid train_op to your EstimatorSpec.')
+        raise ValueError('Missing train_op.')
     else:
       _check_is_tensor_or_operation(train_op, 'train_op')
 
     # Validate loss.
     if loss is None:
       if mode in (ModeKeys.TRAIN, ModeKeys.EVAL):
-        raise ValueError('`loss` cannot be None in TRAIN or EVAL modes. '
-                         'Please add a valid loss to your EstimatorSpec.')
+        raise ValueError('Missing loss.')
     else:
       loss = _check_is_tensor(loss, 'loss')
       loss_shape = loss.get_shape()
@@ -206,9 +204,7 @@ class EstimatorSpec(
     # Validate predictions.
     if predictions is None:
       if mode == ModeKeys.PREDICT:
-        raise ValueError('`predictions` cannot be None in PREDICT mode. '
-                         'Please add a valid predictions dictionary to your '
-                         'EstimatorSpec.')
+        raise ValueError('Missing predictions.')
       predictions = {}
     else:
       if isinstance(predictions, dict):
