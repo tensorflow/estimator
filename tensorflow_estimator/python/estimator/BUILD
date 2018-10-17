@@ -578,6 +578,39 @@ py_test(
 )
 
 py_library(
+    name = "head_v2",
+    srcs = ["head_v2.py"],
+    srcs_version = "PY2AND3",
+    deps = [
+        ":export_output",
+        ":head",
+        ":metric_keys",
+        ":model_fn",
+        ":prediction_keys",
+        "//tensorflow_estimator/python/estimator:expect_six_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
+py_test(
+    name = "head_v2_test",
+    size = "medium",
+    srcs = ["head_v2_test.py"],
+    shard_count = 4,
+    srcs_version = "PY2AND3",
+    deps = [
+        ":head_v2",
+        ":metric_keys",
+        ":model_fn",
+        ":numpy_io",
+        ":prediction_keys",
+        "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_six_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
+py_library(
     name = "inputs",
     srcs = ["inputs/inputs.py"],
     srcs_version = "PY2AND3",
