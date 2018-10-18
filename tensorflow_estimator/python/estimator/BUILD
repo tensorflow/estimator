@@ -18,6 +18,7 @@ py_library(
         ":estimator",
         ":export",
         ":exporter",
+        ":extenders",
         ":inputs",
         ":keras",
         ":linear",
@@ -49,6 +50,32 @@ py_test(
     deps = [
         ":estimator",
         ":exporter",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
+py_library(
+    name = "extenders",
+    srcs = ["extenders.py"],
+    srcs_version = "PY2AND3",
+    deps = [
+        ":estimator",
+        ":model_fn",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
+py_test(
+    name = "extenders_test",
+    size = "medium",
+    srcs = ["extenders_test.py"],
+    srcs_version = "PY2AND3",
+    tags = ["notsan"],  # b/62863147
+    deps = [
+        ":extenders",
+        ":linear",
+        ":run_config",
+        "//tensorflow_estimator/python/estimator:expect_numpy_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
     ],
 )
