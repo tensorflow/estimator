@@ -88,7 +88,9 @@ def _compute_fraction_of_zero(variables):
   return nn.zero_fraction(array_ops.concat(all_weight_vars, axis=0))
 
 
-@estimator_export('estimator.experimental.linear_logit_fn_builder')
+# TODO(mikecase): Uncomment once API compat test has been switched over to
+# point towards Estimator code in tensorflow_estimator.
+# @estimator_export('estimator.experimental.linear_logit_fn_builder')
 def linear_logit_fn_builder(units, feature_columns, sparse_combiner='sum'):
   """Function builder for a linear logit_fn.
 
@@ -156,6 +158,10 @@ def linear_logit_fn_builder(units, feature_columns, sparse_combiner='sum'):
     return logits
 
   return linear_logit_fn
+
+
+# TODO(mikecase): Remove callers of private _dnn_logit_fn_builder
+_linear_logit_fn_builder = linear_logit_fn_builder
 
 
 def _linear_model_fn(features, labels, mode, head, feature_columns, optimizer,

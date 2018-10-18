@@ -521,7 +521,9 @@ def export_outputs_for_mode(
         'Export output type not found for mode: {}'.format(mode))
 
 
-@estimator_export('estimator.experimental.call_logit_fn')
+# TODO(mikecase): Uncomment once API compat test has been switched over to
+# point towards Estimator code in tensorflow_estimator.
+# @estimator_export('estimator.experimental.call_logit_fn')
 def call_logit_fn(logit_fn, features, mode, params, config):
   """Calls logit_fn (experimental).
 

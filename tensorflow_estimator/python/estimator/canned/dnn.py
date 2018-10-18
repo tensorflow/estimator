@@ -48,7 +48,9 @@ def _add_hidden_layer_summary(value, tag):
   summary.histogram('%s/activation' % tag, value)
 
 
-@estimator_export('estimator.experimental.dnn_logit_fn_builder')
+# TODO(mikecase): Uncomment once API compat test has been switched over to
+# point towards Estimator code in tensorflow_estimator.
+# @estimator_export('estimator.experimental.dnn_logit_fn_builder')
 def dnn_logit_fn_builder(units,
                          hidden_units,
                          feature_columns,
@@ -110,6 +112,10 @@ def dnn_logit_fn_builder(units,
     return dnn_model(features, mode)
 
   return dnn_logit_fn
+
+
+# TODO(mikecase): Remove callers of private _dnn_logit_fn_builder
+_dnn_logit_fn_builder = dnn_logit_fn_builder
 
 
 def _get_previous_name_scope():
