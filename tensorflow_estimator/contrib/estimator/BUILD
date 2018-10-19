@@ -14,7 +14,6 @@ py_library(
     srcs_version = "PY2AND3",
     visibility = ["//visibility:public"],
     deps = [
-        ":baseline",
         ":boosted_trees",
         ":dnn",
         ":dnn_linear_combined",
@@ -32,37 +31,6 @@ py_library(
         ":rnn",
         ":saved_model_estimator",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
-    ],
-)
-
-py_library(
-    name = "baseline",
-    srcs = ["python/estimator/baseline.py"],
-    srcs_version = "PY2AND3",
-    deps = [
-        "//tensorflow_estimator/python/estimator",
-        "//tensorflow_estimator/python/estimator:baseline",
-    ],
-)
-
-py_test(
-    name = "baseline_test",
-    size = "small",
-    srcs = ["python/estimator/baseline_test.py"],
-    srcs_version = "PY2AND3",
-    tags = [
-        "no_pip",
-        "notsan",
-    ],
-    deps = [
-        ":baseline",
-        ":head",
-        "//tensorflow_estimator/python/estimator:expect_numpy_installed",
-        "//tensorflow_estimator/python/estimator:expect_six_installed",
-        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
-        "//tensorflow_estimator/python/estimator:export_export",
-        "//tensorflow_estimator/python/estimator:metric_keys",
-        "//tensorflow_estimator/python/estimator:numpy_io",
     ],
 )
 
