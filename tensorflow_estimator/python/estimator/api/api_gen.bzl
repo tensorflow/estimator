@@ -38,16 +38,16 @@ ESTIMATOR_API_INIT_FILES = [
 #     must be included in sources.
 #   api_name: Name of the project that you want to generate API files for
 #     (e.g. "tensorflow" or "estimator").
-#   package: Python package containing the @tf_export decorators you want to
+#   packages: Python package containing the @tf_export decorators you want to
 #     process
-#   package_dep: Python library target containing your package.
+#   package_deps: Python library target containing your package.
 
 def gen_api_init_files(
         name,
         output_files = ESTIMATOR_API_INIT_FILES,
         output_package = "tensorflow_estimator.python.estimator.api",
-        package = "tensorflow_estimator.python.estimator",
-        package_dep = "//tensorflow_estimator/python/estimator:estimator_py",
+        packages = ["tensorflow_estimator.python.estimator"],
+        package_deps = ["//tensorflow_estimator/python/estimator:estimator_py"],
         srcs = [],
         api_name = "estimator"):
     api_gen_binary_target = "create_estimator_api"
@@ -57,9 +57,7 @@ def gen_api_init_files(
         main = "//tensorflow_estimator/python/estimator/api:create_python_api_wrapper.py",
         srcs_version = "PY2AND3",
         visibility = ["//visibility:public"],
-        deps = [
-            package_dep,
-        ],
+        deps = package_deps,
     )
 
     native.genrule(
@@ -68,7 +66,7 @@ def gen_api_init_files(
         cmd = (
             "$(location :" + api_gen_binary_target + ") " +
             " --apidir=$(@D) --apiname=" + api_name +
-            " --package=" + package +
+            " --package=" + ",".join(packages) +
             " --output_package=" + output_package + " $(OUTS)"
         ),
         srcs = srcs,

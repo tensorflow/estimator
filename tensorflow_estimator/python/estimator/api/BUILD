@@ -10,6 +10,6 @@ gen_api_init_files(
     api_name = "estimator",
     output_files = ESTIMATOR_API_INIT_FILES,
     output_package = "tensorflow_estimator.python.estimator.api",
-    package = "tensorflow_estimator.python.estimator",
-    package_dep = "//tensorflow_estimator/python/estimator:estimator_py",
+    package_deps = ["//tensorflow_estimator/python/estimator:estimator_py"],
+    packages = ["tensorflow_estimator.python.estimator"],
 )
