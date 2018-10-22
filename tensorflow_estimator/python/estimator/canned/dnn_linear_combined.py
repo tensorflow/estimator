@@ -449,7 +449,7 @@ class DNNLinearCombinedClassifier(estimator.Estimator):
 
 # TODO(b/117517419): Update these contrib references once head moves to core.
 # Also references to the "_Head" class need to be replaced with "Head".
-# @estimator_export('estimator.DNNLinearCombinedEstimator')
+@estimator_export('estimator.DNNLinearCombinedEstimator')
 class DNNLinearCombinedEstimator(estimator.Estimator):
   """An estimator for TensorFlow Linear and DNN joined models with custom head.
 
