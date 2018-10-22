@@ -19,17 +19,22 @@ from __future__ import division
 from __future__ import print_function
 
 import abc
+
 import six
 
 from tensorflow.python.eager import context
 from tensorflow.python.feature_column import feature_column as feature_column_lib
+from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import sparse_tensor
 from tensorflow.python.keras import metrics
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import check_ops
 from tensorflow.python.ops import control_flow_ops
+from tensorflow.python.ops import lookup_ops
 from tensorflow.python.ops import math_ops
+from tensorflow.python.ops import nn
+from tensorflow.python.ops import string_ops
 from tensorflow.python.ops import weights_broadcast_ops
 from tensorflow.python.ops.losses import losses
 from tensorflow.python.summary import summary
@@ -230,6 +235,9 @@ class Head(object):
     """
     raise NotImplementedError('Calling an abstract method.')
 
+  def _summary_key(self, key):
+    return '{}/{}'.format(key, self.name) if self.name else key
+
   def create_estimator_spec(
       self, features, mode, logits, labels=None, optimizer=None,
       train_op_fn=None, regularization_losses=None):
@@ -311,6 +319,32 @@ class Head(object):
 # tensor static shape is used for checking. The duplication of shape checking
 # for eager mode in the following helper functions can be safely removed
 # if there's some way to get around it in the future.
+
+# Label shape error messages.
+_LABEL_NONE_ERR_MSG = (
+    'You must provide a labels Tensor. Given: None. '
+    'Suggested troubleshooting steps: Check that your data contains your label '
+    'feature. Check that your input_fn properly parses and returns labels.')
+
+_SPARSE_LABEL_ERR_MSG = (
+    'SparseTensor labels are not supported. Labels must be a Tensor of shape '
+    '[D0, D1, ..., DN, {}], e.g. [batch_size, {}].Suggested Fix (1): Check the'
+    ' label feature in your data. Each example must contain {} value(s). If '
+    'not, your choice of label was probably incorrect. Suggested Fix (2): In '
+    'your input_fn, use tf.sparse_tensor_to_dense() to turn labels into a '
+    'Tensor.')
+
+_MISMATCHED_LABEL_DIM_ERR_MSG = (
+    'Mismatched label shape. Expected labels dimension={}.  Received {}. '
+    'Suggested Fix: If your classifier expects one-hot encoding label, check '
+    'your n_classes argument to the estimator and/or the shape of your label. '
+    'Otherwise, check the shape of your label.')
+
+_LABEL_SHAPE_ERR_MSG = (
+    'labels shape must be [D0, D1, ... DN, {}]. Suggested Fix: check your '
+    'n_classes argument to the head and/or the shape of your label.')
+
+
 def _check_dense_labels_match_logits_and_reshape(
     labels, logits, expected_labels_dimension):
   """Checks labels shape matches logits, and reshapes if needed.
@@ -334,25 +368,13 @@ def _check_dense_labels_match_logits_and_reshape(
     OpError: If labels shape is not statically defined and fails validation.
   """
   if labels is None:
-    raise ValueError(
-        'You must provide a labels Tensor. Given: None. '
-        'Suggested troubleshooting steps: Check that your data contains '
-        'your label feature. Check that your input_fn properly parses and '
-        'returns labels.')
+    raise ValueError(_LABEL_NONE_ERR_MSG)
   with ops.name_scope(None, 'labels', (labels, logits)) as scope:
     labels = sparse_tensor.convert_to_tensor_or_sparse_tensor(labels)
     if isinstance(labels, sparse_tensor.SparseTensor):
-      raise ValueError(
-          'SparseTensor labels are not supported. '
-          'labels must be a Tensor of shape [D0, D1, ..., DN, %s], '
-          'e.g. [batch_size, %s]. '
-          'Suggested Fix (1): Check the label feature in your data. '
-          'Each example must contain %s value(s). If not, your choice of label '
-          'was probably incorrect. '
-          'Suggested Fix (2): In your input_fn, use '
-          'tf.sparse_tensor_to_dense() to turn labels into a Tensor.'
-          '' % (expected_labels_dimension, expected_labels_dimension,
-                expected_labels_dimension))
+      raise ValueError(_SPARSE_LABEL_ERR_MSG.format(
+          expected_labels_dimension, expected_labels_dimension,
+          expected_labels_dimension))
     # Eager mode.
     if context.executing_eagerly():
       labels_rank = labels._rank()  # pylint: disable=protected-access
@@ -360,37 +382,44 @@ def _check_dense_labels_match_logits_and_reshape(
       if (labels_rank is not None and logits_rank is not None
           and labels_rank == logits_rank - 1):
         labels = array_ops.expand_dims(labels, -1)
-      return array_ops.identity(labels, name=scope)
+        labels_rank += 1
+      labels_shape = labels._shape_tuple()  # pylint: disable=protected-access
+      if labels_rank < 2:
+        raise ValueError('labels must have rank at least 2.  Received rank {}, '
+                         'shape {}'.format(labels_rank, labels_shape))
+      if labels_shape[-1] != expected_labels_dimension:
+        raise ValueError(_MISMATCHED_LABEL_DIM_ERR_MSG.format(
+            expected_labels_dimension, labels_shape[-1]))
+      logits_shape = logits._shape_tuple()  # pylint: disable=protected-access
+      expected_labels_shape = logits_shape[:-1] + (expected_labels_dimension,)
+      if expected_labels_shape != labels_shape:
+        raise ValueError(
+            '{}, expected_labels_shape: {}. labels_shape: {}.'
+            .format(_LABEL_SHAPE_ERR_MSG.format(expected_labels_dimension),
+                    expected_labels_shape, labels_shape))
+      return labels
 
     # Graph mode.
     if (labels.shape.ndims is not None and logits.shape.ndims is not None and
         labels.shape.ndims == logits.shape.ndims - 1):
       labels = array_ops.expand_dims(labels, -1)
-    err_msg = (
-        'labels shape must be [D0, D1, ... DN, {}]. '
-        'Suggested Fix: check your n_classes argument to the estimator '
-        'and/or the shape of your label.'.format(expected_labels_dimension))
-    assert_rank = check_ops.assert_rank_at_least(labels, 2, message=err_msg)
+    assert_rank = check_ops.assert_rank_at_least(
+        labels, 2,
+        message=_LABEL_SHAPE_ERR_MSG.format(expected_labels_dimension))
     with ops.control_dependencies([assert_rank]):
       static_shape = labels.shape
       if static_shape.ndims is not None:
         final_dim = static_shape[-1]
         if (final_dim is not None) and (final_dim != expected_labels_dimension):
-          raise ValueError(
-              'Mismatched label shape. '
-              'Expected labels dimension=%s.  Received %s. '
-              'Suggested Fix:'
-              'If your classifier expects one-hot encoding label,'
-              'check your n_classes argument to the estimator '
-              'and/or the shape of your label. '
-              'Otherwise, check the shape of your label.' %
-              (expected_labels_dimension, final_dim))
+          raise ValueError(_MISMATCHED_LABEL_DIM_ERR_MSG.format(
+              expected_labels_dimension, final_dim))
       logits_shape = array_ops.shape(logits)
       expected_labels_shape = array_ops.concat(
           [logits_shape[:-1], [expected_labels_dimension]], axis=0)
       labels_shape = array_ops.shape(labels)
       assert_dimension = check_ops.assert_equal(
-          expected_labels_shape, labels_shape, message=err_msg,
+          expected_labels_shape, labels_shape,
+          message=_LABEL_SHAPE_ERR_MSG.format(expected_labels_dimension),
           data=['expected_labels_shape: ', expected_labels_shape,
                 'labels_shape: ', labels_shape])
       with ops.control_dependencies([assert_dimension]):
@@ -414,8 +443,10 @@ def _get_weights_and_check_match_logits(
     logits: logits Tensor.
     allow_per_logit_weights: Boolean. Whether we allow weights along the logits
       dimension, namely shape `[D0, D1, ... DN, logits_dimension]`.
+
   Returns:
     Validated and reshaped weights Tensor.
+
   Raises:
     ValueError: If the weights `Tensor` cannot be cast into float.
   """
@@ -432,6 +463,7 @@ def _get_weights_and_check_match_logits(
     # Fetch the weights.
     if weight_column is None:
       return 1.
+    # TODO(b/117839674): update feature_column
     if isinstance(weight_column, six.string_types):
       weight_column = feature_column_lib.numeric_column(
           key=weight_column, shape=(1,))
@@ -470,7 +502,7 @@ def _get_weights_and_check_match_logits(
           raise ValueError(
               '{}, logits_shape: {}. weights_shape: {}.'
               .format(err_msg, logits_shape, weights_shape))
-      return array_ops.identity(weights, name=scope)
+      return weights
 
     # Graph mode.
     weights_shape = array_ops.shape(weights, name='weights_shape')
@@ -517,7 +549,7 @@ def _check_logits_final_dim(logits, expected_logits_dimension):
         raise ValueError(
             'logits shape must be [D0, D1, ... DN, logits_dimension], '
             'got {}.'.format(logits_shape))
-      return array_ops.identity(logits, name=scope)
+      return logits
     # Graph mode
     logits_shape = logits.shape
     if logits_shape.ndims is None:
@@ -598,7 +630,7 @@ def _call_loss_fn(loss_fn, labels, logits, features, expected_loss_dim=1):
                          '[D0, D1, ... DN, {}]. '.format(expected_loss_dim),
                          'logits_shape: ', logits_shape,
                          'loss_shape: ', loss_shape)
-      return array_ops.identity(unweighted_loss)
+      return unweighted_loss
     # Graph mode.
     logits_shape = logits.shape
     if logits_shape.ndims is None:
@@ -620,22 +652,404 @@ def _call_loss_fn(loss_fn, labels, logits, features, expected_loss_dim=1):
       return array_ops.identity(unweighted_loss)
 
 
-def _update_mean_metric_by_key(head_name, eval_metrics, key, values,
-                               weights=None):
-  mean_key = head_v1._summary_key(head_name, key)  # pylint: disable=protected-access
-  # For prediction mean
-  if key is metric_keys.MetricKeys.PREDICTION_MEAN:
-    values = math_ops.to_float(values, name='predictions')
-    if weights is not None:
-      weights = weights_broadcast_ops.broadcast_weights(weights, values)
-  eval_metrics[mean_key].update_state(
-      values=values, sample_weight=weights)
+def _check_prediction_keys(pred_keys, valid_keys):
+  pred_keys = list(pred_keys or [])
+  for key in pred_keys:
+    if key not in valid_keys:
+      raise ValueError(
+          'Prediction key must be in PredictionKeys, given: {}.'
+          'Valid prediction keys include {}.'.format(key, valid_keys))
+  return pred_keys
+
+
+def _check_label_range(labels, n_classes, message=None):
+  """Check if labels are in the range of [0, n_classes)."""
+  with ops.name_scope(None, 'check_label_range', (labels,)):
+    # Eager mode
+    if context.executing_eagerly():
+      assert_less = math_ops.reduce_all(
+          math_ops.less_equal(labels, n_classes - 1))
+      if not assert_less:
+        raise ValueError('Labels must be <= {} - 1'.format(n_classes))
+      assert_greater = math_ops.reduce_all(math_ops.greater_equal(labels, 0))
+      if not assert_greater:
+        raise ValueError('Labels must be >= 0')
+      return labels
+    # Graph mode
+    assert_less = check_ops.assert_less_equal(
+        labels,
+        ops.convert_to_tensor(n_classes - 1, dtype=labels.dtype),
+        message=message or 'Labels must be <= n_classes - 1')
+    assert_greater = check_ops.assert_non_negative(
+        labels, message=message or 'Labels must be >= 0')
+    with ops.control_dependencies((assert_less, assert_greater)):
+      return array_ops.identity(labels)
+
+
+def _create_estimator_spec_train_op(head_name, optimizer, train_op_fn,
+                                    regularized_training_loss):
+  """Create train_op for estimator_spec."""
+  with ops.name_scope(head_name, 'head'):
+    if optimizer is not None:
+      if train_op_fn is not None:
+        raise ValueError('train_op_fn and optimizer cannot both be set.')
+      train_op = optimizer.minimize(
+          regularized_training_loss,
+          global_step=training_util.get_global_step())
+    elif train_op_fn is not None:
+      train_op = train_op_fn(regularized_training_loss)
+    else:
+      raise ValueError('train_op_fn and optimizer cannot both be None.')
+    train_op = head_v1._append_update_ops(train_op)  # pylint: disable=protected-access
+    return train_op
+
+
+def _create_estimator_spec_summary(summary_key_fn, regularized_training_loss,
+                                   regularization_losses):
+  """Create summary for estimator_spec."""
+  with ops.name_scope(''):
+    keys = metric_keys.MetricKeys
+    summary.scalar(summary_key_fn(keys.LOSS), regularized_training_loss)
+    if regularization_losses is not None:
+      regularization_loss = math_ops.add_n(regularization_losses)
+      summary.scalar(
+          summary_key_fn(keys.LOSS_REGULARIZATION), regularization_loss)
+
+
+def _multi_class_head(
+    n_classes,
+    weight_column=None,
+    label_vocabulary=None,
+    loss_reduction=losses.Reduction.SUM_OVER_BATCH_SIZE,
+    loss_fn=None,
+    name=None):
+  """Creates a 'Head' for multi class classification.
+
+  The head expects `logits` with shape `[D0, D1, ... DN, n_classes]`.
+  In many applications, the shape is `[batch_size, n_classes]`.
+
+  `labels` must be a dense `Tensor` with shape matching `logits`, namely
+  `[D0, D1, ... DN, 1]`. If `label_vocabulary` given, `labels` must be a string
+  `Tensor` with values from the vocabulary. If `label_vocabulary` is not given,
+  `labels` must be an integer `Tensor` with values specifying the class index.
+
+  If `weight_column` is specified, weights must be of shape
+  `[D0, D1, ... DN]`, or `[D0, D1, ... DN, 1]`.
+
+  The loss is the weighted sum over the input dimensions. Namely, if the input
+  labels have shape `[batch_size, 1]`, the loss is the weighted sum over
+  `batch_size`.
+
+  Also supports custom `loss_fn`. `loss_fn` takes `(labels, logits)` or
+  `(labels, logits, features, loss_reduction)` as arguments and returns
+  unreduced loss with shape `[D0, D1, ... DN, 1]`. `loss_fn` must support
+  integer `labels` with shape `[D0, D1, ... DN, 1]`. Namely, the head applies
+  `label_vocabulary` to the input labels before passing them to `loss_fn`.
+
+  Args:
+    n_classes: Number of classes, must be greater than 2 (for 2 classes, use
+      `_BinaryLogisticHead`).
+    weight_column: A string or a `_NumericColumn` created by
+      `tf.feature_column.numeric_column` defining feature column representing
+      weights. It is used to down weight or boost examples during training. It
+      will be multiplied by the loss of the example.
+    label_vocabulary: A list or tuple of strings representing possible label
+      values. If it is not given, that means labels are already encoded as an
+      integer within [0, n_classes). If given, labels must be of string type and
+      have any value in `label_vocabulary`. Note that errors will be raised if
+      `label_vocabulary` is not provided but labels are strings.
+    loss_reduction: One of `tf.losses.Reduction` except `NONE`. Describes how to
+      reduce training loss over batch. Defaults to `SUM_OVER_BATCH_SIZE`.
+    loss_fn: Optional loss function.
+    name: name of the head. If provided, summary and metrics keys will be
+      suffixed by `"/" + name`. Also used as `name_scope` when creating ops.
+
+  Returns:
+    An instance of `Head` for multi class classification.
+
+  Raises:
+    ValueError: If `n_classes`, `label_vocabulary` or `loss_reduction` is
+      invalid.
+  """
+  return _MultiClassHead(
+      n_classes=n_classes,
+      weight_column=weight_column,
+      label_vocabulary=label_vocabulary,
+      loss_reduction=loss_reduction,
+      loss_fn=loss_fn,
+      name=name)
+
+
+class _MultiClassHead(Head):
+  """`Head` for multiclass classification."""
+
+  def __init__(self,
+               n_classes,
+               weight_column=None,
+               label_vocabulary=None,
+               loss_reduction=losses.Reduction.SUM_OVER_BATCH_SIZE,
+               loss_fn=None,
+               name=None):
+    """See `_multi_class_head` for details."""
+    if (n_classes is None) or (n_classes <= 2):
+      raise ValueError('n_classes must be > 2: {}.'.format(n_classes))
+    if label_vocabulary is not None and not isinstance(label_vocabulary,
+                                                       (list, tuple)):
+      raise ValueError(
+          'label_vocabulary should be a list or a tuple. Given type: {}'.format(
+              type(label_vocabulary)))
+    if (loss_reduction not in losses.Reduction.all() or
+        loss_reduction == losses.Reduction.NONE):
+      raise ValueError('Invalid loss_reduction: {}'.format(loss_reduction))
+    if loss_fn:
+      _validate_loss_fn_args(loss_fn)
+    self._n_classes = n_classes
+    self._weight_column = weight_column
+    self._label_vocabulary = label_vocabulary
+    if label_vocabulary:
+      self._class_string_table = lookup_ops.index_to_string_table_from_tensor(
+          vocabulary_list=self._label_vocabulary, name='class_string_lookup')
+      self._class_id_table = lookup_ops.index_table_from_tensor(
+          vocabulary_list=tuple(self._label_vocabulary), name='class_id_lookup')
+    self._loss_reduction = loss_reduction
+    self._loss_fn = loss_fn
+    self._name = name
+    # Metric keys.
+    keys = metric_keys.MetricKeys
+    self._loss_mean_key = self._summary_key(keys.LOSS_MEAN)
+    self._accuracy_key = self._summary_key(keys.ACCURACY)
+    self._loss_regularization_key = self._summary_key(keys.LOSS_REGULARIZATION)
+
+  @property
+  def name(self):
+    """See `Head` for details."""
+    return self._name
+
+  @property
+  def logits_dimension(self):
+    """See `Head` for details."""
+    return self._n_classes
+
+  @property
+  def loss_reduction(self):
+    """See `Head` for details."""
+    return self._loss_reduction
+
+  def _processed_labels(self, logits, labels):
+    """Converts labels to integer id space."""
+    labels = _check_dense_labels_match_logits_and_reshape(
+        labels=labels, logits=logits, expected_labels_dimension=1)
+    if self._label_vocabulary is None:
+      if not labels.dtype.is_integer:
+        raise ValueError('Labels dtype should be integer. Instead got {}.'.
+                         format(labels.dtype))
+      label_ids = labels
+    else:
+      if labels.dtype != dtypes.string:
+        raise ValueError('Labels dtype should be string if there is a '
+                         'vocabulary. Instead got {}'.format(labels.dtype))
+      label_ids = self._class_id_table.lookup(labels)
+    return _check_label_range(label_ids, self._n_classes)
+
+  def _unweighted_loss_and_weights(self, logits, label_ids, features):
+    """Computes loss spec."""
+    if self._loss_fn:
+      unweighted_loss = _call_loss_fn(
+          loss_fn=self._loss_fn, labels=label_ids, logits=logits,
+          features=features, expected_loss_dim=1)
+    else:
+      unweighted_loss = losses.sparse_softmax_cross_entropy(
+          labels=label_ids, logits=logits, reduction=losses.Reduction.NONE)
+      # Restore the squeezed dim, so unweighted_loss matches the weights shape.
+      unweighted_loss = array_ops.expand_dims(unweighted_loss, axis=-1)
+    weights = _get_weights_and_check_match_logits(
+        features=features, weight_column=self._weight_column, logits=logits)
+    return unweighted_loss, weights
+
+  def loss(self, logits, labels, features=None, mode=None,
+           regularization_losses=None):
+    """Returns loss. See `Head` for details."""
+    del mode  # Unused for this head.
+    with ops.name_scope(None, 'losses', (logits, labels, regularization_losses,
+                                         features)):
+      logits = _check_logits_final_dim(logits, self.logits_dimension)
+      label_ids = self._processed_labels(logits, labels)
+      unweighted_loss, weights = self._unweighted_loss_and_weights(
+          logits, label_ids, features)
+      training_loss = losses.compute_weighted_loss(
+          unweighted_loss, weights=weights, reduction=self._loss_reduction)
+      regularization_loss = math_ops.add_n(
+          regularization_losses) if regularization_losses is not None else None
+      regularized_training_loss = (
+          training_loss + regularization_loss if regularization_loss is not None
+          else training_loss)
+    return regularized_training_loss
+
+  def predictions(self, logits, keys):
+    """Return the predictions based on keys.
+
+    Args:
+      logits: logits `Tensor` with shape `[D0, D1, ... DN, logits_dimension]`.
+        For many applications, the shape is `[batch_size, logits_dimension]`.
+      keys: a list of prediction keys. Key can be either the class variable
+        of prediction_keys.PredictionKeys or its string value, such as:
+        prediction_keys.PredictionKeys.CLASSES or 'classes'.
+
+    Returns:
+      A dict of predictions.
+    """
+    pred_keys = prediction_keys.PredictionKeys
+    valid_keys = [pred_keys.LOGITS, pred_keys.PROBABILITIES,
+                  pred_keys.CLASS_IDS, pred_keys.CLASSES]
+    keys = _check_prediction_keys(keys, valid_keys)
+    logits = _check_logits_final_dim(logits, self.logits_dimension)
+    predictions = {}
+    with ops.name_scope(None, 'predictions', (logits,)):
+      if pred_keys.LOGITS in keys:
+        predictions[pred_keys.LOGITS] = logits
+      if pred_keys.PROBABILITIES in keys:
+        probabilities = nn.softmax(logits, name=pred_keys.PROBABILITIES)
+        predictions[pred_keys.PROBABILITIES] = probabilities
+      if pred_keys.CLASS_IDS in keys or pred_keys.CLASSES in keys:
+        # class_ids's shape is [D0, D1, ... DN].
+        class_ids = math_ops.argmax(logits, axis=-1, name=pred_keys.CLASS_IDS)
+        # Expand to [batch_size, 1].
+        class_ids = array_ops.expand_dims(class_ids, axis=-1)
+        if pred_keys.CLASS_IDS in keys:
+          predictions[pred_keys.CLASS_IDS] = class_ids
+        if pred_keys.CLASSES in keys:
+          if self._label_vocabulary:
+            classes = self._class_string_table.lookup(class_ids)
+          else:
+            classes = string_ops.as_string(class_ids, name='str_classes')
+          predictions[pred_keys.CLASSES] = classes
+      return predictions
+
+  def metrics(self, regularization_losses=None):
+    """Creates metrics. See `Head` for details."""
+    keys = metric_keys.MetricKeys
+    with ops.name_scope(None, 'metrics', (regularization_losses,)):
+      # Mean metric.
+      eval_metrics = {}
+      eval_metrics[self._loss_mean_key] = metrics.Mean(name=keys.LOSS_MEAN)
+      if regularization_losses is not None:
+        eval_metrics[self._loss_regularization_key] = metrics.Mean(
+            name=keys.LOSS_REGULARIZATION)
+      # Accuracy metric.
+      eval_metrics[self._accuracy_key] = (
+          metrics.SparseCategoricalAccuracy(name=keys.ACCURACY))
+    return eval_metrics
+
+  def update_metrics(self, eval_metrics, features, logits, labels,
+                     regularization_losses=None):
+    """Updates and returns the Eval metric ops. See `Head` for more details."""
+    # SparseCategoricalAccuracy metric uses logits as input for `y_pred` arg.
+    logits = _check_logits_final_dim(logits, self.logits_dimension)
+    label_ids = self._processed_labels(logits, labels)
+    unweighted_loss, weights = self._unweighted_loss_and_weights(
+        logits, label_ids, features)
+
+    # Update metrics.
+    eval_metrics[self._loss_mean_key].update_state(
+        values=unweighted_loss, sample_weight=weights)
+    eval_metrics[self._accuracy_key].update_state(
+        y_true=label_ids, y_pred=logits, sample_weight=weights)
+
+    if regularization_losses is not None:
+      regularization_loss = math_ops.add_n(regularization_losses)
+      eval_metrics[self._loss_regularization_key].update_state(
+          values=regularization_loss)
+    return eval_metrics
+
+  def _create_tpu_estimator_spec(
+      self, features, mode, logits, labels=None, optimizer=None,
+      train_op_fn=None, regularization_losses=None):
+    """Returns a `model_fn._TPUEstimatorSpec`.
+
+    Args:
+      features: Input `dict` of `Tensor` or `SparseTensor` objects.
+      mode: Estimator's `ModeKeys`.
+      logits: logits `Tensor` with shape `[D0, D1, ... DN, logits_dimension]`.
+        For many applications, the shape is `[batch_size, logits_dimension]`.
+      labels: Labels integer or string `Tensor` with shape matching `logits`,
+        namely `[D0, D1, ... DN, 1]` or `[D0, D1, ... DN]`. `labels` is
+        required argument when `mode` equals `TRAIN` or `EVAL`.
+      optimizer: `Optimizer` instance to optimize the loss in TRAIN mode.
+        Namely, sets `train_op = optimizer.minimize(loss, global_step)`, which
+        updates variables and increments `global_step`.
+      train_op_fn: Function that takes a scalar loss `Tensor` and returns
+        `train_op`. Used if `optimizer` is `None`.
+      regularization_losses: A list of additional scalar losses to be added to
+        the training loss, such as regularization losses. These losses are
+        usually expressed as a batch average, so for best results users need to
+        set `loss_reduction=SUM_OVER_BATCH_SIZE` or
+        `loss_reduction=SUM_OVER_NONZERO_WEIGHTS` when creating the head to
+        avoid scaling errors.
+
+    Returns:
+      A `model_fn._TPUEstimatorSpec` instance.
+
+    Raises:
+      ValueError: If both `train_op_fn` and `optimizer` are `None` in TRAIN
+        mode, or if both are set.
+    """
+    # pylint: disable=protected-access
+    with ops.name_scope(self._name, 'head'):
+      # Predict.
+      pred_keys = prediction_keys.PredictionKeys
+      keys = [pred_keys.LOGITS, pred_keys.PROBABILITIES, pred_keys.CLASS_IDS,
+              pred_keys.CLASSES]
+      predictions = self.predictions(logits, keys)
+      if mode == model_fn.ModeKeys.PREDICT:
+        probabilities = predictions[pred_keys.PROBABILITIES]
+        classifier_output = head_v1._classification_output(
+            scores=probabilities, n_classes=self._n_classes,
+            label_vocabulary=self._label_vocabulary)
+        return model_fn._TPUEstimatorSpec(
+            mode=model_fn.ModeKeys.PREDICT,
+            predictions=predictions,
+            export_outputs={
+                head_v1._DEFAULT_SERVING_KEY: classifier_output,
+                head_v1._CLASSIFY_SERVING_KEY: classifier_output,
+                head_v1._PREDICT_SERVING_KEY: export_output.PredictOutput(
+                    predictions)
+            })
+      regularized_training_loss = self.loss(
+          logits=logits, labels=labels, features=features, mode=mode,
+          regularization_losses=regularization_losses)
+      # Eval.
+      if mode == model_fn.ModeKeys.EVAL:
+        eval_metrics = self.metrics(regularization_losses=regularization_losses)
+        return model_fn._TPUEstimatorSpec(
+            mode=model_fn.ModeKeys.EVAL,
+            predictions=predictions,
+            loss=regularized_training_loss,
+            eval_metrics=head_v1._create_eval_metrics_tuple(
+                self.update_metrics, {
+                    'eval_metrics': eval_metrics,
+                    'features': features,
+                    'logits': logits,
+                    'labels': labels,
+                    'regularization_losses': regularization_losses
+                }))
+      # Train.
+      train_op = _create_estimator_spec_train_op(
+          self._name, optimizer, train_op_fn, regularized_training_loss)
+    # Create summary.
+    _create_estimator_spec_summary(self._summary_key, regularized_training_loss,
+                                   regularization_losses)
+    return model_fn._TPUEstimatorSpec(
+        mode=model_fn.ModeKeys.TRAIN,
+        predictions=predictions,
+        loss=regularized_training_loss,
+        train_op=train_op)
+# pylint: enable=protected-access
 
 
 def _regression_head(
     weight_column=None,
     label_dimension=1,
-    loss_reduction=losses.Reduction.SUM,
+    loss_reduction=losses.Reduction.SUM_OVER_BATCH_SIZE,
     loss_fn=None,
     inverse_link_fn=None,
     name=None):
@@ -675,7 +1089,7 @@ def _regression_head(
       of the last dimension of the labels `Tensor` (typically, this has shape
       `[batch_size, label_dimension]`).
     loss_reduction: One of `tf.losses.Reduction` except `NONE`. Describes how to
-      reduce training loss over batch. Defaults to `SUM`.
+      reduce training loss over batch. Defaults to `SUM_OVER_BATCH_SIZE`.
     loss_fn: Optional loss function. Defaults to `mean_squared_error`.
     inverse_link_fn: Optional inverse link function, also known as 'mean
       function'. Defaults to identity.
@@ -704,7 +1118,7 @@ class _RegressionHead(Head):
       self,
       label_dimension,
       weight_column=None,
-      loss_reduction=losses.Reduction.SUM,
+      loss_reduction=losses.Reduction.SUM_OVER_BATCH_SIZE,
       loss_fn=None,
       inverse_link_fn=None,
       name=None):
@@ -722,6 +1136,12 @@ class _RegressionHead(Head):
     self._loss_fn = loss_fn
     self._inverse_link_fn = inverse_link_fn
     self._name = name
+    # Metric keys.
+    keys = metric_keys.MetricKeys
+    self._loss_mean_key = self._summary_key(keys.LOSS_MEAN)
+    self._prediction_mean_key = self._summary_key(keys.PREDICTION_MEAN)
+    self._label_mean_key = self._summary_key(keys.LABEL_MEAN)
+    self._loss_regularization_key = self._summary_key(keys.LOSS_REGULARIZATION)
 
   @property
   def name(self):
@@ -738,13 +1158,15 @@ class _RegressionHead(Head):
     """See `Head` for details."""
     return self._loss_reduction
 
-  def _loss_spec(self, logits, labels, features):
-    """Computes loss spec."""
-    logits = _check_logits_final_dim(logits, self._logits_dimension)
+  def _processed_labels(self, logits, labels):
     labels = _check_dense_labels_match_logits_and_reshape(
         labels=labels, logits=logits,
         expected_labels_dimension=self._logits_dimension)
     labels = math_ops.to_float(labels)
+    return labels
+
+  def _unweighted_loss_and_weights(self, logits, labels, features):
+    """Computes loss spec."""
     if self._loss_fn:
       unweighted_loss = _call_loss_fn(
           loss_fn=self._loss_fn, labels=labels, logits=logits,
@@ -755,13 +1177,7 @@ class _RegressionHead(Head):
     weights = _get_weights_and_check_match_logits(
         features=features, weight_column=self._weight_column, logits=logits,
         allow_per_logit_weights=True)
-    training_loss = losses.compute_weighted_loss(
-        unweighted_loss, weights=weights, reduction=self._loss_reduction)
-    return head_v1.LossSpec(
-        training_loss=training_loss,
-        unreduced_loss=unweighted_loss,
-        weights=weights,
-        processed_labels=labels)
+    return unweighted_loss, weights
 
   def loss(self, logits, labels, features=None, mode=None,
            regularization_losses=None):
@@ -769,7 +1185,12 @@ class _RegressionHead(Head):
     del mode  # Unused for this head.
     with ops.name_scope(None, 'losses', (logits, labels, regularization_losses,
                                          features)):
-      training_loss = self._loss_spec(logits, labels, features)[0]
+      logits = _check_logits_final_dim(logits, self._logits_dimension)
+      labels = self._processed_labels(logits, labels)
+      unweighted_loss, weights = self._unweighted_loss_and_weights(
+          logits, labels, features)
+      training_loss = losses.compute_weighted_loss(
+          unweighted_loss, weights=weights, reduction=self._loss_reduction)
       regularization_loss = math_ops.add_n(
           regularization_losses) if regularization_losses is not None else None
       regularized_training_loss = (
@@ -797,43 +1218,49 @@ class _RegressionHead(Head):
 
   def metrics(self, regularization_losses=None):
     """Creates metrics. See `Head` for details."""
-    keys = metric_keys.MetricKeys
     with ops.name_scope(None, 'metrics', (regularization_losses,)):
-      metric_key_list = [keys.LOSS_MEAN, keys.PREDICTION_MEAN, keys.LABEL_MEAN]
+      keys = metric_keys.MetricKeys
+      eval_metrics = {}
+      eval_metrics[self._loss_mean_key] = metrics.Mean(name=keys.LOSS_MEAN)
+      eval_metrics[self._prediction_mean_key] = metrics.Mean(
+          name=keys.PREDICTION_MEAN)
+      eval_metrics[self._label_mean_key] = metrics.Mean(name=keys.LABEL_MEAN)
+
       if regularization_losses is not None:
-        metric_key_list.append(keys.LOSS_REGULARIZATION)
-      eval_metrics = {
-          head_v1._summary_key(self._name, k):  # pylint: disable=protected-access
-              metrics.Mean(name=k) for k in metric_key_list}
+        eval_metrics[self._loss_regularization_key] = metrics.Mean(
+            name=keys.LOSS_REGULARIZATION)
     return eval_metrics
 
   def update_metrics(self, eval_metrics, features, logits, labels,
                      regularization_losses=None):
     """Updates and returns the Eval metric ops. See `Head` for more details."""
-    # Compute predictions
+    # Compute predictions.
     predictions = self.predictions(logits)
     predicted_value = predictions[prediction_keys.PredictionKeys.PREDICTIONS]
+    logits = _check_logits_final_dim(logits, self.logits_dimension)
+    label_ids = self._processed_labels(logits, labels)
+    unweighted_loss, weights = self._unweighted_loss_and_weights(
+        logits, label_ids, features)
 
-    # Get loss spec for metrics
-    _, unweighted_loss, weights, labels = self._loss_spec(
-        logits, labels, features)
+    # Update metrics.
+    eval_metrics[self._loss_mean_key].update_state(
+        values=unweighted_loss, sample_weight=weights)
+    eval_metrics[self._label_mean_key].update_state(
+        values=labels, sample_weight=weights)
 
-    # Update metrics
-    keys = metric_keys.MetricKeys
-    _update_mean_metric_by_key(self._name, eval_metrics, keys.LOSS_MEAN,
-                               values=unweighted_loss, weights=weights)
-    _update_mean_metric_by_key(self._name, eval_metrics, keys.LABEL_MEAN,
-                               values=labels, weights=weights)
-    _update_mean_metric_by_key(self._name, eval_metrics, keys.PREDICTION_MEAN,
-                               values=predicted_value, weights=weights)
+    predicted_value = math_ops.to_float(predicted_value, name='predictions')
+    if weights is not None:
+      weights = weights_broadcast_ops.broadcast_weights(
+          weights, predicted_value)
+    eval_metrics[self._prediction_mean_key].update_state(
+        values=predicted_value, sample_weight=weights)
+
     if regularization_losses is not None:
       regularization_loss = math_ops.add_n(regularization_losses)
-      _update_mean_metric_by_key(self._name, eval_metrics,
-                                 keys.LOSS_REGULARIZATION,
-                                 values=regularization_loss)
+      eval_metrics[self._loss_regularization_key].update_state(
+          values=regularization_loss)
     return eval_metrics
 
-  # TODO(yhliang): refactor it once other heads are added.
   def _create_tpu_estimator_spec(
       self, features, mode, logits, labels=None, optimizer=None,
       train_op_fn=None, regularization_losses=None):
@@ -869,20 +1296,21 @@ class _RegressionHead(Head):
       ValueError: If both `train_op_fn` and `optimizer` are `None` in TRAIN
         mode, or if both are set.
     """
+    # pylint: disable=protected-access
     with ops.name_scope(self._name, 'head'):
-      # Predict
+      # Predict.
       predictions = self.predictions(logits)
       if mode == model_fn.ModeKeys.PREDICT:
         keys = prediction_keys.PredictionKeys
         regression_output = export_output.RegressionOutput(
             value=predictions[keys.PREDICTIONS])
-        return model_fn._TPUEstimatorSpec(  # pylint: disable=protected-access
+        return model_fn._TPUEstimatorSpec(
             mode=model_fn.ModeKeys.PREDICT,
             predictions=predictions,
             export_outputs={
-                head_v1._DEFAULT_SERVING_KEY: regression_output,  # pylint: disable=protected-access
-                head_v1._REGRESS_SERVING_KEY: regression_output,  # pylint: disable=protected-access
-                head_v1._PREDICT_SERVING_KEY: export_output.PredictOutput(  # pylint: disable=protected-access
+                head_v1._DEFAULT_SERVING_KEY: regression_output,
+                head_v1._REGRESS_SERVING_KEY: regression_output,
+                head_v1._PREDICT_SERVING_KEY: export_output.PredictOutput(
                     predictions)
             })
       regularized_training_loss = self.loss(
@@ -891,11 +1319,11 @@ class _RegressionHead(Head):
       # Eval.
       if mode == model_fn.ModeKeys.EVAL:
         eval_metrics = self.metrics(regularization_losses=regularization_losses)
-        return model_fn._TPUEstimatorSpec(  # pylint: disable=protected-access
+        return model_fn._TPUEstimatorSpec(
             mode=model_fn.ModeKeys.EVAL,
             predictions=predictions,
             loss=regularized_training_loss,
-            eval_metrics=head_v1._create_eval_metrics_tuple(  # pylint: disable=protected-access
+            eval_metrics=head_v1._create_eval_metrics_tuple(
                 self.update_metrics, {
                     'eval_metrics': eval_metrics,
                     'features': features,
@@ -904,44 +1332,14 @@ class _RegressionHead(Head):
                     'regularization_losses': regularization_losses
                 }))
       # Train.
-      if optimizer is not None:
-        if train_op_fn is not None:
-          raise ValueError('train_op_fn and optimizer cannot both be set.')
-        train_op = optimizer.minimize(
-            regularized_training_loss,
-            global_step=training_util.get_global_step())
-      elif train_op_fn is not None:
-        train_op = train_op_fn(regularized_training_loss)
-      else:
-        raise ValueError('train_op_fn and optimizer cannot both be None.')
-      train_op = head_v1._append_update_ops(train_op)  # pylint: disable=protected-access
-
-      # Only summarize mean_loss for SUM reduction to preserve backwards
-      # compatibility. Otherwise skip it to avoid unnecessary computation.
-      if self._loss_reduction == losses.Reduction.SUM:
-        training_loss, unreduced_loss, weights, _ = self._loss_spec(
-            logits, labels, features)
-        example_weight_sum = math_ops.reduce_sum(
-            weights * array_ops.ones_like(unreduced_loss))
-        mean_loss = training_loss / example_weight_sum
-      else:
-        mean_loss = None
-
-    with ops.name_scope(''):
-      keys = metric_keys.MetricKeys
-      summary.scalar(
-          head_v1._summary_key(self._name, keys.LOSS),  # pylint: disable=protected-access
-          regularized_training_loss)
-      if mean_loss is not None:
-        summary.scalar(
-            head_v1._summary_key(self._name, keys.LOSS_MEAN), mean_loss)  # pylint: disable=protected-access
-      if regularization_losses is not None:
-        regularization_loss = math_ops.add_n(regularization_losses)
-        summary.scalar(
-            head_v1._summary_key(self._name, keys.LOSS_REGULARIZATION),  # pylint: disable=protected-access
-            regularization_loss)
-    return model_fn._TPUEstimatorSpec(  # pylint: disable=protected-access
+      train_op = _create_estimator_spec_train_op(
+          self._name, optimizer, train_op_fn, regularized_training_loss)
+    # Create summary.
+    _create_estimator_spec_summary(self._summary_key, regularized_training_loss,
+                                   regularization_losses)
+    return model_fn._TPUEstimatorSpec(
         mode=model_fn.ModeKeys.TRAIN,
         predictions=predictions,
         loss=regularized_training_loss,
         train_op=train_op)
+    # pylint: enable=protected-access
