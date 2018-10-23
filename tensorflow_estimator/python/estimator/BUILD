@@ -605,34 +605,90 @@ py_test(
 )
 
 py_library(
-    name = "head_v2",
-    srcs = ["head_v2.py"],
+    name = "base_head",
+    srcs = ["head/base_head.py"],
     srcs_version = "PY2AND3",
     deps = [
         ":export_output",
         ":head",
         ":metric_keys",
-        ":model_fn",
-        ":prediction_keys",
-        "//tensorflow_estimator/python/estimator:expect_six_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
     ],
 )
 
 py_test(
-    name = "head_v2_test",
+    name = "base_head_test",
+    size = "small",
+    srcs = ["head/base_head_test.py"],
+    srcs_version = "PY2AND3",
+    deps = [
+        ":base_head",
+        ":model_fn",
+        "//tensorflow_estimator/python/estimator:expect_six_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
+py_library(
+    name = "multi_class_head",
+    srcs = ["head/multi_class_head.py"],
+    srcs_version = "PY2AND3",
+    deps = [
+        ":base_head",
+        ":export_output",
+        ":metric_keys",
+        ":model_fn",
+        ":prediction_keys",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
+py_test(
+    name = "multi_class_head_test",
     size = "medium",
-    srcs = ["head_v2_test.py"],
+    srcs = ["head/multi_class_head_test.py"],
     shard_count = 4,
     srcs_version = "PY2AND3",
     deps = [
-        ":head_v2",
+        ":base_head_test",
+        ":metric_keys",
+        ":model_fn",
+        ":multi_class_head",
+        ":prediction_keys",
+        "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_six_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
+py_library(
+    name = "regression_head",
+    srcs = ["head/regression_head.py"],
+    srcs_version = "PY2AND3",
+    deps = [
+        ":base_head",
+        ":export_output",
+        ":metric_keys",
+        ":model_fn",
+        ":prediction_keys",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
+py_test(
+    name = "regression_head_test",
+    size = "medium",
+    srcs = ["head/regression_head_test.py"],
+    shard_count = 4,
+    srcs_version = "PY2AND3",
+    deps = [
+        ":base_head_test",
         ":metric_keys",
         ":model_fn",
         ":numpy_io",
         ":prediction_keys",
+        ":regression_head",
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
-        "//tensorflow_estimator/python/estimator:expect_six_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
     ],
 )
