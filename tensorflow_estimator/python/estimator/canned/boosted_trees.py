@@ -301,8 +301,10 @@ class _CacheTrainingStatesUsingHashTable(object):
     """
     if dtypes.as_dtype(dtypes.int64).is_compatible_with(example_ids.dtype):
       empty_key = -1 << 62
+      deleted_key = -1 << 61
     elif dtypes.as_dtype(dtypes.string).is_compatible_with(example_ids.dtype):
       empty_key = ''
+      deleted_key = 'NEVER_USED_DELETED_KEY'
     else:
       raise ValueError(
           'Unsupported example_id_feature dtype %s.' % example_ids.dtype)
@@ -311,7 +313,8 @@ class _CacheTrainingStatesUsingHashTable(object):
     # To reduce the overhead, we store all of them together as float32 and
     # bitcast the ids to int32.
     self._table_ref = lookup_ops.mutable_dense_hash_table_v2(
-        empty_key=empty_key, value_dtype=dtypes.float32, value_shape=[3])
+        empty_key=empty_key, deleted_key=deleted_key,
+        value_dtype=dtypes.float32, value_shape=[3])
     self._example_ids = ops.convert_to_tensor(example_ids)
     if self._example_ids.shape.ndims not in (None, 1):
       raise ValueError(

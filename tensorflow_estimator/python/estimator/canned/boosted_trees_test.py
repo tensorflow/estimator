@@ -19,29 +19,29 @@ from __future__ import print_function
 
 import os
 
-from google.protobuf import text_format
 import numpy as np
 
+from google.protobuf import text_format
 from tensorflow.core.kernels.boosted_trees import boosted_trees_pb2
 from tensorflow.python.client import session
 from tensorflow.python.data.ops import dataset_ops
-from tensorflow_estimator.python.estimator import model_fn
-from tensorflow_estimator.python.estimator import run_config
-from tensorflow_estimator.python.estimator.canned import boosted_trees
-from tensorflow_estimator.python.estimator.inputs import numpy_io
 from tensorflow.python.feature_column import feature_column
 from tensorflow.python.framework import constant_op
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import test_util
-from tensorflow.python.ops import gen_boosted_trees_ops
 from tensorflow.python.ops import boosted_trees_ops
+from tensorflow.python.ops import gen_boosted_trees_ops
 from tensorflow.python.ops import resources
 from tensorflow.python.ops import variables
 from tensorflow.python.platform import googletest
 from tensorflow.python.training import checkpoint_utils
 from tensorflow.python.training import saver as saver_lib
 from tensorflow.python.training import session_run_hook
+from tensorflow_estimator.python.estimator import model_fn
+from tensorflow_estimator.python.estimator import run_config
+from tensorflow_estimator.python.estimator.canned import boosted_trees
+from tensorflow_estimator.python.estimator.inputs import numpy_io
 
 NUM_FEATURES = 3
 
