@@ -40,6 +40,7 @@ from tensorflow_estimator.python.estimator.export import export_lib as export
 from tensorflow_estimator.python.estimator.exporter import Exporter
 from tensorflow_estimator.python.estimator.exporter import FinalExporter
 from tensorflow_estimator.python.estimator.exporter import LatestExporter
+from tensorflow_estimator.python.estimator.extenders import add_metrics
 from tensorflow_estimator.python.estimator.inputs import inputs
 from tensorflow_estimator.python.estimator.keras import model_to_estimator
 from tensorflow_estimator.python.estimator.model_fn import EstimatorSpec
@@ -48,6 +49,5 @@ from tensorflow_estimator.python.estimator.run_config import RunConfig
 from tensorflow_estimator.python.estimator.training import EvalSpec
 from tensorflow_estimator.python.estimator.training import train_and_evaluate
 from tensorflow_estimator.python.estimator.training import TrainSpec
-
 
 # pylint: enable=unused-import,line-too-long,wildcard-import
