@@ -2093,12 +2093,9 @@ class BaseLinearLogitFnTest(object):
     age = feature_column_v2.numeric_column('age')
     occupation = feature_column_v2.categorical_column_with_hash_bucket(
         'occupation', hash_bucket_size=5)
-    shared_state_manager = feature_column_v2.SharedEmbeddingStateManager()
     with ops.Graph().as_default():
       model = feature_column_v2.LinearModel(
-          feature_columns=[age, occupation],
-          units=3,
-          shared_state_manager=shared_state_manager)
+          feature_columns=[age, occupation], units=3)
       features = {
           'age': [[23.], [31.]],
           'occupation': [['doctor'], ['engineer']]
@@ -2106,7 +2103,6 @@ class BaseLinearLogitFnTest(object):
       model(features)
       variables = model.variables
       variables.remove(model.bias_variable)
-      variables.extend(shared_state_manager.variables)
       fraction_zero = linear._compute_fraction_of_zero(variables)
       age_var = ops.get_collection(ops.GraphKeys.GLOBAL_VARIABLES,
                                    'linear_model/age')[0]

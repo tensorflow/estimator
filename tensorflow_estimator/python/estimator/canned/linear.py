@@ -116,20 +116,19 @@ def linear_logit_fn_builder(units, feature_columns, sparse_combiner='sum'):
       A `Tensor` representing the logits.
     """
     if feature_column_v2.is_feature_column_v2(feature_columns):
-      shared_state_manager = feature_column_v2.SharedEmbeddingStateManager()
       linear_model = feature_column_v2.LinearModel(
           feature_columns=feature_columns,
           units=units,
-          sparse_combiner=sparse_combiner,
-          shared_state_manager=shared_state_manager)
+          sparse_combiner=sparse_combiner)
       logits = linear_model(features)
       bias = linear_model.bias_variable
 
       # We'd like to get all the non-bias variables associated with this
-      # LinearModel. This includes the shared embedding variables as well.
+      # LinearModel.
+      # TODO(rohanj): Figure out how to get shared embedding weights variable
+      # here.
       variables = linear_model.variables
       variables.remove(bias)
-      variables.extend(shared_state_manager.variables)
 
       # Expand (potential) Partitioned variables
       bias = _get_expanded_variable_list([bias])

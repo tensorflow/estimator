@@ -49,14 +49,8 @@ def _add_hidden_layer_summary(value, tag):
 
 
 @estimator_export('estimator.experimental.dnn_logit_fn_builder')
-def dnn_logit_fn_builder(units,
-                         hidden_units,
-                         feature_columns,
-                         activation_fn,
-                         dropout,
-                         input_layer_partitioner,
-                         batch_norm,
-                         shared_state_manager=None):
+def dnn_logit_fn_builder(units, hidden_units, feature_columns, activation_fn,
+                         dropout, input_layer_partitioner, batch_norm):
   """Function builder for a dnn logit_fn.
 
   Args:
@@ -70,8 +64,6 @@ def dnn_logit_fn_builder(units,
       coordinate.
     input_layer_partitioner: Partitioner for input layer.
     batch_norm: Whether to use batch normalization after each hidden layer.
-    shared_state_manager: A SharedEmbeddingStateManager object to hold the
-      shared state for SharedEmbeddingColumn's.
 
   Returns:
     A logit_fn (see below).
@@ -105,7 +97,6 @@ def dnn_logit_fn_builder(units,
         dropout,
         input_layer_partitioner,
         batch_norm,
-        shared_state_manager,
         name='dnn')
     return dnn_model(features, mode)
 
@@ -132,15 +123,12 @@ class _DNNModel(training.Model):
                dropout,
                input_layer_partitioner,
                batch_norm,
-               shared_state_manager,
                name=None,
                **kwargs):
     super(_DNNModel, self).__init__(name=name, **kwargs)
     if feature_column_v2.is_feature_column_v2(feature_columns):
       self._input_layer = feature_column_v2.FeatureLayer(
-          feature_columns=feature_columns,
-          name='input_layer',
-          shared_state_manager=shared_state_manager)
+          feature_columns=feature_columns, name='input_layer')
     else:
       self._input_layer = feature_column.InputLayer(
           feature_columns=feature_columns,
@@ -238,8 +226,7 @@ def _dnn_model_fn(features,
                   input_layer_partitioner=None,
                   config=None,
                   use_tpu=False,
-                  batch_norm=False,
-                  shared_state_manager=None):
+                  batch_norm=False):
   """Deep Neural Net model_fn.
 
   Args:
@@ -263,8 +250,6 @@ def _dnn_model_fn(features,
     use_tpu: Whether to make a DNN model able to run on TPU. Will make function
       return a `_TPUEstimatorSpec` instance and disable variable partitioning.
     batch_norm: Whether to use batch normalization after each hidden layer.
-    shared_state_manager: A SharedEmbeddingStateManager object to hold the
-      shared state for SharedEmbeddingColumn's.
 
   Returns:
     An `EstimatorSpec` instance.
@@ -300,8 +285,7 @@ def _dnn_model_fn(features,
         activation_fn=activation_fn,
         dropout=dropout,
         input_layer_partitioner=input_layer_partitioner,
-        batch_norm=batch_norm,
-        shared_state_manager=shared_state_manager)
+        batch_norm=batch_norm)
     logits = logit_fn(features=features, mode=mode)
 
     if use_tpu:
@@ -470,9 +454,6 @@ class DNNClassifier(estimator.Estimator):
     head = head_lib._binary_logistic_or_multi_class_head(  # pylint: disable=protected-access
         n_classes, weight_column, label_vocabulary, loss_reduction)
 
-    shared_state_manager = feature_column_v2.maybe_create_shared_state_manager(
-        feature_columns)
-
     def _model_fn(features, labels, mode, config):
       """Call the defined shared _dnn_model_fn."""
       return _dnn_model_fn(
@@ -487,8 +468,7 @@ class DNNClassifier(estimator.Estimator):
           dropout=dropout,
           input_layer_partitioner=input_layer_partitioner,
           config=config,
-          batch_norm=batch_norm,
-          shared_state_manager=shared_state_manager)
+          batch_norm=batch_norm)
 
     super(DNNClassifier, self).__init__(
         model_fn=_model_fn, model_dir=model_dir, config=config,
@@ -636,10 +616,6 @@ class DNNRegressor(estimator.Estimator):
       batch_norm: Whether to use batch normalization after each hidden layer.
     """
 
-    shared_state_manager = None
-    if feature_column_v2.is_feature_column_v2(feature_columns):
-      shared_state_manager = feature_column_v2.SharedEmbeddingStateManager()
-
     def _model_fn(features, labels, mode, config):
       """Call the defined shared _dnn_model_fn."""
       return _dnn_model_fn(
@@ -657,8 +633,7 @@ class DNNRegressor(estimator.Estimator):
           dropout=dropout,
           input_layer_partitioner=input_layer_partitioner,
           config=config,
-          batch_norm=batch_norm,
-          shared_state_manager=shared_state_manager)
+          batch_norm=batch_norm)
 
     super(DNNRegressor, self).__init__(
         model_fn=_model_fn, model_dir=model_dir, config=config,

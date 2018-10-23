@@ -143,9 +143,6 @@ def _dnn_linear_combined_model_fn(features,
           max_partitions=num_ps_replicas,
           min_slice_size=64 << 20))
 
-  shared_state_manager = feature_column_v2.maybe_create_shared_state_manager(
-      list(linear_feature_columns) + list(dnn_feature_columns))
-
   # Build DNN Logits.
   dnn_parent_scope = 'dnn'
 
@@ -174,8 +171,7 @@ def _dnn_linear_combined_model_fn(features,
           activation_fn=dnn_activation_fn,
           dropout=dnn_dropout,
           batch_norm=batch_norm,
-          input_layer_partitioner=input_layer_partitioner,
-          shared_state_manager=shared_state_manager)
+          input_layer_partitioner=input_layer_partitioner)
       dnn_logits = dnn_logit_fn(features=features, mode=mode)
 
   linear_parent_scope = 'linear'
