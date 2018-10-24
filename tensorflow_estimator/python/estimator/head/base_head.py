@@ -687,10 +687,11 @@ def check_label_range(labels, n_classes, message=None):
       assert_less = math_ops.reduce_all(
           math_ops.less_equal(labels, n_classes - 1))
       if not assert_less:
-        raise ValueError('Labels must be <= {} - 1'.format(n_classes))
+        raise ValueError(
+            message or 'Labels must be <= {} - 1'.format(n_classes))
       assert_greater = math_ops.reduce_all(math_ops.greater_equal(labels, 0))
       if not assert_greater:
-        raise ValueError('Labels must be >= 0')
+        raise ValueError(message or 'Labels must be >= 0')
       return labels
     # Graph mode
     assert_less = check_ops.assert_less_equal(

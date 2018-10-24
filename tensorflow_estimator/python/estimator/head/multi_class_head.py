@@ -90,7 +90,7 @@ class MultiClassHead(base_head.Head):
   Args:
     n_classes: Number of classes, must be greater than 2 (for 2 classes, use
       `BinaryClassHead`).
-    weight_column: A string or a `_NumericColumn` created by
+    weight_column: A string or a `NumericColumn` created by
       `tf.feature_column.numeric_column` defining feature column representing
       weights. It is used to down weight or boost examples during training. It
       will be multiplied by the loss of the example.
