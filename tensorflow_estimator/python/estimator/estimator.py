@@ -63,6 +63,7 @@ from tensorflow.python.training import training_util
 from tensorflow.python.training import warm_starting_util
 from tensorflow.python.util import compat
 from tensorflow.python.util import compat_internal
+from tensorflow.python.util import deprecation
 from tensorflow.python.util import function_utils
 from tensorflow.python.util import nest
 from tensorflow.python.util.tf_export import estimator_export
@@ -629,6 +630,13 @@ class Estimator(object):
           'Subclasses of Estimator cannot override members of Estimator. '
           '{} does override {}'.format(self.__class__, overridden_members))
 
+  @deprecation.deprecated(
+      None,
+      'Please use export_saved_model instead of export_savedmodel. Note that '
+      'the argument strip_default_args has been removed from '
+      'export_saved_model, which will automatically strip all default '
+      'attributes. If this behavior change breaks your use case, please '
+      'continue to use export_savedmodel, available in tf.compat.v1.Estimator.')
   def export_savedmodel(
       self, export_dir_base, serving_input_receiver_fn,
       assets_extra=None,
