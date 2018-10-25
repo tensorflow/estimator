@@ -24,7 +24,9 @@ import six
 
 from tensorflow.python.feature_column import feature_column
 from tensorflow.python.feature_column import feature_column_v2
+from tensorflow.python.framework import dtypes
 from tensorflow.python.ops import array_ops
+from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import nn
 from tensorflow.python.ops import partitioned_variables
 from tensorflow.python.ops import resource_variable_ops
@@ -33,15 +35,211 @@ from tensorflow.python.ops import variables as variable_ops
 from tensorflow.python.ops.losses import losses
 from tensorflow.python.summary import summary
 from tensorflow.python.training import ftrl
+from tensorflow.python.training import session_run_hook
+from tensorflow.python.training import training
 from tensorflow.python.util import nest
 from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator import estimator
 from tensorflow_estimator.python.estimator.canned import head as head_lib
 from tensorflow_estimator.python.estimator.canned import optimizers
+from tensorflow_estimator.python.estimator.canned.linear_optimizer.python.utils import sdca_ops
 
 # The default learning rate of 0.2 is a historical artifact of the initial
 # implementation, but seems a reasonable choice.
 _LEARNING_RATE = 0.2
+
+
+@estimator_export('estimator.experimental.LinearSDCA')
+class LinearSDCA(object):
+  """Stochastic Dual Coordinate Ascent helper for linear estimators.
+
+  Objects of this class are intended to be provided as the optimizer argument
+  (though LinearSDCA objects do not implement the tf.train.Optimizer interface)
+  when creating tf.estimator.LinearClassifier or tf.estimator.LinearRegressor.
+
+  SDCA can only be used with LinearClassifier and LinearRegressor under the
+  following conditions:
+    - Feature columns are of type V2.
+    - Multivalent categorical columns are not normalized. In other words the
+      `sparse_combiner` argument in the estimator constructor should be "sum".
+    - For classification: binary label.
+    - For regression: one-dimensional label.
+
+  Example usage:
+
+  ```python
+  real_feature_column = numeric_column(...)
+  sparse_feature_column = categorical_column_with_hash_bucket(...)
+  linear_sdca = tf.estimator.experimental.LinearSDCA(
+      example_id_column='example_id',
+      num_loss_partitions=1,
+      num_table_shards=1,
+      symmetric_l2_regularization=2.0)
+  classifier = tf.estimator.LinearClassifier(
+      feature_columns=[real_feature_column, sparse_feature_column],
+      weight_column=...,
+      optimizer=linear_sdca)
+  classifier.train(input_fn_train, steps=50)
+  classifier.evaluate(input_fn=input_fn_eval)
+  ```
+
+  Here the expectation is that the `input_fn_*` functions passed to train and
+  evaluate return a pair (dict, label_tensor) where dict has `example_id_column`
+  as `key` whose value is a `Tensor` of shape [batch_size] and dtype string.
+  num_loss_partitions defines sigma' in eq (11) of [3]. Convergence of (global)
+  loss is guaranteed if `num_loss_partitions` is larger or equal to the product
+  `(#concurrent train ops/per worker) x (#workers)`. Larger values for
+  `num_loss_partitions` lead to slower convergence. The recommended value for
+  `num_loss_partitions` in `tf.estimator` (where currently there is one process
+  per worker) is the number of workers running the train steps. It defaults to 1
+  (single machine).
+  `num_table_shards` defines the number of shards for the internal state
+  table, typically set to match the number of parameter servers for large
+  data sets.
+
+  The SDCA algorithm was originally introduced in [1] and it was followed by
+  the L1 proximal step [2], a distributed version [3] and adaptive sampling [4].
+  [1] www.jmlr.org/papers/volume14/shalev-shwartz13a/shalev-shwartz13a.pdf
+  [2] https://arxiv.org/pdf/1309.2375.pdf
+  [3] https://arxiv.org/pdf/1502.03508.pdf
+  [4] https://arxiv.org/pdf/1502.08053.pdf
+  Details specific to this implementation are provided in:
+  https://github.com/tensorflow/estimator/tree/master/tensorflow_estimator/python/estimator/canned/linear_optimizer/doc/sdca.ipynb
+  """
+
+  def __init__(self,
+               example_id_column,
+               num_loss_partitions=1,
+               num_table_shards=None,
+               symmetric_l1_regularization=0.0,
+               symmetric_l2_regularization=1.0,
+               adaptive=False):
+    """Construct a new SDCA optimizer for linear estimators.
+
+    Args:
+      example_id_column: The column name contraining the example ids.
+      num_loss_partitions: Number of workers.
+      num_table_shards: Number of shards of the internal state table, typically
+        set to match the number of parameter servers.
+      symmetric_l1_regularization: A float value, must be greater than or
+        equal to zero.
+      symmetric_l2_regularization: A float value, must be greater than zero and
+        should typically be greater than 1.
+      adaptive: A boolean indicating whether to use adaptive sampling.
+    """
+
+    self._example_id_column = example_id_column
+    self._num_loss_partitions = num_loss_partitions
+    self._num_table_shards = num_table_shards
+    self._symmetric_l1_regularization = symmetric_l1_regularization
+    self._symmetric_l2_regularization = symmetric_l2_regularization
+    self._adaptive = adaptive
+
+  def _prune_and_unique_sparse_ids(self, id_weight_pair):
+    """Remove duplicate and negative ids in a sparse tendor."""
+
+    id_tensor = id_weight_pair.id_tensor
+    if id_weight_pair.weight_tensor:
+      weight_tensor = id_weight_pair.weight_tensor.values
+    else:
+      weight_tensor = array_ops.ones(
+          [array_ops.shape(id_tensor.indices)[0]], dtypes.float32)
+
+    example_ids = array_ops.reshape(id_tensor.indices[:, 0], [-1])
+    flat_ids = math_ops.to_int64(array_ops.reshape(id_tensor.values, [-1]))
+    # Prune invalid IDs (< 0) from the flat_ids, example_ids, and
+    # weight_tensor.  These can come from looking up an OOV entry in the
+    # vocabulary (default value being -1).
+    is_id_valid = math_ops.greater_equal(flat_ids, 0)
+    flat_ids = array_ops.boolean_mask(flat_ids, is_id_valid)
+    example_ids = array_ops.boolean_mask(example_ids, is_id_valid)
+    weight_tensor = array_ops.boolean_mask(weight_tensor, is_id_valid)
+
+    projection_length = math_ops.reduce_max(flat_ids) + 1
+    # project ids based on example ids so that we can dedup ids that
+    # occur multiple times for a single example.
+    projected_ids = projection_length * example_ids + flat_ids
+
+    # Remove any redundant ids.
+    ids, idx = array_ops.unique(projected_ids)
+    # Keep only one example id per duplicated ids.
+    example_ids_filtered = math_ops.unsorted_segment_min(
+        example_ids, idx,
+        array_ops.shape(ids)[0])
+
+    # reproject ids back feature id space.
+    reproject_ids = (ids - projection_length * example_ids_filtered)
+
+    weights = array_ops.reshape(
+        math_ops.unsorted_segment_sum(weight_tensor, idx,
+                                      array_ops.shape(ids)[0]), [-1])
+    return sdca_ops._SparseFeatureColumn(  # pylint: disable=protected-access
+        example_ids_filtered, reproject_ids, weights)
+
+  def get_train_step(self, state_manager, weight_column_name, loss_type,
+                     feature_columns, features, targets, bias_var, global_step):
+    """Returns the training operation of an SdcaModel optimizer."""
+
+    batch_size = targets.get_shape()[0]
+    cache = feature_column_v2.FeatureTransformationCache(features)
+
+    # Iterate over all feature columns and create appropriate lists for dense
+    # and sparse features as well as dense and sparse weights (variables) for
+    # SDCA.
+    dense_features, dense_feature_weights = [], []
+    sparse_feature_with_values, sparse_feature_with_values_weights = [], []
+    for column in sorted(feature_columns, key=lambda x: x.name):
+      if isinstance(column, feature_column_v2.CategoricalColumn):
+        id_weight_pair = column.get_sparse_tensors(cache, state_manager)
+        sparse_feature_with_values.append(
+            self._prune_and_unique_sparse_ids(id_weight_pair))
+        # If a partitioner was used during variable creation, we will have a
+        # list of Variables here larger than 1.
+        sparse_feature_with_values_weights.append(
+            state_manager.get_variable(column, 'weights'))
+      elif isinstance(column, feature_column_v2.DenseColumn):
+        if column.variable_shape.ndims != 1:
+          raise ValueError('Column %s has rank %d, larger than 1.' % (
+              type(column).__name__, column.variable_shape.ndims))
+        dense_features.append(column.get_dense_tensor(cache, state_manager))
+        # For real valued columns, the variables list contains exactly one
+        # element.
+        dense_feature_weights.append(
+            state_manager.get_variable(column, 'weights'))
+      else:
+        raise ValueError('LinearSDCA does not support column type %s.' %
+                         type(column).__name__)
+
+    # Add the bias column
+    dense_features.append(array_ops.ones([batch_size, 1]))
+    dense_feature_weights.append(bias_var)
+
+    example_weights = array_ops.reshape(
+        features[weight_column_name],
+        shape=[-1]) if weight_column_name else array_ops.ones([batch_size])
+    example_ids = features[self._example_id_column]
+    training_examples = dict(
+        sparse_features=sparse_feature_with_values,
+        dense_features=dense_features,
+        example_labels=math_ops.to_float(
+            array_ops.reshape(targets, shape=[-1])),
+        example_weights=example_weights,
+        example_ids=example_ids)
+    training_variables = dict(
+        sparse_features_weights=sparse_feature_with_values_weights,
+        dense_features_weights=dense_feature_weights)
+    sdca_model = sdca_ops._SDCAModel(  # pylint: disable=protected-access
+        examples=training_examples,
+        variables=training_variables,
+        options=dict(
+            symmetric_l1_regularization=self._symmetric_l1_regularization,
+            symmetric_l2_regularization=self._symmetric_l2_regularization,
+            adaptive=self._adaptive,
+            num_loss_partitions=self._num_loss_partitions,
+            num_table_shards=self._num_table_shards,
+            loss_type=loss_type))
+    train_op = sdca_model.minimize(global_step=global_step)
+    return sdca_model, train_op
 
 
 def _get_default_optimizer(feature_columns):
@@ -157,6 +355,97 @@ def linear_logit_fn_builder(units, feature_columns, sparse_combiner='sum'):
   return linear_logit_fn
 
 
+def _sdca_model_fn(features, labels, mode, head, feature_columns, optimizer):
+  """A model_fn for linear models that use the SDCA optimizer.
+
+  Args:
+    features: dict of `Tensor`.
+    labels: `Tensor` of shape `[batch_size]`.
+    mode: Defines whether this is training, evaluation or prediction.
+      See `ModeKeys`.
+    head: A `Head` instance.
+    feature_columns: An iterable containing all the feature columns used by
+      the model.
+    optimizer: a `LinearSDCA` instance.
+
+  Returns:
+    An `EstimatorSpec` instance.
+
+  Raises:
+    ValueError: mode or params are invalid, or features has the wrong type.
+  """
+  assert feature_column_v2.is_feature_column_v2(feature_columns)
+  if isinstance(head, head_lib._BinaryLogisticHeadWithSigmoidCrossEntropyLoss):  # pylint: disable=protected-access
+    loss_type = 'logistic_loss'
+  elif isinstance(head, head_lib._RegressionHeadWithMeanSquaredErrorLoss):  # pylint: disable=protected-access
+    assert head.logits_dimension == 1
+    loss_type = 'squared_loss'
+  else:
+    raise ValueError('Unsupported head type: {}'.format(head))
+
+  linear_model = feature_column_v2.LinearModel(
+      feature_columns=feature_columns,
+      units=1,
+      sparse_combiner='sum')
+  logits = linear_model(features)
+
+  bias = linear_model.bias_variable
+
+  # We'd like to get all the non-bias variables associated with this
+  # LinearModel.
+  # TODO(rohanj): Figure out how to get shared embedding weights variable
+  # here.
+  variables = linear_model.variables
+  variables.remove(bias)
+
+  # Expand (potential) Partitioned variables
+  bias = _get_expanded_variable_list([bias])
+  variables = _get_expanded_variable_list(variables)
+  summary.scalar('bias', bias[0][0])
+  summary.scalar('fraction_of_zero_weights',
+                 _compute_fraction_of_zero(variables))
+
+  sdca_model, train_op = optimizer.get_train_step(
+      linear_model._state_manager,  # pylint: disable=protected-access
+      head._weight_column,  # pylint: disable=protected-access
+      loss_type,
+      feature_columns,
+      features,
+      labels,
+      linear_model.bias_variable,
+      training.get_global_step())
+
+  update_weights_hook = _SDCAUpdateWeightsHook(sdca_model, train_op)
+
+  model_fn_ops = head.create_estimator_spec(
+      features=features,
+      mode=mode,
+      labels=labels,
+      train_op_fn=lambda unused_loss_fn: train_op,
+      logits=logits)
+  return model_fn_ops._replace(training_chief_hooks=(
+      model_fn_ops.training_chief_hooks + (update_weights_hook,)))
+
+
+class _SDCAUpdateWeightsHook(session_run_hook.SessionRunHook):
+  """SessionRunHook to update and shrink SDCA model weights."""
+
+  def __init__(self, sdca_model, train_op):
+    self._sdca_model = sdca_model
+    self._train_op = train_op
+
+  def begin(self):
+    """Construct the update_weights op.
+
+    The op is implicitly added to the default graph.
+    """
+    self._update_op = self._sdca_model.update_weights(self._train_op)
+
+  def before_run(self, run_context):
+    """Return the update_weights op so that it is executed during this run."""
+    return session_run_hook.SessionRunArgs(self._update_op)
+
+
 # TODO(mikecase): Remove callers of private _dnn_logit_fn_builder
 _linear_logit_fn_builder = linear_logit_fn_builder
 
@@ -190,9 +479,6 @@ def _linear_model_fn(features, labels, mode, head, feature_columns, optimizer,
     raise ValueError('features should be a dictionary of `Tensor`s. '
                      'Given type: {}'.format(type(features)))
 
-  optimizer = optimizers.get_optimizer_instance(
-      optimizer or _get_default_optimizer(feature_columns),
-      learning_rate=_LEARNING_RATE)
   num_ps_replicas = config.num_ps_replicas if config else 0
 
   partitioner = partitioner or (
@@ -205,17 +491,28 @@ def _linear_model_fn(features, labels, mode, head, feature_columns, optimizer,
       values=tuple(six.itervalues(features)),
       partitioner=partitioner):
 
-    logit_fn = linear_logit_fn_builder(
-        units=head.logits_dimension, feature_columns=feature_columns,
-        sparse_combiner=sparse_combiner)
-    logits = logit_fn(features=features)
+    if isinstance(optimizer, LinearSDCA):
+      assert sparse_combiner == 'sum'
+      return _sdca_model_fn(
+          features, labels, mode, head, feature_columns, optimizer)
 
-    return head.create_estimator_spec(
-        features=features,
-        mode=mode,
-        labels=labels,
-        optimizer=optimizer,
-        logits=logits)
+    else:
+      logit_fn = linear_logit_fn_builder(
+          units=head.logits_dimension, feature_columns=feature_columns,
+          sparse_combiner=sparse_combiner,
+          )
+      logits = logit_fn(features=features)
+
+      optimizer = optimizers.get_optimizer_instance(
+          optimizer or _get_default_optimizer(feature_columns),
+          learning_rate=_LEARNING_RATE)
+
+      return head.create_estimator_spec(
+          features=features,
+          mode=mode,
+          labels=labels,
+          optimizer=optimizer,
+          logits=logits)
 
 
 @estimator_export('estimator.LinearClassifier')
@@ -338,9 +635,10 @@ class LinearClassifier(estimator.Estimator):
         encoded as integer values in {0, 1,..., n_classes-1} for `n_classes`>2 .
         Also there will be errors if vocabulary is not provided and labels are
         string.
-      optimizer: An instance of `tf.Optimizer` used to train the model. Can also
-        be a string (one of 'Adagrad', 'Adam', 'Ftrl', 'RMSProp', 'SGD'), or
-        callable. Defaults to FTRL optimizer.
+      optimizer: An instance of `tf.Optimizer` or
+        `tf.estimator.experimental.LinearSDCA` used to train the model. Can
+        also be a string (one of 'Adagrad', 'Adam', 'Ftrl', 'RMSProp', 'SGD'),
+        or callable. Defaults to FTRL optimizer.
       config: `RunConfig` object to configure the runtime settings.
       partitioner: Optional. Partitioner for input layer.
       warm_start_from: A string filepath to a checkpoint to warm-start from, or
@@ -362,6 +660,16 @@ class LinearClassifier(estimator.Estimator):
     Raises:
       ValueError: if n_classes < 2.
     """
+    if isinstance(optimizer, LinearSDCA):
+      if sparse_combiner != 'sum':
+        raise ValueError('sparse_combiner must be "sum" when optimizer '
+                         'is a LinearSDCA object.')
+      if not feature_column_v2.is_feature_column_v2(feature_columns):
+        raise ValueError('V2 feature columns required when optimizer '
+                         'is a LinearSDCA object.')
+      if n_classes > 2:
+        raise ValueError('LinearSDCA cannot be used in a multi-class setting.')
+
     if n_classes == 2:
       head = head_lib._binary_logistic_head_with_sigmoid_cross_entropy_loss(  # pylint: disable=protected-access
           weight_column=weight_column,
@@ -504,9 +812,10 @@ class LinearRegressor(estimator.Estimator):
         used as a key to fetch weight tensor from the `features`. If it is a
         `_NumericColumn`, raw tensor is fetched by key `weight_column.key`,
         then weight_column.normalizer_fn is applied on it to get weight tensor.
-      optimizer: An instance of `tf.Optimizer` used to train the model. Can also
-        be a string (one of 'Adagrad', 'Adam', 'Ftrl', 'RMSProp', 'SGD'), or
-        callable. Defaults to FTRL optimizer.
+      optimizer: An instance of `tf.Optimizer` or
+        `tf.estimator.experimental.LinearSDCA` used to train the model. Can
+        also be a string (one of 'Adagrad', 'Adam', 'Ftrl', 'RMSProp', 'SGD'),
+        or callable. Defaults to FTRL optimizer.
       config: `RunConfig` object to configure the runtime settings.
       partitioner: Optional. Partitioner for input layer.
       warm_start_from: A string filepath to a checkpoint to warm-start from, or
@@ -522,6 +831,17 @@ class LinearRegressor(estimator.Estimator):
         be useful for bag-of-words features. for more details, see
         `tf.feature_column.linear_model`.
     """
+    if isinstance(optimizer, LinearSDCA):
+      if sparse_combiner != 'sum':
+        raise ValueError('sparse_combiner must be "sum" when optimizer '
+                         'is a LinearSDCA object.')
+      if not feature_column_v2.is_feature_column_v2(feature_columns):
+        raise ValueError('V2 feature columns required when optimizer '
+                         'is a LinearSDCA object.')
+      if label_dimension > 1:
+        raise ValueError('LinearSDCA can only be used with one-dimensional '
+                         'label.')
+
     head = head_lib._regression_head(  # pylint: disable=protected-access
         label_dimension=label_dimension, weight_column=weight_column,
         loss_reduction=loss_reduction)

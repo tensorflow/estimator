@@ -714,6 +714,7 @@ py_library(
         ":optimizers",
         "//tensorflow_estimator/python/estimator:expect_six_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+        "//tensorflow_estimator/python/estimator/canned/linear_optimizer:sdca_ops_py",
     ],
 )
 
