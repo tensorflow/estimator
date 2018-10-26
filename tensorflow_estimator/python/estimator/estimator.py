@@ -2101,19 +2101,43 @@ class WarmStartSettings(
       })
   ```
 
+  Warm-start all variables (including non-TRAINABLE):
+
+  ```
+  ws = WarmStartSettings(ckpt_to_initialize_from="/tmp",
+                         vars_to_warm_start=[".*"])
+  ```
+
+  Warm-start non-TRAINABLE variables "v1", "v1/Momentum", and "v2" but not
+  "v2/momentum":
+
+  ```
+  ws = WarmStartSettings(ckpt_to_initialize_from="/tmp",
+                         vars_to_warm_start=["v1", "v2[^/]"])
+  ```
+
   Attributes:
     ckpt_to_initialize_from: [Required] A string specifying the directory with
       checkpoint file(s) or path to checkpoint from which to warm-start the
       model parameters.
-    vars_to_warm_start: [Optional] One of the following:  - A regular expression
-      (string) that captures which variables to warm-start (see
-      `tf.get_collection`).  This expression will only consider variables in the
-      `TRAINABLE_VARIABLES` collection. - A list of Variables to warm-start. - A
-      list of strings, each representing a full variable name to warm-start. -
-      `None`, in which case only variables specified in `var_name_to_vocab_info`
-      will be warm-started.  Defaults to `'.*'`, which warm-starts all variables
-      in the `TRAINABLE_VARIABLES` collection.  Note that this excludes
-      variables such as accumulators and moving statistics from batch norm.
+    vars_to_warm_start: [Optional] One of the following:
+
+      - A regular expression (string) that captures which variables to
+        warm-start (see tf.get_collection).  This expression will only consider
+        variables in the TRAINABLE_VARIABLES collection -- if you need to
+        warm-start non_TRAINABLE vars (such as optimizer accumulators or batch
+        norm statistics), please use the below option.
+      - A list of Variables to warm-start.  If you do not have access to the
+        `Variable` objects at the call site, please use the below option.
+      - A list of strings, each a regex scope provided to tf.get_collection with
+        GLOBAL_VARIABLES.  For backwards compatibility reasons, this is separate
+        from the single-string argument type.
+      - `None`, in which case only variables specified in
+        `var_name_to_vocab_info` will be warm-started.
+
+      Defaults to `'.*'`, which warm-starts all variables in the
+      TRAINABLE_VARIABLES collection.    Note that this excludes variables such
+      as accumulators and moving statistics from batch norm.
     var_name_to_vocab_info: [Optional] Dict of variable names (strings) to
       `tf.estimator.VocabInfo`. The variable names should be "full" variables,
       not the names of the partitions.  If not explicitly provided, the variable
@@ -2121,7 +2145,10 @@ class WarmStartSettings(
     var_name_to_prev_var_name: [Optional] Dict of variable names (strings) to
       name of the previously-trained variable in `ckpt_to_initialize_from`. If
       not explicitly provided, the name of the variable is assumed to be same
-      between previous checkpoint and current model.
+      between previous checkpoint and current model.  Note that this has no
+      effect on the set of variables that is warm-started, and only controls
+      name mapping (use `vars_to_warm_start` for controlling what variables to
+      warm-start).
   """
 
   def __new__(cls,
