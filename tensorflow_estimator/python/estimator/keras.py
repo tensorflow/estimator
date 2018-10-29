@@ -25,7 +25,7 @@ import six
 
 from tensorflow.python.client import session
 from tensorflow_estimator.python.estimator import estimator as estimator_lib
-from tensorflow_estimator.python.estimator import export as export_lib
+from tensorflow_estimator.python.estimator.export.export_output import PredictOutput
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import random_seed
@@ -320,7 +320,7 @@ def _create_keras_model_fn(keras_model, custom_objects=None):
         eval_metric_ops=eval_metric_ops,
         export_outputs={
             _DEFAULT_SERVING_KEY:
-            export_lib.export_output.PredictOutput(predictions)
+            PredictOutput(predictions)
         })
 
   return model_fn
