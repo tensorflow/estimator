@@ -273,19 +273,14 @@ class _ShardedMutableDenseHashTable(lookup_ops.LookupInterface):
       return math_ops.add_n(sizes)
 
   def _shard_indices(self, keys):
-    key_shape = keys.get_shape()
-    if key_shape.ndims > 1:
+    if keys.get_shape().ndims > 1:
       # If keys are a matrix (i.e. a single key is a vector), we use the first
       # element of each key vector to determine the shard.
-      keys = array_ops.slice(keys, [0, 0], [key_shape[0].value, 1])
-      keys = array_ops.reshape(keys, [-1])
+      keys = array_ops.reshape(array_ops.slice(keys, [0, 0], [-1, 1]), [-1])
     indices = math_ops.mod(math_ops.abs(keys), self._num_shards)
     return math_ops.cast(indices, dtypes.int32)
 
   def _check_keys(self, keys):
-    if not keys.get_shape().is_fully_defined():
-      raise ValueError("Key shape must be fully defined, got %s." %
-                       keys.get_shape())
     if keys.get_shape().ndims != 1 and keys.get_shape().ndims != 2:
       raise ValueError("Expected a vector or matrix for keys, got %s." %
                        keys.get_shape())
@@ -307,15 +302,12 @@ class _ShardedMutableDenseHashTable(lookup_ops.LookupInterface):
         for i in range(num_shards)
     ]
 
-    num_keys = keys.get_shape().dims[0]
+    num_keys = array_ops.shape(keys)[0]
     original_indices = math_ops.range(num_keys)
     partitioned_indices = data_flow_ops.dynamic_partition(original_indices,
                                                           shard_indices,
                                                           num_shards)
-    result = data_flow_ops.dynamic_stitch(partitioned_indices, value_shards)
-    result.set_shape(
-        tensor_shape.TensorShape([num_keys]).concatenate(self._value_shape))
-    return result
+    return data_flow_ops.dynamic_stitch(partitioned_indices, value_shards)
 
   def insert(self, keys, values, name=None):
     self._check_keys(keys)

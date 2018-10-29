@@ -23,6 +23,7 @@ import numpy as np
 from tensorflow.python.feature_column import feature_column_v2
 from tensorflow.python.framework import constant_op
 from tensorflow.python.framework import sparse_tensor
+from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import partitioned_variables
 from tensorflow.python.platform import test
 from tensorflow_estimator.python.estimator.canned import linear
@@ -413,7 +414,7 @@ class SDCARegressorTest(test.TestCase):
     self.assertLess(loss, 0.05)
 
   def testSparseFeaturesWithL1Reg(self):
-    """Tests LinearClassifier with LinearSDCA and sparse features."""
+    """Tests LinearRegressor with LinearSDCA and sparse features."""
 
     def input_fn():
       return {
@@ -487,7 +488,7 @@ class SDCARegressorTest(test.TestCase):
     self.assertLess(l1_reg_weights_norm, no_l1_reg_weights_norm)
 
   def testBiasOnly(self):
-    """Tests LinearClassifier with LinearSDCA and validates bias weight."""
+    """Tests LinearRegressor with LinearSDCA and validates bias weight."""
 
     def input_fn():
       """Testing the bias weight when it's the only feature present.
@@ -519,7 +520,7 @@ class SDCARegressorTest(test.TestCase):
         'linear/linear_model/bias_weights')[0], 0.25, err=0.1)
 
   def testBiasAndOtherColumns(self):
-    """Tests LinearClassifier with LinearSDCA and validates bias weight."""
+    """Tests LinearRegressor with LinearSDCA and validates bias weight."""
 
     def input_fn():
       """Testing the bias weight when there are other features present.
@@ -579,7 +580,7 @@ class SDCARegressorTest(test.TestCase):
         'linear/linear_model/b/weights')[0], 0.0, err=0.05)
 
   def testBiasAndOtherColumnsFabricatedCentered(self):
-    """Tests LinearClassifier with LinearSDCA and validates bias weight."""
+    """Tests LinearRegressor with LinearSDCA and validates bias weight."""
 
     def input_fn():
       """Testing the bias weight when there are other features present.
@@ -628,6 +629,36 @@ class SDCARegressorTest(test.TestCase):
         'linear/linear_model/a/weights')[0], 0.1, err=0.05)
     self.assertNear(regressor.get_variable_value(
         'linear/linear_model/b/weights')[0], -0.1, err=0.05)
+
+  def testUnknownBatchSize(self):
+    """Tests LinearRegressor with LinearSDCA and unknown batch size."""
+
+    def input_fn():
+      # Similar to testBiasOnly but use placeholder_with_default in order to
+      # let the static batch size unspecified.
+      return {
+          'example_id':
+              array_ops.placeholder_with_default(
+                  constant_op.constant(['0', '1']),
+                  shape=[None]),
+          # always_zero is an empty column which is always 0 (absent), because
+          # LinearClassifier requires at least one column.
+          'always_zero':
+              array_ops.placeholder_with_default(
+                  constant_op.constant([[0.0]] * 2),
+                  shape=[None, 1]),
+      }, array_ops.placeholder_with_default(
+              constant_op.constant([0.0, 1.0]),
+              shape=[None])
+
+    always_zero = feature_column_v2.numeric_column('always_zero')
+    optimizer = linear.LinearSDCA(
+        example_id_column='example_id', symmetric_l2_regularization=0.1)
+    regressor = linear.LinearRegressor(
+        feature_columns=[always_zero], optimizer=optimizer)
+    regressor.train(input_fn=input_fn, steps=100)
+    self.assertNear(regressor.get_variable_value(
+        'linear/linear_model/bias_weights')[0], 0.5, err=0.1)
 
 
 if __name__ == '__main__':

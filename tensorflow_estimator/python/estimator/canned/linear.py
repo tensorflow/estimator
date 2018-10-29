@@ -180,7 +180,7 @@ class LinearSDCA(object):
                      feature_columns, features, targets, bias_var, global_step):
     """Returns the training operation of an SdcaModel optimizer."""
 
-    batch_size = targets.get_shape()[0]
+    batch_size = array_ops.shape(targets)[0]
     cache = feature_column_v2.FeatureTransformationCache(features)
 
     # Iterate over all feature columns and create appropriate lists for dense
