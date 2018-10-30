@@ -1325,7 +1325,7 @@ class Estimator(object):
         worker_hooks.extend(input_hooks)
         global_step_tensor = self._create_and_assert_global_step(g)
         # we want to add to the global collection in the main thread not the
-        # tower threads.
+        # replica threads.
         ops.add_to_collection(
             training_util.GLOBAL_STEP_READ_KEY,
             strategy.read_var(global_step_tensor))
@@ -1334,7 +1334,7 @@ class Estimator(object):
           # Create a step_fn from the train_op of grouped_estimator_spec
           def step_fn(ctx, features, labels=None):
             """A single step that is passed to run_on_dataset."""
-            estimator_spec = strategy.call_for_each_tower(
+            estimator_spec = strategy.call_for_each_replica(
                 self._call_model_fn,
                 features,
                 labels,
@@ -1359,7 +1359,7 @@ class Estimator(object):
         else:
           features, labels = estimator_util.parse_iterator_result(
               iterator.get_next())
-          grouped_estimator_spec = strategy.call_for_each_tower(
+          grouped_estimator_spec = strategy.call_for_each_replica(
               self._call_model_fn,
               features,
               labels,  # although this will be None it seems
@@ -1593,7 +1593,7 @@ class Estimator(object):
       steps_per_run_variable = training.get_or_create_steps_per_run_variable()
       def step_fn(ctx, features, labels=None):
         """Runs one step of the eval computation and captures outputs."""
-        estimator_spec = self._eval_distribution.call_for_each_tower(
+        estimator_spec = self._eval_distribution.call_for_each_replica(
             self._call_model_fn, features, labels, model_fn_lib.ModeKeys.EVAL,
             config)
         eval_metric_ops = _verify_and_create_loss_metric(
@@ -1614,7 +1614,7 @@ class Estimator(object):
     else:
       features, labels = estimator_util.parse_iterator_result(
           iterator.get_next())
-      grouped_estimator_spec = self._eval_distribution.call_for_each_tower(
+      grouped_estimator_spec = self._eval_distribution.call_for_each_replica(
           self._call_model_fn, features, labels,
           model_fn_lib.ModeKeys.EVAL, config)
       eval_metric_ops = _verify_and_create_loss_metric(
@@ -1679,7 +1679,7 @@ def _verify_and_create_loss_metric(eval_metric_ops, loss, distribution=None):
   if distribution is None:
     loss_metric = metrics_lib.mean(loss)
   else:
-    loss_metric = distribution.call_for_each_tower(
+    loss_metric = distribution.call_for_each_replica(
         metrics_lib.mean, loss)
   eval_metric_ops[model_fn_lib.LOSS_METRIC_KEY] = loss_metric
   return eval_metric_ops
@@ -1728,8 +1728,8 @@ def maybe_overwrite_model_dir_and_session_config(config, model_dir):
   return config
 
 
-def create_per_tower_ready_for_local_init_op(scaffold):
-  """Create a `tf.train.Scaffold.ready_for_local_init_op` inside a tower."""
+def create_per_replica_ready_for_local_init_op(scaffold):
+  """Create a `tf.train.Scaffold.ready_for_local_init_op` inside a replica."""
   if scaffold.ready_for_local_init_op:
     return scaffold.ready_for_local_init_op
 
@@ -1743,7 +1743,7 @@ def create_per_tower_ready_for_local_init_op(scaffold):
 
 
 def _combine_distributed_scaffold(grouped_scaffold, distribution):
-  """Combines scaffold(s) returned from `distribution.call_for_each_tower`."""
+  """Combines scaffold(s) returned from `distribution.call_for_each_replica`."""
 
   # TODO(anjalisridhar): Figure out how to resolve the following scaffold
   # parameters: init_feed_dict, init_fn.
@@ -1776,13 +1776,13 @@ def _combine_distributed_scaffold(grouped_scaffold, distribution):
       return array_ops.concat(value, 0)
     return value[0]
 
-  ready_op = distribution.call_for_each_tower(
+  ready_op = distribution.call_for_each_replica(
       lambda scaffold: scaffold.ready_op, grouped_scaffold)
   if ready_op is not None:
     ready_op = _unwrap_and_concat(ready_op)
 
-  ready_for_local_init_op = distribution.call_for_each_tower(
-      create_per_tower_ready_for_local_init_op, grouped_scaffold)
+  ready_for_local_init_op = distribution.call_for_each_replica(
+      create_per_replica_ready_for_local_init_op, grouped_scaffold)
   if ready_for_local_init_op is not None:
     ready_for_local_init_op = _unwrap_and_concat(ready_for_local_init_op)
   else:
