@@ -40,6 +40,7 @@ from tensorflow.python.training import training
 from tensorflow.python.util import nest
 from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator import estimator
+from tensorflow_estimator.python.estimator import model_fn
 from tensorflow_estimator.python.estimator.canned import head as head_lib
 from tensorflow_estimator.python.estimator.canned import optimizers
 from tensorflow_estimator.python.estimator.canned.linear_optimizer.python.utils import sdca_ops
@@ -405,26 +406,34 @@ def _sdca_model_fn(features, labels, mode, head, feature_columns, optimizer):
   summary.scalar('fraction_of_zero_weights',
                  _compute_fraction_of_zero(variables))
 
-  sdca_model, train_op = optimizer.get_train_step(
-      linear_model._state_manager,  # pylint: disable=protected-access
-      head._weight_column,  # pylint: disable=protected-access
-      loss_type,
-      feature_columns,
-      features,
-      labels,
-      linear_model.bias_variable,
-      training.get_global_step())
+  if mode == model_fn.ModeKeys.TRAIN:
+    sdca_model, train_op = optimizer.get_train_step(
+        linear_model._state_manager,  # pylint: disable=protected-access
+        head._weight_column,  # pylint: disable=protected-access
+        loss_type,
+        feature_columns,
+        features,
+        labels,
+        linear_model.bias_variable,
+        training.get_global_step())
 
-  update_weights_hook = _SDCAUpdateWeightsHook(sdca_model, train_op)
+    update_weights_hook = _SDCAUpdateWeightsHook(sdca_model, train_op)
 
-  model_fn_ops = head.create_estimator_spec(
-      features=features,
-      mode=mode,
-      labels=labels,
-      train_op_fn=lambda unused_loss_fn: train_op,
-      logits=logits)
-  return model_fn_ops._replace(training_chief_hooks=(
-      model_fn_ops.training_chief_hooks + (update_weights_hook,)))
+    model_fn_ops = head.create_estimator_spec(
+        features=features,
+        mode=mode,
+        labels=labels,
+        train_op_fn=lambda unused_loss_fn: train_op,
+        logits=logits)
+    return model_fn_ops._replace(training_chief_hooks=(
+        model_fn_ops.training_chief_hooks + (update_weights_hook,)))
+  else:
+    return head.create_estimator_spec(
+        features=features,
+        mode=mode,
+        labels=labels,
+        logits=logits)
+
 
 
 class _SDCAUpdateWeightsHook(session_run_hook.SessionRunHook):
