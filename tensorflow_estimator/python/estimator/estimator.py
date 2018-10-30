@@ -30,6 +30,7 @@ import six
 from google.protobuf import message
 from tensorflow.core.framework import summary_pb2
 from tensorflow.python.client import session as tf_session
+from tensorflow.python.distribute import estimator_training as distribute_coordinator_training
 from tensorflow.python.eager import context
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
 from tensorflow_estimator.python.estimator import run_config
@@ -444,6 +445,34 @@ class Estimator(object):
       ValueError: If no model has been trained, namely `model_dir`, or the
         given `checkpoint_path` is empty.
     """
+    # pylint: disable=protected-access
+    if (self._eval_distribution and
+        hasattr(self._config, '_distribute_coordinator_mode') and
+        self._config._distribute_coordinator_mode):
+      return distribute_coordinator_training.estimator_evaluate(
+          self,
+          lambda est, s, eval_hooks: est._actual_eval(  # pylint: disable=g-long-lambda
+              input_fn, strategy=s, steps=steps, hooks=eval_hooks,
+              checkpoint_path=checkpoint_path, name=name),
+          hooks)
+    # pylint: enable=protected-access
+    else:
+      return self._actual_eval(
+          input_fn,
+          strategy=self._eval_distribution,
+          steps=steps,
+          hooks=hooks,
+          checkpoint_path=checkpoint_path,
+          name=name)
+
+  def _actual_eval(self,
+                   input_fn,
+                   strategy=None,
+                   steps=None,
+                   hooks=None,
+                   checkpoint_path=None,
+                   name=None):
+    """The method that does evaluation actually."""
     with context.graph_mode():
       hooks = _check_hooks_type(hooks)
       hooks.extend(self._convert_eval_steps_to_hooks(steps))
@@ -468,12 +497,12 @@ class Estimator(object):
             output_dir=self.eval_dir(name))
 
       with ops.Graph().as_default():
-        if self._eval_distribution:
+        if strategy:
           # We want to create the iterations variable outside the distribution
           # scope as that is just stored on the host and mainly used to drive
           # the loop and doesn't need to be a Mirrored/Device variable.
           training.get_or_create_steps_per_run_variable()
-          with self._eval_distribution.scope():
+          with strategy.scope():
             return _evaluate()
         else:
           return _evaluate()
@@ -1259,12 +1288,28 @@ class Estimator(object):
     Returns:
       Loss from training
     """
-    self._train_distribution.configure(self._session_config)
+    # pylint: disable=protected-access
+    if (hasattr(self._config, '_distribute_coordinator_mode') and
+        self._config._distribute_coordinator_mode):  # pylint: disable=protected-access
+      distribute_coordinator_training.estimator_train(
+          self,
+          lambda est, s, train_hooks: est._actual_train_model_distributed(  # pylint: disable=g-long-lambda
+              s, input_fn, train_hooks, saving_listeners),
+          hooks)
+      return self
+    else:
+      self._config._train_distribute.configure(self._config.session_config)
+      return self._actual_train_model_distributed(
+          self._config._train_distribute, input_fn, hooks, saving_listeners)
+    # pylint: enable=protected-access
 
+  def _actual_train_model_distributed(self, strategy, input_fn, hooks,
+                                      saving_listeners):
+    """That method that does actual training with distribution strategy."""
     # TODO(sourabhbajaj): Remove this hack once we migrate the other strategies
     # to use the new API
     is_tpu_strategy = (
-        self._train_distribution.__class__.__name__ == 'TPUStrategy')
+        strategy.__class__.__name__ == 'TPUStrategy')
 
     worker_hooks = []
     with ops.Graph().as_default() as g:
@@ -1273,23 +1318,23 @@ class Estimator(object):
       # and doesn't need to be a Mirrored/Device variable.
       if is_tpu_strategy:
         steps_per_run_variable = training.get_or_create_steps_per_run_variable()
-      with self._train_distribution.scope():
+      with strategy.scope():
         random_seed.set_random_seed(self._config.tf_random_seed)
         iterator, input_hooks = self._get_iterator_from_input_fn(
-            input_fn, model_fn_lib.ModeKeys.TRAIN, self._train_distribution)
+            input_fn, model_fn_lib.ModeKeys.TRAIN, strategy)
         worker_hooks.extend(input_hooks)
         global_step_tensor = self._create_and_assert_global_step(g)
         # we want to add to the global collection in the main thread not the
         # tower threads.
         ops.add_to_collection(
             training_util.GLOBAL_STEP_READ_KEY,
-            self._train_distribution.read_var(global_step_tensor))
+            strategy.read_var(global_step_tensor))
 
         if is_tpu_strategy:
           # Create a step_fn from the train_op of grouped_estimator_spec
           def step_fn(ctx, features, labels=None):
             """A single step that is passed to run_on_dataset."""
-            estimator_spec = self._train_distribution.call_for_each_tower(
+            estimator_spec = strategy.call_for_each_tower(
                 self._call_model_fn,
                 features,
                 labels,
@@ -1305,7 +1350,7 @@ class Estimator(object):
 
           # Create new train_op post graph rewrites
           initial_training_loss = constant_op.constant(1e7)
-          ctx = self._train_distribution.run_steps_on_dataset(
+          ctx = strategy.run_steps_on_dataset(
               step_fn, iterator, iterations=steps_per_run_variable,
               initial_loop_values={'loss': initial_training_loss})
           distributed_train_op = ctx.run_op
@@ -1314,21 +1359,21 @@ class Estimator(object):
         else:
           features, labels = estimator_util.parse_iterator_result(
               iterator.get_next())
-          grouped_estimator_spec = self._train_distribution.call_for_each_tower(
+          grouped_estimator_spec = strategy.call_for_each_tower(
               self._call_model_fn,
               features,
               labels,  # although this will be None it seems
               model_fn_lib.ModeKeys.TRAIN,
               self.config)
-          loss = self._train_distribution.unwrap(
-              self._train_distribution.reduce(
+          loss = strategy.unwrap(
+              strategy.reduce(
                   distribute_lib.get_loss_reduction(),
                   grouped_estimator_spec.loss,
                   destinations='/device:CPU:0'))[0]
           distributed_train_op = grouped_estimator_spec.train_op
 
         scaffold = _combine_distributed_scaffold(
-            grouped_estimator_spec.scaffold, self._train_distribution)
+            grouped_estimator_spec.scaffold, strategy)
 
         # TODO(yuefengz): add a test for unwrapping per_device_hooks.
         def get_hooks_from_the_first_device(per_device_hooks):
@@ -1343,13 +1388,13 @@ class Estimator(object):
             grouped_estimator_spec.training_chief_hooks)
         worker_hooks.append(
             estimator_util.StrategyInitFinalizeHook(
-                self._train_distribution.initialize,
-                self._train_distribution.finalize))
+                strategy.initialize,
+                strategy.finalize))
 
         estimator_spec = model_fn_lib.EstimatorSpec(
             mode=grouped_estimator_spec.mode,
             loss=loss,
-            train_op=self._train_distribution.group(distributed_train_op),
+            train_op=strategy.group(distributed_train_op),
             training_hooks=training_hooks,
             training_chief_hooks=training_chief_hooks,
             scaffold=scaffold)
