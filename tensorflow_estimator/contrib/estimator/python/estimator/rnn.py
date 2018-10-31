@@ -174,7 +174,8 @@ def _select_last_activations(activations, sequence_lengths):
 
 
 def _rnn_logit_fn_builder(output_units, rnn_cell_fn, sequence_feature_columns,
-                          context_feature_columns, input_layer_partitioner):
+                          context_feature_columns, input_layer_partitioner,
+                          return_sequences=False):
   """Function builder for a rnn logit_fn.
 
   Args:
@@ -186,6 +187,8 @@ def _rnn_logit_fn_builder(output_units, rnn_cell_fn, sequence_feature_columns,
     context_feature_columns: An iterable containing the `FeatureColumn`s
       that represent contextual input.
     input_layer_partitioner: Partitioner for input layer.
+    return_sequences: A boolean indicating whether to return the last output
+      in the output sequence, or the full sequence.
 
   Returns:
     A logit_fn (see below).
@@ -233,11 +236,13 @@ def _rnn_logit_fn_builder(output_units, rnn_cell_fn, sequence_feature_columns,
         sequence_length=sequence_length,
         dtype=dtypes.float32,
         time_major=False)
-    last_activations = _select_last_activations(rnn_outputs, sequence_length)
+
+    if not return_sequences:
+      rnn_outputs = _select_last_activations(rnn_outputs, sequence_length)
 
     with variable_scope.variable_scope('logits', values=(rnn_outputs,)):
       logits = core_layers.dense(
-          last_activations,
+          rnn_outputs,
           units=output_units,
           activation=None,
           kernel_initializer=init_ops.glorot_uniform_initializer())
@@ -253,6 +258,7 @@ def _rnn_model_fn(features,
                   rnn_cell_fn,
                   sequence_feature_columns,
                   context_feature_columns,
+                  return_sequences=False,
                   optimizer='Adagrad',
                   input_layer_partitioner=None,
                   config=None):
@@ -271,6 +277,8 @@ def _rnn_model_fn(features,
       represent sequential model inputs.
     context_feature_columns: Iterable containing `FeatureColumn`s that
       represent model inputs not associated with a specific timestep.
+    return_sequences: A boolean indicating whether to return the last output
+      in the output sequence, or the full sequence.
     optimizer: String, `tf.Optimizer` object, or callable that creates the
       optimizer to use for training. If not specified, will use the Adagrad
       optimizer with a default learning rate of 0.05 and gradient clip norm of
@@ -313,7 +321,8 @@ def _rnn_model_fn(features,
         rnn_cell_fn=rnn_cell_fn,
         sequence_feature_columns=sequence_feature_columns,
         context_feature_columns=context_feature_columns,
-        input_layer_partitioner=input_layer_partitioner)
+        input_layer_partitioner=input_layer_partitioner,
+        return_sequences=return_sequences)
     logits = logit_fn(features=features, mode=mode)
 
     def _train_op_fn(loss):
@@ -489,6 +498,7 @@ class RNNClassifier(estimator.Estimator):
           rnn_cell_fn=rnn_cell_fn,
           sequence_feature_columns=tuple(sequence_feature_columns or []),
           context_feature_columns=tuple(context_feature_columns or []),
+          return_sequences=False,
           optimizer=optimizer,
           input_layer_partitioner=input_layer_partitioner,
           config=config)
@@ -566,11 +576,12 @@ class RNNEstimator(estimator.Estimator):
                num_units=None,
                cell_type=USE_DEFAULT,
                rnn_cell_fn=None,
+               return_sequences=False,
                model_dir=None,
                optimizer='Adagrad',
                input_layer_partitioner=None,
                config=None):
-    """Initializes a `RNNClassifier` instance.
+    """Initializes a `RNNEstimator` instance.
 
     Args:
       head: A `_Head` instance constructed with a method such as
@@ -599,6 +610,8 @@ class RNNEstimator(estimator.Estimator):
         This is for advanced users who need additional customization beyond
         `num_units` and `cell_type`. Note that `tf.nn.rnn_cell.MultiRNNCell` is
         needed for stacked RNNs.
+      return_sequences: A boolean indicating whether to return the last output
+        in the output sequence, or the full sequence.
       model_dir: Directory to save model parameters, graph and etc. This can
         also be used to load checkpoints from the directory into a estimator to
         continue training a previously saved model.
@@ -623,6 +636,7 @@ class RNNEstimator(estimator.Estimator):
           rnn_cell_fn=rnn_cell_fn,
           sequence_feature_columns=tuple(sequence_feature_columns or []),
           context_feature_columns=tuple(context_feature_columns or []),
+          return_sequences=return_sequences,
           optimizer=optimizer,
           input_layer_partitioner=input_layer_partitioner,
           config=config)
