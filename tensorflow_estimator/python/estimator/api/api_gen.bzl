@@ -36,7 +36,7 @@ def gen_api_init_files(
         output_files = ESTIMATOR_API_INIT_FILES,
         root_init_template = None,
         srcs = [],
-        api_name = "tensorflow",
+        api_name = "estimator",
         api_version = 2,
         compat_api_versions = [
             1,
