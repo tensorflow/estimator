@@ -31,7 +31,7 @@ bazel test //tensorflow_estimator/...
 ## Contribution guidelines
 
 **If you want to contribute to TensorFlow Estimator, be sure to review the [contribution
-guidelines](CONTRIBUTING.md).
+guidelines](CONTRIBUTING.md).**
 
 **We use [GitHub issues](https://github.com/tensorflow/estimator/issues) for
 tracking requests and bugs. So please see
