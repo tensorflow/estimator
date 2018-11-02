@@ -23,19 +23,19 @@ import six
 from tensorflow_estimator.contrib.estimator.python.estimator import extenders
 from tensorflow.contrib.feature_column.python.feature_column import sequence_feature_column as seq_fc
 from tensorflow_estimator.python.estimator import estimator
-from tensorflow_estimator.python.estimator import model_fn
 from tensorflow_estimator.python.estimator.canned import head as head_lib
 from tensorflow_estimator.python.estimator.canned import optimizers
 from tensorflow.python.feature_column import feature_column as feature_column_lib
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
-from tensorflow.python.keras import layers as keras_layers
 from tensorflow.python.layers import core as core_layers
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import check_ops
 from tensorflow.python.ops import init_ops
+from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import partitioned_variables
 from tensorflow.python.ops import rnn
+from tensorflow.python.ops import rnn_cell
 from tensorflow.python.ops import variable_scope
 from tensorflow.python.ops.losses import losses
 from tensorflow.python.summary import summary
@@ -48,36 +48,48 @@ from tensorflow.python.training import training_util
 _DEFAULT_LEARNING_RATE = 0.05
 _DEFAULT_CLIP_NORM = 5.0
 
-_SIMPLE_RNN_KEY = 'simple_rnn'
-_CELL_TYPES = {_SIMPLE_RNN_KEY: keras_layers.SimpleRNNCell,
-               'lstm': keras_layers.LSTMCell,
-               'gru': keras_layers.GRUCell}
+_CELL_TYPES = {'basic_rnn': rnn_cell.BasicRNNCell,
+               'lstm': rnn_cell.BasicLSTMCell,
+               'gru': rnn_cell.GRUCell}
 
 # Indicates no value was provided by the user to a kwarg.
 USE_DEFAULT = object()
 
 
-def _make_rnn_cell(num_units, cell_type=_SIMPLE_RNN_KEY):
-  """Convenience function to create a RNN cell for canned RNN Estimators.
+def _single_rnn_cell(num_units, cell_type):
+  cell_type = _CELL_TYPES.get(cell_type, cell_type)
+  if not cell_type or not issubclass(cell_type, rnn_cell.RNNCell):
+    raise ValueError('Supported cell types are {}; got {}'.format(
+        list(_CELL_TYPES.keys()), cell_type))
+  return cell_type(num_units=num_units)
+
+
+def _make_rnn_cell_fn(num_units, cell_type='basic_rnn'):
+  """Convenience function to create `rnn_cell_fn` for canned RNN Estimators.
 
   Args:
     num_units: Iterable of integer number of hidden units per RNN layer.
-    cell_type: A string specifying the cell type. Supported strings are:
-      `'simple_rnn'`, `'lstm'`, and `'gru'`.
+    cell_type: A subclass of `tf.nn.rnn_cell.RNNCell` or a string specifying
+      the cell type. Supported strings are: `'basic_rnn'`, `'lstm'`, and
+      `'gru'`.
 
   Returns:
-    A Keras RNN cell.
+    A function that takes a single argument, an instance of
+    `tf.estimator.ModeKeys`, and returns an instance derived from
+    `tf.nn.rnn_cell.RNNCell`.
 
   Raises:
     ValueError: If cell_type is not supported.
   """
-  if cell_type not in _CELL_TYPES:
-    raise ValueError('Supported cell types are {}; got {}'.format(
-        list(_CELL_TYPES.keys()), cell_type))
-  cells = [_CELL_TYPES[cell_type](units=n) for n in num_units]
-  if len(cells) == 1:
-    return cells[0]
-  return keras_layers.StackedRNNCells(cells, reverse_state_order=True)
+  def rnn_cell_fn(mode):
+    # Unused. Part of the rnn_cell_fn interface since user specified functions
+    # may need different behavior across modes (e.g. dropout).
+    del mode
+    cells = [_single_rnn_cell(n, cell_type) for n in num_units]
+    if len(cells) == 1:
+      return cells[0]
+    return rnn_cell.MultiRNNCell(cells)
+  return rnn_cell_fn
 
 
 def _concatenate_context_input(sequence_input, context_input):
@@ -129,14 +141,47 @@ def _concatenate_context_input(sequence_input, context_input):
   return array_ops.concat([sequence_input, tiled_context_input], 2)
 
 
-def _rnn_logit_fn_builder(output_units, rnn_cell, sequence_feature_columns,
+def _select_last_activations(activations, sequence_lengths):
+  """Selects the nth set of activations for each n in `sequence_length`.
+
+  Returns a `Tensor` of shape `[batch_size, k]`. If `sequence_length` is not
+  `None`, then `output[i, :] = activations[i, sequence_length[i] - 1, :]`. If
+  `sequence_length` is `None`, then `output[i, :] = activations[i, -1, :]`.
+
+  Args:
+    activations: A `Tensor` with shape `[batch_size, padded_length, k]`.
+    sequence_lengths: A `Tensor` with shape `[batch_size]` or `None`.
+  Returns:
+    A `Tensor` of shape `[batch_size, k]`.
+  """
+  with ops.name_scope(
+      'select_last_activations', values=[activations, sequence_lengths]):
+    activations_shape = array_ops.shape(activations)
+    batch_size = activations_shape[0]
+    padded_length = activations_shape[1]
+    output_units = activations_shape[2]
+    if sequence_lengths is None:
+      sequence_lengths = padded_length
+    start_indices = math_ops.to_int64(
+        math_ops.range(batch_size) * padded_length)
+    last_indices = start_indices + sequence_lengths - 1
+    reshaped_activations = array_ops.reshape(
+        activations, [batch_size * padded_length, output_units])
+
+    last_activations = array_ops.gather(reshaped_activations, last_indices)
+    last_activations.set_shape([activations.shape[0], activations.shape[2]])
+    return last_activations
+
+
+def _rnn_logit_fn_builder(output_units, rnn_cell_fn, sequence_feature_columns,
                           context_feature_columns, input_layer_partitioner,
                           return_sequences=False):
   """Function builder for a rnn logit_fn.
 
   Args:
     output_units: An int indicating the dimension of the logit layer.
-    rnn_cell: A Keras RNN cell object.
+    rnn_cell_fn: A function with one argument, a `tf.estimator.ModeKeys`, and
+      returns an object of type `tf.nn.rnn_cell.RNNCell`.
     sequence_feature_columns: An iterable containing the `FeatureColumn`s
       that represent sequential input.
     context_feature_columns: An iterable containing the `FeatureColumn`s
@@ -183,13 +228,17 @@ def _rnn_logit_fn_builder(output_units, rnn_cell, sequence_feature_columns,
         sequence_input = _concatenate_context_input(sequence_input,
                                                     context_input)
 
+    cell = rnn_cell_fn(mode)
     # Ignore output state.
-    sequence_length_mask = array_ops.sequence_mask(sequence_length)
-    rnn_layer = keras_layers.RNN(cell=rnn_cell,
-                                 return_sequences=return_sequences)
-    rnn_outputs = rnn_layer(sequence_input,
-                            mask=sequence_length_mask,
-                            training=mode == model_fn.ModeKeys.TRAIN)
+    rnn_outputs, _ = rnn.dynamic_rnn(
+        cell=cell,
+        inputs=sequence_input,
+        sequence_length=sequence_length,
+        dtype=dtypes.float32,
+        time_major=False)
+
+    if not return_sequences:
+      rnn_outputs = _select_last_activations(rnn_outputs, sequence_length)
 
     with variable_scope.variable_scope('logits', values=(rnn_outputs,)):
       logits = core_layers.dense(
@@ -206,7 +255,7 @@ def _rnn_model_fn(features,
                   labels,
                   mode,
                   head,
-                  rnn_cell,
+                  rnn_cell_fn,
                   sequence_feature_columns,
                   context_feature_columns,
                   return_sequences=False,
@@ -222,7 +271,8 @@ def _rnn_model_fn(features,
     mode: Defines whether this is training, evaluation or prediction.
       See `ModeKeys`.
     head: A `head_lib._Head` instance.
-    rnn_cell: A Keras RNN cell object.
+    rnn_cell_fn: A function with one argument, a `tf.estimator.ModeKeys`, and
+      returns an object of type `tf.nn.rnn_cell.RNNCell`.
     sequence_feature_columns: Iterable containing `FeatureColumn`s that
       represent sequential model inputs.
     context_feature_columns: Iterable containing `FeatureColumn`s that
@@ -268,7 +318,7 @@ def _rnn_model_fn(features,
 
     logit_fn = _rnn_logit_fn_builder(
         output_units=head.logits_dimension,
-        rnn_cell=rnn_cell,
+        rnn_cell_fn=rnn_cell_fn,
         sequence_feature_columns=sequence_feature_columns,
         context_feature_columns=context_feature_columns,
         input_layer_partitioner=input_layer_partitioner,
@@ -289,19 +339,17 @@ def _rnn_model_fn(features,
         logits=logits)
 
 
-def _assert_rnn_cell(cell, num_units, cell_type):
-  """Assert arguments are valid and return rnn_cell."""
-  if cell and (num_units or cell_type != USE_DEFAULT):
+def _assert_rnn_cell_fn(rnn_cell_fn, num_units, cell_type):
+  """Assert arguments are valid and return rnn_cell_fn."""
+  if rnn_cell_fn and (num_units or cell_type != USE_DEFAULT):
     raise ValueError(
-        'num_units and cell_type must not be specified when using rnn_cell.')
-  # TODO(b/118833464): Add a base interface for Keras RNN cells.
-  if cell and not rnn._is_keras_rnn_cell(cell):  # pylint: disable=protected-access
-    raise ValueError('Provided cell must be a Keras cell.')
-  if not cell:
+        'num_units and cell_type must not be specified when using rnn_cell_fn'
+    )
+  if not rnn_cell_fn:
     if cell_type == USE_DEFAULT:
-      cell_type = _SIMPLE_RNN_KEY
-    cell = _make_rnn_cell(num_units, cell_type)
-  return cell
+      cell_type = 'basic_rnn'
+    rnn_cell_fn = _make_rnn_cell_fn(num_units, cell_type)
+  return rnn_cell_fn
 
 
 class RNNClassifier(estimator.Estimator):
@@ -361,7 +409,7 @@ class RNNClassifier(estimator.Estimator):
                context_feature_columns=None,
                num_units=None,
                cell_type=USE_DEFAULT,
-               rnn_cell=None,
+               rnn_cell_fn=None,
                model_dir=None,
                n_classes=2,
                weight_column=None,
@@ -384,14 +432,18 @@ class RNNClassifier(estimator.Estimator):
         instances of classes derived from `_DenseColumn` such as
         `numeric_column`, not the sequential variants.
       num_units: Iterable of integer number of hidden units per RNN layer. If
-        set, `cell_type` must also be specified and `rnn_cell` must be `None`.
-      cell_type: A string specifying the cell type. Supported strings are:
-        `'simple_rnn'`, `'lstm'`, and `'gru'`. If set, `num_units` must also be
-        specified and `rnn_cell` must be `None`.
-      rnn_cell: A Keras RNN cell that will be used to construct the RNN. If set,
-        `num_units` and `cell_type` cannot be set. This is for advanced users
-        who need additional customization beyond `num_units` and `cell_type`.
-        Note that `tf.keras.layers.StackedRNNCells` is needed for stacked RNNs.
+        set, `cell_type` must also be specified and `rnn_cell_fn` must be
+        `None`.
+      cell_type: A subclass of `tf.nn.rnn_cell.RNNCell` or a string specifying
+        the cell type. Supported strings are: `'basic_rnn'`, `'lstm'`, and
+        `'gru'`. If set, `num_units` must also be specified and `rnn_cell_fn`
+        must be `None`.
+      rnn_cell_fn: A function with one argument, a `tf.estimator.ModeKeys`, and
+        returns an object of type `tf.nn.rnn_cell.RNNCell` that will be used to
+        construct the RNN. If set, `num_units` and `cell_type` cannot be set.
+        This is for advanced users who need additional customization beyond
+        `num_units` and `cell_type`. Note that `tf.nn.rnn_cell.MultiRNNCell` is
+        needed for stacked RNNs.
       model_dir: Directory to save model parameters, graph and etc. This can
         also be used to load checkpoints from the directory into a estimator to
         continue training a previously saved model.
@@ -420,10 +472,10 @@ class RNNClassifier(estimator.Estimator):
       config: `RunConfig` object to configure the runtime settings.
 
     Raises:
-      ValueError: If `num_units`, `cell_type`, and `rnn_cell` are not
+      ValueError: If `num_units`, `cell_type`, and `rnn_cell_fn` are not
         compatible.
     """
-    rnn_cell = _assert_rnn_cell(rnn_cell, num_units, cell_type)
+    rnn_cell_fn = _assert_rnn_cell_fn(rnn_cell_fn, num_units, cell_type)
 
     if n_classes == 2:
       head = head_lib._binary_logistic_head_with_sigmoid_cross_entropy_loss(  # pylint: disable=protected-access
@@ -443,7 +495,7 @@ class RNNClassifier(estimator.Estimator):
           labels=labels,
           mode=mode,
           head=head,
-          rnn_cell=rnn_cell,
+          rnn_cell_fn=rnn_cell_fn,
           sequence_feature_columns=tuple(sequence_feature_columns or []),
           context_feature_columns=tuple(context_feature_columns or []),
           return_sequences=False,
@@ -469,17 +521,17 @@ class RNNEstimator(estimator.Estimator):
       num_units=[32, 16], cell_type='lstm')
 
   # Or with custom RNN cell:
-  cells = [ tf.keras.layers.LSTMCell(size, dropout=0.5) for size in [32, 16] ]
-  rnn_cell = tf.keras.layers.StackedRNNCells(cells, reverse_state_order=True)
+  def rnn_cell_fn(mode):
+    cells = [ tf.contrib.rnn.LSTMCell(size) for size in [32, 16] ]
+    if mode == tf.estimator.ModeKeys.TRAIN:
+      cells = [ tf.contrib.rnn.DropoutWrapper(cell, input_keep_prob=0.5)
+                    for cell in cells ]
+    return tf.contrib.rnn.MultiRNNCell(cells)
 
   estimator = RNNEstimator(
       head=tf.contrib.estimator.regression_head(),
       sequence_feature_columns=[token_emb],
-      rnn_cell=rnn_cell)
-
-  Note: If you would like to use multiple cells, you need to use
-  `StackedRNNCells` with `reverse_state_order` set to True as in the example
-  above.
+      rnn_cell_fn=rnn_cell_fn)
 
   # Input builders
   def input_fn_train: # returns x, y
@@ -523,7 +575,7 @@ class RNNEstimator(estimator.Estimator):
                context_feature_columns=None,
                num_units=None,
                cell_type=USE_DEFAULT,
-               rnn_cell=None,
+               rnn_cell_fn=None,
                return_sequences=False,
                model_dir=None,
                optimizer='Adagrad',
@@ -546,15 +598,18 @@ class RNNEstimator(estimator.Estimator):
         instances of classes derived from `_DenseColumn` such as
         `numeric_column`, not the sequential variants.
       num_units: Iterable of integer number of hidden units per RNN layer. If
-        set, `cell_type` must also be specified and `rnn_cell` must be
+        set, `cell_type` must also be specified and `rnn_cell_fn` must be
         `None`.
-      cell_type: A string specifying the cell type. Supported strings are:
-        `'simple_rnn'`, `'lstm'`, and `'gru'`. If set, `num_units` must also be
-        specified and `rnn_cell` must be `None`.
-      rnn_cell: A Keras RNN cell that will be used to construct the RNN. If set,
-        `num_units` and `cell_type` cannot be set. This is for advanced users
-        who need additional customization beyond `num_units` and `cell_type`.
-        Note that `tf.keras.layers.StackedRNNCells` is needed for stacked RNNs.
+      cell_type: A subclass of `tf.nn.rnn_cell.RNNCell` or a string specifying
+        the cell type. Supported strings are: `'basic_rnn'`, `'lstm'`, and
+        `'gru'`. If set, `num_units` must also be specified and `rnn_cell_fn`
+        must be `None`.
+      rnn_cell_fn: A function with one argument, a `tf.estimator.ModeKeys`, and
+        returns an object of type `tf.nn.rnn_cell.RNNCell` that will be used to
+        construct the RNN. If set, `num_units` and `cell_type` cannot be set.
+        This is for advanced users who need additional customization beyond
+        `num_units` and `cell_type`. Note that `tf.nn.rnn_cell.MultiRNNCell` is
+        needed for stacked RNNs.
       return_sequences: A boolean indicating whether to return the last output
         in the output sequence, or the full sequence.
       model_dir: Directory to save model parameters, graph and etc. This can
@@ -567,10 +622,10 @@ class RNNEstimator(estimator.Estimator):
       config: `RunConfig` object to configure the runtime settings.
 
     Raises:
-      ValueError: If `num_units`, `cell_type`, and `rnn_cell` are not
+      ValueError: If `num_units`, `cell_type`, and `rnn_cell_fn` are not
         compatible.
     """
-    rnn_cell = _assert_rnn_cell(rnn_cell, num_units, cell_type)
+    rnn_cell_fn = _assert_rnn_cell_fn(rnn_cell_fn, num_units, cell_type)
 
     def _model_fn(features, labels, mode, config):
       return _rnn_model_fn(
@@ -578,7 +633,7 @@ class RNNEstimator(estimator.Estimator):
           labels=labels,
           mode=mode,
           head=head,
-          rnn_cell=rnn_cell,
+          rnn_cell_fn=rnn_cell_fn,
           sequence_feature_columns=tuple(sequence_feature_columns or []),
           context_feature_columns=tuple(context_feature_columns or []),
           return_sequences=return_sequences,
