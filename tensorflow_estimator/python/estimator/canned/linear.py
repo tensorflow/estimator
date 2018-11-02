@@ -24,8 +24,11 @@ import six
 
 from tensorflow.python.feature_column import feature_column
 from tensorflow.python.feature_column import feature_column_v2
+from tensorflow.python.framework import constant_op
 from tensorflow.python.framework import dtypes
+from tensorflow.python.framework import ops
 from tensorflow.python.ops import array_ops
+from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import nn
 from tensorflow.python.ops import partitioned_variables
@@ -278,13 +281,30 @@ def _compute_fraction_of_zero(variables):
   Returns:
     The fraction of zeros (sparsity) in the linear model.
   """
-  all_weight_vars = []
-  for var_or_var_list in variables:
-    var_list = nest.flatten(var_or_var_list)
-    # Skip empty-lists associated with columns that created no Variables.
-    if var_list:
-      all_weight_vars += [array_ops.reshape(var, [-1]) for var in var_list]
-  return nn.zero_fraction(array_ops.concat(all_weight_vars, axis=0))
+  with ops.name_scope('zero_fraction'):
+    variables = nest.flatten(variables)
+
+    with ops.name_scope('total_size'):
+      sizes = [array_ops.size(x, out_type=dtypes.int64) for x in variables]
+      total_size_int64 = math_ops.add_n(sizes)
+    with ops.name_scope('total_zero'):
+      total_zero_float32 = math_ops.add_n([
+          control_flow_ops.cond(
+              math_ops.equal(size, constant_op.constant(0, dtype=dtypes.int64)),
+              true_fn=lambda: constant_op.constant(0, dtype=dtypes.float32),
+              false_fn=lambda: nn.zero_fraction(x) * math_ops.to_float(size),
+              name='zero_count')
+          for x, size in zip(variables, sizes)
+      ])
+
+    with ops.name_scope('compute'):
+      total_size_float32 = math_ops.cast(
+          total_size_int64, dtype=dtypes.float32, name='float32_size')
+      zero_fraction_or_nan = total_zero_float32 / total_size_float32
+
+    zero_fraction_or_nan = array_ops.identity(
+        zero_fraction_or_nan, name='zero_fraction_or_nan')
+    return zero_fraction_or_nan
 
 
 @estimator_export('estimator.experimental.linear_logit_fn_builder')
