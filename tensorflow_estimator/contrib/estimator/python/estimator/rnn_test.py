@@ -42,11 +42,11 @@ from tensorflow.python.feature_column import feature_column as fc
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import sparse_tensor
+from tensorflow.python.keras import layers as keras_layers
 from tensorflow.python.lib.io import python_io
 from tensorflow.python.ops import check_ops
 from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import partitioned_variables
-from tensorflow.python.ops import rnn_cell
 from tensorflow.python.ops import state_ops
 from tensorflow.python.ops import variable_scope
 from tensorflow.python.ops import variables as variables_lib
@@ -59,14 +59,29 @@ from tensorflow.python.training import optimizer
 from tensorflow.python.training import training_util
 
 
-# Names of variables created by BasicRNNCell model.
-TOKEN_EMBEDDING_NAME = 'rnn/sequence_input_layer/input_layer/tokens_sequential_embedding/embedding_weights'
-CELL_WEIGHTS_NAME = 'rnn/rnn/basic_rnn_cell/kernel'
-CELL_BIAS_NAME = 'rnn/rnn/basic_rnn_cell/bias'
-MULTI_CELL_WEIGHTS_NAME_PATTERN = 'rnn/rnn/multi_rnn_cell/cell_%d/basic_rnn_cell/kernel'
-MULTI_CELL_BIAS_NAME_PATTERN = 'rnn/rnn/multi_rnn_cell/cell_%d/basic_rnn_cell/bias'
+# Names of variables created by Keras cells.
+CELL_WEIGHTS_NAMES = ('rnn/rnn/kernel',
+                      'rnn/rnn/recurrent_kernel')
+CELL_BIAS_NAME = 'rnn/rnn/bias'
+
+
+# Variable names from stacked cells.
+def get_multi_cell_weights_name_pattern(n):
+  return (
+      'rnn/rnn/kernel{}'.format('_%d' % n if n else ''),
+      'rnn/rnn/recurrent_kernel{}'.format(
+          '_%d' % n if n else ''))
+
+
+def get_multi_cell_bias_name_pattern(n):
+  return 'rnn/rnn/bias{}'.format('_%d' % n if n else '')
+
+
+# Other variable names.
 LOGITS_WEIGHTS_NAME = 'rnn/logits/dense/kernel'
 LOGITS_BIAS_NAME = 'rnn/logits/dense/bias'
+
+_CELL_TYPES = ['lstm', 'gru', 'simple_rnn']
 
 
 def _assert_close(expected, actual, rtol=1e-04, name='assert_close'):
@@ -84,6 +99,14 @@ def _assert_close(expected, actual, rtol=1e-04, name='assert_close'):
         name=scope)
 
 
+def _get_kernel_weights(rnn_weights):
+  weights = np.array(rnn_weights)
+  recurrent_units = weights.shape[1]
+  if weights.shape[0] < recurrent_units:
+    raise ValueError('`rnn_weights` has incorrect dimension.')
+  return (weights[:-recurrent_units], weights[-recurrent_units:])
+
+
 def create_checkpoint(rnn_weights, rnn_biases, logits_weights, logits_biases,
                       global_step, model_dir):
   """Create checkpoint file with provided model weights.
@@ -98,7 +121,9 @@ def create_checkpoint(rnn_weights, rnn_biases, logits_weights, logits_biases,
     model_dir: Directory into which checkpoint is saved.
   """
   model_weights = {}
-  model_weights[CELL_WEIGHTS_NAME] = rnn_weights
+  for (name, array) in zip(CELL_WEIGHTS_NAMES,
+                           _get_kernel_weights(rnn_weights)):
+    model_weights[name] = array
   model_weights[CELL_BIAS_NAME] = rnn_biases
   model_weights[LOGITS_WEIGHTS_NAME] = logits_weights
   model_weights[LOGITS_BIAS_NAME] = logits_biases
@@ -116,6 +141,20 @@ def create_checkpoint(rnn_weights, rnn_biases, logits_weights, logits_biases,
     with monitored_session.MonitoredTrainingSession(
         checkpoint_dir=model_dir) as sess:
       sess.run(assign_op)
+
+
+class _MockRNNCell(keras_layers.SimpleRNNCell):
+  """Used to test whether `training` is properly passed to cells."""
+
+  def __init__(self, expected_is_training, test_case):
+    self._expected_is_training = expected_is_training
+    self._test_case = test_case
+    super(_MockRNNCell, self).__init__(units=10)
+
+  def call(self, inputs, states, training=None):
+    self._test_case.assertEqual(training, self._expected_is_training)
+    return keras_layers.SimpleRNNCell.call(
+        self, inputs=inputs, states=states, training=training)
 
 
 class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
@@ -145,7 +184,7 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
                 max_partitions=0, min_slice_size=64 << 20))
         logit_fn = rnn._rnn_logit_fn_builder(
             output_units=logits_dimension,
-            rnn_cell_fn=rnn._make_rnn_cell_fn(rnn_units),
+            rnn_cell=rnn._make_rnn_cell(rnn_units),
             sequence_feature_columns=sequence_feature_columns,
             context_feature_columns=context_feature_columns,
             input_layer_partitioner=input_layer_partitioner,
@@ -381,7 +420,7 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
       {'testcase_name': 'Sequential',
        'return_sequences': True,
        'expected_logits': [[[-1.4388], [-0.6033]],
-                           [[0.0197], [0.3]]]})
+                           [[0.0197], [0.0197]]]})
   def testMultiExamplesDifferentLength(self, return_sequences, expected_logits):
     """Tests multiple examples with different lengths.
 
@@ -402,8 +441,8 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
                          [-1*0.38 + 1*0.10 + 0.3]]
                       = [[-0.4388], [0.0197]]
     logits_timestep_2 = [[-1*0.53 - 1*0.37 + 0.3],
-                         [-1*0.0 + 1*0.0 + 0.3]]
-                      = [[-0.6033], [0.3]]
+                         [-1*0.38 + 1*0.10 + 0.3]]
+                      = [[-0.6033], [0.0197]]
 
     Args:
       return_sequences: A boolean indicating whether to return the last output
@@ -566,6 +605,58 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
           context_feature_columns=context_feature_columns,
           expected_logits=[[-1.5056], [-0.7962]])
 
+  def _test_training_mode(self, mode, expected_is_training):
+    """Tests that `training` is properly passed to cells."""
+    base_global_step = 100
+    create_checkpoint(
+        rnn_weights=[[.1, -.2], [.2, -.3], [.3, -.4]],
+        rnn_biases=[.2, .5],
+        logits_weights=[[-1.], [1.]],
+        logits_biases=[0.3],
+        global_step=base_global_step,
+        model_dir=self._model_dir)
+
+    def features_fn():
+      return {
+          'price':
+              sparse_tensor.SparseTensor(
+                  values=[10., 5.],
+                  indices=[[0, 0], [0, 1]],
+                  dense_shape=[1, 2]),
+      }
+
+    sequence_feature_columns = [
+        seq_fc.sequence_numeric_column('price', shape=(1,))]
+    context_feature_columns = []
+    with ops.Graph().as_default():
+      # Global step needed for MonitoredSession, which is in turn used to
+      # explicitly set variable weights through a checkpoint.
+      training_util.create_global_step()
+      # Use a variable scope here with 'rnn', emulating the rnn model_fn, so
+      # the checkpoint naming is shared.
+      with variable_scope.variable_scope('rnn'):
+        input_layer_partitioner = (
+            partitioned_variables.min_max_variable_partitioner(
+                max_partitions=0, min_slice_size=64 << 20))
+        logit_fn = rnn._rnn_logit_fn_builder(
+            output_units=1,
+            rnn_cell=_MockRNNCell(expected_is_training, test_case=self),
+            sequence_feature_columns=sequence_feature_columns,
+            context_feature_columns=context_feature_columns,
+            input_layer_partitioner=input_layer_partitioner,
+            return_sequences=False)
+        # Features are constructed within this function, otherwise the Tensors
+        # containing the features would be defined outside this graph.
+        _ = logit_fn(features=features_fn(), mode=mode)
+
+  def testTrainingMode(self):
+    """Tests that `training` is properly passed to cells for different modes."""
+    for mode in [
+        model_fn.ModeKeys.TRAIN, model_fn.ModeKeys.EVAL,
+        model_fn.ModeKeys.PREDICT]:
+      self._test_training_mode(
+          mode, expected_is_training=mode == model_fn.ModeKeys.TRAIN)
+
 
 class RNNClassifierTrainingTest(test.TestCase):
 
@@ -594,14 +685,15 @@ class RNNClassifierTrainingTest(test.TestCase):
     # RNN Cell variables.
     if len(cell_units) > 1:
       for i, cell_unit in enumerate(cell_units):
-        self.assertEqual([input_units + cell_unit, cell_unit],
-                         shapes[MULTI_CELL_WEIGHTS_NAME_PATTERN % i])
+        kernel_names = get_multi_cell_weights_name_pattern(i)
+        self.assertEqual([input_units, cell_unit], shapes[kernel_names[0]])
+        self.assertEqual([cell_unit, cell_unit], shapes[kernel_names[1]])
         self.assertEqual([cell_unit],
-                         shapes[MULTI_CELL_BIAS_NAME_PATTERN % i])
+                         shapes[get_multi_cell_bias_name_pattern(i)])
         input_units = cell_unit
     elif len(cell_units) == 1:
-      self.assertEqual([input_units + cell_unit, cell_unit],
-                       shapes[CELL_WEIGHTS_NAME])
+      self.assertEqual([input_units, cell_unit], shapes[CELL_WEIGHTS_NAMES[0]])
+      self.assertEqual([cell_unit, cell_unit], shapes[CELL_WEIGHTS_NAMES[1]])
       self.assertEqual([cell_unit], shapes[CELL_BIAS_NAME])
 
     # Logits variables.
@@ -612,11 +704,10 @@ class RNNClassifierTrainingTest(test.TestCase):
 
   def _mock_optimizer(self, expected_loss=None):
     expected_var_names = [
-        '%s/part_0:0' % CELL_BIAS_NAME,
-        '%s/part_0:0' % CELL_WEIGHTS_NAME,
+        '%s:0' % CELL_BIAS_NAME,
         '%s/part_0:0' % LOGITS_BIAS_NAME,
         '%s/part_0:0' % LOGITS_WEIGHTS_NAME,
-    ]
+    ] + ['%s:0' % name for name in CELL_WEIGHTS_NAMES]
 
     def _minimize(loss, global_step):
       trainable_vars = ops.get_collection(ops.GraphKeys.TRAINABLE_VARIABLES)
@@ -653,18 +744,18 @@ class RNNClassifierTrainingTest(test.TestCase):
 
     with self.assertRaisesRegexp(
         ValueError,
-        'num_units and cell_type must not be specified when using rnn_cell_fn'):
+        'num_units and cell_type must not be specified when using rnn_cell'):
       rnn.RNNClassifier(
           sequence_feature_columns=[embed],
-          rnn_cell_fn=lambda x: x,
+          rnn_cell=keras_layers.SimpleRNNCell(10),
           num_units=cell_units)
 
     with self.assertRaisesRegexp(
         ValueError,
-        'num_units and cell_type must not be specified when using rnn_cell_fn'):
+        'num_units and cell_type must not be specified when using rnn_cell'):
       rnn.RNNClassifier(
           sequence_feature_columns=[embed],
-          rnn_cell_fn=lambda x: x,
+          rnn_cell=keras_layers.SimpleRNNCell(10),
           cell_type='lstm')
 
   def _testFromScratchWithDefaultOptimizer(self, n_classes):
@@ -717,14 +808,12 @@ class RNNClassifierTrainingTest(test.TestCase):
     cell_units = [4, 2]
     n_classes = 2
 
-    def rnn_cell_fn(mode):
-      del mode  # unused
-      cells = [rnn_cell.BasicRNNCell(num_units=n) for n in cell_units]
-      return rnn_cell.MultiRNNCell(cells)
+    cells = [keras_layers.SimpleRNNCell(units=n) for n in cell_units]
+    rnn_cell = keras_layers.StackedRNNCells(cells, reverse_state_order=True)
 
     est = rnn.RNNClassifier(
         sequence_feature_columns=[embed],
-        rnn_cell_fn=rnn_cell_fn,
+        rnn_cell=rnn_cell,
         n_classes=n_classes,
         model_dir=self._model_dir)
 
@@ -1081,18 +1170,21 @@ class BaseRNNClassificationIntegrationTest(object):
     self._create_estimator_fn = _create_estimator_fn
 
   def setUp(self):
-    self._model_dir = tempfile.mkdtemp()
+    self._model_dirs = []
 
   def tearDown(self):
-    if self._model_dir:
+    if self._model_dirs:
       writer_cache.FileWriterCache.clear()
-      shutil.rmtree(self._model_dir)
+      for model_dir in self._model_dirs:
+        shutil.rmtree(model_dir)
 
   def _test_complete_flow(self, feature_columns, train_input_fn, eval_input_fn,
-                          predict_input_fn, n_classes, batch_size):
+                          predict_input_fn, n_classes, batch_size, cell_type):
     cell_units = [4, 2]
+    model_dir = tempfile.mkdtemp()
+    self._model_dirs.append(model_dir)
     est = self._create_estimator_fn(feature_columns, n_classes, cell_units,
-                                    self._model_dir)
+                                    model_dir, cell_type=cell_type)
 
     # TRAIN
     num_steps = 10
@@ -1159,13 +1251,15 @@ class BaseRNNClassificationIntegrationTest(object):
     embed = fc.embedding_column(col, dimension=2)
     feature_columns = [embed]
 
-    self._test_complete_flow(
-        feature_columns=feature_columns,
-        train_input_fn=train_input_fn,
-        eval_input_fn=eval_input_fn,
-        predict_input_fn=predict_input_fn,
-        n_classes=n_classes,
-        batch_size=batch_size)
+    for cell_type in _CELL_TYPES:
+      self._test_complete_flow(
+          feature_columns=feature_columns,
+          train_input_fn=train_input_fn,
+          eval_input_fn=eval_input_fn,
+          predict_input_fn=predict_input_fn,
+          n_classes=n_classes,
+          batch_size=batch_size,
+          cell_type=cell_type)
 
   def testParseExampleInputFn(self):
     """Tests complete flow with input_fn constructed from parse_example."""
@@ -1216,21 +1310,25 @@ class BaseRNNClassificationIntegrationTest(object):
         return features
       return dataset.map(features_fn)
 
-    self._test_complete_flow(
-        feature_columns=feature_columns,
-        train_input_fn=_train_input_fn,
-        eval_input_fn=_eval_input_fn,
-        predict_input_fn=_predict_input_fn,
-        n_classes=n_classes,
-        batch_size=batch_size)
+    for cell_type in _CELL_TYPES:
+      self._test_complete_flow(
+          feature_columns=feature_columns,
+          train_input_fn=_train_input_fn,
+          eval_input_fn=_eval_input_fn,
+          predict_input_fn=_predict_input_fn,
+          n_classes=n_classes,
+          batch_size=batch_size,
+          cell_type=cell_type)
 
 
-def _rnn_classifier_fn(feature_columns, n_classes, cell_units, model_dir):
+def _rnn_classifier_fn(feature_columns, n_classes, cell_units, model_dir,
+                       cell_type):
   return rnn.RNNClassifier(
       num_units=cell_units,
       sequence_feature_columns=feature_columns,
       n_classes=n_classes,
-      model_dir=model_dir)
+      model_dir=model_dir,
+      cell_type=cell_type)
 
 
 class RNNClassifierIntegrationTest(BaseRNNClassificationIntegrationTest,
@@ -1241,12 +1339,14 @@ class RNNClassifierIntegrationTest(BaseRNNClassificationIntegrationTest,
     BaseRNNClassificationIntegrationTest.__init__(self, _rnn_classifier_fn)
 
 
-def _rnn_estimator_fn(feature_columns, n_classes, cell_units, model_dir):
+def _rnn_estimator_fn(feature_columns, n_classes, cell_units, model_dir,
+                      cell_type):
   return rnn.RNNEstimator(
       head=head_lib.multi_class_head(n_classes=n_classes),
       num_units=cell_units,
       sequence_feature_columns=feature_columns,
-      model_dir=model_dir)
+      model_dir=model_dir,
+      cell_type=cell_type)
 
 
 class RNNEstimatorIntegrationTest(BaseRNNClassificationIntegrationTest,
