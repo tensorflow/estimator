@@ -252,10 +252,10 @@ def _get_default_optimizer(feature_columns):
 
 
 def _get_expanded_variable_list(var_list):
-  """Given a list of variables, expands them if they are partitioned.
+  """Given an iterable of variables, expands them if they are partitioned.
 
   Args:
-    var_list: A list of variables.
+    var_list: An iterable of variables.
 
   Returns:
     A list of variables where each partitioned variable is expanded to its
@@ -351,7 +351,6 @@ def linear_logit_fn_builder(units, feature_columns, sparse_combiner='sum'):
 
       # Expand (potential) Partitioned variables
       bias = _get_expanded_variable_list([bias])
-      variables = _get_expanded_variable_list(variables)
     else:
       linear_model = feature_column._LinearModel(  # pylint: disable=protected-access
           feature_columns=feature_columns,
@@ -362,6 +361,7 @@ def linear_logit_fn_builder(units, feature_columns, sparse_combiner='sum'):
       cols_to_vars = linear_model.cols_to_vars()
       bias = cols_to_vars.pop('bias')
       variables = cols_to_vars.values()
+    variables = _get_expanded_variable_list(variables)
 
     if units > 1:
       summary.histogram('bias', bias)
