@@ -11,6 +11,7 @@ py_library(
     srcs_version = "PY2AND3",
     visibility = ["//visibility:public"],
     deps = [
+        ":base_head",
         ":baseline",
         ":boosted_trees",
         ":dnn",
@@ -23,7 +24,9 @@ py_library(
         ":keras",
         ":linear",
         ":model_fn",
+        ":multi_class_head",
         ":parsing_utils",
+        ":regression_head",
         ":run_config",
         ":training",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
