@@ -17,6 +17,7 @@ py_library(
         ":boosted_trees",
         ":dnn",
         ":dnn_linear_combined",
+        ":early_stopping",
         ":estimator",
         ":export",
         ":exporter",
@@ -476,6 +477,36 @@ py_test(
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
         "//tensorflow_estimator/python/estimator:expect_six_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
+py_library(
+    name = "early_stopping",
+    srcs = [
+        "early_stopping.py",
+    ],
+    srcs_version = "PY2AND3",
+    deps = [
+        ":export_export",
+        ":model_fn",
+        ":run_config",
+        ":util",
+        "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_six_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
+py_test(
+    name = "early_stopping_test",
+    srcs = [
+        "early_stopping_test.py",
+    ],
+    srcs_version = "PY2AND3",
+    deps = [
+        ":early_stopping",
+        "//tensorflow_estimator/python/estimator",
+        "//tensorflow_estimator/python/estimator:expect_absl_installed",
     ],
 )
 
