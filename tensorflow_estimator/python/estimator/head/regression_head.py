@@ -190,9 +190,9 @@ class RegressionHead(base_head.Head):
           else training_loss)
     return regularized_training_loss
 
-  def predictions(self, logits):
+  def predictions(self, logits, keys=None):
     """Create predictions. See `Head` for details."""
-    # We need to check the logits dim for both eager and graph mode.
+    del keys  # Unused for this head.
     logits = base_head.check_logits_final_dim(logits, self._logits_dimension)
     pred_keys = prediction_keys.PredictionKeys
     with ops.name_scope(None, 'predictions', (logits,)):
@@ -239,14 +239,8 @@ class RegressionHead(base_head.Head):
         values=unweighted_loss, sample_weight=weights)
     eval_metrics[self._label_mean_key].update_state(
         values=labels, sample_weight=weights)
-
-    predicted_value = math_ops.to_float(predicted_value, name='predictions')
-    if weights is not None:
-      weights = weights_broadcast_ops.broadcast_weights(
-          weights, predicted_value)
-    eval_metrics[self._prediction_mean_key].update_state(
-        values=predicted_value, sample_weight=weights)
-
+    base_head.update_metric_with_broadcast_weights(
+        eval_metrics[self._prediction_mean_key], predicted_value, weights)
     if regularization_losses is not None:
       regularization_loss = math_ops.add_n(regularization_losses)
       eval_metrics[self._loss_regularization_key].update_state(

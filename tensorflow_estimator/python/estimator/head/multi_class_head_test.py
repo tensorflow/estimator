@@ -363,8 +363,7 @@ class MultiClassHead(test.TestCase):
     expected_export_classes = [[b'0', b'1', b'2']] * 2
 
     keys = prediction_keys.PredictionKeys
-    preds = head.predictions(
-        logits, [keys.LOGITS, keys.PROBABILITIES, keys.CLASS_IDS, keys.CLASSES])
+    preds = head.predictions(logits)
     self.assertAllClose(logits, self.evaluate(preds[keys.LOGITS]))
     self.assertAllClose(expected_probabilities,
                         self.evaluate(preds[keys.PROBABILITIES]))

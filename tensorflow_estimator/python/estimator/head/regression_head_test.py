@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Tests for head_v2.py."""
+"""Tests for regression_head.py."""
 
 from __future__ import absolute_import
 from __future__ import division

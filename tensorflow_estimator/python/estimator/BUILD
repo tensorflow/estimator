@@ -13,6 +13,7 @@ py_library(
     deps = [
         ":base_head",
         ":baseline",
+        ":binary_class_head",
         ":boosted_trees",
         ":dnn",
         ":dnn_linear_combined",
@@ -651,6 +652,39 @@ py_test(
         ":base_head",
         ":model_fn",
         "//tensorflow_estimator/python/estimator:expect_six_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
+py_library(
+    name = "binary_class_head",
+    srcs = ["head/binary_class_head.py"],
+    srcs_version = "PY2AND3",
+    deps = [
+        ":base_head",
+        ":export_output",
+        ":metric_keys",
+        ":model_fn",
+        ":prediction_keys",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
+py_test(
+    name = "binary_class_head_test",
+    size = "medium",
+    srcs = ["head/binary_class_head_test.py"],
+    shard_count = 4,
+    srcs_version = "PY2AND3",
+    tags = ["no_pip"],
+    deps = [
+        ":base_head_test",
+        ":binary_class_head",
+        ":dnn_testing_utils",
+        ":metric_keys",
+        ":model_fn",
+        ":prediction_keys",
+        "//tensorflow_estimator/python/estimator:expect_numpy_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
     ],
 )

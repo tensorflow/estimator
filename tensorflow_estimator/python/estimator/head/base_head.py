@@ -32,6 +32,7 @@ from tensorflow.python.ops import check_ops
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import string_ops
+from tensorflow.python.ops import weights_broadcast_ops
 from tensorflow.python.saved_model import signature_constants
 from tensorflow.python.summary import summary
 from tensorflow.python.training import training_util
@@ -187,11 +188,14 @@ class Head(object):
     raise NotImplementedError('Calling an abstract method.')
 
   @abc.abstractmethod
-  def predictions(self, logits):
+  def predictions(self, logits, keys=None):
     """Returns a `dict` of predictions from provided logits.
 
     Args:
       logits: Logits `Tensor` to be used for prediction construction.
+      keys: A list of `string` for prediction keys. Defaults to `None`, meaning
+        if not specified, predictions will be created for all the pre-defined
+        valid keys in the head.
 
     Returns:
       A `dict` of predicted `Tensor` keyed by prediction name.
@@ -655,13 +659,11 @@ def call_loss_fn(loss_fn, labels, logits, features, expected_loss_dim=1):
 
 
 def check_prediction_keys(pred_keys, valid_keys):
-  pred_keys = list(pred_keys or [])
   for key in pred_keys:
     if key not in valid_keys:
       raise ValueError(
           'Prediction key must be in PredictionKeys, given: {}.'
           'Valid prediction keys include {}.'.format(key, valid_keys))
-  return pred_keys
 
 
 def classification_output(scores, n_classes, label_vocabulary=None):
@@ -702,6 +704,15 @@ def check_label_range(labels, n_classes, message=None):
         labels, message=message or 'Labels must be >= 0')
     with ops.control_dependencies((assert_less, assert_greater)):
       return array_ops.identity(labels)
+
+
+def update_metric_with_broadcast_weights(eval_metric, values, weights):
+  values = math_ops.to_float(values)
+  if weights is not None:
+    weights = weights_broadcast_ops.broadcast_weights(
+        weights, values)
+  eval_metric.update_state(
+      values=values, sample_weight=weights)
 
 
 def create_eval_metrics_tuple(fn, kwargs):
