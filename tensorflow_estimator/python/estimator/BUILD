@@ -365,6 +365,29 @@ py_test(
     ],
 )
 
+py_test(
+    name = "dnn_estimator_test",
+    size = "medium",
+    srcs = ["canned/dnn_estimator_test.py"],
+    srcs_version = "PY2AND3",
+    tags = [
+        "no_pip",
+        "notsan",
+        "optonly",  # times out http://b/79220679
+    ],
+    deps = [
+        ":dnn",
+        ":dnn_testing_utils",
+        ":export_export",
+        ":head",
+        ":numpy_io",
+        ":prediction_keys",
+        "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_six_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
 py_library(
     name = "dnn_linear_combined",
     srcs = ["canned/dnn_linear_combined.py"],

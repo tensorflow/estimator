@@ -25,6 +25,7 @@ from tensorflow_estimator.python.estimator.canned.baseline import BaselineRegres
 from tensorflow_estimator.python.estimator.canned.boosted_trees import BoostedTreesClassifier
 from tensorflow_estimator.python.estimator.canned.boosted_trees import BoostedTreesRegressor
 from tensorflow_estimator.python.estimator.canned.dnn import DNNClassifier
+from tensorflow_estimator.python.estimator.canned.dnn import DNNEstimator
 from tensorflow_estimator.python.estimator.canned.dnn import DNNRegressor
 from tensorflow_estimator.python.estimator.canned.dnn_linear_combined import DNNLinearCombinedClassifier
 from tensorflow_estimator.python.estimator.canned.dnn_linear_combined import DNNLinearCombinedEstimator
