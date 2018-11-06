@@ -30,6 +30,7 @@ from tensorflow_estimator.python.estimator.canned.dnn_linear_combined import DNN
 from tensorflow_estimator.python.estimator.canned.dnn_linear_combined import DNNLinearCombinedEstimator
 from tensorflow_estimator.python.estimator.canned.dnn_linear_combined import DNNLinearCombinedRegressor
 from tensorflow_estimator.python.estimator.canned.linear import LinearClassifier
+from tensorflow_estimator.python.estimator.canned.linear import LinearEstimator
 from tensorflow_estimator.python.estimator.canned.linear import LinearRegressor
 from tensorflow_estimator.python.estimator.canned.parsing_utils import classifier_parse_example_spec
 from tensorflow_estimator.python.estimator.canned.parsing_utils import regressor_parse_example_spec

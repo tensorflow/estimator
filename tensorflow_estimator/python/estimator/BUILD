@@ -743,6 +743,28 @@ py_library(
 )
 
 py_test(
+    name = "linear_estimator_test",
+    size = "medium",
+    srcs = ["canned/linear_estimator_test.py"],
+    srcs_version = "PY2AND3",
+    tags = [
+        "no_pip",
+        "notsan",
+    ],
+    deps = [
+        ":export_export",
+        ":head",
+        ":linear",
+        ":linear_testing_utils",
+        ":numpy_io",
+        ":prediction_keys",
+        "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_six_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
+py_test(
     name = "linear_test",
     size = "medium",
     srcs = ["canned/linear_test.py"],
