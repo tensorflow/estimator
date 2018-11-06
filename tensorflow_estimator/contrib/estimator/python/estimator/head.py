@@ -78,7 +78,7 @@ def multi_class_head(n_classes,
 
   ```python
   my_head = tf.contrib.estimator.multi_class_head(n_classes=3)
-  my_estimator = tf.contrib.estimator.DNNEstimator(
+  my_estimator = tf.estimator.DNNEstimator(
       head=my_head,
       hidden_units=...,
       feature_columns=...)
@@ -172,7 +172,7 @@ def binary_classification_head(
 
   ```python
   my_head = tf.contrib.estimator.binary_classification_head()
-  my_estimator = tf.contrib.estimator.DNNEstimator(
+  my_estimator = tf.estimator.DNNEstimator(
       head=my_head,
       hidden_units=...,
       feature_columns=...)
@@ -271,7 +271,7 @@ def regression_head(weight_column=None,
 
   ```python
   my_head = tf.contrib.estimator.regression_head()
-  my_estimator = tf.contrib.estimator.DNNEstimator(
+  my_estimator = tf.estimator.DNNEstimator(
       head=my_head,
       hidden_units=...,
       feature_columns=...)
@@ -357,7 +357,7 @@ def poisson_regression_head(
 
   ```python
   my_head = tf.contrib.estimator.poisson_regression_head()
-  my_estimator = tf.contrib.estimator.DNNEstimator(
+  my_estimator = tf.estimator.DNNEstimator(
       head=my_head,
       hidden_units=...,
       feature_columns=...)
@@ -451,7 +451,7 @@ def logistic_regression_head(
 
   ```python
   my_head = tf.contrib.estimator.logistic_regression_head()
-  my_estimator = tf.contrib.estimator.DNNEstimator(
+  my_estimator = tf.estimator.DNNEstimator(
       head=my_head,
       hidden_units=...,
       feature_columns=...)
@@ -550,7 +550,7 @@ def multi_label_head(n_classes,
 
   ```python
   my_head = tf.contrib.estimator.multi_label_head(n_classes=3)
-  my_estimator = tf.contrib.estimator.DNNEstimator(
+  my_estimator = tf.estimator.DNNEstimator(
       head=my_head,
       hidden_units=...,
       feature_columns=...)
