@@ -447,10 +447,10 @@ class RunConfig(object):
           be specified with `save_checkpoints_steps`. Defaults to 600 seconds if
           both `save_checkpoints_steps` and `save_checkpoints_secs` are not set
           in constructor.  If both `save_checkpoints_steps` and
-          `save_checkpoints_secs` are None, then checkpoints are disabled.
-      session_config: a ConfigProto used to set session parameters, or None.
+          `save_checkpoints_secs` are `None`, then checkpoints are disabled.
+      session_config: a ConfigProto used to set session parameters, or `None`.
       keep_checkpoint_max: The maximum number of recent checkpoint files to
-        keep. As new files are created, older files are deleted. If None or 0,
+        keep. As new files are created, older files are deleted. If `None` or 0,
         all checkpoint files are kept. Defaults to 5 (that is, the 5 most recent
         checkpoint files are kept.)
       keep_checkpoint_every_n_hours: Number of hours between each checkpoint
@@ -470,13 +470,13 @@ class RunConfig(object):
         the device function returned by `tf.train.replica_device_setter`
         with round-robin strategy.
       protocol: An optional argument which specifies the protocol used when
-        starting server. None means default to grpc.
+        starting server. `None` means default to grpc.
       eval_distribute: An optional instance of
         `tf.contrib.distribute.DistributionStrategy`. If specified,
         then Estimator will distribute the user's model during evaluation,
         according to the policy specified by that strategy. Setting
         `experimental_distribute.eval_distribute` is preferred.
-      experimental_distribute: an optional
+      experimental_distribute: An optional
         `tf.contrib.distribute.DistributeConfig` object specifying
         DistributionStrategy-related configuration. The `train_distribute` and
         `eval_distribute` can be passed as parameters to `RunConfig` or set in
