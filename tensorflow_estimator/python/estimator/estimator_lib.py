@@ -24,12 +24,14 @@ from tensorflow_estimator.python.estimator.canned.baseline import BaselineEstima
 from tensorflow_estimator.python.estimator.canned.baseline import BaselineRegressor
 from tensorflow_estimator.python.estimator.canned.boosted_trees import BoostedTreesClassifier
 from tensorflow_estimator.python.estimator.canned.boosted_trees import BoostedTreesRegressor
+from tensorflow_estimator.python.estimator.canned.dnn import dnn_logit_fn_builder
 from tensorflow_estimator.python.estimator.canned.dnn import DNNClassifier
 from tensorflow_estimator.python.estimator.canned.dnn import DNNEstimator
 from tensorflow_estimator.python.estimator.canned.dnn import DNNRegressor
 from tensorflow_estimator.python.estimator.canned.dnn_linear_combined import DNNLinearCombinedClassifier
 from tensorflow_estimator.python.estimator.canned.dnn_linear_combined import DNNLinearCombinedEstimator
 from tensorflow_estimator.python.estimator.canned.dnn_linear_combined import DNNLinearCombinedRegressor
+from tensorflow_estimator.python.estimator.canned.linear import linear_logit_fn_builder
 from tensorflow_estimator.python.estimator.canned.linear import LinearClassifier
 from tensorflow_estimator.python.estimator.canned.linear import LinearEstimator
 from tensorflow_estimator.python.estimator.canned.linear import LinearRegressor
@@ -46,6 +48,7 @@ from tensorflow_estimator.python.estimator.exporter import LatestExporter
 from tensorflow_estimator.python.estimator.extenders import add_metrics
 from tensorflow_estimator.python.estimator.inputs import inputs
 from tensorflow_estimator.python.estimator.keras import model_to_estimator
+from tensorflow_estimator.python.estimator.model_fn import call_logit_fn
 from tensorflow_estimator.python.estimator.model_fn import EstimatorSpec
 from tensorflow_estimator.python.estimator.model_fn import ModeKeys
 from tensorflow_estimator.python.estimator.run_config import RunConfig
