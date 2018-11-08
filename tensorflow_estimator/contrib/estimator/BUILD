@@ -47,6 +47,7 @@ py_test(
     name = "boosted_trees_test",
     size = "medium",
     srcs = ["python/estimator/boosted_trees_test.py"],
+    shard_count = 4,
     srcs_version = "PY2AND3",
     tags = [
         "no_pip",
