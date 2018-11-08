@@ -311,6 +311,34 @@ py_test(
 )
 
 py_library(
+    name = "tensor_forest",
+    srcs = ["canned/tensor_forest.py"],
+    srcs_version = "PY2AND3",
+    deps = [
+        ":estimator",
+        ":head",
+        ":model_fn",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+ py_test(
+    name = "tensor_forest_test",
+    size = "medium",
+    srcs = ["canned/tensor_forest_test.py"],
+    shard_count = 2,
+    srcs_version = "PY2AND3",
+    tags = [
+        "optonly",
+    ],
+    deps = [
+        ":inputs",
+        ":tensor_forest",
+        "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
+py_library(
     name = "dnn",
     srcs = ["canned/dnn.py"],
     srcs_version = "PY2AND3",
