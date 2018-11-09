@@ -22,7 +22,6 @@ from tensorflow.python.framework import ops
 from tensorflow.python.keras import metrics
 from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import nn
-from tensorflow.python.ops import weights_broadcast_ops
 from tensorflow.python.ops.losses import losses
 from tensorflow_estimator.python.estimator import model_fn
 from tensorflow_estimator.python.estimator.canned import metric_keys
@@ -114,7 +113,6 @@ class RegressionHead(base_head.Head):
       loss_fn=None,
       inverse_link_fn=None,
       name=None):
-    """See `_regression_head` for details."""
     if label_dimension < 1:
       raise ValueError('Invalid label_dimension {}.'.format(label_dimension))
     if (loss_reduction not in losses.Reduction.all() or
@@ -137,17 +135,17 @@ class RegressionHead(base_head.Head):
 
   @property
   def name(self):
-    """See `Head` for details."""
+    """See `base_head.Head` for details."""
     return self._name
 
   @property
   def logits_dimension(self):
-    """See `Head` for details."""
+    """See `base_head.Head` for details."""
     return self._logits_dimension
 
   @property
   def loss_reduction(self):
-    """See `Head` for details."""
+    """See `base_head.Head` for details."""
     return self._loss_reduction
 
   def _processed_labels(self, logits, labels):
@@ -158,7 +156,7 @@ class RegressionHead(base_head.Head):
     return labels
 
   def _unweighted_loss_and_weights(self, logits, labels, features):
-    """Computes loss spec."""
+    """Computes unweighted loss and weights."""
     if self._loss_fn:
       unweighted_loss = base_head.call_loss_fn(
           loss_fn=self._loss_fn, labels=labels, logits=logits,
@@ -173,10 +171,10 @@ class RegressionHead(base_head.Head):
 
   def loss(self, logits, labels, features=None, mode=None,
            regularization_losses=None):
-    """Returns loss. See `Head` for details."""
+    """Return predictions based on keys. See `base_head.Head` for details."""
     del mode  # Unused for this head.
-    with ops.name_scope(None, 'losses', (logits, labels, regularization_losses,
-                                         features)):
+    with ops.name_scope('losses', values=(logits, labels, regularization_losses,
+                                          features)):
       logits = base_head.check_logits_final_dim(logits, self._logits_dimension)
       labels = self._processed_labels(logits, labels)
       unweighted_loss, weights = self._unweighted_loss_and_weights(
@@ -190,12 +188,19 @@ class RegressionHead(base_head.Head):
           else training_loss)
     return regularized_training_loss
 
-  def predictions(self, logits, keys=None):
-    """Create predictions. See `Head` for details."""
-    del keys  # Unused for this head.
+  def predictions(self, logits):
+    """Return predictions based on keys.  See `base_head.Head` for details.
+
+    Args:
+      logits: logits `Tensor` with shape `[D0, D1, ... DN, logits_dimension]`.
+        For many applications, the shape is `[batch_size, logits_dimension]`.
+
+    Returns:
+      A dict of predictions.
+    """
     logits = base_head.check_logits_final_dim(logits, self._logits_dimension)
     pred_keys = prediction_keys.PredictionKeys
-    with ops.name_scope(None, 'predictions', (logits,)):
+    with ops.name_scope('predictions', values=(logits,)):
       if self._inverse_link_fn:
         predicted_value = self._inverse_link_fn(logits)
         predictions = {
@@ -209,8 +214,8 @@ class RegressionHead(base_head.Head):
     return predictions
 
   def metrics(self, regularization_losses=None):
-    """Creates metrics. See `Head` for details."""
-    with ops.name_scope(None, 'metrics', (regularization_losses,)):
+    """Creates metrics. See `base_head.Head` for details."""
+    with ops.name_scope('metrics', values=(regularization_losses,)):
       keys = metric_keys.MetricKeys
       eval_metrics = {}
       eval_metrics[self._loss_mean_key] = metrics.Mean(name=keys.LOSS_MEAN)
@@ -225,7 +230,7 @@ class RegressionHead(base_head.Head):
 
   def update_metrics(self, eval_metrics, features, logits, labels,
                      regularization_losses=None):
-    """Updates and returns the Eval metric ops. See `Head` for more details."""
+    """Updates eval metrics. See `base_head.Head` for details."""
     # Compute predictions.
     predictions = self.predictions(logits)
     predicted_value = predictions[prediction_keys.PredictionKeys.PREDICTIONS]

@@ -117,7 +117,7 @@ class BinaryClassHead(base_head.Head):
     self._loss_reduction = loss_reduction
     self._loss_fn = loss_fn
     self._name = name
-    # Some metric keys.
+    # Metric keys.
     keys = metric_keys.MetricKeys
     self._loss_mean_key = self._summary_key(keys.LOSS_MEAN)
     self._accuracy_key = self._summary_key(keys.ACCURACY)
@@ -129,6 +129,19 @@ class BinaryClassHead(base_head.Head):
     self._auc_key = self._summary_key(keys.AUC)
     self._auc_pr_key = self._summary_key(keys.AUC_PR)
     self._loss_regularization_key = self._summary_key(keys.LOSS_REGULARIZATION)
+    accuracy_keys = []
+    precision_keys = []
+    recall_keys = []
+    for threshold in self._thresholds:
+      accuracy_keys.append(
+          self._summary_key(keys.ACCURACY_AT_THRESHOLD % threshold))
+      precision_keys.append(
+          self._summary_key(keys.PRECISION_AT_THRESHOLD % threshold))
+      recall_keys.append(
+          self._summary_key(keys.RECALL_AT_THRESHOLD % threshold))
+    self._accuracy_keys = tuple(accuracy_keys)
+    self._precision_keys = tuple(precision_keys)
+    self._recall_keys = tuple(recall_keys)
 
   @property
   def name(self):
@@ -169,7 +182,7 @@ class BinaryClassHead(base_head.Head):
 
   def loss(self, logits, labels, features=None, mode=None,
            regularization_losses=None):
-    """Returns regularized training loss."""
+    """Returns regularized training loss. See `base_head.Head` for details."""
     del mode  # Unused for this head.
     with ops.name_scope('losses', values=(logits, labels, regularization_losses,
                                           features)):
@@ -187,12 +200,12 @@ class BinaryClassHead(base_head.Head):
     return regularized_training_loss
 
   def predictions(self, logits, keys=None):
-    """Return the predictions based on keys.
+    """Return predictions based on keys. See `base_head.Head` for details.
 
     Args:
       logits: logits `Tensor` with shape `[D0, D1, ... DN, logits_dimension]`.
         For many applications, the shape is `[batch_size, logits_dimension]`.
-      keys: a list or tuple of prediction keys. Key can be either the class
+      keys: a list or tuple of prediction keys. Each key can be either the class
         variable of prediction_keys.PredictionKeys or its string value, such as:
         prediction_keys.PredictionKeys.CLASSES or 'classes'. If not specified,
         it will return the predictions for all valid keys.
@@ -237,7 +250,7 @@ class BinaryClassHead(base_head.Head):
       return predictions
 
   def metrics(self, regularization_losses=None):
-    """Creates metrics. See `Head` for details."""
+    """Creates metrics. See `base_head.Head` for details."""
     keys = metric_keys.MetricKeys
     with ops.name_scope('metrics', values=(regularization_losses,)):
       # Mean metric.
@@ -259,22 +272,20 @@ class BinaryClassHead(base_head.Head):
       if regularization_losses is not None:
         eval_metrics[self._loss_regularization_key] = metrics.Mean(
             name=keys.LOSS_REGULARIZATION)
-      for threshold in self._thresholds:
-        accuracy_key = self._summary_key(keys.ACCURACY_AT_THRESHOLD % threshold)
-        eval_metrics[accuracy_key] = metrics.BinaryAccuracy(
-            name=accuracy_key, threshold=threshold)
+      for i, threshold in enumerate(self._thresholds):
+        eval_metrics[self._accuracy_keys[i]] = metrics.BinaryAccuracy(
+            name=self._accuracy_keys[i], threshold=threshold)
         # TODO(b/118843532): create Keras metrics
-        # precision_key = keys.PRECISION_AT_THRESHOLD % threshold
-        # eval_metrics[precision_key] = metrics.PRECISION_AT_THRESHOLD(
-        #     name=precision_key, threshold=threshold)
-        # recall_key = keys.RECALL_AT_THRESHOLD % threshold
-        # eval_metrics[recall_key] = metrics.RECALL_AT_THRESHOLD(
-        #     name=recall_key, threshold=threshold)
+        # eval_metrics[self._precision_keys[i]] = (
+        #     metrics.PRECISION_AT_THRESHOLD(
+        #         name=self._precision_keys[i], threshold=threshold))
+        # eval_metrics[self._recall_keys[i]] = metrics.RECALL_AT_THRESHOLD(
+        #     name=self._recall_keys[i], threshold=threshold)
     return eval_metrics
 
   def update_metrics(self, eval_metrics, features, logits, labels,
                      regularization_losses=None):
-    """Updates and returns the eval metrics. See `Head` for more details."""
+    """Updates eval metrics. See `base_head.Head` for details."""
     logits = base_head.check_logits_final_dim(logits, self.logits_dimension)
     two_class_logits = array_ops.concat((array_ops.zeros_like(logits), logits),
                                         axis=-1, name='two_class_logits')
@@ -304,17 +315,13 @@ class BinaryClassHead(base_head.Head):
       regularization_loss = math_ops.add_n(regularization_losses)
       eval_metrics[self._loss_regularization_key].update_state(
           values=regularization_loss)
-    keys = metric_keys.MetricKeys
-    for threshold in self._thresholds:
-      accuracy_key = self._summary_key(keys.ACCURACY_AT_THRESHOLD % threshold)
-      eval_metrics[accuracy_key].update_state(
+    for i in range(len(self._thresholds)):
+      eval_metrics[self._accuracy_keys[i]].update_state(
           y_true=labels, y_pred=logistic, sample_weight=weights)
       # TODO(b/118843532): update Keras metrics
-      # precision_key = keys.PRECISION_AT_THRESHOLD % threshold
-      # eval_metrics[precision_key].update_state(
+      # eval_metrics[self._precision_keys[i]].update_state(
       #     ...)
-      # recall_key = keys.RECALL_AT_THRESHOLD % threshold
-      # eval_metrics[recall_key].update_state(
+      # eval_metrics[self._recall_keys[i]].update_state(
       #     ...)
     return eval_metrics
 

@@ -164,7 +164,7 @@ class Head(object):
   @abc.abstractmethod
   def loss(self, logits, labels, features=None, mode=None,
            regularization_losses=None):
-    """Returns a loss `Tensor` from provided logits.
+    """Returns a loss `Tensor` from provided arguments.
 
     Note that, the args of `features` and `mode` are most likely not used, but
     some Head implementations may require them.
@@ -373,7 +373,7 @@ def check_dense_labels_match_logits_and_reshape(labels, logits,
   """
   if labels is None:
     raise ValueError(_LABEL_NONE_ERR_MSG)
-  with ops.name_scope(None, 'labels', (labels, logits)) as scope:
+  with ops.name_scope('labels', values=(labels, logits)) as scope:
     labels = sparse_tensor.convert_to_tensor_or_sparse_tensor(labels)
     if isinstance(labels, sparse_tensor.SparseTensor):
       raise ValueError(_SPARSE_LABEL_ERR_MSG.format(
@@ -462,8 +462,7 @@ def get_weights_and_check_match_logits(
     err_msg = (
         'weights shape must be [D0, D1, ... DN] or [D0, D1, ... DN, 1]')
   with ops.name_scope(
-      None, 'weights',
-      values=tuple(six.itervalues(features)) + (logits,)) as scope:
+      'weights', values=tuple(six.itervalues(features)) + (logits,)) as scope:
     # Fetch the weights.
     if weight_column is None:
       return 1.
@@ -540,7 +539,7 @@ def get_weights_and_check_match_logits(
 
 def check_logits_final_dim(logits, expected_logits_dimension):
   """Checks that logits shape is [D0, D1, ... DN, logits_dimension]."""
-  with ops.name_scope(None, 'logits', (logits,)) as scope:
+  with ops.name_scope('logits', values=(logits,)) as scope:
     logits = math_ops.to_float(logits)
     # Eager mode
     if context.executing_eagerly():
@@ -623,7 +622,7 @@ def call_loss_fn(loss_fn, labels, logits, features, expected_loss_dim=1):
   if 'features' in loss_fn_args:
     kwargs['features'] = features
   with ops.name_scope(
-      None, 'call_loss_fn',
+      'call_loss_fn',
       values=[labels, logits] + list(six.itervalues(features))):
     unweighted_loss = loss_fn(labels=labels, logits=logits, **kwargs)
     # Eager mode.
@@ -683,7 +682,7 @@ def classification_output(scores, n_classes, label_vocabulary=None):
 
 def check_label_range(labels, n_classes, message=None):
   """Check if labels are in the range of [0, n_classes)."""
-  with ops.name_scope(None, 'check_label_range', (labels,)):
+  with ops.name_scope('check_label_range', values=(labels,)):
     # Eager mode
     if context.executing_eagerly():
       assert_less = math_ops.reduce_all(

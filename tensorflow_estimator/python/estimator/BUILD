@@ -753,6 +753,37 @@ py_test(
 )
 
 py_library(
+    name = "multi_label_head",
+    srcs = ["head/multi_label_head.py"],
+    srcs_version = "PY2AND3",
+    deps = [
+        ":base_head",
+        ":export_output",
+        ":metric_keys",
+        ":model_fn",
+        ":prediction_keys",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
+py_test(
+    name = "multi_label_head_test",
+    size = "small",
+    srcs = ["head/multi_label_head_test.py"],
+    srcs_version = "PY2AND3",
+    deps = [
+        ":base_head_test",
+        ":metric_keys",
+        ":model_fn",
+        ":multi_label_head",
+        ":prediction_keys",
+        "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_six_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
+py_library(
     name = "regression_head",
     srcs = ["head/regression_head.py"],
     srcs_version = "PY2AND3",

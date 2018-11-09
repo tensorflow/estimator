@@ -114,7 +114,6 @@ class MultiClassHead(base_head.Head):
                loss_reduction=losses.Reduction.SUM_OVER_BATCH_SIZE,
                loss_fn=None,
                name=None):
-    """See `MultiClassHead` for details."""
     if (n_classes is None) or (n_classes <= 2):
       raise ValueError('n_classes must be > 2: {}.'.format(n_classes))
     if label_vocabulary is not None and not isinstance(label_vocabulary,
@@ -199,10 +198,10 @@ class MultiClassHead(base_head.Head):
 
   def loss(self, logits, labels, features=None, mode=None,
            regularization_losses=None):
-    """Returns training loss. See `Head` for details."""
+    """Returns regularized training loss. See `base_head.Head` for details."""
     del mode  # Unused for this head.
-    with ops.name_scope(None, 'losses', (logits, labels, regularization_losses,
-                                         features)):
+    with ops.name_scope('losses', values=(logits, labels, regularization_losses,
+                                          features)):
       logits = base_head.check_logits_final_dim(logits, self.logits_dimension)
       label_ids = self._processed_labels(logits, labels)
       unweighted_loss, weights = self._unweighted_loss_and_weights(
@@ -217,12 +216,12 @@ class MultiClassHead(base_head.Head):
     return regularized_training_loss
 
   def predictions(self, logits, keys=None):
-    """Return the predictions based on keys.
+    """Return predictions based on keys. See `base_head.Head` for details.
 
     Args:
       logits: logits `Tensor` with shape `[D0, D1, ... DN, logits_dimension]`.
         For many applications, the shape is `[batch_size, logits_dimension]`.
-      keys: a list or tuple of prediction keys. Key can be either the class
+      keys: a list or tuple of prediction keys. Each key can be either the class
         variable of prediction_keys.PredictionKeys or its string value, such as:
         prediction_keys.PredictionKeys.CLASSES or 'classes'. If not specified,
         it will return the predictions for all valid keys.
@@ -239,7 +238,7 @@ class MultiClassHead(base_head.Head):
       keys = valid_keys
     logits = base_head.check_logits_final_dim(logits, self.logits_dimension)
     predictions = {}
-    with ops.name_scope(None, 'predictions', (logits,)):
+    with ops.name_scope('predictions', values=(logits,)):
       if pred_keys.LOGITS in keys:
         predictions[pred_keys.LOGITS] = logits
       if pred_keys.PROBABILITIES in keys:
@@ -261,9 +260,9 @@ class MultiClassHead(base_head.Head):
       return predictions
 
   def metrics(self, regularization_losses=None):
-    """Creates metrics. See `Head` for details."""
+    """Creates metrics. See `base_head.Head` for details."""
     keys = metric_keys.MetricKeys
-    with ops.name_scope(None, 'metrics', (regularization_losses,)):
+    with ops.name_scope('metrics', values=(regularization_losses,)):
       # Mean metric.
       eval_metrics = {}
       eval_metrics[self._loss_mean_key] = metrics.Mean(name=keys.LOSS_MEAN)
@@ -277,7 +276,7 @@ class MultiClassHead(base_head.Head):
 
   def update_metrics(self, eval_metrics, features, logits, labels,
                      regularization_losses=None):
-    """Updates and returns the Eval metric ops. See `Head` for more details."""
+    """Updates eval metrics. See `base_head.Head` for details."""
     # SparseCategoricalAccuracy metric uses logits as input for `y_pred` arg.
     logits = base_head.check_logits_final_dim(logits, self.logits_dimension)
     label_ids = self._processed_labels(logits, labels)
