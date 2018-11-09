@@ -2102,7 +2102,7 @@ class BaseLinearLogitFnTest(object):
       }
       model(features)
       variables = model.variables
-      variables.remove(model.bias_variable)
+      variables.remove(model.bias)
       fraction_zero = linear._compute_fraction_of_zero(variables)
       age_var = ops.get_collection(ops.GraphKeys.GLOBAL_VARIABLES,
                                    'linear_model/age')[0]

@@ -340,7 +340,7 @@ def linear_logit_fn_builder(units, feature_columns, sparse_combiner='sum'):
           units=units,
           sparse_combiner=sparse_combiner)
       logits = linear_model(features)
-      bias = linear_model.bias_variable
+      bias = linear_model.bias
 
       # We'd like to get all the non-bias variables associated with this
       # LinearModel.
@@ -410,7 +410,7 @@ def _sdca_model_fn(features, labels, mode, head, feature_columns, optimizer):
       sparse_combiner='sum')
   logits = linear_model(features)
 
-  bias = linear_model.bias_variable
+  bias = linear_model.bias
 
   # We'd like to get all the non-bias variables associated with this
   # LinearModel.
@@ -428,13 +428,13 @@ def _sdca_model_fn(features, labels, mode, head, feature_columns, optimizer):
 
   if mode == model_fn.ModeKeys.TRAIN:
     sdca_model, train_op = optimizer.get_train_step(
-        linear_model._state_manager,  # pylint: disable=protected-access
+        linear_model.layer._state_manager,  # pylint: disable=protected-access
         head._weight_column,  # pylint: disable=protected-access
         loss_type,
         feature_columns,
         features,
         labels,
-        linear_model.bias_variable,
+        linear_model.bias,
         training.get_global_step())
 
     update_weights_hook = _SDCAUpdateWeightsHook(sdca_model, train_op)
