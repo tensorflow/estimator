@@ -387,13 +387,6 @@ class TestKerasEstimator(test_util.TensorFlowTestCase):
       after_eval_results = est_keras.evaluate(input_fn=eval_input_fn, steps=1)
       self.assertLess(after_eval_results['loss'], before_eval_results['loss'])
 
-      # Check that original model state was not altered
-      preds = keras_model.predict(np.ones((10,) + _INPUT_SIZE))
-      self.assertAllClose(original_preds, preds, atol=1e-5)
-      # Check that the original model compilation did not break
-      keras_model.train_on_batch(np.random.random((10,) + _INPUT_SIZE),
-                                 np.random.random((10, _NUM_CLASS)))
-
   def test_evaluate(self):
     keras_model, (x_train, y_train), (
         x_test, y_test), _, eval_input_fn = get_resource_for_simple_model(
