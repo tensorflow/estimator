@@ -29,7 +29,6 @@ from tensorflow.python.feature_column import feature_column as feature_column_li
 from tensorflow.python.ops import gen_tensor_forest_ops
 from tensorflow.python.ops import tensor_forest_ops, math_ops, array_ops
 
-# from tensorflow.python.util.tf_export import estimator_export
 
 _ForestHParams = collections.namedtuple('TreeHParams', [
     'logits_dimension',
@@ -240,13 +239,10 @@ class TensorForestClassifier(estimator.Estimator):
           % head.logits_dimension + \
           'should match n_classes: %s' % n_classes
 
-    assert all(isinstance(fc, feature_column_lib.DenseColumn)
-               for fc in feature_columns), \
-        'Only dense columns are supported for now'
+    for fc in feature_columns:
+        assert len(fc.shape) == 1, \
+            'Only rank 2 Columns are supported for now, %s violates it' % fc
 
-    assert all(len(fc.shape) == 1
-               for fc in feature_columns), \
-        'Only rank 2 Columns are supported for now'
 
     num_features = sum(fc.shape[0] for fc in feature_columns)
 

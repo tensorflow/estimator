@@ -20,7 +20,7 @@ from __future__ import print_function
 
 from google.protobuf import text_format
 from tensorflow.core.kernels.boosted_trees import boosted_trees_pb2
-from tensorflow.python.estimator.canned import tensor_forest
+from tensorflow.python.estimator.experimental import tensor_forest
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import test_util
 from tensorflow.python.ops import resources
