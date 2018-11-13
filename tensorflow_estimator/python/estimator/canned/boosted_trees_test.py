@@ -19,29 +19,29 @@ from __future__ import print_function
 
 import os
 
-from google.protobuf import text_format
 import numpy as np
 
+from google.protobuf import text_format
 from tensorflow.core.kernels.boosted_trees import boosted_trees_pb2
 from tensorflow.python.client import session
 from tensorflow.python.data.ops import dataset_ops
-from tensorflow_estimator.python.estimator import model_fn
-from tensorflow_estimator.python.estimator import run_config
-from tensorflow_estimator.python.estimator.canned import boosted_trees
-from tensorflow_estimator.python.estimator.inputs import numpy_io
 from tensorflow.python.feature_column import feature_column
 from tensorflow.python.framework import constant_op
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import test_util
-from tensorflow.python.ops import gen_boosted_trees_ops
 from tensorflow.python.ops import boosted_trees_ops
+from tensorflow.python.ops import gen_boosted_trees_ops
 from tensorflow.python.ops import resources
 from tensorflow.python.ops import variables
 from tensorflow.python.platform import googletest
 from tensorflow.python.training import checkpoint_utils
 from tensorflow.python.training import saver as saver_lib
 from tensorflow.python.training import session_run_hook
+from tensorflow_estimator.python.estimator import model_fn
+from tensorflow_estimator.python.estimator import run_config
+from tensorflow_estimator.python.estimator.canned import boosted_trees
+from tensorflow_estimator.python.estimator.inputs import numpy_io
 
 NUM_FEATURES = 3
 
@@ -107,13 +107,22 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
         for i in range(NUM_FEATURES)
     }
 
-  def _assert_checkpoint(self, model_dir, global_step, finalized_trees,
-                         attempted_layers):
+  def _assert_checkpoint(self,
+                         model_dir,
+                         global_step,
+                         finalized_trees,
+                         attempted_layers,
+                         bucket_boundaries=None):
     self._assert_checkpoint_and_return_model(model_dir, global_step,
-                                             finalized_trees, attempted_layers)
+                                             finalized_trees, attempted_layers,
+                                             bucket_boundaries)
 
-  def _assert_checkpoint_and_return_model(self, model_dir, global_step,
-                                          finalized_trees, attempted_layers):
+  def _assert_checkpoint_and_return_model(self,
+                                          model_dir,
+                                          global_step,
+                                          finalized_trees,
+                                          attempted_layers,
+                                          bucket_boundaries=None):
     reader = checkpoint_utils.load_checkpoint(model_dir)
     self.assertEqual(global_step, reader.get_tensor(ops.GraphKeys.GLOBAL_STEP))
     serialized = reader.get_tensor('boosted_trees:0_serialized')
@@ -125,6 +134,14 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
         sum([1 for t in ensemble_proto.tree_metadata if t.is_finalized]))
     self.assertEqual(attempted_layers,
                      ensemble_proto.growing_metadata.num_layers_attempted)
+
+    if bucket_boundaries:
+      for i, bucket_boundary in enumerate(bucket_boundaries):
+        self.assertAllClose(
+            bucket_boundary,
+            reader.get_tensor(
+                'boosted_trees/QuantileAccumulator/_bucket_boundaries_' +
+                str(i)))
 
     return ensemble_proto
 
@@ -176,6 +193,258 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
     est.train(input_fn, steps=num_steps)
     self._assert_checkpoint(
         est.model_dir, global_step=5, finalized_trees=1, attempted_layers=5)
+    eval_res = est.evaluate(input_fn=input_fn, steps=1)
+    self.assertAllClose(eval_res['accuracy'], 1.0)
+
+  def testTrainAndEvaluateBinaryClassifierWithOnlyFloatColumn(self):
+    self._feature_columns = {
+        feature_column.numeric_column('f_%d' % i, dtype=dtypes.float32)
+        for i in range(NUM_FEATURES)
+    }
+
+    input_fn = _make_train_input_fn(is_classification=True)
+    predict_input_fn = numpy_io.numpy_input_fn(
+        x=FEATURES_DICT, y=None, batch_size=1, num_epochs=1, shuffle=False)
+
+    est = boosted_trees.BoostedTreesClassifier(
+        feature_columns=self._feature_columns,
+        n_batches_per_layer=1,
+        n_trees=1,
+        max_depth=5,
+        quantile_sketch_epsilon=0.33)
+
+    # Prediction will provide all zeros because buckets are not ready.
+    predictions = list(est.predict(input_fn=predict_input_fn))
+    self.assertAllClose([[0], [0], [0], [0], [0]],
+                        [pred['class_ids'] for pred in predictions])
+
+    num_steps = 100
+    # Train for a few steps, and validate final checkpoint.
+    # It will stop after 5 steps because of the max depth and num trees.
+    est.train(input_fn, steps=num_steps)
+    self._assert_checkpoint(
+        est.model_dir,
+        global_step=5,
+        finalized_trees=1,
+        attempted_layers=5,
+        bucket_boundaries=[[-2.001, -1.999, 12.5], [-3., 0.4995, 2.],
+                           [-100., 20., 102.75]])
+    eval_res = est.evaluate(input_fn=input_fn, steps=1)
+    self.assertAllClose(eval_res['accuracy'], 1.0)
+    predictions = list(est.predict(input_fn=predict_input_fn))
+    self.assertAllClose([[0], [1], [1], [0], [0]],
+                        [pred['class_ids'] for pred in predictions])
+
+  def testTrainAndEvaluateBinaryClassifierWithEmptyShape(self):
+    self._feature_columns = {
+        feature_column.numeric_column(
+            'f_%d' % i, shape=(), dtype=dtypes.float32)
+        for i in range(NUM_FEATURES)
+    }
+
+    input_fn = _make_train_input_fn(is_classification=True)
+    predict_input_fn = numpy_io.numpy_input_fn(
+        x=FEATURES_DICT, y=None, batch_size=1, num_epochs=1, shuffle=False)
+
+    est = boosted_trees.BoostedTreesClassifier(
+        feature_columns=self._feature_columns,
+        n_batches_per_layer=1,
+        n_trees=1,
+        max_depth=5,
+        quantile_sketch_epsilon=0.33)
+
+    # Prediction will provide all zeros because buckets are not ready.
+    predictions = list(est.predict(input_fn=predict_input_fn))
+    self.assertAllClose([[0], [0], [0], [0], [0]],
+                        [pred['class_ids'] for pred in predictions])
+
+    num_steps = 100
+    # Train for a few steps, and validate final checkpoint.
+    # It will stop after 5 steps because of the max depth and num trees.
+    est.train(input_fn, steps=num_steps)
+    self._assert_checkpoint(
+        est.model_dir,
+        global_step=5,
+        finalized_trees=1,
+        attempted_layers=5,
+        bucket_boundaries=[[-2.001, -1.999, 12.5], [-3., 0.4995, 2.],
+                           [-100., 20., 102.75]])
+    eval_res = est.evaluate(input_fn=input_fn, steps=1)
+    self.assertAllClose(eval_res['accuracy'], 1.0)
+    predictions = list(est.predict(input_fn=predict_input_fn))
+    self.assertAllClose([[0], [1], [1], [0], [0]],
+                        [pred['class_ids'] for pred in predictions])
+
+  def testTrainAndEvaluateBinaryClassifierWithWeightColumn(self):
+    feature_and_weight_dict_weight_1 = {
+        'weight': np.array([1., 10., 1., 1., 1.], dtype=np.float32)
+    }
+    feature_and_weight_dict_weight_2 = {
+        'weight': np.array([10., 1., 2., 1., 1.], dtype=np.float32)
+    }
+    self._feature_columns = {
+        feature_column.numeric_column('f_%d' % i, dtype=dtypes.float32)
+        for i in range(NUM_FEATURES)
+    }
+    weights = feature_column.numeric_column('weight', dtype=dtypes.float32)
+    feature_and_weight_dict_weight_1.update(FEATURES_DICT.copy())
+    feature_and_weight_dict_weight_2.update(FEATURES_DICT.copy())
+    input_fn_1 = numpy_io.numpy_input_fn(
+        x=feature_and_weight_dict_weight_1,
+        y=np.array(CLASSIFICATION_LABELS),
+        num_epochs=None,
+        batch_size=5,
+        shuffle=False)
+    input_fn_2 = numpy_io.numpy_input_fn(
+        x=feature_and_weight_dict_weight_2,
+        y=np.array(CLASSIFICATION_LABELS),
+        num_epochs=None,
+        batch_size=5,
+        shuffle=False)
+    est_1 = boosted_trees.BoostedTreesClassifier(
+        feature_columns=self._feature_columns,
+        n_batches_per_layer=1,
+        weight_column=weights,
+        n_trees=1,
+        max_depth=5)
+    est_2 = boosted_trees.BoostedTreesClassifier(
+        feature_columns=self._feature_columns,
+        n_batches_per_layer=1,
+        weight_column=weights,
+        n_trees=1,
+        max_depth=5)
+    # It will stop after 5 steps because of the max depth and num trees.
+    num_steps = 100
+    # Train for a few steps, and validate final checkpoint.
+    est_1.train(input_fn_1, steps=num_steps)
+    self._assert_checkpoint(
+        est_1.model_dir, global_step=5, finalized_trees=1, attempted_layers=5)
+    eval_res_1 = est_1.evaluate(input_fn=input_fn_1, steps=1)
+    self.assertAllClose(eval_res_1['accuracy'], 1.0)
+    est_2.train(input_fn_2, steps=num_steps)
+    self._assert_checkpoint(
+        est_2.model_dir, global_step=5, finalized_trees=1, attempted_layers=5)
+    eval_res_2 = est_2.evaluate(input_fn=input_fn_2, steps=1)
+    self.assertAllClose(eval_res_2['accuracy'], 1.0)
+    self.assertTrue(est_1.model_dir != est_2.model_dir)
+    self.assertTrue(eval_res_1 != eval_res_2)
+
+  def testTrainAndEvaluateBinaryClassifierWithWeightColumnAsString(self):
+    feature_and_weight_dict_weight_1 = {
+        'weight': np.array([1., 10., 1., 1., 1.], dtype=np.float32)
+    }
+    feature_and_weight_dict_weight_2 = {
+        'weight': np.array([10., 1., 2., 1., 1.], dtype=np.float32)
+    }
+    self._feature_columns = {
+        feature_column.numeric_column('f_%d' % i, dtype=dtypes.float32)
+        for i in range(NUM_FEATURES)
+    }
+    feature_and_weight_dict_weight_1.update(FEATURES_DICT.copy())
+    feature_and_weight_dict_weight_2.update(FEATURES_DICT.copy())
+    input_fn_1 = numpy_io.numpy_input_fn(
+        x=feature_and_weight_dict_weight_1,
+        y=np.array(CLASSIFICATION_LABELS),
+        num_epochs=None,
+        batch_size=5,
+        shuffle=False)
+    input_fn_2 = numpy_io.numpy_input_fn(
+        x=feature_and_weight_dict_weight_2,
+        y=np.array(CLASSIFICATION_LABELS),
+        num_epochs=None,
+        batch_size=5,
+        shuffle=False)
+    est_1 = boosted_trees.BoostedTreesClassifier(
+        feature_columns=self._feature_columns,
+        n_batches_per_layer=1,
+        weight_column='weight',
+        n_trees=1,
+        max_depth=5)
+    est_2 = boosted_trees.BoostedTreesClassifier(
+        feature_columns=self._feature_columns,
+        n_batches_per_layer=1,
+        weight_column='weight',
+        n_trees=1,
+        max_depth=5)
+    # It will stop after 5 steps because of the max depth and num trees.
+    num_steps = 100
+    # Train for a few steps, and validate final checkpoint.
+    est_1.train(input_fn_1, steps=num_steps)
+    self._assert_checkpoint(
+        est_1.model_dir, global_step=5, finalized_trees=1, attempted_layers=5)
+    eval_res_1 = est_1.evaluate(input_fn=input_fn_1, steps=1)
+    self.assertAllClose(eval_res_1['accuracy'], 1.0)
+    est_2.train(input_fn_2, steps=num_steps)
+    self._assert_checkpoint(
+        est_2.model_dir, global_step=5, finalized_trees=1, attempted_layers=5)
+    eval_res_2 = est_2.evaluate(input_fn=input_fn_2, steps=1)
+    self.assertAllClose(eval_res_2['accuracy'], 1.0)
+    self.assertTrue(est_1.model_dir != est_2.model_dir)
+    self.assertTrue(eval_res_1 != eval_res_2)
+
+  def testTrainAndEvaluateBinaryClassifierWithMultiDimFloatColumn(self):
+    self._feature_columns = {
+        feature_column.numeric_column('f', shape=(3,), dtype=dtypes.float32)
+    }
+    input_fn = numpy_io.numpy_input_fn(
+        x={'f': np.transpose(np.copy(INPUT_FEATURES))},
+        y=np.array(CLASSIFICATION_LABELS),
+        num_epochs=None,
+        batch_size=5,
+        shuffle=False)
+    est = boosted_trees.BoostedTreesClassifier(
+        feature_columns=self._feature_columns,
+        n_batches_per_layer=1,
+        n_trees=1,
+        max_depth=5)
+    # It will stop after 5 steps because of the max depth and num trees.
+    num_steps = 100
+    # Train for a few steps, and validate final checkpoint.
+    est.train(input_fn, steps=num_steps)
+    self._assert_checkpoint(
+        est.model_dir, global_step=5, finalized_trees=1, attempted_layers=5)
+    eval_res = est.evaluate(input_fn=input_fn, steps=1)
+    self.assertAllClose(eval_res['accuracy'], 1.0)
+
+  def testTrainAndEvaluateBinaryClassifierWithMixedColumns(self):
+    categorical = feature_column.categorical_column_with_vocabulary_list(
+        key='f_0', vocabulary_list=('bad', 'good', 'ok'))
+    indicator_col = feature_column.indicator_column(categorical)
+    bucketized_col = feature_column.bucketized_column(
+        feature_column.numeric_column('f_1', dtype=dtypes.float32),
+        BUCKET_BOUNDARIES)
+    numeric_col = feature_column.numeric_column('f_2', dtype=dtypes.float32)
+
+    labels = np.array([[0], [1], [1], [1], [1]], dtype=np.float32)
+    input_fn = numpy_io.numpy_input_fn(
+        x={
+            'f_0': np.array(['bad', 'good', 'good', 'ok', 'bad']),
+            'f_1': np.array([1, 1, 1, 1, 1]),
+            'f_2': np.array([12.5, 1.0, -2.001, -2.0001, -1.999]),
+        },
+        y=labels,
+        num_epochs=None,
+        batch_size=5,
+        shuffle=False)
+    feature_columns = [numeric_col, bucketized_col, indicator_col]
+
+    est = boosted_trees.BoostedTreesClassifier(
+        feature_columns=feature_columns,
+        n_batches_per_layer=1,
+        n_trees=1,
+        max_depth=5,
+        quantile_sketch_epsilon=0.33)
+
+    # It will stop after 5 steps because of the max depth and num trees.
+    num_steps = 100
+    # Train for a few steps, and validate final checkpoint.
+    est.train(input_fn, steps=num_steps)
+    self._assert_checkpoint_and_return_model(
+        est.model_dir,
+        global_step=5,
+        finalized_trees=1,
+        attempted_layers=5,
+        bucket_boundaries=[[-2.001, -1.999, 12.5]])
     eval_res = est.evaluate(input_fn=input_fn, steps=1)
     self.assertAllClose(eval_res['accuracy'], 1.0)
 
@@ -1087,13 +1356,13 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
     self.assertAllClose([0.5, 0.2, 0.2, 0.1, 0.0, 0.0, 0.0, 0.0], importances)
 
   def testFeatureImportancesNamesForUnsupportedColumn(self):
-    numeric_col = feature_column.numeric_column(
-        'continuous', dtype=dtypes.float32)
+    categorical_col = feature_column.categorical_column_with_vocabulary_list(
+        key='categorical', vocabulary_list=('bad', 'good', 'ok'))
 
     with self.assertRaisesRegexp(ValueError,
-                                 'only bucketized_column and indicator_column'):
+                                 'only bucketized_column, indicator_column'):
       _ = boosted_trees.BoostedTreesRegressor(
-          feature_columns=[numeric_col],
+          feature_columns=[categorical_col],
           n_batches_per_layer=1,
           n_trees=2,
           learning_rate=1.0,
@@ -2233,7 +2502,8 @@ class ModelFnTests(test_util.TensorFlowTestCase):
         tree_complexity=0.,
         min_node_weight=0.,
         center_bias=center_bias,
-        pruning_mode='none')
+        pruning_mode='none',
+        quantile_sketch_epsilon=0.01)
 
     estimator_spec = boosted_trees._bt_model_fn(  # pylint:disable=protected-access
         features=features,

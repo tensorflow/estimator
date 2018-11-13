@@ -64,7 +64,8 @@ class _BoostedTreesEstimator(canned_boosted_trees._BoostedTreesBase):  # pylint:
                min_node_weight=0.,
                config=None,
                center_bias=False,
-               pruning_mode='none'):
+               pruning_mode='none',
+               quantile_sketch_epsilon=0.01):
     """Initializes a `BoostedTreesEstimator` instance.
 
     Args:
@@ -75,7 +76,7 @@ class _BoostedTreesEstimator(canned_boosted_trees._BoostedTreesBase):  # pylint:
         layer.
       head: the `Head` instance defined for Estimator.
       model_dir: Directory to save model parameters, graph and etc. This can
-        also be used to load checkpoints from the directory into a estimator
+        also be used to load checkpoints from the directory into an estimator
         to continue training a previously saved model.
       weight_column: A string or a `_NumericColumn` created by
         `tf.feature_column.numeric_column` defining feature column representing
@@ -108,6 +109,9 @@ class _BoostedTreesEstimator(canned_boosted_trees._BoostedTreesBase):  # pylint:
         pruning (build the tree up to a max depth and then prune branches with
         negative gain). For pre and post pruning, you MUST provide
         tree_complexity >0.
+      quantile_sketch_epsilon: float between 0 and 1. Error bound for quantile
+        computation. This is only used for float feature columns, and the number
+        of buckets generated per float feature is 1/quantile_sketch_epsilon.
 
     Raises:
       ValueError: when wrong arguments are given or unsupported functionalities
@@ -117,7 +121,8 @@ class _BoostedTreesEstimator(canned_boosted_trees._BoostedTreesBase):  # pylint:
     # pylint: disable=protected-access
     tree_hparams = canned_boosted_trees._TreeHParams(
         n_trees, max_depth, learning_rate, l1_regularization, l2_regularization,
-        tree_complexity, min_node_weight, center_bias, pruning_mode)
+        tree_complexity, min_node_weight, center_bias, pruning_mode,
+        quantile_sketch_epsilon)
 
     def _model_fn(features, labels, mode, config):
       return canned_boosted_trees._bt_model_fn(
@@ -137,7 +142,8 @@ class _BoostedTreesEstimator(canned_boosted_trees._BoostedTreesBase):  # pylint:
         feature_columns=feature_columns,
         head=head,
         center_bias=center_bias,
-        is_classification=_is_classification_head(head))
+        is_classification=_is_classification_head(head),
+        quantile_sketch_epsilon=quantile_sketch_epsilon)
     # pylint: enable=protected-access
 
 
@@ -158,7 +164,8 @@ def boosted_trees_classifier_train_in_memory(
     config=None,
     train_hooks=None,
     center_bias=False,
-    pruning_mode='none'):
+    pruning_mode='none',
+    quantile_sketch_epsilon=0.01):
   """Trains a boosted tree classifier with in memory dataset.
 
   Example:
@@ -199,7 +206,7 @@ def boosted_trees_classifier_train_in_memory(
       the model. All items in the set should be instances of classes derived
       from `FeatureColumn`.
     model_dir: Directory to save model parameters, graph and etc. This can
-      also be used to load checkpoints from the directory into a estimator
+      also be used to load checkpoints from the directory into an estimator
       to continue training a previously saved model.
     n_classes: number of label classes. Default is binary classification.
       Multiclass support is not yet implemented.
@@ -242,6 +249,9 @@ def boosted_trees_classifier_train_in_memory(
         pruning (build the tree up to a max depth and then prune branches with
         negative gain). For pre and post pruning, you MUST provide
         tree_complexity >0.
+    quantile_sketch_epsilon: float between 0 and 1. Error bound for quantile
+        computation. This is only used for float feature columns, and the number
+        of buckets generated per float feature is 1/quantile_sketch_epsilon.
 
   Returns:
     a `BoostedTreesClassifier` instance created with the given arguments and
@@ -262,7 +272,8 @@ def boosted_trees_classifier_train_in_memory(
   # HParams for the model.
   tree_hparams = canned_boosted_trees._TreeHParams(
       n_trees, max_depth, learning_rate, l1_regularization, l2_regularization,
-      tree_complexity, min_node_weight, center_bias, pruning_mode)
+      tree_complexity, min_node_weight, center_bias, pruning_mode,
+      quantile_sketch_epsilon)
 
   def _model_fn(features, labels, mode, config):
     return canned_boosted_trees._bt_model_fn(
@@ -304,7 +315,8 @@ def boosted_trees_regressor_train_in_memory(
     config=None,
     train_hooks=None,
     center_bias=False,
-    pruning_mode='none'):
+    pruning_mode='none',
+    quantile_sketch_epsilon=0.01):
   """Trains a boosted tree regressor with in memory dataset.
 
   Example:
@@ -345,7 +357,7 @@ def boosted_trees_regressor_train_in_memory(
       the model. All items in the set should be instances of classes derived
       from `FeatureColumn`.
     model_dir: Directory to save model parameters, graph and etc. This can
-      also be used to load checkpoints from the directory into a estimator
+      also be used to load checkpoints from the directory into an estimator
       to continue training a previously saved model.
     label_dimension: Number of regression targets per example.
       Multi-dimensional support is not yet implemented.
@@ -381,6 +393,9 @@ def boosted_trees_regressor_train_in_memory(
         pruning (build the tree up to a max depth and then prune branches with
         negative gain). For pre and post pruning, you MUST provide
         tree_complexity >0.
+    quantile_sketch_epsilon: float between 0 and 1. Error bound for quantile
+        computation. This is only used for float feature columns, and the number
+        of buckets generated per float feature is 1/quantile_sketch_epsilon.
 
   Returns:
     a `BoostedTreesClassifier` instance created with the given arguments and
@@ -400,7 +415,8 @@ def boosted_trees_regressor_train_in_memory(
   # HParams for the model.
   tree_hparams = canned_boosted_trees._TreeHParams(
       n_trees, max_depth, learning_rate, l1_regularization, l2_regularization,
-      tree_complexity, min_node_weight, center_bias, pruning_mode)
+      tree_complexity, min_node_weight, center_bias, pruning_mode,
+      quantile_sketch_epsilon)
 
   def _model_fn(features, labels, mode, config):
     return canned_boosted_trees._bt_model_fn(

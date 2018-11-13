@@ -67,12 +67,11 @@ class AddMetricsTest(test.TestCase):
       return {'mean_x': metrics_lib.mean(features['x'])}
     _test_metric_fn(metric_fn_1)
 
-    # TODO(b/117774910): test on Keras metric fails.
-    # def metric_fn_2(features):
-    #   metric = keras_metrics.Mean()
-    #   metric.update_state(features['x'])
-    #   return {'mean_x': metric}
-    # _test_metric_fn(metric_fn_2)
+    def metric_fn_2(features):
+      metric = keras_metrics.Mean()
+      metric.update_state(features['x'])
+      return {'mean_x': metric}
+    _test_metric_fn(metric_fn_2)
 
   def test_should_error_out_for_not_recognized_args(self):
     estimator = linear.LinearClassifier([fc.numeric_column('x')])

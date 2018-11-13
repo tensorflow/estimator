@@ -4,7 +4,7 @@
 | [![Documentation](https://img.shields.io/badge/api-reference-blue.svg)](https://www.tensorflow.org/api_docs/python/tf/estimator) |
 
 TensorFlow Estimator is a high-level TensorFlow API that greatly simplifies machine learning programming.
-Estimators encapsulate training, evaluation, prediciton, and exporting for your model.
+Estimators encapsulate training, evaluation, prediction, and exporting for your model.
 
 ## Getting Started
 
@@ -31,7 +31,7 @@ bazel test //tensorflow_estimator/...
 ## Contribution guidelines
 
 **If you want to contribute to TensorFlow Estimator, be sure to review the [contribution
-guidelines](CONTRIBUTING.md).
+guidelines](CONTRIBUTING.md).**
 
 **We use [GitHub issues](https://github.com/tensorflow/estimator/issues) for
 tracking requests and bugs. So please see

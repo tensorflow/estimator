@@ -40,13 +40,18 @@ REQUIRED_PACKAGES = [
 ]
 
 project_name = 'tensorflow_estimator'
+if '--project_name' in sys.argv:
+  project_name_idx = sys.argv.index('--project_name')
+  project_name = sys.argv[project_name_idx + 1]
+  sys.argv.remove('--project_name')
+  sys.argv.pop(project_name_idx)
 
 if sys.version_info.major == 2:
   # mock comes with unittest.mock for python3, need to install for python2
   REQUIRED_PACKAGES.append('mock >= 2.0.0')
 
 setuptools.setup(
-    name='tensorflow_estimator',
+    name=project_name,
     version=_VERSION.replace('-', ''),
     description=DOCLINES[0],
     long_description='\n'.join(DOCLINES[2:]),

@@ -12,34 +12,42 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Abstractions for the head(s) of a model."""
+"""Abstractions for the base head class."""
 
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
 import abc
+
 import six
 
 from tensorflow.python.eager import context
 from tensorflow.python.feature_column import feature_column as feature_column_lib
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import sparse_tensor
-from tensorflow.python.keras import metrics
+from tensorflow.python.framework import tensor_util
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import check_ops
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import math_ops
+from tensorflow.python.ops import string_ops
 from tensorflow.python.ops import weights_broadcast_ops
-from tensorflow.python.ops.losses import losses
+from tensorflow.python.saved_model import signature_constants
 from tensorflow.python.summary import summary
 from tensorflow.python.training import training_util
 from tensorflow.python.util import function_utils
-from tensorflow_estimator.python.estimator import model_fn
 from tensorflow_estimator.python.estimator.canned import head as head_v1
 from tensorflow_estimator.python.estimator.canned import metric_keys
-from tensorflow_estimator.python.estimator.canned import prediction_keys
 from tensorflow_estimator.python.estimator.export import export_output
+
+DEFAULT_SERVING_KEY = signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY
+
+# The above default is defined by TF Serving, but these next three are just
+# a local convention without any special meaning.
+CLASSIFY_SERVING_KEY = 'classification'
+REGRESS_SERVING_KEY = 'regression'
+PREDICT_SERVING_KEY = 'predict'
 
 
 class Head(object):
@@ -64,10 +72,9 @@ class Head(object):
     ```python
     def _my_dnn_model_fn(features, labels, mode, params, config=None):
       # Optionally your callers can pass head to model_fn as a param.
+      head = tf.estimator.RegressionHead(...)
 
-      # TODO(yhliang): Modify it from contrib to core once migration is done.
-      head = tf.contrib.estimator.regression_head(...)
-      # TODO(yhliang): Update it to OO FeatureLayer once Rohan's CL is in.
+      # TODO(b/117839674): update feature_column
       inputs = tf.feature_column.input_layer(features, ...)
 
       # Compute logits with tf.keras.layers API
@@ -101,8 +108,7 @@ class Head(object):
   `model_fn`. Here is a common use case:
     ```python
     def _my_model_fn(features, labels, mode, params, config=None):
-      # TODO(yhliang): Modify it from contrib to core once migration is done.
-      head = tf.contrib.estimator.multi_class_head(n_classes=3)
+      head = tf.estimator.MultiClassHead(n_classes=3)
       estimator_spec = head.create_estimator_spec(
           features=features,
           labels=labels,
@@ -158,7 +164,7 @@ class Head(object):
   @abc.abstractmethod
   def loss(self, logits, labels, features=None, mode=None,
            regularization_losses=None):
-    """Returns a loss `Tensor` from provided logits.
+    """Returns a loss `Tensor` from provided arguments.
 
     Note that, the args of `features` and `mode` are most likely not used, but
     some Head implementations may require them.
@@ -182,11 +188,14 @@ class Head(object):
     raise NotImplementedError('Calling an abstract method.')
 
   @abc.abstractmethod
-  def predictions(self, logits):
+  def predictions(self, logits, keys=None):
     """Returns a `dict` of predictions from provided logits.
 
     Args:
       logits: Logits `Tensor` to be used for prediction construction.
+      keys: A list of `string` for prediction keys. Defaults to `None`, meaning
+        if not specified, predictions will be created for all the pre-defined
+        valid keys in the head.
 
     Returns:
       A `dict` of predicted `Tensor` keyed by prediction name.
@@ -230,6 +239,9 @@ class Head(object):
     """
     raise NotImplementedError('Calling an abstract method.')
 
+  def _summary_key(self, key):
+    return '{}/{}'.format(key, self.name) if self.name else key
+
   def create_estimator_spec(
       self, features, mode, logits, labels=None, optimizer=None,
       train_op_fn=None, regularization_losses=None):
@@ -253,7 +265,7 @@ class Head(object):
         is `None`. Exactly one of `train_op_fn` and `optimizer` must be set in
         TRAIN mode. By default, it is `None` in other modes. If you want to
         optimize loss yourself, you can pass `lambda _: tf.no_op()` and then use
-        EstimatorSpec.loss to compute and apply gradients.
+        `EstimatorSpec.loss` to compute and apply gradients.
       regularization_losses: A list of additional scalar losses to be added to
         the training loss, such as regularization losses.
 
@@ -296,7 +308,7 @@ class Head(object):
         is `None`. Exactly one of `train_op_fn` and `optimizer` must be set in
         TRAIN mode. None is allowed in other modes. If you want to optimize loss
         yourself you can pass `lambda _: tf.no_op()` and then use
-        EstimatorSpec.loss to compute and apply gradients.
+        `EstimatorSpec.loss` to compute and apply gradients.
       regularization_losses: A list of additional scalar losses to be added to
         the training loss, such as regularization losses.
 
@@ -311,8 +323,34 @@ class Head(object):
 # tensor static shape is used for checking. The duplication of shape checking
 # for eager mode in the following helper functions can be safely removed
 # if there's some way to get around it in the future.
-def _check_dense_labels_match_logits_and_reshape(
-    labels, logits, expected_labels_dimension):
+
+# Label shape error messages.
+_LABEL_NONE_ERR_MSG = (
+    'You must provide a labels Tensor. Given: None. '
+    'Suggested troubleshooting steps: Check that your data contains your label '
+    'feature. Check that your input_fn properly parses and returns labels.')
+
+_SPARSE_LABEL_ERR_MSG = (
+    'SparseTensor labels are not supported. Labels must be a Tensor of shape '
+    '[D0, D1, ..., DN, {}], e.g. [batch_size, {}].Suggested Fix (1): Check the'
+    ' label feature in your data. Each example must contain {} value(s). If '
+    'not, your choice of label was probably incorrect. Suggested Fix (2): In '
+    'your input_fn, use tf.sparse_tensor_to_dense() to turn labels into a '
+    'Tensor.')
+
+_MISMATCHED_LABEL_DIM_ERR_MSG = (
+    'Mismatched label shape. Expected labels dimension={}.  Received {}. '
+    'Suggested Fix: If your classifier expects one-hot encoding label, check '
+    'your n_classes argument to the estimator and/or the shape of your label. '
+    'Otherwise, check the shape of your label.')
+
+_LABEL_SHAPE_ERR_MSG = (
+    'labels shape must be [D0, D1, ... DN, {}]. Suggested Fix: check your '
+    'n_classes argument to the head and/or the shape of your label.')
+
+
+def check_dense_labels_match_logits_and_reshape(labels, logits,
+                                                expected_labels_dimension):
   """Checks labels shape matches logits, and reshapes if needed.
 
   Consider logits of shape [D0, D1, ... DN, logits_dimension]. Then labels
@@ -334,25 +372,13 @@ def _check_dense_labels_match_logits_and_reshape(
     OpError: If labels shape is not statically defined and fails validation.
   """
   if labels is None:
-    raise ValueError(
-        'You must provide a labels Tensor. Given: None. '
-        'Suggested troubleshooting steps: Check that your data contains '
-        'your label feature. Check that your input_fn properly parses and '
-        'returns labels.')
-  with ops.name_scope(None, 'labels', (labels, logits)) as scope:
+    raise ValueError(_LABEL_NONE_ERR_MSG)
+  with ops.name_scope('labels', values=(labels, logits)) as scope:
     labels = sparse_tensor.convert_to_tensor_or_sparse_tensor(labels)
     if isinstance(labels, sparse_tensor.SparseTensor):
-      raise ValueError(
-          'SparseTensor labels are not supported. '
-          'labels must be a Tensor of shape [D0, D1, ..., DN, %s], '
-          'e.g. [batch_size, %s]. '
-          'Suggested Fix (1): Check the label feature in your data. '
-          'Each example must contain %s value(s). If not, your choice of label '
-          'was probably incorrect. '
-          'Suggested Fix (2): In your input_fn, use '
-          'tf.sparse_tensor_to_dense() to turn labels into a Tensor.'
-          '' % (expected_labels_dimension, expected_labels_dimension,
-                expected_labels_dimension))
+      raise ValueError(_SPARSE_LABEL_ERR_MSG.format(
+          expected_labels_dimension, expected_labels_dimension,
+          expected_labels_dimension))
     # Eager mode.
     if context.executing_eagerly():
       labels_rank = labels._rank()  # pylint: disable=protected-access
@@ -360,44 +386,51 @@ def _check_dense_labels_match_logits_and_reshape(
       if (labels_rank is not None and logits_rank is not None
           and labels_rank == logits_rank - 1):
         labels = array_ops.expand_dims(labels, -1)
-      return array_ops.identity(labels, name=scope)
+        labels_rank += 1
+      labels_shape = labels._shape_tuple()  # pylint: disable=protected-access
+      if labels_rank < 2:
+        raise ValueError('labels must have rank at least 2.  Received rank {}, '
+                         'shape {}'.format(labels_rank, labels_shape))
+      if labels_shape[-1] != expected_labels_dimension:
+        raise ValueError(_MISMATCHED_LABEL_DIM_ERR_MSG.format(
+            expected_labels_dimension, labels_shape[-1]))
+      logits_shape = logits._shape_tuple()  # pylint: disable=protected-access
+      expected_labels_shape = logits_shape[:-1] + (expected_labels_dimension,)
+      if expected_labels_shape != labels_shape:
+        raise ValueError(
+            '{}, expected_labels_shape: {}. labels_shape: {}.'
+            .format(_LABEL_SHAPE_ERR_MSG.format(expected_labels_dimension),
+                    expected_labels_shape, labels_shape))
+      return labels
 
     # Graph mode.
     if (labels.shape.ndims is not None and logits.shape.ndims is not None and
         labels.shape.ndims == logits.shape.ndims - 1):
       labels = array_ops.expand_dims(labels, -1)
-    err_msg = (
-        'labels shape must be [D0, D1, ... DN, {}]. '
-        'Suggested Fix: check your n_classes argument to the estimator '
-        'and/or the shape of your label.'.format(expected_labels_dimension))
-    assert_rank = check_ops.assert_rank_at_least(labels, 2, message=err_msg)
+    assert_rank = check_ops.assert_rank_at_least(
+        labels, 2,
+        message=_LABEL_SHAPE_ERR_MSG.format(expected_labels_dimension))
     with ops.control_dependencies([assert_rank]):
       static_shape = labels.shape
       if static_shape.ndims is not None:
         final_dim = static_shape[-1]
         if (final_dim is not None) and (final_dim != expected_labels_dimension):
-          raise ValueError(
-              'Mismatched label shape. '
-              'Expected labels dimension=%s.  Received %s. '
-              'Suggested Fix:'
-              'If your classifier expects one-hot encoding label,'
-              'check your n_classes argument to the estimator '
-              'and/or the shape of your label. '
-              'Otherwise, check the shape of your label.' %
-              (expected_labels_dimension, final_dim))
+          raise ValueError(_MISMATCHED_LABEL_DIM_ERR_MSG.format(
+              expected_labels_dimension, final_dim))
       logits_shape = array_ops.shape(logits)
       expected_labels_shape = array_ops.concat(
           [logits_shape[:-1], [expected_labels_dimension]], axis=0)
       labels_shape = array_ops.shape(labels)
       assert_dimension = check_ops.assert_equal(
-          expected_labels_shape, labels_shape, message=err_msg,
+          expected_labels_shape, labels_shape,
+          message=_LABEL_SHAPE_ERR_MSG.format(expected_labels_dimension),
           data=['expected_labels_shape: ', expected_labels_shape,
                 'labels_shape: ', labels_shape])
       with ops.control_dependencies([assert_dimension]):
         return array_ops.identity(labels, name=scope)
 
 
-def _get_weights_and_check_match_logits(
+def get_weights_and_check_match_logits(
     features, weight_column, logits, allow_per_logit_weights=False):
   """Fetches weights from features and checks that the shape matches logits.
 
@@ -414,8 +447,10 @@ def _get_weights_and_check_match_logits(
     logits: logits Tensor.
     allow_per_logit_weights: Boolean. Whether we allow weights along the logits
       dimension, namely shape `[D0, D1, ... DN, logits_dimension]`.
+
   Returns:
     Validated and reshaped weights Tensor.
+
   Raises:
     ValueError: If the weights `Tensor` cannot be cast into float.
   """
@@ -427,11 +462,11 @@ def _get_weights_and_check_match_logits(
     err_msg = (
         'weights shape must be [D0, D1, ... DN] or [D0, D1, ... DN, 1]')
   with ops.name_scope(
-      None, 'weights',
-      values=tuple(six.itervalues(features)) + (logits,)) as scope:
+      'weights', values=tuple(six.itervalues(features)) + (logits,)) as scope:
     # Fetch the weights.
     if weight_column is None:
       return 1.
+    # TODO(b/117839674): update feature_column
     if isinstance(weight_column, six.string_types):
       weight_column = feature_column_lib.numeric_column(
           key=weight_column, shape=(1,))
@@ -470,7 +505,7 @@ def _get_weights_and_check_match_logits(
           raise ValueError(
               '{}, logits_shape: {}. weights_shape: {}.'
               .format(err_msg, logits_shape, weights_shape))
-      return array_ops.identity(weights, name=scope)
+      return weights
 
     # Graph mode.
     weights_shape = array_ops.shape(weights, name='weights_shape')
@@ -502,9 +537,9 @@ def _get_weights_and_check_match_logits(
       return array_ops.identity(weights, name=scope)
 
 
-def _check_logits_final_dim(logits, expected_logits_dimension):
+def check_logits_final_dim(logits, expected_logits_dimension):
   """Checks that logits shape is [D0, D1, ... DN, logits_dimension]."""
-  with ops.name_scope(None, 'logits', (logits,)) as scope:
+  with ops.name_scope('logits', values=(logits,)) as scope:
     logits = math_ops.to_float(logits)
     # Eager mode
     if context.executing_eagerly():
@@ -517,7 +552,7 @@ def _check_logits_final_dim(logits, expected_logits_dimension):
         raise ValueError(
             'logits shape must be [D0, D1, ... DN, logits_dimension], '
             'got {}.'.format(logits_shape))
-      return array_ops.identity(logits, name=scope)
+      return logits
     # Graph mode
     logits_shape = logits.shape
     if logits_shape.ndims is None:
@@ -540,7 +575,7 @@ def _check_logits_final_dim(logits, expected_logits_dimension):
         return array_ops.identity(logits, name=scope)
 
 
-def _validate_loss_fn_args(loss_fn):
+def validate_loss_fn_args(loss_fn):
   """Validates loss_fn arguments.
 
   Required arguments: labels, logits.
@@ -564,7 +599,7 @@ def _validate_loss_fn_args(loss_fn):
     raise ValueError('loss_fn has unexpected args: {}'.format(invalid_args))
 
 
-def _call_loss_fn(loss_fn, labels, logits, features, expected_loss_dim=1):
+def call_loss_fn(loss_fn, labels, logits, features, expected_loss_dim=1):
   """Calls loss_fn and checks the returned shape.
 
   For shape checking, eager uses the static dimension to improve performance.
@@ -575,8 +610,10 @@ def _call_loss_fn(loss_fn, labels, logits, features, expected_loss_dim=1):
     logits: Logits Tensor of shape [D0, D1, ... DN, logits_dimension].
     features: Features dict.
     expected_loss_dim: The expected last dimension of loss Tensor.
+
   Returns:
     Loss Tensor with shape [D0, D1, ... DN, expected_loss_dim].
+
   Raises:
     ValueError: If the loss tensor shape is unexpected.
   """
@@ -585,7 +622,7 @@ def _call_loss_fn(loss_fn, labels, logits, features, expected_loss_dim=1):
   if 'features' in loss_fn_args:
     kwargs['features'] = features
   with ops.name_scope(
-      None, 'call_loss_fn',
+      'call_loss_fn',
       values=[labels, logits] + list(six.itervalues(features))):
     unweighted_loss = loss_fn(labels=labels, logits=logits, **kwargs)
     # Eager mode.
@@ -598,7 +635,7 @@ def _call_loss_fn(loss_fn, labels, logits, features, expected_loss_dim=1):
                          '[D0, D1, ... DN, {}]. '.format(expected_loss_dim),
                          'logits_shape: ', logits_shape,
                          'loss_shape: ', loss_shape)
-      return array_ops.identity(unweighted_loss)
+      return unweighted_loss
     # Graph mode.
     logits_shape = logits.shape
     if logits_shape.ndims is None:
@@ -620,328 +657,119 @@ def _call_loss_fn(loss_fn, labels, logits, features, expected_loss_dim=1):
       return array_ops.identity(unweighted_loss)
 
 
-def _update_mean_metric_by_key(head_name, eval_metrics, key, values,
-                               weights=None):
-  mean_key = head_v1._summary_key(head_name, key)  # pylint: disable=protected-access
-  # For prediction mean
-  if key is metric_keys.MetricKeys.PREDICTION_MEAN:
-    values = math_ops.to_float(values, name='predictions')
-    if weights is not None:
-      weights = weights_broadcast_ops.broadcast_weights(weights, values)
-  eval_metrics[mean_key].update_state(
+def check_prediction_keys(pred_keys, valid_keys):
+  for key in pred_keys:
+    if key not in valid_keys:
+      raise ValueError(
+          'Prediction key must be in PredictionKeys, given: {}.'
+          'Valid prediction keys include {}.'.format(key, valid_keys))
+
+
+def classification_output(scores, n_classes, label_vocabulary=None):
+  batch_size = array_ops.shape(scores)[0]
+  if label_vocabulary:
+    export_class_list = label_vocabulary
+  else:
+    export_class_list = string_ops.as_string(math_ops.range(n_classes))
+  export_output_classes = array_ops.tile(
+      input=array_ops.expand_dims(input=export_class_list, axis=0),
+      multiples=[batch_size, 1])
+  return export_output.ClassificationOutput(
+      scores=scores,
+      # `ClassificationOutput` requires string classes.
+      classes=export_output_classes)
+
+
+def check_label_range(labels, n_classes, message=None):
+  """Check if labels are in the range of [0, n_classes)."""
+  with ops.name_scope('check_label_range', values=(labels,)):
+    # Eager mode
+    if context.executing_eagerly():
+      assert_less = math_ops.reduce_all(
+          math_ops.less_equal(labels, n_classes - 1))
+      if not assert_less:
+        raise ValueError(
+            message or 'Labels must be <= {} - 1'.format(n_classes))
+      assert_greater = math_ops.reduce_all(math_ops.greater_equal(labels, 0))
+      if not assert_greater:
+        raise ValueError(message or 'Labels must be >= 0')
+      return labels
+    # Graph mode
+    assert_less = check_ops.assert_less_equal(
+        labels,
+        ops.convert_to_tensor(n_classes - 1, dtype=labels.dtype),
+        message=message or 'Labels must be <= n_classes - 1')
+    assert_greater = check_ops.assert_non_negative(
+        labels, message=message or 'Labels must be >= 0')
+    with ops.control_dependencies((assert_less, assert_greater)):
+      return array_ops.identity(labels)
+
+
+def update_metric_with_broadcast_weights(eval_metric, values, weights):
+  values = math_ops.to_float(values)
+  if weights is not None:
+    weights = weights_broadcast_ops.broadcast_weights(
+        weights, values)
+  eval_metric.update_state(
       values=values, sample_weight=weights)
 
 
-def _regression_head(
-    weight_column=None,
-    label_dimension=1,
-    loss_reduction=losses.Reduction.SUM,
-    loss_fn=None,
-    inverse_link_fn=None,
-    name=None):
-  """Creates a `Head` for regression using the `mean_squared_error` loss.
+def create_eval_metrics_tuple(fn, kwargs):
+  """Creates TPU eval metrics tuple.
 
-  The loss is the weighted sum over all input dimensions. Namely, if the input
-  labels have shape `[batch_size, label_dimension]`, the loss is the weighted
-  sum over both `batch_size` and `label_dimension`.
-
-  The head expects `logits` with shape `[D0, D1, ... DN, label_dimension]`.
-  In many applications, the shape is `[batch_size, label_dimension]`.
-
-  The `labels` shape must match `logits`, namely
-  `[D0, D1, ... DN, label_dimension]`. If `label_dimension=1`, shape
-  `[D0, D1, ... DN]` is also supported.
-
-  If `weight_column` is specified, weights must be of shape
-  `[D0, D1, ... DN]`, `[D0, D1, ... DN, 1]` or
-  `[D0, D1, ... DN, label_dimension]`.
-
-  Supports custom `loss_fn`. `loss_fn` takes `(labels, logits)` or
-  `(labels, logits, features)` as arguments and returns unreduced loss with
-  shape `[D0, D1, ... DN, label_dimension]`.
-
-  Also supports custom `inverse_link_fn`, also known as 'mean function'.
-  `inverse_link_fn` takes `logits` as argument and returns predicted values.
-  This function is the inverse of the link function defined in
-  https://en.wikipedia.org/wiki/Generalized_linear_model#Link_function
-  Namely, for poisson regression, set `inverse_link_fn=tf.exp`.
+  Helper function to make eval_metric tuple (eval_metric_fn, fn_kwargs) used
+  by `TPUEstimator`. TPUEstimator requires that `eval_metric_fn` take
+  exclusively Tensor arguments. This helper can help create such a function from
+  a more generic function that can take both Tensor and non-Tensor arguments.
 
   Args:
-    weight_column: A string or a `_NumericColumn` created by
-      `tf.feature_column.numeric_column` defining feature column representing
-      weights. It is used to down weight or boost examples during training. It
-      will be multiplied by the loss of the example.
-    label_dimension: Number of regression labels per example. This is the size
-      of the last dimension of the labels `Tensor` (typically, this has shape
-      `[batch_size, label_dimension]`).
-    loss_reduction: One of `tf.losses.Reduction` except `NONE`. Describes how to
-      reduce training loss over batch. Defaults to `SUM`.
-    loss_fn: Optional loss function. Defaults to `mean_squared_error`.
-    inverse_link_fn: Optional inverse link function, also known as 'mean
-      function'. Defaults to identity.
-    name: name of the head. If provided, summary and metrics keys will be
-      suffixed by `"/" + name`. Also used as `name_scope` when creating ops.
+    fn: A eval_metric_fn that takes both Tensor and non-Tensor arguments. This
+      function must return a dict of form
+        {'metric name': (metric_tensor, eval_op)}
+    kwargs: Dict of arguments for `fn`.
 
   Returns:
-    An instance of `Head` for linear regression.
-
-  Raises:
-    ValueError: If `label_dimension` or `loss_reduction` is invalid.
+    `eval_metric` tuple that can be passed to a `model_fn._TPUEstimatorSpec`.
   """
-  return _RegressionHead(
-      weight_column=weight_column,
-      label_dimension=label_dimension,
-      loss_reduction=loss_reduction,
-      loss_fn=loss_fn,
-      inverse_link_fn=inverse_link_fn,
-      name=name)
-
-
-class _RegressionHead(Head):
-  """`Head` for regression."""
-
-  def __init__(
-      self,
-      label_dimension,
-      weight_column=None,
-      loss_reduction=losses.Reduction.SUM,
-      loss_fn=None,
-      inverse_link_fn=None,
-      name=None):
-    """See `_regression_head` for details."""
-    if label_dimension < 1:
-      raise ValueError('Invalid label_dimension {}.'.format(label_dimension))
-    if (loss_reduction not in losses.Reduction.all() or
-        loss_reduction == losses.Reduction.NONE):
-      raise ValueError('Invalid loss_reduction: {}'.format(loss_reduction))
-    if loss_fn:
-      _validate_loss_fn_args(loss_fn)
-    self._logits_dimension = label_dimension
-    self._weight_column = weight_column
-    self._loss_reduction = loss_reduction
-    self._loss_fn = loss_fn
-    self._inverse_link_fn = inverse_link_fn
-    self._name = name
-
-  @property
-  def name(self):
-    """See `Head` for details."""
-    return self._name
-
-  @property
-  def logits_dimension(self):
-    """See `Head` for details."""
-    return self._logits_dimension
-
-  @property
-  def loss_reduction(self):
-    """See `Head` for details."""
-    return self._loss_reduction
-
-  def _loss_spec(self, logits, labels, features):
-    """Computes loss spec."""
-    logits = _check_logits_final_dim(logits, self._logits_dimension)
-    labels = _check_dense_labels_match_logits_and_reshape(
-        labels=labels, logits=logits,
-        expected_labels_dimension=self._logits_dimension)
-    labels = math_ops.to_float(labels)
-    if self._loss_fn:
-      unweighted_loss = _call_loss_fn(
-          loss_fn=self._loss_fn, labels=labels, logits=logits,
-          features=features, expected_loss_dim=self._logits_dimension)
+  tensor_kwargs = {}
+  nontensor_kwargs = {}
+  for k, v in six.iteritems(kwargs):
+    if tensor_util.is_tensor(v):
+      tensor_kwargs[k] = v
     else:
-      unweighted_loss = losses.mean_squared_error(
-          labels=labels, predictions=logits, reduction=losses.Reduction.NONE)
-    weights = _get_weights_and_check_match_logits(
-        features=features, weight_column=self._weight_column, logits=logits,
-        allow_per_logit_weights=True)
-    training_loss = losses.compute_weighted_loss(
-        unweighted_loss, weights=weights, reduction=self._loss_reduction)
-    return head_v1.LossSpec(
-        training_loss=training_loss,
-        unreduced_loss=unweighted_loss,
-        weights=weights,
-        processed_labels=labels)
+      nontensor_kwargs[k] = v
 
-  def loss(self, logits, labels, features=None, mode=None,
-           regularization_losses=None):
-    """Returns loss. See `Head` for details."""
-    del mode  # Unused for this head.
-    with ops.name_scope(None, 'losses', (logits, labels, regularization_losses,
-                                         features)):
-      training_loss = self._loss_spec(logits, labels, features)[0]
-      regularization_loss = math_ops.add_n(
-          regularization_losses) if regularization_losses is not None else None
-      regularized_training_loss = (
-          training_loss + regularization_loss if regularization_loss is not None
-          else training_loss)
-    return regularized_training_loss
+  def _fn(**tensors):
+    return fn(**dict(nontensor_kwargs, **tensors))
 
-  def predictions(self, logits):
-    """Create predictions. See `Head` for details."""
-    # We need to check the logits dim for both eager and graph mode.
-    logits = _check_logits_final_dim(logits, self._logits_dimension)
-    pred_keys = prediction_keys.PredictionKeys
-    with ops.name_scope(None, 'predictions', (logits,)):
-      if self._inverse_link_fn:
-        predicted_value = self._inverse_link_fn(logits)
-        predictions = {
-            pred_keys.PREDICTIONS: predicted_value,
-            pred_keys.LOGITS: logits,
-        }
-      else:
-        predicted_value = logits
-        predictions = {
-            pred_keys.PREDICTIONS: predicted_value}
-    return predictions
+  return (_fn, tensor_kwargs)
 
-  def metrics(self, regularization_losses=None):
-    """Creates metrics. See `Head` for details."""
+
+def create_estimator_spec_train_op(head_name, optimizer, train_op_fn,
+                                   regularized_training_loss):
+  """Create train_op for estimator_spec."""
+  with ops.name_scope(head_name, 'head'):
+    if optimizer is not None:
+      if train_op_fn is not None:
+        raise ValueError('train_op_fn and optimizer cannot both be set.')
+      train_op = optimizer.minimize(
+          regularized_training_loss,
+          global_step=training_util.get_global_step())
+    elif train_op_fn is not None:
+      train_op = train_op_fn(regularized_training_loss)
+    else:
+      raise ValueError('train_op_fn and optimizer cannot both be None.')
+    train_op = head_v1._append_update_ops(train_op)  # pylint: disable=protected-access
+    return train_op
+
+
+def create_estimator_spec_summary(summary_key_fn, regularized_training_loss,
+                                  regularization_losses):
+  """Create summary for estimator_spec."""
+  with ops.name_scope(''):
     keys = metric_keys.MetricKeys
-    with ops.name_scope(None, 'metrics', (regularization_losses,)):
-      metric_key_list = [keys.LOSS_MEAN, keys.PREDICTION_MEAN, keys.LABEL_MEAN]
-      if regularization_losses is not None:
-        metric_key_list.append(keys.LOSS_REGULARIZATION)
-      eval_metrics = {
-          head_v1._summary_key(self._name, k):  # pylint: disable=protected-access
-              metrics.Mean(name=k) for k in metric_key_list}
-    return eval_metrics
-
-  def update_metrics(self, eval_metrics, features, logits, labels,
-                     regularization_losses=None):
-    """Updates and returns the Eval metric ops. See `Head` for more details."""
-    # Compute predictions
-    predictions = self.predictions(logits)
-    predicted_value = predictions[prediction_keys.PredictionKeys.PREDICTIONS]
-
-    # Get loss spec for metrics
-    _, unweighted_loss, weights, labels = self._loss_spec(
-        logits, labels, features)
-
-    # Update metrics
-    keys = metric_keys.MetricKeys
-    _update_mean_metric_by_key(self._name, eval_metrics, keys.LOSS_MEAN,
-                               values=unweighted_loss, weights=weights)
-    _update_mean_metric_by_key(self._name, eval_metrics, keys.LABEL_MEAN,
-                               values=labels, weights=weights)
-    _update_mean_metric_by_key(self._name, eval_metrics, keys.PREDICTION_MEAN,
-                               values=predicted_value, weights=weights)
+    summary.scalar(summary_key_fn(keys.LOSS), regularized_training_loss)
     if regularization_losses is not None:
       regularization_loss = math_ops.add_n(regularization_losses)
-      _update_mean_metric_by_key(self._name, eval_metrics,
-                                 keys.LOSS_REGULARIZATION,
-                                 values=regularization_loss)
-    return eval_metrics
-
-  # TODO(yhliang): refactor it once other heads are added.
-  def _create_tpu_estimator_spec(
-      self, features, mode, logits, labels=None, optimizer=None,
-      train_op_fn=None, regularization_losses=None):
-    """Returns an `EstimatorSpec`.
-
-    Args:
-      features: Input `dict` mapping string feature names to `Tensor` or
-        `SparseTensor` objects containing the values for that feature in a
-        minibatch. Often to be used to fetch example-weight tensor.
-      mode: Estimator's `ModeKeys`.
-      logits: logits `Tensor` with shape `[D0, D1, ... DN, logits_dimension]`.
-        For many applications, the shape is `[batch_size, logits_dimension]`.
-      labels: Labels `Tensor` with shape matching `logits`, namely
-        `[D0, D1, ... DN, logits_dimension]`. When `logits_dimension=1`, shape
-        `[D0, D1, ... DN]` is also supported. `labels` is a required argument
-        when `mode` equals `TRAIN` or `EVAL`.
-      optimizer: `Optimizer` instance to optimize the loss in TRAIN mode.
-        Namely, sets `train_op = optimizer.minimize(loss, global_step)`, which
-        updates variables and increments `global_step`.
-      train_op_fn: Function that takes a scalar loss `Tensor` and returns
-        `train_op`. Used if `optimizer` is `None`.
-      regularization_losses: A list of additional scalar losses to be added to
-        the training loss, such as regularization losses. These losses are
-        usually expressed as a batch average, so for best results users need to
-        set `loss_reduction=SUM_OVER_BATCH_SIZE` or
-        `loss_reduction=SUM_OVER_NONZERO_WEIGHTS` when creating the head to
-        avoid scaling errors.
-
-    Returns:
-      A `model_fn._TPUEstimatorSpec` instance.
-
-    Raises:
-      ValueError: If both `train_op_fn` and `optimizer` are `None` in TRAIN
-        mode, or if both are set.
-    """
-    with ops.name_scope(self._name, 'head'):
-      # Predict
-      predictions = self.predictions(logits)
-      if mode == model_fn.ModeKeys.PREDICT:
-        keys = prediction_keys.PredictionKeys
-        regression_output = export_output.RegressionOutput(
-            value=predictions[keys.PREDICTIONS])
-        return model_fn._TPUEstimatorSpec(  # pylint: disable=protected-access
-            mode=model_fn.ModeKeys.PREDICT,
-            predictions=predictions,
-            export_outputs={
-                head_v1._DEFAULT_SERVING_KEY: regression_output,  # pylint: disable=protected-access
-                head_v1._REGRESS_SERVING_KEY: regression_output,  # pylint: disable=protected-access
-                head_v1._PREDICT_SERVING_KEY: export_output.PredictOutput(  # pylint: disable=protected-access
-                    predictions)
-            })
-      regularized_training_loss = self.loss(
-          logits=logits, labels=labels, features=features, mode=mode,
-          regularization_losses=regularization_losses)
-      # Eval.
-      if mode == model_fn.ModeKeys.EVAL:
-        eval_metrics = self.metrics(regularization_losses=regularization_losses)
-        return model_fn._TPUEstimatorSpec(  # pylint: disable=protected-access
-            mode=model_fn.ModeKeys.EVAL,
-            predictions=predictions,
-            loss=regularized_training_loss,
-            eval_metrics=head_v1._create_eval_metrics_tuple(  # pylint: disable=protected-access
-                self.update_metrics, {
-                    'eval_metrics': eval_metrics,
-                    'features': features,
-                    'logits': logits,
-                    'labels': labels,
-                    'regularization_losses': regularization_losses
-                }))
-      # Train.
-      if optimizer is not None:
-        if train_op_fn is not None:
-          raise ValueError('train_op_fn and optimizer cannot both be set.')
-        train_op = optimizer.minimize(
-            regularized_training_loss,
-            global_step=training_util.get_global_step())
-      elif train_op_fn is not None:
-        train_op = train_op_fn(regularized_training_loss)
-      else:
-        raise ValueError('train_op_fn and optimizer cannot both be None.')
-      train_op = head_v1._append_update_ops(train_op)  # pylint: disable=protected-access
-
-      # Only summarize mean_loss for SUM reduction to preserve backwards
-      # compatibility. Otherwise skip it to avoid unnecessary computation.
-      if self._loss_reduction == losses.Reduction.SUM:
-        training_loss, unreduced_loss, weights, _ = self._loss_spec(
-            logits, labels, features)
-        example_weight_sum = math_ops.reduce_sum(
-            weights * array_ops.ones_like(unreduced_loss))
-        mean_loss = training_loss / example_weight_sum
-      else:
-        mean_loss = None
-
-    with ops.name_scope(''):
-      keys = metric_keys.MetricKeys
       summary.scalar(
-          head_v1._summary_key(self._name, keys.LOSS),  # pylint: disable=protected-access
-          regularized_training_loss)
-      if mean_loss is not None:
-        summary.scalar(
-            head_v1._summary_key(self._name, keys.LOSS_MEAN), mean_loss)  # pylint: disable=protected-access
-      if regularization_losses is not None:
-        regularization_loss = math_ops.add_n(regularization_losses)
-        summary.scalar(
-            head_v1._summary_key(self._name, keys.LOSS_REGULARIZATION),  # pylint: disable=protected-access
-            regularization_loss)
-    return model_fn._TPUEstimatorSpec(  # pylint: disable=protected-access
-        mode=model_fn.ModeKeys.TRAIN,
-        predictions=predictions,
-        loss=regularized_training_loss,
-        train_op=train_op)
+          summary_key_fn(keys.LOSS_REGULARIZATION), regularization_loss)

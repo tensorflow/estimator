@@ -30,6 +30,7 @@ import six
 from google.protobuf import message
 from tensorflow.core.framework import summary_pb2
 from tensorflow.python.client import session as tf_session
+from tensorflow.python.distribute import estimator_training as distribute_coordinator_training
 from tensorflow.python.eager import context
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
 from tensorflow_estimator.python.estimator import run_config
@@ -63,6 +64,7 @@ from tensorflow.python.training import training_util
 from tensorflow.python.training import warm_starting_util
 from tensorflow.python.util import compat
 from tensorflow.python.util import compat_internal
+from tensorflow.python.util import deprecation
 from tensorflow.python.util import function_utils
 from tensorflow.python.util import nest
 from tensorflow.python.util.tf_export import estimator_export
@@ -443,6 +445,34 @@ class Estimator(object):
       ValueError: If no model has been trained, namely `model_dir`, or the
         given `checkpoint_path` is empty.
     """
+    # pylint: disable=protected-access
+    if (self._eval_distribution and
+        hasattr(self._config, '_distribute_coordinator_mode') and
+        self._config._distribute_coordinator_mode):
+      return distribute_coordinator_training.estimator_evaluate(
+          self,
+          lambda est, s, eval_hooks: est._actual_eval(  # pylint: disable=g-long-lambda
+              input_fn, strategy=s, steps=steps, hooks=eval_hooks,
+              checkpoint_path=checkpoint_path, name=name),
+          hooks)
+    # pylint: enable=protected-access
+    else:
+      return self._actual_eval(
+          input_fn,
+          strategy=self._eval_distribution,
+          steps=steps,
+          hooks=hooks,
+          checkpoint_path=checkpoint_path,
+          name=name)
+
+  def _actual_eval(self,
+                   input_fn,
+                   strategy=None,
+                   steps=None,
+                   hooks=None,
+                   checkpoint_path=None,
+                   name=None):
+    """The method that does evaluation actually."""
     with context.graph_mode():
       hooks = _check_hooks_type(hooks)
       hooks.extend(self._convert_eval_steps_to_hooks(steps))
@@ -467,12 +497,12 @@ class Estimator(object):
             output_dir=self.eval_dir(name))
 
       with ops.Graph().as_default():
-        if self._eval_distribution:
+        if strategy:
           # We want to create the iterations variable outside the distribution
           # scope as that is just stored on the host and mainly used to drive
           # the loop and doesn't need to be a Mirrored/Device variable.
           training.get_or_create_steps_per_run_variable()
-          with self._eval_distribution.scope():
+          with strategy.scope():
             return _evaluate()
         else:
           return _evaluate()
@@ -629,6 +659,13 @@ class Estimator(object):
           'Subclasses of Estimator cannot override members of Estimator. '
           '{} does override {}'.format(self.__class__, overridden_members))
 
+  @deprecation.deprecated(
+      None,
+      'Please use export_saved_model instead of export_savedmodel. Note that '
+      'the argument strip_default_args has been removed from '
+      'export_saved_model, which will automatically strip all default '
+      'attributes. If this behavior change breaks your use case, please '
+      'continue to use export_savedmodel, available in tf.compat.v1.Estimator.')
   def export_savedmodel(
       self, export_dir_base, serving_input_receiver_fn,
       assets_extra=None,
@@ -1251,12 +1288,28 @@ class Estimator(object):
     Returns:
       Loss from training
     """
-    self._train_distribution.configure(self._session_config)
+    # pylint: disable=protected-access
+    if (hasattr(self._config, '_distribute_coordinator_mode') and
+        self._config._distribute_coordinator_mode):  # pylint: disable=protected-access
+      distribute_coordinator_training.estimator_train(
+          self,
+          lambda est, s, train_hooks: est._actual_train_model_distributed(  # pylint: disable=g-long-lambda
+              s, input_fn, train_hooks, saving_listeners),
+          hooks)
+      return self
+    else:
+      self._config._train_distribute.configure(self._config.session_config)
+      return self._actual_train_model_distributed(
+          self._config._train_distribute, input_fn, hooks, saving_listeners)
+    # pylint: enable=protected-access
 
+  def _actual_train_model_distributed(self, strategy, input_fn, hooks,
+                                      saving_listeners):
+    """That method that does actual training with distribution strategy."""
     # TODO(sourabhbajaj): Remove this hack once we migrate the other strategies
     # to use the new API
     is_tpu_strategy = (
-        self._train_distribution.__class__.__name__ == 'TPUStrategy')
+        strategy.__class__.__name__ == 'TPUStrategy')
 
     worker_hooks = []
     with ops.Graph().as_default() as g:
@@ -1265,23 +1318,23 @@ class Estimator(object):
       # and doesn't need to be a Mirrored/Device variable.
       if is_tpu_strategy:
         steps_per_run_variable = training.get_or_create_steps_per_run_variable()
-      with self._train_distribution.scope():
+      with strategy.scope():
         random_seed.set_random_seed(self._config.tf_random_seed)
         iterator, input_hooks = self._get_iterator_from_input_fn(
-            input_fn, model_fn_lib.ModeKeys.TRAIN, self._train_distribution)
+            input_fn, model_fn_lib.ModeKeys.TRAIN, strategy)
         worker_hooks.extend(input_hooks)
         global_step_tensor = self._create_and_assert_global_step(g)
         # we want to add to the global collection in the main thread not the
-        # tower threads.
+        # replica threads.
         ops.add_to_collection(
             training_util.GLOBAL_STEP_READ_KEY,
-            self._train_distribution.read_var(global_step_tensor))
+            strategy.read_var(global_step_tensor))
 
         if is_tpu_strategy:
           # Create a step_fn from the train_op of grouped_estimator_spec
           def step_fn(ctx, features, labels=None):
             """A single step that is passed to run_on_dataset."""
-            estimator_spec = self._train_distribution.call_for_each_tower(
+            estimator_spec = strategy.call_for_each_replica(
                 self._call_model_fn,
                 features,
                 labels,
@@ -1297,7 +1350,7 @@ class Estimator(object):
 
           # Create new train_op post graph rewrites
           initial_training_loss = constant_op.constant(1e7)
-          ctx = self._train_distribution.run_steps_on_dataset(
+          ctx = strategy.run_steps_on_dataset(
               step_fn, iterator, iterations=steps_per_run_variable,
               initial_loop_values={'loss': initial_training_loss})
           distributed_train_op = ctx.run_op
@@ -1306,26 +1359,26 @@ class Estimator(object):
         else:
           features, labels = estimator_util.parse_iterator_result(
               iterator.get_next())
-          grouped_estimator_spec = self._train_distribution.call_for_each_tower(
+          grouped_estimator_spec = strategy.call_for_each_replica(
               self._call_model_fn,
               features,
               labels,  # although this will be None it seems
               model_fn_lib.ModeKeys.TRAIN,
               self.config)
-          loss = self._train_distribution.unwrap(
-              self._train_distribution.reduce(
+          loss = strategy.unwrap(
+              strategy.reduce(
                   distribute_lib.get_loss_reduction(),
                   grouped_estimator_spec.loss,
                   destinations='/device:CPU:0'))[0]
           distributed_train_op = grouped_estimator_spec.train_op
 
         scaffold = _combine_distributed_scaffold(
-            grouped_estimator_spec.scaffold, self._train_distribution)
+            grouped_estimator_spec.scaffold, strategy)
 
         # TODO(yuefengz): add a test for unwrapping per_device_hooks.
         def get_hooks_from_the_first_device(per_device_hooks):
           return [
-              self._distribution.unwrap(per_device_hook)[0]
+              self._train_distribution.unwrap(per_device_hook)[0]
               for per_device_hook in per_device_hooks
           ]
 
@@ -1335,13 +1388,13 @@ class Estimator(object):
             grouped_estimator_spec.training_chief_hooks)
         worker_hooks.append(
             estimator_util.StrategyInitFinalizeHook(
-                self._train_distribution.initialize,
-                self._train_distribution.finalize))
+                strategy.initialize,
+                strategy.finalize))
 
         estimator_spec = model_fn_lib.EstimatorSpec(
             mode=grouped_estimator_spec.mode,
             loss=loss,
-            train_op=self._train_distribution.group(distributed_train_op),
+            train_op=strategy.group(distributed_train_op),
             training_hooks=training_hooks,
             training_chief_hooks=training_chief_hooks,
             scaffold=scaffold)
@@ -1465,8 +1518,13 @@ class Estimator(object):
         config=self._session_config,
         log_step_count_steps=log_step_count_steps) as mon_sess:
       loss = None
+      any_step_done = False
       while not mon_sess.should_stop():
         _, loss = mon_sess.run([estimator_spec.train_op, estimator_spec.loss])
+        any_step_done = True
+    if not any_step_done:
+      logging.warning('Training with estimator made no steps. '
+                      'Perhaphs input is empty or misspecified.')
     return loss
 
   def _evaluate_build_graph(self, input_fn, hooks=None, checkpoint_path=None):
@@ -1535,7 +1593,7 @@ class Estimator(object):
       steps_per_run_variable = training.get_or_create_steps_per_run_variable()
       def step_fn(ctx, features, labels=None):
         """Runs one step of the eval computation and captures outputs."""
-        estimator_spec = self._eval_distribution.call_for_each_tower(
+        estimator_spec = self._eval_distribution.call_for_each_replica(
             self._call_model_fn, features, labels, model_fn_lib.ModeKeys.EVAL,
             config)
         eval_metric_ops = _verify_and_create_loss_metric(
@@ -1556,7 +1614,7 @@ class Estimator(object):
     else:
       features, labels = estimator_util.parse_iterator_result(
           iterator.get_next())
-      grouped_estimator_spec = self._eval_distribution.call_for_each_tower(
+      grouped_estimator_spec = self._eval_distribution.call_for_each_replica(
           self._call_model_fn, features, labels,
           model_fn_lib.ModeKeys.EVAL, config)
       eval_metric_ops = _verify_and_create_loss_metric(
@@ -1621,7 +1679,7 @@ def _verify_and_create_loss_metric(eval_metric_ops, loss, distribution=None):
   if distribution is None:
     loss_metric = metrics_lib.mean(loss)
   else:
-    loss_metric = distribution.call_for_each_tower(
+    loss_metric = distribution.call_for_each_replica(
         metrics_lib.mean, loss)
   eval_metric_ops[model_fn_lib.LOSS_METRIC_KEY] = loss_metric
   return eval_metric_ops
@@ -1670,8 +1728,8 @@ def maybe_overwrite_model_dir_and_session_config(config, model_dir):
   return config
 
 
-def create_per_tower_ready_for_local_init_op(scaffold):
-  """Create a `tf.train.Scaffold.ready_for_local_init_op` inside a tower."""
+def create_per_replica_ready_for_local_init_op(scaffold):
+  """Create a `tf.train.Scaffold.ready_for_local_init_op` inside a replica."""
   if scaffold.ready_for_local_init_op:
     return scaffold.ready_for_local_init_op
 
@@ -1685,7 +1743,7 @@ def create_per_tower_ready_for_local_init_op(scaffold):
 
 
 def _combine_distributed_scaffold(grouped_scaffold, distribution):
-  """Combines scaffold(s) returned from `distribution.call_for_each_tower`."""
+  """Combines scaffold(s) returned from `distribution.call_for_each_replica`."""
 
   # TODO(anjalisridhar): Figure out how to resolve the following scaffold
   # parameters: init_feed_dict, init_fn.
@@ -1718,13 +1776,13 @@ def _combine_distributed_scaffold(grouped_scaffold, distribution):
       return array_ops.concat(value, 0)
     return value[0]
 
-  ready_op = distribution.call_for_each_tower(
+  ready_op = distribution.call_for_each_replica(
       lambda scaffold: scaffold.ready_op, grouped_scaffold)
   if ready_op is not None:
     ready_op = _unwrap_and_concat(ready_op)
 
-  ready_for_local_init_op = distribution.call_for_each_tower(
-      create_per_tower_ready_for_local_init_op, grouped_scaffold)
+  ready_for_local_init_op = distribution.call_for_each_replica(
+      create_per_replica_ready_for_local_init_op, grouped_scaffold)
   if ready_for_local_init_op is not None:
     ready_for_local_init_op = _unwrap_and_concat(ready_for_local_init_op)
   else:
@@ -2093,19 +2151,43 @@ class WarmStartSettings(
       })
   ```
 
+  Warm-start all variables (including non-TRAINABLE):
+
+  ```
+  ws = WarmStartSettings(ckpt_to_initialize_from="/tmp",
+                         vars_to_warm_start=[".*"])
+  ```
+
+  Warm-start non-TRAINABLE variables "v1", "v1/Momentum", and "v2" but not
+  "v2/momentum":
+
+  ```
+  ws = WarmStartSettings(ckpt_to_initialize_from="/tmp",
+                         vars_to_warm_start=["v1", "v2[^/]"])
+  ```
+
   Attributes:
     ckpt_to_initialize_from: [Required] A string specifying the directory with
       checkpoint file(s) or path to checkpoint from which to warm-start the
       model parameters.
-    vars_to_warm_start: [Optional] One of the following:  - A regular expression
-      (string) that captures which variables to warm-start (see
-      `tf.get_collection`).  This expression will only consider variables in the
-      `TRAINABLE_VARIABLES` collection. - A list of Variables to warm-start. - A
-      list of strings, each representing a full variable name to warm-start. -
-      `None`, in which case only variables specified in `var_name_to_vocab_info`
-      will be warm-started.  Defaults to `'.*'`, which warm-starts all variables
-      in the `TRAINABLE_VARIABLES` collection.  Note that this excludes
-      variables such as accumulators and moving statistics from batch norm.
+    vars_to_warm_start: [Optional] One of the following:
+
+      - A regular expression (string) that captures which variables to
+        warm-start (see tf.get_collection).  This expression will only consider
+        variables in the TRAINABLE_VARIABLES collection -- if you need to
+        warm-start non_TRAINABLE vars (such as optimizer accumulators or batch
+        norm statistics), please use the below option.
+      - A list of Variables to warm-start.  If you do not have access to the
+        `Variable` objects at the call site, please use the below option.
+      - A list of strings, each a regex scope provided to tf.get_collection with
+        GLOBAL_VARIABLES.  For backwards compatibility reasons, this is separate
+        from the single-string argument type.
+      - `None`, in which case only variables specified in
+        `var_name_to_vocab_info` will be warm-started.
+
+      Defaults to `'.*'`, which warm-starts all variables in the
+      TRAINABLE_VARIABLES collection.    Note that this excludes variables such
+      as accumulators and moving statistics from batch norm.
     var_name_to_vocab_info: [Optional] Dict of variable names (strings) to
       `tf.estimator.VocabInfo`. The variable names should be "full" variables,
       not the names of the partitions.  If not explicitly provided, the variable
@@ -2113,7 +2195,10 @@ class WarmStartSettings(
     var_name_to_prev_var_name: [Optional] Dict of variable names (strings) to
       name of the previously-trained variable in `ckpt_to_initialize_from`. If
       not explicitly provided, the name of the variable is assumed to be same
-      between previous checkpoint and current model.
+      between previous checkpoint and current model.  Note that this has no
+      effect on the set of variables that is warm-started, and only controls
+      name mapping (use `vars_to_warm_start` for controlling what variables to
+      warm-start).
   """
 
   def __new__(cls,

@@ -11,10 +11,13 @@ py_library(
     srcs_version = "PY2AND3",
     visibility = ["//visibility:public"],
     deps = [
+        ":base_head",
         ":baseline",
+        ":binary_class_head",
         ":boosted_trees",
         ":dnn",
         ":dnn_linear_combined",
+        ":early_stopping",
         ":estimator",
         ":export",
         ":exporter",
@@ -23,7 +26,9 @@ py_library(
         ":keras",
         ":linear",
         ":model_fn",
+        ":multi_class_head",
         ":parsing_utils",
+        ":regression_head",
         ":run_config",
         ":training",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
@@ -256,9 +261,9 @@ py_library(
 
 py_test(
     name = "boosted_trees_test",
-    size = "medium",
+    size = "large",
     srcs = ["canned/boosted_trees_test.py"],
-    shard_count = 2,
+    shard_count = 8,
     srcs_version = "PY2AND3",
     tags = [
         "manual",
@@ -362,6 +367,29 @@ py_test(
     ],
 )
 
+py_test(
+    name = "dnn_estimator_test",
+    size = "medium",
+    srcs = ["canned/dnn_estimator_test.py"],
+    srcs_version = "PY2AND3",
+    tags = [
+        "no_pip",
+        "notsan",
+        "optonly",  # times out http://b/79220679
+    ],
+    deps = [
+        ":dnn",
+        ":dnn_testing_utils",
+        ":export_export",
+        ":head",
+        ":numpy_io",
+        ":prediction_keys",
+        "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_six_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
 py_library(
     name = "dnn_linear_combined",
     srcs = ["canned/dnn_linear_combined.py"],
@@ -449,6 +477,36 @@ py_test(
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
         "//tensorflow_estimator/python/estimator:expect_six_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
+py_library(
+    name = "early_stopping",
+    srcs = [
+        "early_stopping.py",
+    ],
+    srcs_version = "PY2AND3",
+    deps = [
+        ":export_export",
+        ":model_fn",
+        ":run_config",
+        ":util",
+        "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_six_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
+py_test(
+    name = "early_stopping_test",
+    srcs = [
+        "early_stopping_test.py",
+    ],
+    srcs_version = "PY2AND3",
+    deps = [
+        ":early_stopping",
+        "//tensorflow_estimator/python/estimator",
+        "//tensorflow_estimator/python/estimator:expect_absl_installed",
     ],
 )
 
@@ -605,34 +663,154 @@ py_test(
 )
 
 py_library(
-    name = "head_v2",
-    srcs = ["head_v2.py"],
+    name = "base_head",
+    srcs = ["head/base_head.py"],
     srcs_version = "PY2AND3",
     deps = [
         ":export_output",
         ":head",
         ":metric_keys",
-        ":model_fn",
-        ":prediction_keys",
-        "//tensorflow_estimator/python/estimator:expect_six_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
     ],
 )
 
 py_test(
-    name = "head_v2_test",
+    name = "base_head_test",
+    size = "small",
+    srcs = ["head/base_head_test.py"],
+    srcs_version = "PY2AND3",
+    deps = [
+        ":base_head",
+        ":model_fn",
+        "//tensorflow_estimator/python/estimator:expect_six_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
+py_library(
+    name = "binary_class_head",
+    srcs = ["head/binary_class_head.py"],
+    srcs_version = "PY2AND3",
+    deps = [
+        ":base_head",
+        ":export_output",
+        ":metric_keys",
+        ":model_fn",
+        ":prediction_keys",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
+py_test(
+    name = "binary_class_head_test",
     size = "medium",
-    srcs = ["head_v2_test.py"],
+    srcs = ["head/binary_class_head_test.py"],
+    shard_count = 4,
+    srcs_version = "PY2AND3",
+    tags = ["no_pip"],
+    deps = [
+        ":base_head_test",
+        ":binary_class_head",
+        ":dnn_testing_utils",
+        ":metric_keys",
+        ":model_fn",
+        ":prediction_keys",
+        "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
+py_library(
+    name = "multi_class_head",
+    srcs = ["head/multi_class_head.py"],
+    srcs_version = "PY2AND3",
+    deps = [
+        ":base_head",
+        ":export_output",
+        ":metric_keys",
+        ":model_fn",
+        ":prediction_keys",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
+py_test(
+    name = "multi_class_head_test",
+    size = "medium",
+    srcs = ["head/multi_class_head_test.py"],
     shard_count = 4,
     srcs_version = "PY2AND3",
     deps = [
-        ":head_v2",
+        ":base_head_test",
+        ":metric_keys",
+        ":model_fn",
+        ":multi_class_head",
+        ":prediction_keys",
+        "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_six_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
+py_library(
+    name = "multi_label_head",
+    srcs = ["head/multi_label_head.py"],
+    srcs_version = "PY2AND3",
+    deps = [
+        ":base_head",
+        ":export_output",
+        ":metric_keys",
+        ":model_fn",
+        ":prediction_keys",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
+py_test(
+    name = "multi_label_head_test",
+    size = "small",
+    srcs = ["head/multi_label_head_test.py"],
+    srcs_version = "PY2AND3",
+    deps = [
+        ":base_head_test",
+        ":metric_keys",
+        ":model_fn",
+        ":multi_label_head",
+        ":prediction_keys",
+        "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_six_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
+py_library(
+    name = "regression_head",
+    srcs = ["head/regression_head.py"],
+    srcs_version = "PY2AND3",
+    deps = [
+        ":base_head",
+        ":export_output",
+        ":metric_keys",
+        ":model_fn",
+        ":prediction_keys",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
+py_test(
+    name = "regression_head_test",
+    size = "medium",
+    srcs = ["head/regression_head_test.py"],
+    shard_count = 4,
+    srcs_version = "PY2AND3",
+    deps = [
+        ":base_head_test",
         ":metric_keys",
         ":model_fn",
         ":numpy_io",
         ":prediction_keys",
+        ":regression_head",
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
-        "//tensorflow_estimator/python/estimator:expect_six_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
     ],
 )
@@ -658,6 +836,7 @@ py_library(
         ":optimizers",
         "//tensorflow_estimator/python/estimator:expect_six_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+        "//tensorflow_estimator/python/estimator/canned/linear_optimizer:sdca_ops_py",
     ],
 )
 
@@ -683,10 +862,32 @@ py_library(
 )
 
 py_test(
+    name = "linear_estimator_test",
+    size = "medium",
+    srcs = ["canned/linear_estimator_test.py"],
+    srcs_version = "PY2AND3",
+    tags = [
+        "no_pip",
+        "notsan",
+    ],
+    deps = [
+        ":export_export",
+        ":head",
+        ":linear",
+        ":linear_testing_utils",
+        ":numpy_io",
+        ":prediction_keys",
+        "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_six_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
+py_test(
     name = "linear_test",
     size = "medium",
     srcs = ["canned/linear_test.py"],
-    shard_count = 4,
+    shard_count = 8,
     srcs_version = "PY2AND3",
     tags = [
         "no_pip",

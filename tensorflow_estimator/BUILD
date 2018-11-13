@@ -14,3 +14,11 @@ package_group(
         "//third_party/tensorflow/python/estimator/...",
     ],
 )
+
+filegroup(
+    name = "estimator_python_api",
+    srcs = glob(
+        ["_api/**/*.py"],
+    ),
+    visibility = ["//visibility:public"],
+)

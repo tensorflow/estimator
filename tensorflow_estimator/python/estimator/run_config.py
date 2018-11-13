@@ -457,7 +457,9 @@ class RunConfig(object):
         to be saved. The default value of 10,000 hours effectively disables
         the feature.
       log_step_count_steps: The frequency, in number of global steps, that the
-        global step/sec and the loss will be logged during training.
+        global step and the loss will be logged during training.  Also controls
+        the frequency that the global steps / s will be logged (and written to
+        summary) during training.
       train_distribute: An optional instance of
         `tf.contrib.distribute.DistributionStrategy`. If specified,
         then Estimator will distribute the user's model during training,

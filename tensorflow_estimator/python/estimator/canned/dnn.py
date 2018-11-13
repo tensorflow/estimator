@@ -49,14 +49,8 @@ def _add_hidden_layer_summary(value, tag):
 
 
 @estimator_export('estimator.experimental.dnn_logit_fn_builder')
-def dnn_logit_fn_builder(units,
-                         hidden_units,
-                         feature_columns,
-                         activation_fn,
-                         dropout,
-                         input_layer_partitioner,
-                         batch_norm,
-                         shared_state_manager=None):
+def dnn_logit_fn_builder(units, hidden_units, feature_columns, activation_fn,
+                         dropout, input_layer_partitioner, batch_norm):
   """Function builder for a dnn logit_fn.
 
   Args:
@@ -70,8 +64,6 @@ def dnn_logit_fn_builder(units,
       coordinate.
     input_layer_partitioner: Partitioner for input layer.
     batch_norm: Whether to use batch normalization after each hidden layer.
-    shared_state_manager: A SharedEmbeddingStateManager object to hold the
-      shared state for SharedEmbeddingColumn's.
 
   Returns:
     A logit_fn (see below).
@@ -105,7 +97,6 @@ def dnn_logit_fn_builder(units,
         dropout,
         input_layer_partitioner,
         batch_norm,
-        shared_state_manager,
         name='dnn')
     return dnn_model(features, mode)
 
@@ -132,15 +123,12 @@ class _DNNModel(training.Model):
                dropout,
                input_layer_partitioner,
                batch_norm,
-               shared_state_manager,
                name=None,
                **kwargs):
     super(_DNNModel, self).__init__(name=name, **kwargs)
     if feature_column_v2.is_feature_column_v2(feature_columns):
       self._input_layer = feature_column_v2.FeatureLayer(
-          feature_columns=feature_columns,
-          name='input_layer',
-          shared_state_manager=shared_state_manager)
+          feature_columns=feature_columns, name='input_layer')
     else:
       self._input_layer = feature_column.InputLayer(
           feature_columns=feature_columns,
@@ -238,8 +226,7 @@ def _dnn_model_fn(features,
                   input_layer_partitioner=None,
                   config=None,
                   use_tpu=False,
-                  batch_norm=False,
-                  shared_state_manager=None):
+                  batch_norm=False):
   """Deep Neural Net model_fn.
 
   Args:
@@ -263,8 +250,6 @@ def _dnn_model_fn(features,
     use_tpu: Whether to make a DNN model able to run on TPU. Will make function
       return a `_TPUEstimatorSpec` instance and disable variable partitioning.
     batch_norm: Whether to use batch normalization after each hidden layer.
-    shared_state_manager: A SharedEmbeddingStateManager object to hold the
-      shared state for SharedEmbeddingColumn's.
 
   Returns:
     An `EstimatorSpec` instance.
@@ -300,8 +285,7 @@ def _dnn_model_fn(features,
         activation_fn=activation_fn,
         dropout=dropout,
         input_layer_partitioner=input_layer_partitioner,
-        batch_norm=batch_norm,
-        shared_state_manager=shared_state_manager)
+        batch_norm=batch_norm)
     logits = logit_fn(features=features, mode=mode)
 
     if use_tpu:
@@ -367,23 +351,27 @@ class DNNClassifier(estimator.Estimator):
       warm_start_from="/path/to/checkpoint/dir")
 
   # Input builders
-  def input_fn_train: # returns x, y
+  def input_fn_train:
+    # Returns tf.data.Dataset of (x, y) tuple where y represents label's class
+    # index.
     pass
-  estimator.train(input_fn=input_fn_train, steps=100)
-
-  def input_fn_eval: # returns x, y
+  def input_fn_eval:
+    # Returns tf.data.Dataset of (x, y) tuple where y represents label's class
+    # index.
     pass
-  metrics = estimator.evaluate(input_fn=input_fn_eval, steps=10)
-  def input_fn_predict: # returns x, None
+  def input_fn_predict:
+    # Returns tf.data.Dataset of (x, None) tuple.
     pass
+  estimator.train(input_fn=input_fn_train)
+  metrics = estimator.evaluate(input_fn=input_fn_eval)
   predictions = estimator.predict(input_fn=input_fn_predict)
   ```
 
   Input of `train` and `evaluate` should have following features,
   otherwise there will be a `KeyError`:
 
-  * if `weight_column` is not `None`, a feature with
-    `key=weight_column` whose value is a `Tensor`.
+  * if `weight_column` is not `None`, a feature with `key=weight_column` whose
+    value is a `Tensor`.
   * for each `column` in `feature_columns`:
     - if `column` is a `_CategoricalColumn`, a feature with `key=column.name`
       whose `value` is a `SparseTensor`.
@@ -470,9 +458,6 @@ class DNNClassifier(estimator.Estimator):
     head = head_lib._binary_logistic_or_multi_class_head(  # pylint: disable=protected-access
         n_classes, weight_column, label_vocabulary, loss_reduction)
 
-    shared_state_manager = feature_column_v2.maybe_create_shared_state_manager(
-        feature_columns)
-
     def _model_fn(features, labels, mode, config):
       """Call the defined shared _dnn_model_fn."""
       return _dnn_model_fn(
@@ -487,10 +472,165 @@ class DNNClassifier(estimator.Estimator):
           dropout=dropout,
           input_layer_partitioner=input_layer_partitioner,
           config=config,
-          batch_norm=batch_norm,
-          shared_state_manager=shared_state_manager)
+          batch_norm=batch_norm)
 
     super(DNNClassifier, self).__init__(
+        model_fn=_model_fn, model_dir=model_dir, config=config,
+        warm_start_from=warm_start_from)
+
+
+# TODO(b/117517419): Update these contrib references once head moves to core.
+# Also references to the "_Head" class need to be replaced with "Head".
+@estimator_export('estimator.DNNEstimator')
+class DNNEstimator(estimator.Estimator):
+  """An estimator for TensorFlow DNN models with user-specified head.
+
+  Example:
+
+  ```python
+  sparse_feature_a = sparse_column_with_hash_bucket(...)
+  sparse_feature_b = sparse_column_with_hash_bucket(...)
+
+  sparse_feature_a_emb = embedding_column(sparse_id_column=sparse_feature_a,
+                                          ...)
+  sparse_feature_b_emb = embedding_column(sparse_id_column=sparse_feature_b,
+                                          ...)
+
+  estimator = DNNEstimator(
+      head=tf.contrib.estimator.multi_label_head(n_classes=3),
+      feature_columns=[sparse_feature_a_emb, sparse_feature_b_emb],
+      hidden_units=[1024, 512, 256])
+
+  # Or estimator using the ProximalAdagradOptimizer optimizer with
+  # regularization.
+  estimator = DNNEstimator(
+      head=tf.contrib.estimator.multi_label_head(n_classes=3),
+      feature_columns=[sparse_feature_a_emb, sparse_feature_b_emb],
+      hidden_units=[1024, 512, 256],
+      optimizer=tf.train.ProximalAdagradOptimizer(
+        learning_rate=0.1,
+        l1_regularization_strength=0.001
+      ))
+
+  # Or estimator using an optimizer with a learning rate decay.
+  estimator = DNNEstimator(
+      head=tf.contrib.estimator.multi_label_head(n_classes=3),
+      feature_columns=[sparse_feature_a_emb, sparse_feature_b_emb],
+      hidden_units=[1024, 512, 256],
+      optimizer=lambda: tf.AdamOptimizer(
+          learning_rate=tf.exponential_decay(
+              learning_rate=0.1,
+              global_step=tf.get_global_step(),
+              decay_steps=10000,
+              decay_rate=0.96))
+
+  # Or estimator with warm-starting from a previous checkpoint.
+  estimator = DNNEstimator(
+      head=tf.contrib.estimator.multi_label_head(n_classes=3),
+      feature_columns=[sparse_feature_a_emb, sparse_feature_b_emb],
+      hidden_units=[1024, 512, 256],
+      warm_start_from="/path/to/checkpoint/dir")
+
+  # Input builders
+  def input_fn_train:
+    # Returns tf.data.Dataset of (x, y) tuple where y represents label's class
+    # index.
+    pass
+  def input_fn_eval:
+    # Returns tf.data.Dataset of (x, y) tuple where y represents label's class
+    # index.
+    pass
+  def input_fn_predict:
+    # Returns tf.data.Dataset of (x, None) tuple.
+    pass
+  estimator.train(input_fn=input_fn_train)
+  metrics = estimator.evaluate(input_fn=input_fn_eval)
+  predictions = estimator.predict(input_fn=input_fn_predict)
+  ```
+
+  Input of `train` and `evaluate` should have following features,
+  otherwise there will be a `KeyError`:
+
+  * if `weight_column` is not `None`, a feature with `key=weight_column` whose
+    value is a `Tensor`.
+  * for each `column` in `feature_columns`:
+    - if `column` is a `_CategoricalColumn`, a feature with `key=column.name`
+      whose `value` is a `SparseTensor`.
+    - if `column` is a `_WeightedCategoricalColumn`, two features: the first
+      with `key` the id column name, the second with `key` the weight column
+      name. Both features' `value` must be a `SparseTensor`.
+    - if `column` is a `_DenseColumn`, a feature with `key=column.name`
+      whose `value` is a `Tensor`.
+
+  Loss and predicted output are determined by the specified head.
+
+  @compatibility(eager)
+  Estimators can be used while eager execution is enabled. Note that `input_fn`
+  and all hooks are executed inside a graph context, so they have to be written
+  to be compatible with graph mode. Note that `input_fn` code using `tf.data`
+  generally works in both graph and eager modes.
+  @end_compatibility
+  """
+
+  def __init__(self,
+               head,
+               hidden_units,
+               feature_columns,
+               model_dir=None,
+               optimizer='Adagrad',
+               activation_fn=nn.relu,
+               dropout=None,
+               input_layer_partitioner=None,
+               config=None,
+               warm_start_from=None,
+               batch_norm=False):
+    """Initializes a `DNNEstimator` instance.
+
+    Args:
+      head: A `_Head` instance constructed with a method such as
+        `tf.contrib.estimator.multi_label_head`.
+      hidden_units: Iterable of number hidden units per layer. All layers are
+        fully connected. Ex. `[64, 32]` means first layer has 64 nodes and
+        second one has 32.
+      feature_columns: An iterable containing all the feature columns used by
+        the model. All items in the set should be instances of classes derived
+        from `_FeatureColumn`.
+      model_dir: Directory to save model parameters, graph and etc. This can
+        also be used to load checkpoints from the directory into a estimator to
+        continue training a previously saved model.
+      optimizer: An instance of `tf.Optimizer` used to train the model. Can also
+        be a string (one of 'Adagrad', 'Adam', 'Ftrl', 'RMSProp', 'SGD'), or
+        callable. Defaults to Adagrad optimizer.
+      activation_fn: Activation function applied to each layer. If `None`, will
+        use `tf.nn.relu`.
+      dropout: When not `None`, the probability we will drop out a given
+        coordinate.
+      input_layer_partitioner: Optional. Partitioner for input layer. Defaults
+        to `min_max_variable_partitioner` with `min_slice_size` 64 << 20.
+      config: `RunConfig` object to configure the runtime settings.
+      warm_start_from: A string filepath to a checkpoint to warm-start from, or
+        a `WarmStartSettings` object to fully configure warm-starting.  If the
+        string filepath is provided instead of a `WarmStartSettings`, then all
+        weights are warm-started, and it is assumed that vocabularies and Tensor
+        names are unchanged.
+      batch_norm: Whether to use batch normalization after each hidden layer.
+    """
+    def _model_fn(features, labels, mode, config):
+      """Call the defined shared _dnn_model_fn."""
+      return _dnn_model_fn(
+          features=features,
+          labels=labels,
+          mode=mode,
+          head=head,
+          hidden_units=hidden_units,
+          feature_columns=tuple(feature_columns or []),
+          optimizer=optimizer,
+          activation_fn=activation_fn,
+          dropout=dropout,
+          input_layer_partitioner=input_layer_partitioner,
+          config=config,
+          batch_norm=batch_norm)
+    super(DNNEstimator, self).__init__(
         model_fn=_model_fn, model_dir=model_dir, config=config,
         warm_start_from=warm_start_from)
 
@@ -542,23 +682,27 @@ class DNNRegressor(estimator.Estimator):
       warm_start_from="/path/to/checkpoint/dir")
 
   # Input builders
-  def input_fn_train: # returns x, y
+  def input_fn_train:
+    # Returns tf.data.Dataset of (x, y) tuple where y represents label's class
+    # index.
     pass
-  estimator.train(input_fn=input_fn_train, steps=100)
-
-  def input_fn_eval: # returns x, y
+  def input_fn_eval:
+    # Returns tf.data.Dataset of (x, y) tuple where y represents label's class
+    # index.
     pass
-  metrics = estimator.evaluate(input_fn=input_fn_eval, steps=10)
-  def input_fn_predict: # returns x, None
+  def input_fn_predict:
+    # Returns tf.data.Dataset of (x, None) tuple.
     pass
+  estimator.train(input_fn=input_fn_train)
+  metrics = estimator.evaluate(input_fn=input_fn_eval)
   predictions = estimator.predict(input_fn=input_fn_predict)
   ```
 
   Input of `train` and `evaluate` should have following features,
   otherwise there will be a `KeyError`:
 
-  * if `weight_column` is not `None`, a feature with
-    `key=weight_column` whose value is a `Tensor`.
+  * if `weight_column` is not `None`, a feature with `key=weight_column` whose
+    value is a `Tensor`.
   * for each `column` in `feature_columns`:
     - if `column` is a `_CategoricalColumn`, a feature with `key=column.name`
       whose `value` is a `SparseTensor`.
@@ -636,10 +780,6 @@ class DNNRegressor(estimator.Estimator):
       batch_norm: Whether to use batch normalization after each hidden layer.
     """
 
-    shared_state_manager = None
-    if feature_column_v2.is_feature_column_v2(feature_columns):
-      shared_state_manager = feature_column_v2.SharedEmbeddingStateManager()
-
     def _model_fn(features, labels, mode, config):
       """Call the defined shared _dnn_model_fn."""
       return _dnn_model_fn(
@@ -657,8 +797,7 @@ class DNNRegressor(estimator.Estimator):
           dropout=dropout,
           input_layer_partitioner=input_layer_partitioner,
           config=config,
-          batch_norm=batch_norm,
-          shared_state_manager=shared_state_manager)
+          batch_norm=batch_norm)
 
     super(DNNRegressor, self).__init__(
         model_fn=_model_fn, model_dir=model_dir, config=config,

@@ -22,6 +22,7 @@ import random
 import shutil
 import tempfile
 
+from absl.testing import parameterized
 import numpy as np
 import six
 
@@ -117,7 +118,7 @@ def create_checkpoint(rnn_weights, rnn_biases, logits_weights, logits_biases,
       sess.run(assign_op)
 
 
-class RNNLogitFnTest(test.TestCase):
+class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
   """Tests correctness of logits calculated from _rnn_logit_fn_builder."""
 
   def setUp(self):
@@ -130,7 +131,7 @@ class RNNLogitFnTest(test.TestCase):
 
   def _test_logits(self, mode, rnn_units, logits_dimension, features_fn,
                    sequence_feature_columns, context_feature_columns,
-                   expected_logits):
+                   expected_logits, return_sequences=False):
     """Tests that the expected logits are calculated."""
     with ops.Graph().as_default():
       # Global step needed for MonitoredSession, which is in turn used to
@@ -147,7 +148,8 @@ class RNNLogitFnTest(test.TestCase):
             rnn_cell_fn=rnn._make_rnn_cell_fn(rnn_units),
             sequence_feature_columns=sequence_feature_columns,
             context_feature_columns=context_feature_columns,
-            input_layer_partitioner=input_layer_partitioner)
+            input_layer_partitioner=input_layer_partitioner,
+            return_sequences=return_sequences)
         # Features are constructed within this function, otherwise the Tensors
         # containing the features would be defined outside this graph.
         logits = logit_fn(features=features_fn(), mode=mode)
@@ -155,7 +157,14 @@ class RNNLogitFnTest(test.TestCase):
             checkpoint_dir=self._model_dir) as sess:
           self.assertAllClose(expected_logits, sess.run(logits), atol=1e-4)
 
-  def testOneDimLogits(self):
+  @parameterized.named_parameters(
+      {'testcase_name': 'Static',
+       'return_sequences': False,
+       'expected_logits': [[-0.6033]]},
+      {'testcase_name': 'Sequential',
+       'return_sequences': True,
+       'expected_logits': [[[-1.4388], [-0.6033]]]})
+  def testOneDimLogits(self, return_sequences, expected_logits):
     """Tests one-dimensional logits.
 
     Intermediate values are rounded for ease in reading.
@@ -167,7 +176,13 @@ class RNNLogitFnTest(test.TestCase):
     rnn_output_timestep_2 = [[tanh(.1*5 + .2*.83 - .3*.91 +.2),
                               tanh(-.2*5 - .3*.83 + .4*.91 +.5)]]
                           = [[0.53, -0.37]]
-    logits = [[-1*0.53 - 1*0.37 + 0.3]] = [[-0.6033]]
+    logits_timestep_1 = [[-1*0.83 - 1*0.91 + 0.3]] = [[-1.4388]]
+    logits_timestep_2 = [[-1*0.53 - 1*0.37 + 0.3]] = [[-0.6033]]
+
+    Args:
+      return_sequences: A boolean indicating whether to return the last output
+        in the output sequence, or the full sequence.
+      expected_logits: An array with expected logits result.
     """
     base_global_step = 100
     create_checkpoint(
@@ -201,9 +216,19 @@ class RNNLogitFnTest(test.TestCase):
           features_fn=features_fn,
           sequence_feature_columns=sequence_feature_columns,
           context_feature_columns=context_feature_columns,
-          expected_logits=[[-0.6033]])
+          expected_logits=expected_logits,
+          return_sequences=return_sequences)
 
-  def testMultiDimLogits(self):
+  @parameterized.named_parameters(
+      {'testcase_name': 'Static',
+       'return_sequences': False,
+       'expected_logits': [[-0.6033, 0.7777, 0.5698]]},
+      {'testcase_name': 'Sequential',
+       'return_sequences': True,
+       'expected_logits': [[
+           [-1.4388, 1.0884, 0.5762],
+           [-0.6033, 0.7777, 0.5698]]]})
+  def testMultiDimLogits(self, return_sequences, expected_logits):
     """Tests multi-dimensional logits.
 
     Intermediate values are rounded for ease in reading.
@@ -215,10 +240,19 @@ class RNNLogitFnTest(test.TestCase):
     rnn_output_timestep_2 = [[tanh(.1*5 + .2*.83 - .3*.91 +.2),
                               tanh(-.2*5 - .3*.83 + .4*.91 +.5)]]
                           = [[0.53, -0.37]]
-    logits = [[-1*0.53 - 1*0.37 + 0.3],
-              [0.5*0.53 + 0.3*0.37 + 0.4],
-              [0.2*0.53 - 0.1*0.37 + 0.5]
-           = [[-0.6033, 0.7777, 0.5698]]
+    logits_timestep_1 = [[-1*0.83 - 1*0.91 + 0.3],
+                         [0.5*0.83 + 0.3*0.91 + 0.4],
+                         [0.2*0.83 - 0.1*0.91 + 0.5]]
+                      = [[-1.4388, 1.0884, 0.5762]]
+    logits_timestep_2 = [[-1*0.53 - 1*0.37 + 0.3],
+                         [0.5*0.53 + 0.3*0.37 + 0.4],
+                         [0.2*0.53 - 0.1*0.37 + 0.5]]
+                      = [[-0.6033, 0.7777, 0.5698]]
+
+    Args:
+      return_sequences: A boolean indicating whether to return the last output
+        in the output sequence, or the full sequence.
+      expected_logits: An array with expected logits result.
     """
     base_global_step = 100
     create_checkpoint(
@@ -253,9 +287,21 @@ class RNNLogitFnTest(test.TestCase):
           features_fn=features_fn,
           sequence_feature_columns=sequence_feature_columns,
           context_feature_columns=context_feature_columns,
-          expected_logits=[[-0.6033, 0.7777, 0.5698]])
+          expected_logits=expected_logits,
+          return_sequences=return_sequences)
 
-  def testMultiExampleMultiDim(self):
+  @parameterized.named_parameters(
+      {'testcase_name': 'Static',
+       'return_sequences': False,
+       'expected_logits': [[-0.6033, 0.7777, 0.5698],
+                           [-1.2473, 1.0170, 0.5745]]},
+      {'testcase_name': 'Sequential',
+       'return_sequences': True,
+       'expected_logits': [[[-1.4388, 1.0884, 0.5762],
+                            [-0.6033, 0.7777, 0.5698]],
+                           [[0.0197, 0.5601, 0.5860],
+                            [-1.2473, 1.0170, 0.5745]]]})
+  def testMultiExampleMultiDim(self, return_sequences, expected_logits):
     """Tests multiple examples and multi-dimensional logits.
 
     Intermediate values are rounded for ease in reading.
@@ -271,13 +317,25 @@ class RNNLogitFnTest(test.TestCase):
                              [tanh(.1*7 + .2*.38 + .3*.10 +.2),
                               tanh(-.2*7 - .3*.38 - .4*.10 +.5)]]
                           = [[0.53, -0.37], [0.76, -0.78]
-    logits = [[-1*0.53 - 1*0.37 + 0.3,
-               0.5*0.53 + 0.3*0.37 + 0.4,
-               0.2*0.53 - 0.1*0.37 + 0.5],
-              [-1*0.76 - 1*0.78 + 0.3,
-               0.5*0.76 +0.3*0.78 + 0.4,
-               0.2*0.76 -0.1*0.78 + 0.5]]
-           = [[-0.6033, 0.7777, 0.5698], [-1.2473, 1.0170, 0.5745]]
+    logits_timestep_1 = [[-1*0.83 - 1*0.91 + 0.3,
+                          0.5*0.83 + 0.3*0.91 + 0.4,
+                          0.2*0.83 - 0.1*0.91 + 0.5],
+                         [-1*0.38 + 1*0.10 + 0.3,
+                          0.5*0.38 - 0.3*0.10 + 0.4,
+                          0.2*0.38 + 0.1*0.10 + 0.5]]
+                      = [[-1.4388, 1.0884, 0.5762], [0.0197, 0.5601, 0.5860]]
+    logits_timestep_2 = [[-1*0.53 - 1*0.37 + 0.3,
+                          0.5*0.53 + 0.3*0.37 + 0.4,
+                          0.2*0.53 - 0.1*0.37 + 0.5],
+                         [-1*0.76 - 1*0.78 + 0.3,
+                          0.5*0.76 +0.3*0.78 + 0.4,
+                          0.2*0.76 -0.1*0.78 + 0.5]]
+                      = [[-0.6033, 0.7777, 0.5698], [-1.2473, 1.0170, 0.5745]]
+
+    Args:
+      return_sequences: A boolean indicating whether to return the last output
+        in the output sequence, or the full sequence.
+      expected_logits: An array with expected logits result.
     """
     base_global_step = 100
     create_checkpoint(
@@ -313,10 +371,18 @@ class RNNLogitFnTest(test.TestCase):
           features_fn=features_fn,
           sequence_feature_columns=sequence_feature_columns,
           context_feature_columns=context_feature_columns,
-          expected_logits=[[-0.6033, 0.7777, 0.5698],
-                           [-1.2473, 1.0170, 0.5745]])
+          expected_logits=expected_logits,
+          return_sequences=return_sequences)
 
-  def testMultiExamplesDifferentLength(self):
+  @parameterized.named_parameters(
+      {'testcase_name': 'Static',
+       'return_sequences': False,
+       'expected_logits': [[-0.6033], [0.0197]]},
+      {'testcase_name': 'Sequential',
+       'return_sequences': True,
+       'expected_logits': [[[-1.4388], [-0.6033]],
+                           [[0.0197], [0.3]]]})
+  def testMultiExamplesDifferentLength(self, return_sequences, expected_logits):
     """Tests multiple examples with different lengths.
 
     Intermediate values are rounded for ease in reading.
@@ -329,11 +395,20 @@ class RNNLogitFnTest(test.TestCase):
                           = [[0.83, -0.91], [0.38, 0.10]]
     rnn_output_timestep_2 = [[tanh(.1*5 + .2*.83 - .3*.91 +.2),
                               tanh(-.2*5 - .3*.83 + .4*.91 +.5)],
-                             [<ignored-padding>]]
-                          = [[0.53, -0.37], [<ignored-padding>]]
-    logits = [[-1*0.53 - 1*0.37 + 0.3],
-              [-1*0.38 + 1*0.10 + 0.3]]
-           = [[-0.6033], [0.0197]]
+                             [0,
+                              0]]
+                          = [[0.53, -0.37], [0, 0]]
+    logits_timestep_1 = [[-1*0.83 - 1*0.91 + 0.3],
+                         [-1*0.38 + 1*0.10 + 0.3]]
+                      = [[-0.4388], [0.0197]]
+    logits_timestep_2 = [[-1*0.53 - 1*0.37 + 0.3],
+                         [-1*0.0 + 1*0.0 + 0.3]]
+                      = [[-0.6033], [0.3]]
+
+    Args:
+      return_sequences: A boolean indicating whether to return the last output
+        in the output sequence, or the full sequence.
+      expected_logits: An array with expected logits result.
     """
     base_global_step = 100
     create_checkpoint(
@@ -368,7 +443,8 @@ class RNNLogitFnTest(test.TestCase):
           features_fn=features_fn,
           sequence_feature_columns=sequence_feature_columns,
           context_feature_columns=context_feature_columns,
-          expected_logits=[[-0.6033], [0.0197]])
+          expected_logits=expected_logits,
+          return_sequences=return_sequences)
 
   def testMultiExamplesWithContext(self):
     """Tests multiple examples with context features.

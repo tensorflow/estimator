@@ -14,10 +14,8 @@ py_library(
     srcs_version = "PY2AND3",
     visibility = ["//visibility:public"],
     deps = [
-        ":baseline",
         ":boosted_trees",
         ":dnn",
-        ":dnn_linear_combined",
         ":dnn_with_layer_annotations",
         ":early_stopping",
         ":export",
@@ -36,37 +34,6 @@ py_library(
 )
 
 py_library(
-    name = "baseline",
-    srcs = ["python/estimator/baseline.py"],
-    srcs_version = "PY2AND3",
-    deps = [
-        "//tensorflow_estimator/python/estimator",
-        "//tensorflow_estimator/python/estimator:baseline",
-    ],
-)
-
-py_test(
-    name = "baseline_test",
-    size = "small",
-    srcs = ["python/estimator/baseline_test.py"],
-    srcs_version = "PY2AND3",
-    tags = [
-        "no_pip",
-        "notsan",
-    ],
-    deps = [
-        ":baseline",
-        ":head",
-        "//tensorflow_estimator/python/estimator:expect_numpy_installed",
-        "//tensorflow_estimator/python/estimator:expect_six_installed",
-        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
-        "//tensorflow_estimator/python/estimator:export_export",
-        "//tensorflow_estimator/python/estimator:metric_keys",
-        "//tensorflow_estimator/python/estimator:numpy_io",
-    ],
-)
-
-py_library(
     name = "boosted_trees",
     srcs = ["python/estimator/boosted_trees.py"],
     srcs_version = "PY2AND3",
@@ -80,6 +47,7 @@ py_test(
     name = "boosted_trees_test",
     size = "medium",
     srcs = ["python/estimator/boosted_trees_test.py"],
+    shard_count = 4,
     srcs_version = "PY2AND3",
     tags = [
         "no_pip",
@@ -161,41 +129,6 @@ py_test(
         "//tensorflow_estimator/python/estimator:export_export",
         "//tensorflow_estimator/python/estimator:numpy_io",
         "//tensorflow_estimator/python/estimator:pandas_io",
-        "//tensorflow_estimator/python/estimator:prediction_keys",
-    ],
-)
-
-py_library(
-    name = "dnn_linear_combined",
-    srcs = ["python/estimator/dnn_linear_combined.py"],
-    srcs_version = "PY2AND3",
-    deps = [
-        "//tensorflow_estimator/python/estimator",
-        "//tensorflow_estimator/python/estimator:dnn_linear_combined",
-        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
-    ],
-)
-
-py_test(
-    name = "dnn_linear_combined_test",
-    size = "medium",
-    srcs = ["python/estimator/dnn_linear_combined_test.py"],
-    shard_count = 3,
-    srcs_version = "PY2AND3",
-    tags = [
-        "no_pip",
-        "notsan",
-    ],
-    deps = [
-        ":dnn_linear_combined",
-        ":head",
-        "//tensorflow_estimator/python/estimator:dnn_testing_utils",
-        "//tensorflow_estimator/python/estimator:expect_numpy_installed",
-        "//tensorflow_estimator/python/estimator:expect_six_installed",
-        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
-        "//tensorflow_estimator/python/estimator:export_export",
-        "//tensorflow_estimator/python/estimator:linear_testing_utils",
-        "//tensorflow_estimator/python/estimator:numpy_io",
         "//tensorflow_estimator/python/estimator:prediction_keys",
     ],
 )
@@ -477,6 +410,7 @@ py_test(
         ":head",
         ":rnn",
         "//tensorflow_estimator/python/estimator:estimator_py",
+        "//tensorflow_estimator/python/estimator:expect_absl_installed",
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
         "//tensorflow_estimator/python/estimator:expect_six_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",

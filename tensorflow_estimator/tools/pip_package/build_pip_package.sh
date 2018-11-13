@@ -26,7 +26,7 @@ function real_path() {
 function build_wheel() {
   TMPDIR="$1"
   DEST="$2"
-  PKG_NAME_FLAG="$3"
+  PROJECT_NAME="$3"
 
   mkdir -p "$TMPDIR"
   echo $(date) : "=== Preparing sources in dir: ${TMPDIR}"
@@ -48,13 +48,17 @@ function build_wheel() {
   touch "${TMPDIR}/tensorflow_estimator/python/estimator/__init__.py"
   touch "${TMPDIR}/tensorflow_estimator/python/estimator/api/__init__.py"
   touch "${TMPDIR}/tensorflow_estimator/python/estimator/canned/__init__.py"
+  touch "${TMPDIR}/tensorflow_estimator/python/estimator/canned/linear_optimizer/__init__.py"
+  touch "${TMPDIR}/tensorflow_estimator/python/estimator/canned/linear_optimizer/python/__init__.py"
+  touch "${TMPDIR}/tensorflow_estimator/python/estimator/canned/linear_optimizer/python/utils/__init__.py"
   touch "${TMPDIR}/tensorflow_estimator/python/estimator/export/__init__.py"
+  touch "${TMPDIR}/tensorflow_estimator/python/estimator/head/__init__.py"
   touch "${TMPDIR}/tensorflow_estimator/python/estimator/inputs/__init__.py"
   touch "${TMPDIR}/tensorflow_estimator/python/estimator/inputs/queues/__init__.py"
 
   pushd ${TMPDIR} > /dev/null
   echo $(date) : "=== Building wheel"
-  "${PYTHON_BIN_PATH:-python}" setup.py bdist_wheel --universal
+  "${PYTHON_BIN_PATH:-python}" setup.py bdist_wheel --universal --project_name $PROJECT_NAME
   mkdir -p ${DEST}
   cp dist/* ${DEST}
   popd > /dev/null
@@ -63,16 +67,34 @@ function build_wheel() {
 }
 
 function main() {
-  PKG_NAME_FLAG="tensorflow_estimator"
+  NIGHTLY_BUILD=0
 
-  DSTDIR="$(real_path $1)"
+  while true; do
+    if [[ -z "$1" ]]; then
+      break
+    elif [[ "$1" == "--nightly" ]]; then
+      NIGHTLY_BUILD=1
+    else
+      DSTDIR="$(real_path $1)"
+    fi
+    shift
+  done
+
+  PROJECT_NAME="tensorflow_estimator"
+  if [[ ${NIGHTLY_BUILD} == "1" ]]; then
+    PROJECT_NAME="tf_estimator_nightly"
+  fi
+
   SRCDIR="$(mktemp -d -t tmp.XXXXXXXXXX)"
+
   if [[ -z "$DSTDIR" ]]; then
     echo "No destination dir provided"
     exit 1
   fi
 
-  build_wheel "$SRCDIR" "$DSTDIR" "$PKG_NAME_FLAG"
+
+
+  build_wheel "$SRCDIR" "$DSTDIR" "$PROJECT_NAME"
 }
 
 main "$@"
