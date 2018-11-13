@@ -434,11 +434,11 @@ py_test(
     name = "dnn_linear_combined_test",
     size = "medium",
     srcs = ["canned/dnn_linear_combined_test.py"],
-    shard_count = 8,
+    shard_count = 16,
     srcs_version = "PY2AND3",
     tags = [
         "no_pip",
-        "notsan",  # b/67510291
+        "notsan",  # TODO(b/67510291)
     ],
     deps = [
         ":dnn_linear_combined",
