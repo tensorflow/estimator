@@ -14,21 +14,25 @@
 # ==============================================================================
 """Utilities for early stopping."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+import collections
+import operator
+import os
 
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
 from tensorflow.python.ops import init_ops
 from tensorflow.python.ops import state_ops
 from tensorflow.python.ops import variable_scope
+from tensorflow.python.platform import gfile
 from tensorflow.python.platform import tf_logging
+from tensorflow.python.summary import summary_iterator
 from tensorflow.python.training import basic_session_run_hooks
 from tensorflow.python.training import session_run_hook
 from tensorflow.python.training import training_util
 from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator import estimator as estimator_lib
+
+_EVENT_FILE_GLOB_PATTERN = 'events.out.tfevents.*'
 
 
 @estimator_export('estimator.experimental.make_early_stopping_hook')
@@ -89,6 +93,137 @@ def make_early_stopping_hook(estimator,
     return _StopOnPredicateHook(should_stop_fn, run_every_secs, run_every_steps)
   else:
     return _CheckForStoppingHook()
+
+
+@estimator_export('estimator.experimental.stop_if_higher_hook')
+def stop_if_higher_hook(estimator,
+                        metric_name,
+                        threshold,
+                        eval_dir=None,
+                        min_steps=0,
+                        run_every_secs=60,
+                        run_every_steps=None):
+  """Creates hook to stop if the given metric is higher than the threshold.
+
+  Usage example:
+
+  ```python
+  estimator = ...
+  # Hook to stop training if accuracy becomes higher than 0.9.
+  hook = early_stopping.stop_if_higher_hook(estimator, "accuracy", 0.9)
+  train_spec = tf.estimator.TrainSpec(..., hooks=[hook])
+  tf.estimator.train_and_evaluate(estimator, train_spec, ...)
+  ```
+
+  Caveat: Current implementation supports early-stopping both training and
+  evaluation in local mode. In distributed mode, training can be stopped but
+  evaluation (where it's a separate job) will indefinitely wait for new model
+  checkpoints to evaluate, so you will need other means to detect and stop it.
+  Early-stopping evaluation in distributed mode requires changes in
+  `train_and_evaluate` API and will be addressed in a future revision.
+
+  Args:
+    estimator: A `tf.estimator.Estimator` instance.
+    metric_name: `str`, metric to track. "loss", "accuracy", etc.
+    threshold: Numeric threshold for the given metric.
+    eval_dir: If set, directory containing summary files with eval metrics. By
+      default, `estimator.eval_dir()` will be used.
+    min_steps: `int`, stop is never requested if global step is less than this
+      value. Defaults to 0.
+    run_every_secs: If specified, calls `should_stop_fn` at an interval of
+      `run_every_secs` seconds. Defaults to 60 seconds. Either this or
+      `run_every_steps` must be set.
+    run_every_steps: If specified, calls `should_stop_fn` every
+      `run_every_steps` steps. Either this or `run_every_secs` must be set.
+
+  Returns:
+    An early-stopping hook of type `SessionRunHook` that periodically checks
+    if the given metric is higher than specified threshold and initiates
+    early stopping if true.
+  """
+  return _stop_if_threshold_crossed_hook(
+      estimator=estimator,
+      metric_name=metric_name,
+      threshold=threshold,
+      higher_is_better=True,
+      eval_dir=eval_dir,
+      min_steps=min_steps,
+      run_every_secs=run_every_secs,
+      run_every_steps=run_every_steps)
+
+
+def read_eval_metrics(eval_dir):
+  """Helper to read eval metrics from eval summary files.
+
+  Args:
+    eval_dir: Directory containing summary files with eval metrics.
+
+  Returns:
+    A `dict` with global steps mapping to `dict` of metric names and values.
+  """
+  eval_metrics_dict = {}
+  for event in _summaries(eval_dir):
+    if not event.HasField('summary'):
+      continue
+    metrics = {}
+    for value in event.summary.value:
+      if value.HasField('simple_value'):
+        metrics[value.tag] = value.simple_value
+    if metrics:
+      eval_metrics_dict[event.step] = metrics
+  return collections.OrderedDict(
+      sorted(eval_metrics_dict.items(), key=lambda t: t[0]))
+
+
+def _stop_if_threshold_crossed_hook(estimator, metric_name, threshold,
+                                    higher_is_better, eval_dir, min_steps,
+                                    run_every_secs, run_every_steps):
+  """Creates early-stopping hook to stop training if threshold is crossed."""
+
+  if eval_dir is None:
+    eval_dir = estimator.eval_dir()
+
+  is_lhs_better = operator.gt if higher_is_better else operator.lt
+  greater_or_lesser = 'greater than' if higher_is_better else 'less than'
+
+  def stop_if_threshold_crossed_fn():
+    """Returns `True` if the given metric crosses specified threshold."""
+
+    eval_results = read_eval_metrics(eval_dir)
+
+    for step, metrics in eval_results.items():
+      if step < min_steps:
+        continue
+      val = metrics[metric_name]
+      if is_lhs_better(val, threshold):
+        tf_logging.info(
+            'At step %s, metric "%s" has value %s which is %s the configured '
+            'threshold (%s) for early stopping.', step, metric_name, val,
+            greater_or_lesser, threshold)
+        return True
+    return False
+
+  return make_early_stopping_hook(
+      estimator=estimator,
+      should_stop_fn=stop_if_threshold_crossed_fn,
+      run_every_secs=run_every_secs,
+      run_every_steps=run_every_steps)
+
+
+def _summaries(eval_dir):
+  """Yields `tensorflow.Event` protos from event files in the eval dir.
+
+  Args:
+    eval_dir: Directory containing summary files with eval metrics.
+
+  Yields:
+    `tensorflow.Event` object read from the event files.
+  """
+  if gfile.Exists(eval_dir):
+    for event_file in gfile.Glob(
+        os.path.join(eval_dir, _EVENT_FILE_GLOB_PATTERN)):
+      for event in summary_iterator.summary_iterator(event_file):
+        yield event
 
 
 def _get_or_create_stop_var():
