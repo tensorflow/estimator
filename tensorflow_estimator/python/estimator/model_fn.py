@@ -182,145 +182,17 @@ class EstimatorSpec(
       ValueError: If validation fails.
       TypeError: If any of the arguments is not the expected type.
     """
-    # Validate train_op.
-    if train_op is None:
-      if mode == ModeKeys.TRAIN:
-        raise ValueError('Missing train_op.')
-    else:
-      _check_is_tensor_or_operation(train_op, 'train_op')
-
-    # Validate loss.
-    if loss is None:
-      if mode in (ModeKeys.TRAIN, ModeKeys.EVAL):
-        raise ValueError('Missing loss.')
-    else:
-      loss = _check_is_tensor(loss, 'loss')
-      loss_shape = loss.get_shape()
-      if loss_shape.num_elements() not in (None, 1):
-        raise ValueError('Loss must be scalar, given: {}'.format(loss))
-      if not loss_shape.is_compatible_with(tensor_shape.scalar()):
-        loss = array_ops.reshape(loss, [])
-
-    # Validate predictions.
-    if predictions is None:
-      if mode == ModeKeys.PREDICT:
-        raise ValueError('Missing predictions.')
-      predictions = {}
-    else:
-      if isinstance(predictions, dict):
-        predictions = {
-            k: _check_is_tensor(v, 'predictions[{}]'.format(k))
-            for k, v in six.iteritems(predictions)
-        }
-      else:
-        predictions = _check_is_tensor(predictions, 'predictions')
-
-    # Validate eval_metric_ops.
-    if eval_metric_ops is None:
-      eval_metric_ops = {}
-    else:
-      if not isinstance(eval_metric_ops, dict):
-        raise TypeError(
-            'eval_metric_ops must be a dict, given: {}'.format(eval_metric_ops))
-      for key, value in six.iteritems(eval_metric_ops):
-        # TODO(psv): When we deprecate the old metrics, throw an error here if
-        # the value is not an instance of `Metric` class.
-        if isinstance(value, Metric):
-          if not value.updates:  # Check if metrics updates are available.
-            raise ValueError(
-                'Please call update_state(...) on the "{metric_name}" metric'
-                .format(metric_name=value.name))
-        else:
-          if not isinstance(value, tuple) or len(value) != 2:
-            raise TypeError(
-                'Values of eval_metric_ops must be (metric_value, update_op) '
-                'tuples, given: {} for key: {}'.format(value, key))
-          metric_value, metric_update = value
-          for metric_value_member in nest.flatten(metric_value):
-            # Allow (possibly nested) tuples for metric values, but require that
-            # each of them be Tensors or Operations.
-            _check_is_tensor_or_operation(metric_value_member,
-                                          'eval_metric_ops[{}]'.format(key))
-          _check_is_tensor_or_operation(metric_update,
-                                        'eval_metric_ops[{}]'.format(key))
-
-    # Validate the passed export outputs, or generate defaults.
-    if mode == ModeKeys.PREDICT:
-      export_outputs = _get_export_outputs(export_outputs, predictions)
-
-    # Validate that all tensors and ops are from the default graph.
-    default_graph = ops.get_default_graph()
-
-    # We enumerate possible error causes here to aid in debugging.
-    error_message_template = (
-        '{0} with "{1}" must be from the default graph. '
-        'Possible causes of this error include: \n\n'
-        '1) {0} was created outside the context of the default graph.'
-        '\n\n'
-        '2) The object passed through to EstimatorSpec was not created '
-        'in the most recent call to "model_fn".')
-
-    if isinstance(predictions, dict):
-      for key, value in six.iteritems(predictions):
-        if value.graph is not default_graph:
-          raise ValueError(error_message_template.format(
-              'prediction values',
-              '{0}: {1}'.format(key, value.name)))
-    elif predictions is not None:
-      # 'predictions' must be a single Tensor.
-      if predictions.graph is not default_graph:
-        raise ValueError(error_message_template.format(
-            'prediction values', predictions.name))
-
-    if loss is not None and loss.graph is not default_graph:
-      raise ValueError(error_message_template.format('loss', loss.name))
-    if train_op is not None and train_op.graph is not default_graph:
-      raise ValueError(error_message_template.format('train_op', train_op.name))
-    for key, value in list(six.iteritems(eval_metric_ops)):
-      if isinstance(value, Metric):
-        values_to_check = value.updates[:]
-        values_to_check.append(value.result())
-      else:
-        values_to_check = nest.flatten(value)
-      for val in values_to_check:
-        if val.graph is not default_graph:
-          raise ValueError(error_message_template.format(
-              'eval_metric_ops',
-              '{0}: {1}'.format(key, val.name)))
-
-    # Validate hooks.
-    training_chief_hooks = tuple(training_chief_hooks or [])
-    training_hooks = tuple(training_hooks or [])
-    evaluation_hooks = tuple(evaluation_hooks or [])
-    prediction_hooks = tuple(prediction_hooks or [])
-
-    for hook in (training_hooks + training_chief_hooks + evaluation_hooks +
-                 prediction_hooks):
-      if not isinstance(hook, session_run_hook.SessionRunHook):
-        raise TypeError(
-            'All hooks must be SessionRunHook instances, given: {}'.format(
-                hook))
-
-    # Add metric variables to the `LOCAL_VARIABLES` collection. Metric variables
-    # are by default not added to any collections. We are doing this here, so
-    # that metric variables get initialized.
-    local_vars = set(ops.get_collection(ops.GraphKeys.LOCAL_VARIABLES))
-    vars_to_add = set()
-    for key, value in six.iteritems(eval_metric_ops):
-      if isinstance(value, Metric):
-        vars_to_add.update(value.variables)
-        # Convert Metric instances to (value_tensor, update_op) tuple.
-        eval_metric_ops[key] = (value.result(), value.updates[0])
-    # Remove variables that are in the local variables collection already.
-    vars_to_add = vars_to_add.difference(local_vars)
-    for v in vars_to_add:
-      ops.add_to_collection(ops.GraphKeys.LOCAL_VARIABLES, v)
-
-    scaffold = scaffold or monitored_session.Scaffold()
-    # Validate scaffold.
-    if not isinstance(scaffold, monitored_session.Scaffold):
-      raise TypeError(
-          'scaffold must be tf.train.Scaffold. Given: {}'.format(scaffold))
+    train_op = _validate_estimator_spec_train_op(train_op, mode)
+    loss = _validate_estimator_spec_loss(loss, mode)
+    predictions = _validate_estimator_spec_predictions(predictions, mode)
+    export_outputs = _validate_estimator_spec_export_outputs(
+        export_outputs, predictions, mode)
+    training_hooks = _validate_estimator_spec_hooks(training_hooks)
+    evaluation_hooks = _validate_estimator_spec_hooks(evaluation_hooks)
+    prediction_hooks = _validate_estimator_spec_hooks(prediction_hooks)
+    training_chief_hooks = _validate_estimator_spec_hooks(training_chief_hooks)
+    eval_metric_ops = _validate_eval_metric_ops(eval_metric_ops)
+    scaffold = _validate_scaffold(scaffold)
 
     return super(EstimatorSpec, cls).__new__(
         cls,
@@ -435,6 +307,14 @@ class _TPUEstimatorSpec(
               evaluation_hooks=None,
               prediction_hooks=None):
     """Creates a `_TPUEstimatorSpec` instance."""
+    train_op = _validate_estimator_spec_train_op(train_op, mode)
+    loss = _validate_estimator_spec_loss(loss, mode)
+    predictions = _validate_estimator_spec_predictions(predictions, mode)
+    export_outputs = _validate_estimator_spec_export_outputs(
+        export_outputs, predictions, mode)
+    training_hooks = _validate_estimator_spec_hooks(training_hooks)
+    evaluation_hooks = _validate_estimator_spec_hooks(evaluation_hooks)
+    prediction_hooks = _validate_estimator_spec_hooks(prediction_hooks)
     return super(_TPUEstimatorSpec, cls).__new__(
         cls,
         mode=mode,
@@ -466,6 +346,288 @@ class _TPUEstimatorSpec(
         training_hooks=self.training_hooks,
         evaluation_hooks=self.evaluation_hooks,
         prediction_hooks=self.prediction_hooks)
+
+# Used to generate possible error causes if the user provides a `Tensor` to an
+# EstimatorSpec that is not in the default graph.
+_default_graph_error_message_template = (
+    '{0} with "{1}" must be from the default graph. '
+    'Possible causes of this error include: \n\n'
+    '1) {0} was created outside the context of the default graph.'
+    '\n\n'
+    '2) The object passed through to EstimatorSpec was not created '
+    'in the most recent call to "model_fn".')
+
+
+def _validate_estimator_spec_train_op(train_op, mode):
+  """Validate train_op inputs for EstimatorSpec or TPUEstimatorSpec.
+
+  Args:
+    train_op: Op for the training step.
+    mode: A `ModeKeys`. Used to determine whether the train_op is acceptable for
+      use in the current mode; for example, if we are not training, this can be
+      None.
+
+  Returns:
+    train_op: Op for the training step.
+
+  Raises:
+    ValueError: If no train_op is passed during training.
+    TypeError:  If:
+                - train_op is neither a `Tensor` nor an Op.
+                - train_op is not part of the default graph.
+  """
+  if train_op is None:
+    if mode == ModeKeys.TRAIN:
+      raise ValueError('Missing train_op.')
+  else:
+    default_graph = ops.get_default_graph()
+    _check_is_tensor_or_operation(train_op, 'train_op')
+    if train_op.graph is not default_graph:
+      raise ValueError(
+          _default_graph_error_message_template.format('train_op',
+                                                       train_op.name))
+  return train_op
+
+
+def _validate_estimator_spec_loss(loss, mode):
+  """Validate loss inputs for EstimatorSpec or TPUEstimatorSpec.
+
+  Args:
+    loss: Training loss `Tensor`. Must either be scalar, or with shape `[1]`.
+    mode: A `ModeKeys`. Used to determine whether the loss is acceptable for use
+      in the current mode; for example, None is acceptable if we are not
+      training or evaluating.
+
+  Returns:
+    loss: Training loss `Tensor`.
+
+  Raises:
+    ValueError: If the loss `Tensor` is not appropriately formatted.
+    TypeError:  If:
+                - a non-`Tensor`, non-None input is passed.
+                - the loss `Tensor` is not part of the default graph.
+  """
+  if loss is None:
+    if mode in (ModeKeys.TRAIN, ModeKeys.EVAL):
+      raise ValueError('Missing loss.')
+  else:
+    default_graph = ops.get_default_graph()
+    # Loss must be a tensor.
+    loss = _check_is_tensor(loss, 'loss')
+    loss_shape = loss.get_shape()
+    if loss_shape.num_elements() not in (None, 1):
+      raise ValueError('Loss must be scalar, given: {}'.format(loss))
+    if not loss_shape.is_compatible_with(tensor_shape.scalar()):
+      loss = array_ops.reshape(loss, [])
+    if loss.graph is not default_graph:
+      raise ValueError(
+          _default_graph_error_message_template.format('loss', loss.name))
+  return loss
+
+
+def _validate_estimator_spec_predictions(predictions, mode):
+  """Validate predictions inputs for EstimatorSpec or TPUEstimatorSpec.
+
+  Args:
+    predictions: Predictions `Tensor` or dict of `Tensor`.
+    mode: A `ModeKeys`. Used to determine whether the predictions are acceptable
+      for use in the current mode; None is acceptable if we are not making
+      predictions.
+
+  Returns:
+    predictions: Predictions `Tensor` or dict of `Tensor`.
+
+  Raises:
+    ValueError: If:
+      - predictions is None and we are in predict mode.
+      - predictions `Tensor` is not in default_graph or else it is a dict of
+        `Tensor` where at least one is not in default_graph.
+    TypeError:  If predictions is not a `Tensor` or dict of `Tensor`.
+  """
+  if predictions is None:
+    if mode == ModeKeys.PREDICT:
+      raise ValueError('Missing predictions.')
+    predictions = {}
+  else:
+    default_graph = ops.get_default_graph()
+    if isinstance(predictions, dict):
+      predictions = {
+          k: _check_is_tensor(v, 'predictions[{}]'.format(k))
+          for k, v in six.iteritems(predictions)
+      }
+      for key, value in six.iteritems(predictions):
+        if value.graph is not default_graph:
+          raise ValueError(
+              _default_graph_error_message_template.format(
+                  'prediction values', '{0}: {1}'.format(key, value.name)))
+    else:
+      # Predictions should be a tensor.
+      predictions = _check_is_tensor(predictions, 'predictions')
+      if predictions.graph is not default_graph:
+        raise ValueError(
+            _default_graph_error_message_template.format('prediction values',
+                                                         predictions.name))
+  return predictions
+
+
+def _validate_estimator_spec_export_outputs(export_outputs, predictions, mode):
+  """Validate export_outputs inputs for EstimatorSpec or TPUEstimatorSpec.
+
+  Args:
+    export_outputs: Describes the output signatures to be exported to
+      `SavedModel` and used during serving.
+      A dict `{name: output}` where:
+      * name: An arbitrary name for this output.
+      * output: an `ExportOutput` object such as `ClassificationOutput`
+        `RegressionOutput`, or `PredictOutput`. Single-headed models should only
+        need to specify one entry in this dictionary. Multi-headed models should
+        specify one entry for each head, one of which must be named using
+        signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY. If no entry is
+        provided, a default `PredictOutput` mapping to predictions will be
+        created.
+
+    predictions: Predictions `Tensor` or dict of `Tensor`. Used in generation of
+     default outputs.
+    mode: A `ModeKeys`. Used to determine whether to validate at all; if the
+      EstimatorSpec is not for making predictions we can skip validation.
+
+  Returns:
+    ValueError: If validation fails.
+    TypeError: If the export_outputs is not a dict or the values of the dict are
+               not instances of type `ExportOutput`.
+  """
+  if mode == ModeKeys.PREDICT:
+    export_outputs = _get_export_outputs(export_outputs, predictions)
+  return export_outputs
+
+
+def _validate_estimator_spec_hooks(hooks):
+  """Validate SessionRunHooks for use in EstimatorSpec or TPUEstimatorSpec.
+
+  Args:
+    hooks: Iterable of `tf.train.SessionRunHook` objects to run on all workers.
+
+  Returns:
+    hooks: Iterable of `tf.train.SessionRunHook` objects.
+
+  Raises:
+    ValueError: If validation fails.
+    TypeError:  If any element of the iterable is not a SessionRunHook.
+  """
+  hooks = tuple(hooks or [])
+
+  for hook in hooks:
+    if not isinstance(hook, session_run_hook.SessionRunHook):
+      raise TypeError(
+          'All hooks must be SessionRunHook instances, given: {}'.format(hook))
+  return hooks
+
+
+def _validate_eval_metric_ops(eval_metric_ops):
+  """Validate eval_metric_ops for use in EstimatorSpec.
+
+  Args:
+    eval_metric_ops: Dict of metric results keyed by name.
+      The values of the dict can be one of the following:
+      (1) instance of `Metric` class.
+      (2) Results of calling a metric_function, namely a
+      `(metric_tensor, update_op)` tuple. `metric_tensor` should
+      be evaluated without any impact on state (typically it is a
+      pure computation based on variables.). For example, it
+      should not trigger the `update_op` or require any input
+      fetching.
+
+  Returns:
+    eval_metric_ops: Dict of metric results keyed by name.
+
+  Raises:
+    ValueError:  If:
+     - one of the eval_metric_ops `Metric` objects has no updates.
+     - there is at least one `Metric` update or result, `Tensor`, or Op that is
+       not in the default graph.
+    TypeError:   If:
+     - eval_metric_ops is not a dict or None.
+     - an element of eval_metric_ops is not a `Metric` or a 2-tuple.
+     - an element of eval_metric_ops has a sub-element that is not a `Tensor` or
+       an Op.
+  """
+  if eval_metric_ops is None:
+    eval_metric_ops = {}
+  else:
+    if not isinstance(eval_metric_ops, dict):
+      raise TypeError(
+          'eval_metric_ops must be a dict, given: {}'.format(eval_metric_ops))
+    for key, value in six.iteritems(eval_metric_ops):
+      # TODO(psv): When we deprecate the old metrics, throw an error here if
+      # the value is not an instance of `Metric` class.
+      if isinstance(value, Metric):
+        if not value.updates:  # Check if metric updates are available.
+          raise ValueError(
+              'Please call update_state(...) on the "{metric_name}" metric'
+              .format(metric_name=value.name))
+      else:
+        if not isinstance(value, tuple) or len(value) != 2:
+          raise TypeError(
+              'Values of eval_metric_ops must be (metric_value, update_op) '
+              'tuples, given: {} for key: {}'.format(value, key))
+        metric_value, metric_update = value
+        for metric_value_member in nest.flatten(metric_value):
+          # Allow (possibly nested) tuples for metric values, but require that
+          # each of them be Tensors or Operation.
+          _check_is_tensor_or_operation(metric_value_member,
+                                        'eval_metric_ops[{}]'.format(key))
+        _check_is_tensor_or_operation(metric_update,
+                                      'eval_metric_ops[{}]'.format(key))
+  # Verify all tensors and ops are from default graph.
+  default_graph = ops.get_default_graph()
+  for key, value in list(six.iteritems(eval_metric_ops)):
+    if isinstance(value, Metric):
+      values_to_check = value.updates[:]
+      values_to_check.append(value.result())
+    else:
+      values_to_check = nest.flatten(value)
+    for val in values_to_check:
+      if val.graph is not default_graph:
+        raise ValueError(
+            _default_graph_error_message_template.format(
+                'eval_metric_ops', '{0}: {1}'.format(key, val.name)))
+  # Add metric variables to the `LOCAL_VARIABLES` collection. Metric variables
+  # are by default not added to any collections. We are doing this here, so that
+  # metric variables get initialized.
+  local_vars = set(ops.get_collection(ops.GraphKeys.LOCAL_VARIABLES))
+  vars_to_add = set()
+  for key, value in six.iteritems(eval_metric_ops):
+    if isinstance(value, Metric):
+      vars_to_add.update(value.variables)
+      # Convert Metric instances to (value_tensor, update_op) tuple.
+      eval_metric_ops[key] = (value.result(), value.updates[0])
+  # Remove variables that are in the local variables collection already.
+  vars_to_add = vars_to_add.difference(local_vars)
+  for v in vars_to_add:
+    ops.add_to_collection(ops.GraphKeys.LOCAL_VARIABLES, v)
+  return eval_metric_ops
+
+
+def _validate_scaffold(scaffold):
+  """Validate scaffold input for EstimatorSpec.
+
+  Args:
+    scaffold: A `tf.train.Scaffold` object that can be used to set
+      initialization, saver, and more to be used in training.
+
+  Returns:
+    scaffold: A `tf.train.Scaffold` object. If no scaffold is provided, then a
+      default is generated.
+
+  Raises:
+    TypeError: If the scaffold is not of type `monitored_session.Scaffold`
+      or None.
+  """
+  scaffold = scaffold or monitored_session.Scaffold()
+  if not isinstance(scaffold, monitored_session.Scaffold):
+    raise TypeError(
+        'scaffold must be tf.train.Scaffold. Given: {}'.format(scaffold))
+  return scaffold
 
 
 def _check_is_tensor_or_operation(x, name):
