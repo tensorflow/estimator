@@ -81,6 +81,7 @@ from tensorflow.python.training import training
 from tensorflow.python.util import compat
 from tensorflow.python.util import function_utils
 
+
 _TMP_DIR = '/tmp'
 _ANOTHER_TMP_DIR = '/another_tmp'
 
@@ -115,27 +116,16 @@ def get_mock_saver():
 class EstimatorInheritanceConstraintTest(test.TestCase):
   """Tests that sub classes cannot override methods of Estimator."""
 
+  @property
+  def random_estimator(self):
+    switch = np.random.random()
+    return estimator.Estimator if switch > 0.5 else estimator.EstimatorV2
+
   def test_override_a_method(self):
-    class _Estimator(estimator.Estimator):
+    class _Estimator(self.random_estimator):
 
       def __init__(self):
         super(_Estimator, self).__init__(model_fn=dummy_model_fn)
-
-      def predict(self, input_fn, predict_keys=None, hooks=None):
-        pass
-
-    with self.assertRaisesRegexp(
-        ValueError, 'cannot override members of Estimator.*predict'):
-      _Estimator()
-
-  def test_override_a_method_with_tricks(self):
-    class _Estimator(estimator.Estimator):
-
-      def __init__(self):
-        super(_Estimator, self).__init__(model_fn=dummy_model_fn)
-
-      def _assert_members_are_not_overridden(self):
-        pass  # HAHA! I tricked you!
 
       def predict(self, input_fn, predict_keys=None, hooks=None):
         pass
@@ -145,7 +135,7 @@ class EstimatorInheritanceConstraintTest(test.TestCase):
       _Estimator()
 
   def test_extension_of_api_is_ok(self):
-    class _Estimator(estimator.Estimator):
+    class _Estimator(self.random_estimator):
 
       def __init__(self):
         super(_Estimator, self).__init__(model_fn=dummy_model_fn)
@@ -156,7 +146,7 @@ class EstimatorInheritanceConstraintTest(test.TestCase):
     _Estimator()
 
   def test_override_allowed_method(self):
-    class _Estimator(estimator.Estimator):
+    class _Estimator(self.random_estimator):
 
       def __init__(self):
         super(_Estimator, self).__init__(model_fn=dummy_model_fn)
@@ -723,7 +713,7 @@ class EstimatorTrainTest(test.TestCase):
     tmpdir = tempfile.mkdtemp()
     export_dir_base = os.path.join(
         compat.as_bytes(tmpdir), compat.as_bytes('export'))
-    export_dir = est.export_savedmodel(
+    export_dir = est.export_saved_model(
         export_dir_base, serving_input_receiver_fn)
 
     warm_started_est = estimator.Estimator(
@@ -1384,7 +1374,7 @@ class EstimatorEvaluateTest(test.TestCase):
     tmpdir = tempfile.mkdtemp()
     export_dir_base = os.path.join(
         compat.as_bytes(tmpdir), compat.as_bytes('export'))
-    exported_path = first_est.export_savedmodel(export_dir_base,
+    exported_path = first_est.export_saved_model(export_dir_base,
                                                 serving_input_receiver_fn)
 
     # Test that we can pass either warm_start_from as an external checkpoint
@@ -1789,7 +1779,7 @@ class EstimatorPredictTest(test.TestCase):
     tmpdir = tempfile.mkdtemp()
     export_dir_base = os.path.join(
         compat.as_bytes(tmpdir), compat.as_bytes('export'))
-    exported_path = first_est.export_savedmodel(export_dir_base,
+    exported_path = first_est.export_saved_model(export_dir_base,
                                                 serving_input_receiver_fn)
 
     # Test that we can pass either warm_start_from as an external checkpoint
@@ -2282,7 +2272,7 @@ _EXTRA_FILE_CONTENT = 'kermit\npiggy\nralph\n'
 
 class EstimatorExportTest(test.TestCase):
 
-  def test_export_savedmodel_proto_roundtrip_raw_receiver(self):
+  def test_export_saved_model_proto_roundtrip_raw_receiver(self):
     feature_spec = {'x': parsing_ops.VarLenFeature(dtype=dtypes.int64),
                     'y': parsing_ops.VarLenFeature(dtype=dtypes.int64)}
     serving_input_receiver_fn = export.build_parsing_serving_input_receiver_fn(
@@ -2295,7 +2285,7 @@ class EstimatorExportTest(test.TestCase):
     # Perform the export.
     export_dir_base = os.path.join(
         compat.as_bytes(tmpdir), compat.as_bytes('export'))
-    export_dir = est.export_savedmodel(
+    export_dir = est.export_saved_model(
         export_dir_base, serving_input_receiver_fn)
 
     # Check that all the files are in the right places.
@@ -2635,7 +2625,7 @@ class EstimatorExportTest(test.TestCase):
         self.assertTrue(sig_outputs['metrics2/update_op'].name.startswith(
             'metric_op_wrapper'))
 
-  def test_export_savedmodel_with_saveables_proto_roundtrip(self):
+  def test_export_saved_model_with_saveables_proto_roundtrip(self):
     tmpdir = tempfile.mkdtemp()
     est = estimator.Estimator(
         model_fn=_model_fn_with_saveables_for_export_tests)
@@ -2648,7 +2638,7 @@ class EstimatorExportTest(test.TestCase):
     # Perform the export.
     export_dir_base = os.path.join(
         compat.as_bytes(tmpdir), compat.as_bytes('export'))
-    export_dir = est.export_savedmodel(
+    export_dir = est.export_saved_model(
         export_dir_base, serving_input_receiver_fn)
 
     # Check that all the files are in the right places.
@@ -2680,7 +2670,7 @@ class EstimatorExportTest(test.TestCase):
     # Clean up.
     gfile.DeleteRecursively(tmpdir)
 
-  def test_export_savedmodel_assets(self):
+  def test_export_saved_model_assets(self):
     tmpdir = tempfile.mkdtemp()
     est = estimator.Estimator(model_fn=_model_fn_for_export_tests)
     est.train(input_fn=dummy_input_fn, steps=1)
@@ -2711,7 +2701,7 @@ class EstimatorExportTest(test.TestCase):
     # Perform the export.
     export_dir_base = os.path.join(
         compat.as_bytes(tmpdir), compat.as_bytes('export'))
-    export_dir = est.export_savedmodel(
+    export_dir = est.export_saved_model(
         export_dir_base, serving_input_receiver_with_asset_fn)
 
     # Check that the asset files are in the right places.
@@ -2742,7 +2732,7 @@ class EstimatorExportTest(test.TestCase):
     # cleanup
     gfile.DeleteRecursively(tmpdir)
 
-  def test_export_savedmodel_extra_assets(self):
+  def test_export_saved_model_extra_assets(self):
     tmpdir = tempfile.mkdtemp()
     est = estimator.Estimator(model_fn=_model_fn_for_export_tests)
     est.train(input_fn=dummy_input_fn, steps=1)
@@ -2762,7 +2752,7 @@ class EstimatorExportTest(test.TestCase):
     assets_extra = {'some/sub/directory/my_extra_file': extra_file_name}
     export_dir_base = os.path.join(
         compat.as_bytes(tmpdir), compat.as_bytes('export'))
-    export_dir = est.export_savedmodel(export_dir_base,
+    export_dir = est.export_saved_model(export_dir_base,
                                        serving_input_receiver_fn,
                                        assets_extra=assets_extra)
 
@@ -2780,13 +2770,13 @@ class EstimatorExportTest(test.TestCase):
     # cleanup
     gfile.DeleteRecursively(tmpdir)
 
-  def test_export_savedmodel_tensor_features(self):
+  def test_export_saved_model_tensor_features(self):
     """Test that models accepting a single raw Tensor can be exported.
 
     See https://github.com/tensorflow/tensorflow/issues/11674
 
     If the model_fn and receiver_fn accept raw tensors rather than dictionaries
-    as input, export_savedmodel should be okay with that, too.
+    as input, export_saved_model should be okay with that, too.
 
     """
 
@@ -2820,7 +2810,7 @@ class EstimatorExportTest(test.TestCase):
     # Perform the export.
     export_dir_base = os.path.join(
         compat.as_bytes(tmpdir), compat.as_bytes('export'))
-    export_dir = est.export_savedmodel(
+    export_dir = est.export_saved_model(
         export_dir_base, _serving_input_receiver_fn)
 
     # Restore, to validate that the export was well-formed.
@@ -2860,7 +2850,7 @@ class EstimatorExportTest(test.TestCase):
     # Perform the export.
     export_dir_base = os.path.join(
         compat.as_bytes(tmpdir), compat.as_bytes('export'))
-    est.export_savedmodel(export_dir_base, serving_input_receiver_fn)
+    est.export_saved_model(export_dir_base, serving_input_receiver_fn)
 
     self.assertTrue(self.mock_saver.restore.called)
     self.assertTrue(self.mock_saver.export_meta_graph.called)
@@ -2947,7 +2937,7 @@ class EstimatorExportTest(test.TestCase):
     # Perform the export.
     export_dir_base = os.path.join(
         compat.as_bytes(tmpdir), compat.as_bytes('export'))
-    export_dir = est.export_savedmodel(export_dir_base,
+    export_dir = est.export_saved_model(export_dir_base,
                                        serving_input_receiver_fn)
 
     # Restore, to validate that the custom local_init_op runs.
@@ -3034,7 +3024,7 @@ class EstimatorExportTest(test.TestCase):
 
     est = estimator.Estimator(model_fn=_model_fn)
     est.train(dummy_input_fn, steps=1)
-    est.export_savedmodel(tempfile.mkdtemp(), serving_input_receiver_fn)
+    est.export_saved_model(tempfile.mkdtemp(), serving_input_receiver_fn)
     self.assertEqual(given_features, self.features)
     self.assertIsNone(self.labels)
     self.assertEqual(model_fn_lib.ModeKeys.PREDICT, self.mode)
@@ -3062,9 +3052,9 @@ class EstimatorExportTest(test.TestCase):
 
     est = estimator.Estimator(model_fn=_model_fn)
     est.train(dummy_input_fn, steps=1)
-    est.export_savedmodel(tempfile.mkdtemp(), serving_input_receiver_fn)
+    est.export_saved_model(tempfile.mkdtemp(), serving_input_receiver_fn)
 
-  def test_export_savedmodel_respects_soft_placement(self):
+  def test_export_saved_model_respects_soft_placement(self):
     def model_fn_with_a_gpu_op_but_no_kernel(features, labels, mode):
       _, _ = features, labels
       table = saver_test_utils.CheckpointedOp(name='v2')
@@ -3074,7 +3064,7 @@ class EstimatorExportTest(test.TestCase):
         train_op = table.insert('k1', 30.0)
 
       #  In this test, there are no GPUs available.  The goal is to verify that
-      #  export_savedmodel executes nevertheless.
+      #  export_saved_model executes nevertheless.
       with ops.device('/gpu:0'):
         string_op = string_ops.as_string(update_global_step)
 
@@ -3103,15 +3093,15 @@ class EstimatorExportTest(test.TestCase):
     export_dir_base = os.path.join(
         compat.as_bytes(tmpdir), compat.as_bytes('export'))
 
-    export_dir = est.export_savedmodel(
+    export_dir = est.export_saved_model(
         export_dir_base, serving_input_receiver_fn)
 
-    # At this point, if export_savedmodel executed with
+    # At this point, if export_saved_model executed with
     # allow_soft_placement=True, then the GPU-assigned operation was silently
     # placed on the CPU.  Otherwise, an exception would have been raised
     # related to the fact that the requested GPU device isn't available.
 
-    # Expectations below assume that export_savedmodel has completed normally.
+    # Expectations below assume that export_saved_model has completed normally.
     self.assertTrue(gfile.Exists(export_dir_base))
     self.assertTrue(gfile.Exists(export_dir))
     self.assertTrue(gfile.Exists(os.path.join(
@@ -3129,7 +3119,7 @@ class EstimatorExportTest(test.TestCase):
 
     gfile.DeleteRecursively(tmpdir)
 
-  def test_export_savedmodel_proto_strip_default_attrs(self):
+  def test_export_saved_model_proto_strip_default_attrs(self):
     tmpdir = tempfile.mkdtemp()
     est = estimator.Estimator(model_fn=_model_fn_for_export_tests)
     est.train(input_fn=dummy_input_fn, steps=1)
@@ -3188,7 +3178,7 @@ class EstimatorExportTest(test.TestCase):
     # Clean up.
     gfile.DeleteRecursively(tmpdir)
 
-  def test_export_savedmodel_no_export_outputs(self):
+  def test_export_saved_model_no_export_outputs(self):
     """Ensure that an EstimatorSpec without outputs defined can be exported."""
 
     def _model_fn(features, labels, mode):
@@ -3207,7 +3197,7 @@ class EstimatorExportTest(test.TestCase):
     # Perform the export.
     export_dir_base = os.path.join(
         compat.as_bytes(tmpdir), compat.as_bytes('no_export_outputs'))
-    export_dir = est.export_savedmodel(
+    export_dir = est.export_saved_model(
         export_dir_base, _get_serving_input_receiver_fn())
 
     # Check that all the files are in the right places.
@@ -3332,7 +3322,7 @@ class EstimatorIntegrationTest(test.TestCase):
     feature_spec = {'x': parsing_ops.FixedLenFeature([1], dtypes.float32)}
     serving_input_receiver_fn = export.build_parsing_serving_input_receiver_fn(
         feature_spec)
-    export_dir = est.export_savedmodel(tempfile.mkdtemp(),
+    export_dir = est.export_saved_model(tempfile.mkdtemp(),
                                        serving_input_receiver_fn)
     self.assertTrue(gfile.Exists(export_dir))
 

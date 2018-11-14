@@ -555,7 +555,8 @@ class _TrainingExecutor(object):
                eval_spec,
                train_hooks=None,
                continuous_eval_listener=None):
-    if not isinstance(estimator, estimator_lib.Estimator):
+    if not isinstance(estimator,
+                      (estimator_lib.Estimator, estimator_lib.EstimatorV2)):
       raise TypeError(
           '`estimator` must have type `tf.estimator.Estimator`. '
           'Got: {}'.format(type(estimator)))
