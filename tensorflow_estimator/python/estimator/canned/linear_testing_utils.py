@@ -412,7 +412,7 @@ class BaseLinearRegressorEvaluationTest(object):
     batch_size = 2
     feature_columns = [
         feature_column.numeric_column('age'),
-        feature_column_v2.numeric_column('height')
+        feature_column_v2.numeric_column_v2('height')
     ]
 
     def _input_fn():
@@ -547,7 +547,7 @@ class BaseLinearRegressorPredictTest(object):
 
     linear_regressor = self._linear_regressor_fn(
         feature_columns=(feature_column.numeric_column('x0'),
-                         feature_column_v2.numeric_column('x1')),
+                         feature_column_v2.numeric_column_v2('x1')),
         model_dir=self._model_dir)
 
     def _predict_input_fn():
@@ -2090,12 +2090,12 @@ class BaseLinearLogitFnTest(object):
     if self._fc_lib != feature_column_v2:
       return
 
-    age = feature_column_v2.numeric_column('age')
-    occupation = feature_column_v2.categorical_column_with_hash_bucket(
+    age = feature_column_v2.numeric_column_v2('age')
+    occupation = feature_column_v2.categorical_column_with_hash_bucket_v2(
         'occupation', hash_bucket_size=5)
     with ops.Graph().as_default():
       model = feature_column_v2.LinearModel(
-          feature_columns=[age, occupation], units=3)
+          feature_columns=[age, occupation], units=3, name='linear_model')
       features = {
           'age': [[23.], [31.]],
           'occupation': [['doctor'], ['engineer']]

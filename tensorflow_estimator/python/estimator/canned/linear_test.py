@@ -30,6 +30,15 @@ from tensorflow_estimator.python.estimator.canned import linear
 from tensorflow_estimator.python.estimator.canned import linear_testing_utils
 
 
+# This is so that we can easily switch between feature_column and
+# feature_column_v2 for testing.
+feature_column_v2.numeric_column = feature_column_v2.numeric_column_v2
+feature_column_v2.categorical_column_with_hash_bucket = feature_column_v2.categorical_column_with_hash_bucket_v2  # pylint: disable=line-too-long
+feature_column_v2.make_parse_example_spec = feature_column_v2.make_parse_example_spec_v2  # pylint: disable=line-too-long
+feature_column_v2.categorical_column_with_vocabulary_list = feature_column_v2.categorical_column_with_vocabulary_list_v2  # pylint: disable=line-too-long
+feature_column_v2.categorical_column_with_vocabulary_file = feature_column_v2.categorical_column_with_vocabulary_file_v2  # pylint: disable=line-too-long
+
+
 def _linear_regressor_fn(*args, **kwargs):
   return linear.LinearRegressor(*args, **kwargs)
 
@@ -257,6 +266,7 @@ class LinearWarmStartingV2Test(linear_testing_utils.BaseLinearWarmStartingTest,
 
 
 class ComputeFractionOfZeroTest(test.TestCase):
+
   def _assertSparsity(self, expected_sparsity, tensor):
     sparsity = linear._compute_fraction_of_zero([tensor])
     with self.test_session() as sess:
@@ -315,7 +325,7 @@ class ComputeFractionOfZeroTest(test.TestCase):
           'Expected sparsity=nan, got %s' % sparsity_np)
 
   def test_some_empty(self):
-    with self.test_session() as sess:
+    with self.test_session():
       self._assertSparsity(
           0.5,
           [
@@ -325,7 +335,7 @@ class ComputeFractionOfZeroTest(test.TestCase):
           ])
 
   def test_mixed_types(self):
-    with self.test_session() as sess:
+    with self.test_session():
       self._assertSparsity(
           0.6,
           [

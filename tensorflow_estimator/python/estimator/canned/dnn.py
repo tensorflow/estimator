@@ -127,7 +127,7 @@ class _DNNModel(training.Model):
                **kwargs):
     super(_DNNModel, self).__init__(name=name, **kwargs)
     if feature_column_v2.is_feature_column_v2(feature_columns):
-      self._input_layer = feature_column_v2.FeatureLayer(
+      self._input_layer = feature_column_v2.DenseFeatures(
           feature_columns=feature_columns, name='input_layer')
     else:
       self._input_layer = feature_column.InputLayer(
