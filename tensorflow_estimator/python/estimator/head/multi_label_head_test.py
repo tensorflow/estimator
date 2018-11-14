@@ -22,6 +22,7 @@ import numpy as np
 import six
 
 from tensorflow.python.eager import context
+from tensorflow.python.feature_column import feature_column
 from tensorflow.python.framework import constant_op
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import errors
@@ -38,6 +39,7 @@ from tensorflow.python.ops.losses import losses
 from tensorflow.python.platform import test
 from tensorflow.python.training import monitored_session
 from tensorflow_estimator.python.estimator import model_fn
+from tensorflow_estimator.python.estimator.canned import dnn
 from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.canned import prediction_keys
 from tensorflow_estimator.python.estimator.head import base_head_test as test_lib
@@ -1344,6 +1346,33 @@ class MultiLabelHeadForEstimator(test.TestCase):
         w_value, t_value = sess.run([w, t])
         self.assertEqual(2, w_value)
         self.assertEqual(expected_train_result, t_value)
+
+  def test_lookup_tables_in_graph(self):
+    n_classes = 2
+    head = head_lib.MultiLabelHead(
+        n_classes=n_classes, label_vocabulary=['class0', 'class1'])
+
+    feature_columns = [feature_column.numeric_column('x')]
+    # Create dnn estimator.
+    est = dnn.DNNEstimator(
+        head=head,
+        hidden_units=(2, 2),
+        feature_columns=feature_columns)
+
+    def input_fn():
+      return (
+          {'x': np.array(((42,), (43,),), dtype=np.int32)},
+          np.array([[1, 0], [1, 1]], dtype=np.int64))
+
+    # Train.
+    num_steps = 1
+    est.train(input_fn, steps=num_steps)
+    # Eval.
+    eval_results = est.evaluate(input_fn, steps=num_steps)
+    self.assertEqual(num_steps, eval_results[ops.GraphKeys.GLOBAL_STEP])
+    self.assertIn('loss', six.iterkeys(eval_results))
+    # Predict.
+    est.predict(input_fn)
 
 
 if __name__ == '__main__':

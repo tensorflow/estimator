@@ -27,6 +27,7 @@ py_library(
         ":linear",
         ":model_fn",
         ":multi_class_head",
+        ":multi_label_head",
         ":parsing_utils",
         ":regression_head",
         ":run_config",
@@ -711,6 +712,7 @@ py_test(
     deps = [
         ":base_head_test",
         ":binary_class_head",
+        ":dnn",
         ":dnn_testing_utils",
         ":metric_keys",
         ":model_fn",
@@ -742,6 +744,7 @@ py_test(
     srcs_version = "PY2AND3",
     deps = [
         ":base_head_test",
+        ":dnn",
         ":metric_keys",
         ":model_fn",
         ":multi_class_head",
@@ -768,11 +771,13 @@ py_library(
 
 py_test(
     name = "multi_label_head_test",
-    size = "small",
+    size = "medium",
     srcs = ["head/multi_label_head_test.py"],
+    shard_count = 4,
     srcs_version = "PY2AND3",
     deps = [
         ":base_head_test",
+        ":dnn",
         ":metric_keys",
         ":model_fn",
         ":multi_label_head",

@@ -18,6 +18,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+from tensorflow.python.eager import context
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
 from tensorflow.python.keras import metrics
@@ -129,11 +130,6 @@ class MultiClassHead(base_head.Head):
     self._n_classes = n_classes
     self._weight_column = weight_column
     self._label_vocabulary = label_vocabulary
-    if label_vocabulary:
-      self._class_string_table = lookup_ops.index_to_string_table_from_tensor(
-          vocabulary_list=self._label_vocabulary, name='class_string_lookup')
-      self._class_id_table = lookup_ops.index_table_from_tensor(
-          vocabulary_list=tuple(self._label_vocabulary), name='class_id_lookup')
     self._loss_reduction = loss_reduction
     self._loss_fn = loss_fn
     self._name = name
@@ -157,6 +153,49 @@ class MultiClassHead(base_head.Head):
   def loss_reduction(self):
     """See `base_head.Head` for details."""
     return self._loss_reduction
+
+  # Attributes for lookup tables in Eager execution. Note that for Graph
+  # execution, the lookup tables are created on demanded to make sure the
+  # lookup table is in the same graph as its iput tensors for `train` and `eval`
+  # of Estimator (as Estimator recreates graphes for `train`, `eval` and
+  # `predict`).
+  _cached_class_id_table = None
+  _cached_class_string_table = None
+
+  @property
+  def _class_id_table(self):
+    """Creates a lookup table for class_id.
+
+    In eager execution, this lookup table will be lazily created on the first
+    call of `self._class_id_table`, and cached for later use; In graph
+    execution, it will be created on demand.
+
+    Returns:
+      A hash table for lookup.
+    """
+    if self._cached_class_id_table is None or not context.executing_eagerly():
+      self._cached_class_id_table = lookup_ops.index_table_from_tensor(
+          vocabulary_list=tuple(self._label_vocabulary), name='class_id_lookup')
+    return self._cached_class_id_table
+
+  @property
+  def _class_string_table(self):
+    """Creates a lookup table for class_string.
+
+    In eager execution, this lookup table will be lazily created on the first
+    call of `self._class_string_table` and cached for later use; In graph
+    execution, it will be created on demand.
+
+    Returns:
+      A hash table for lookup.
+    """
+    if (self._cached_class_string_table is None
+        or not context.executing_eagerly()):
+      self._cached_class_string_table = (
+          lookup_ops.index_to_string_table_from_tensor(
+              vocabulary_list=self._label_vocabulary, name='class_string_lookup'
+              ))
+    return self._cached_class_string_table
 
   def _processed_labels(self, logits, labels):
     """Converts labels to integer id space."""

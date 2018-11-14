@@ -22,6 +22,7 @@ import numpy as np
 import six
 
 from tensorflow.python.eager import context
+from tensorflow.python.feature_column import feature_column
 from tensorflow.python.framework import constant_op
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import errors
@@ -38,6 +39,7 @@ from tensorflow.python.ops.losses import losses
 from tensorflow.python.platform import test
 from tensorflow.python.training import monitored_session
 from tensorflow_estimator.python.estimator import model_fn
+from tensorflow_estimator.python.estimator.canned import dnn
 from tensorflow_estimator.python.estimator.canned import dnn_testing_utils
 from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.canned import prediction_keys
@@ -1534,6 +1536,31 @@ class BinaryClassHeadForEstimator(test.TestCase):
           {'{}/some_binary_head'.format(metric_keys.MetricKeys.LOSS):
                expected_loss,
           }, summary_str)
+
+  def test_lookup_tables_in_graph(self):
+    head = head_lib.BinaryClassHead(
+        label_vocabulary=['aang', 'iroh'])
+
+    feature_columns = [feature_column.numeric_column('x')]
+    est = dnn.DNNEstimator(
+        head=head,
+        hidden_units=(2, 2),
+        feature_columns=feature_columns)
+
+    def input_fn():
+      return (
+          {'x': np.array(((42,), (43,),), dtype=np.int32)},
+          [[b'iroh'], [b'iroh']])
+    # Train.
+    num_steps = 1
+    est.train(input_fn, steps=num_steps)
+    # Eval.
+    eval_results = est.evaluate(input_fn, steps=num_steps)
+    self.assertEqual(num_steps, eval_results[ops.GraphKeys.GLOBAL_STEP])
+    self.assertIn(
+        metric_keys.MetricKeys.LOSS_MEAN, six.iterkeys(eval_results))
+    # Predict.
+    est.predict(input_fn)
 
 
 if __name__ == '__main__':

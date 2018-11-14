@@ -240,22 +240,24 @@ class MultiLabelHead(base_head.Head):
     """See `base_head.Head` for details."""
     return self._loss_reduction
 
-  # Attribute for lookup table.
+  # An attribute for lookup table. Note that for Graph execution, the lookup
+  # table is created on demand to make sure the lookup table is in the same
+  # graph as its input tensors for `train` and `eval` of Estimator (as Estimator
+  # re-creates graphes for `train`, `eval` and `predict`).
   _cached_class_id_table = None
 
   @property
   def _class_id_table(self):
     """Creates a lookup table for class_id.
 
-    This lookup table will be lazily created on the first call of
-    `self._class_id_table`, and cached for later use. This makes it
-    eager-friendly, and also gunrantees the lookup Op is contained in the graph
-    for Graph execution.
+    In eager execution, this lookup table will be lazily created on the first
+    call of `self._class_id_table`, and cached for later use; In graph
+    execution, it will be created on demand.
 
     Returns:
       A hash table for lookup.
     """
-    if self._cached_class_id_table is None:
+    if self._cached_class_id_table is None or not context.executing_eagerly():
       self._cached_class_id_table = lookup_ops.index_table_from_tensor(
           vocabulary_list=tuple(self._label_vocabulary), name='class_id_lookup')
     return self._cached_class_id_table
