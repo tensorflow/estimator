@@ -53,9 +53,10 @@ def _dnn_only_estimator_fn(
     config=None):
   return dnn_linear_combined.DNNLinearCombinedEstimator(
       head=head_lib._regression_head(
-          weight_column=weight_column, label_dimension=label_dimension,
+          weight_column=weight_column,
+          label_dimension=label_dimension,
           # Tests in core (from which this test inherits) test the sum loss.
-          loss_reduction=losses.Reduction.SUM),
+          loss_reduction=losses.Reduction.SUM_OVER_BATCH_SIZE),
       model_dir=model_dir,
       dnn_feature_columns=feature_columns,
       dnn_optimizer=optimizer,
@@ -104,9 +105,10 @@ def _linear_only_estimator_fn(
     sparse_combiner='sum'):
   return dnn_linear_combined.DNNLinearCombinedEstimator(
       head=head_lib._regression_head(
-          weight_column=weight_column, label_dimension=label_dimension,
+          weight_column=weight_column,
+          label_dimension=label_dimension,
           # Tests in core (from which this test inherits) test the sum loss.
-          loss_reduction=losses.Reduction.SUM),
+          loss_reduction=losses.Reduction.SUM_OVER_BATCH_SIZE),
       model_dir=model_dir,
       linear_feature_columns=feature_columns,
       linear_optimizer=optimizer,

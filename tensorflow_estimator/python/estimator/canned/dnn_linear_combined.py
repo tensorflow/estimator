@@ -234,8 +234,8 @@ def _dnn_linear_combined_model_fn(features,
       logits=logits)
 
 
-@estimator_export('estimator.DNNLinearCombinedClassifier')
-class DNNLinearCombinedClassifier(estimator.Estimator):
+@estimator_export('estimator.DNNLinearCombinedClassifier', v1=[])
+class DNNLinearCombinedClassifierV2(estimator.Estimator):
   """An estimator for TensorFlow Linear and DNN joined classification models.
 
   Note: This estimator is also known as wide-n-deep.
@@ -334,7 +334,7 @@ class DNNLinearCombinedClassifier(estimator.Estimator):
                input_layer_partitioner=None,
                config=None,
                warm_start_from=None,
-               loss_reduction=losses.Reduction.SUM,
+               loss_reduction=losses.Reduction.SUM_OVER_BATCH_SIZE,
                batch_norm=False,
                linear_sparse_combiner='sum'):
     """Initializes a DNNLinearCombinedClassifier instance.
@@ -388,7 +388,7 @@ class DNNLinearCombinedClassifier(estimator.Estimator):
         weights are warm-started, and it is assumed that vocabularies and Tensor
         names are unchanged.
       loss_reduction: One of `tf.losses.Reduction` except `NONE`. Describes how
-        to reduce training loss over batch. Defaults to `SUM`.
+        to reduce training loss over batch. Defaults to `SUM_OVER_BATCH_SIZE`.
       batch_norm: Whether to use batch normalization after each hidden layer.
       linear_sparse_combiner: A string specifying how to reduce the linear model
         if a categorical column is multivalent.  One of "mean", "sqrtn", and
@@ -438,9 +438,54 @@ class DNNLinearCombinedClassifier(estimator.Estimator):
           batch_norm=batch_norm,
           linear_sparse_combiner=linear_sparse_combiner)
 
-    super(DNNLinearCombinedClassifier, self).__init__(
-        model_fn=_model_fn, model_dir=model_dir, config=config,
+    super(DNNLinearCombinedClassifierV2, self).__init__(
+        model_fn=_model_fn,
+        model_dir=model_dir,
+        config=config,
         warm_start_from=warm_start_from)
+
+
+@estimator_export(v1=['estimator.DNNLinearCombinedClassifier'])  # pylint: disable=missing-docstring
+class DNNLinearCombinedClassifier(DNNLinearCombinedClassifierV2):
+  __doc__ = DNNLinearCombinedClassifierV2.__doc__.replace(
+      'SUM_OVER_BATCH_SIZE', 'SUM')
+
+  def __init__(self,
+               model_dir=None,
+               linear_feature_columns=None,
+               linear_optimizer='Ftrl',
+               dnn_feature_columns=None,
+               dnn_optimizer='Adagrad',
+               dnn_hidden_units=None,
+               dnn_activation_fn=nn.relu,
+               dnn_dropout=None,
+               n_classes=2,
+               weight_column=None,
+               label_vocabulary=None,
+               input_layer_partitioner=None,
+               config=None,
+               warm_start_from=None,
+               loss_reduction=losses.Reduction.SUM,
+               batch_norm=False,
+               linear_sparse_combiner='sum'):
+    super(DNNLinearCombinedClassifier, self).__init__(
+        model_dir=model_dir,
+        linear_feature_columns=linear_feature_columns,
+        linear_optimizer=linear_optimizer,
+        dnn_feature_columns=dnn_feature_columns,
+        dnn_optimizer=dnn_optimizer,
+        dnn_hidden_units=dnn_hidden_units,
+        dnn_activation_fn=dnn_activation_fn,
+        dnn_dropout=dnn_dropout,
+        n_classes=n_classes,
+        weight_column=weight_column,
+        label_vocabulary=label_vocabulary,
+        input_layer_partitioner=input_layer_partitioner,
+        config=config,
+        warm_start_from=warm_start_from,
+        loss_reduction=loss_reduction,
+        batch_norm=batch_norm,
+        linear_sparse_combiner=linear_sparse_combiner)
 
 
 # TODO(b/117517419): Update these contrib references once head moves to core.
@@ -613,8 +658,8 @@ class DNNLinearCombinedEstimator(estimator.Estimator):
         model_fn=_model_fn, model_dir=model_dir, config=config)
 
 
-@estimator_export('estimator.DNNLinearCombinedRegressor')
-class DNNLinearCombinedRegressor(estimator.Estimator):
+@estimator_export('estimator.DNNLinearCombinedRegressor', v1=[])
+class DNNLinearCombinedRegressorV2(estimator.Estimator):
   """An estimator for TensorFlow Linear and DNN joined models for regression.
 
   Note: This estimator is also known as wide-n-deep.
@@ -712,7 +757,7 @@ class DNNLinearCombinedRegressor(estimator.Estimator):
                input_layer_partitioner=None,
                config=None,
                warm_start_from=None,
-               loss_reduction=losses.Reduction.SUM,
+               loss_reduction=losses.Reduction.SUM_OVER_BATCH_SIZE,
                batch_norm=False,
                linear_sparse_combiner='sum'):
     """Initializes a DNNLinearCombinedRegressor instance.
@@ -760,7 +805,7 @@ class DNNLinearCombinedRegressor(estimator.Estimator):
         weights are warm-started, and it is assumed that vocabularies and Tensor
         names are unchanged.
       loss_reduction: One of `tf.losses.Reduction` except `NONE`. Describes how
-        to reduce training loss over batch. Defaults to `SUM`.
+        to reduce training loss over batch. Defaults to `SUM_OVER_BATCH_SIZE`.
       batch_norm: Whether to use batch normalization after each hidden layer.
       linear_sparse_combiner: A string specifying how to reduce the linear model
         if a categorical column is multivalent.  One of "mean", "sqrtn", and
@@ -801,6 +846,49 @@ class DNNLinearCombinedRegressor(estimator.Estimator):
           batch_norm=batch_norm,
           linear_sparse_combiner=linear_sparse_combiner)
 
-    super(DNNLinearCombinedRegressor, self).__init__(
-        model_fn=_model_fn, model_dir=model_dir, config=config,
+    super(DNNLinearCombinedRegressorV2, self).__init__(
+        model_fn=_model_fn,
+        model_dir=model_dir,
+        config=config,
         warm_start_from=warm_start_from)
+
+
+@estimator_export(v1=['estimator.DNNLinearCombinedRegressor'])  # pylint: disable=missing-docstring
+class DNNLinearCombinedRegressor(DNNLinearCombinedRegressorV2):
+  __doc__ = DNNLinearCombinedRegressorV2.__doc__.replace(
+      'SUM_OVER_BATCH_SIZE', 'SUM')
+
+  def __init__(self,
+               model_dir=None,
+               linear_feature_columns=None,
+               linear_optimizer='Ftrl',
+               dnn_feature_columns=None,
+               dnn_optimizer='Adagrad',
+               dnn_hidden_units=None,
+               dnn_activation_fn=nn.relu,
+               dnn_dropout=None,
+               label_dimension=1,
+               weight_column=None,
+               input_layer_partitioner=None,
+               config=None,
+               warm_start_from=None,
+               loss_reduction=losses.Reduction.SUM,
+               batch_norm=False,
+               linear_sparse_combiner='sum'):
+    super(DNNLinearCombinedRegressor, self).__init__(
+        model_dir=model_dir,
+        linear_feature_columns=linear_feature_columns,
+        linear_optimizer=linear_optimizer,
+        dnn_feature_columns=dnn_feature_columns,
+        dnn_optimizer=dnn_optimizer,
+        dnn_hidden_units=dnn_hidden_units,
+        dnn_activation_fn=dnn_activation_fn,
+        dnn_dropout=dnn_dropout,
+        label_dimension=label_dimension,
+        weight_column=weight_column,
+        input_layer_partitioner=input_layer_partitioner,
+        config=config,
+        warm_start_from=warm_start_from,
+        loss_reduction=loss_reduction,
+        batch_norm=batch_norm,
+        linear_sparse_combiner=linear_sparse_combiner)

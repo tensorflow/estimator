@@ -45,7 +45,7 @@ class SDCAClassifierTest(test.TestCase):
     maintenance_cost = feature_column_v2.numeric_column_v2('maintenance_cost')
     sq_footage = feature_column_v2.numeric_column_v2('sq_footage')
     optimizer = linear.LinearSDCA(example_id_column='example_id')
-    classifier = linear.LinearClassifier(
+    classifier = linear.LinearClassifierV2(
         feature_columns=[maintenance_cost, sq_footage],
         weight_column='weights',
         optimizer=optimizer)
@@ -70,7 +70,7 @@ class SDCAClassifierTest(test.TestCase):
     dense_feature = feature_column_v2.numeric_column_v2(
         'dense_feature', shape=2)
     optimizer = linear.LinearSDCA(example_id_column='example_id')
-    classifier = linear.LinearClassifier(
+    classifier = linear.LinearClassifierV2(
         feature_columns=[dense_feature], optimizer=optimizer)
     classifier.train(input_fn=input_fn, steps=100)
     loss = classifier.evaluate(input_fn=input_fn, steps=1)['loss']
@@ -93,7 +93,7 @@ class SDCAClassifierTest(test.TestCase):
         feature_column_v2.numeric_column_v2('sq_footage'), boundaries=[650.0])
     optimizer = linear.LinearSDCA(
         example_id_column='example_id', symmetric_l2_regularization=0.01)
-    classifier = linear.LinearClassifier(
+    classifier = linear.LinearClassifierV2(
         feature_columns=[price_bucket, sq_footage_bucket],
         weight_column='weights',
         optimizer=optimizer)
@@ -121,10 +121,8 @@ class SDCAClassifierTest(test.TestCase):
         'country', hash_bucket_size=5)
     optimizer = linear.LinearSDCA(
         example_id_column='example_id', symmetric_l2_regularization=0.01)
-    classifier = linear.LinearClassifier(
-        feature_columns=[country],
-        weight_column='weights',
-        optimizer=optimizer)
+    classifier = linear.LinearClassifierV2(
+        feature_columns=[country], weight_column='weights', optimizer=optimizer)
     classifier.train(input_fn=input_fn, steps=100)
     loss = classifier.evaluate(input_fn=input_fn, steps=1)['loss']
     self.assertLess(loss, 0.2)
@@ -155,7 +153,7 @@ class SDCAClassifierTest(test.TestCase):
                                                                 'price'))
     optimizer = linear.LinearSDCA(
         example_id_column='example_id', symmetric_l2_regularization=0.01)
-    classifier = linear.LinearClassifier(
+    classifier = linear.LinearClassifierV2(
         feature_columns=[country_weighted_by_price], optimizer=optimizer)
     classifier.train(input_fn=input_fn, steps=100)
     loss = classifier.evaluate(input_fn=input_fn, steps=1)['loss']
@@ -188,7 +186,7 @@ class SDCAClassifierTest(test.TestCase):
                                                                 'price'))
     optimizer = linear.LinearSDCA(
         example_id_column='example_id', symmetric_l2_regularization=0.01)
-    classifier = linear.LinearClassifier(
+    classifier = linear.LinearClassifierV2(
         feature_columns=[country_weighted_by_price], optimizer=optimizer)
     classifier.train(input_fn=input_fn, steps=100)
     loss = classifier.evaluate(input_fn=input_fn, steps=1)['loss']
@@ -217,7 +215,7 @@ class SDCAClassifierTest(test.TestCase):
         ['language', 'country'], hash_bucket_size=100)
     optimizer = linear.LinearSDCA(
         example_id_column='example_id', symmetric_l2_regularization=0.01)
-    classifier = linear.LinearClassifier(
+    classifier = linear.LinearClassifierV2(
         feature_columns=[country_language], optimizer=optimizer)
     classifier.train(input_fn=input_fn, steps=100)
     loss = classifier.evaluate(input_fn=input_fn, steps=1)['loss']
@@ -253,7 +251,7 @@ class SDCAClassifierTest(test.TestCase):
         [sq_footage_bucket, 'country'], hash_bucket_size=10)
     optimizer = linear.LinearSDCA(
         example_id_column='example_id', symmetric_l2_regularization=0.01)
-    classifier = linear.LinearClassifier(
+    classifier = linear.LinearClassifierV2(
         feature_columns=[price, sq_footage_bucket, country, sq_footage_country],
         weight_column='weights',
         optimizer=optimizer)
@@ -293,7 +291,7 @@ class SDCAClassifierTest(test.TestCase):
     optimizer = linear.LinearSDCA(
         example_id_column='example_id', symmetric_l2_regularization=0.01)
 
-    classifier = linear.LinearClassifier(
+    classifier = linear.LinearClassifierV2(
         feature_columns=[price, sq_footage_bucket, country, sq_footage_country],
         weight_column='weights',
         partitioner=partitioned_variables.fixed_size_partitioner(
@@ -322,7 +320,7 @@ class SDCARegressorTest(test.TestCase):
     x_column = feature_column_v2.numeric_column_v2('x', shape=3)
     optimizer = linear.LinearSDCA(
         example_id_column='example_id', symmetric_l2_regularization=0.1)
-    regressor = linear.LinearRegressor(
+    regressor = linear.LinearRegressorV2(
         feature_columns=[x_column],
         weight_column='weights',
         optimizer=optimizer)
@@ -366,7 +364,7 @@ class SDCARegressorTest(test.TestCase):
         [sq_footage_bucket, 'country'], hash_bucket_size=10)
     optimizer = linear.LinearSDCA(
         example_id_column='example_id', symmetric_l2_regularization=0.1)
-    regressor = linear.LinearRegressor(
+    regressor = linear.LinearRegressorV2(
         feature_columns=[price, sq_footage_bucket, country, sq_footage_country],
         weight_column='weights',
         optimizer=optimizer)
@@ -405,7 +403,7 @@ class SDCARegressorTest(test.TestCase):
     optimizer = linear.LinearSDCA(
         example_id_column='example_id', symmetric_l2_regularization=0.1)
 
-    regressor = linear.LinearRegressor(
+    regressor = linear.LinearRegressorV2(
         feature_columns=[price, sq_footage_bucket, country, sq_footage_country],
         weight_column='weights',
         partitioner=partitioned_variables.fixed_size_partitioner(
@@ -439,7 +437,7 @@ class SDCARegressorTest(test.TestCase):
     # Regressor with no L1 regularization.
     optimizer = linear.LinearSDCA(
         example_id_column='example_id', symmetric_l2_regularization=0.1)
-    regressor = linear.LinearRegressor(
+    regressor = linear.LinearRegressorV2(
         feature_columns=[price, country],
         weight_column='weights',
         optimizer=optimizer)
@@ -460,7 +458,7 @@ class SDCARegressorTest(test.TestCase):
         example_id_column='example_id',
         symmetric_l1_regularization=1.0,
         symmetric_l2_regularization=0.1)
-    regressor = linear.LinearRegressor(
+    regressor = linear.LinearRegressorV2(
         feature_columns=[price, country],
         weight_column='weights',
         optimizer=optimizer)
@@ -515,7 +513,7 @@ class SDCARegressorTest(test.TestCase):
     place_holder = feature_column_v2.numeric_column_v2('place_holder')
     optimizer = linear.LinearSDCA(
         example_id_column='example_id', symmetric_l2_regularization=0.1)
-    regressor = linear.LinearRegressor(
+    regressor = linear.LinearRegressorV2(
         feature_columns=[place_holder], optimizer=optimizer)
     regressor.train(input_fn=input_fn, steps=100)
     self.assertNear(regressor.get_variable_value(
@@ -560,7 +558,7 @@ class SDCARegressorTest(test.TestCase):
 
     optimizer = linear.LinearSDCA(
         example_id_column='example_id', symmetric_l2_regularization=0.1)
-    regressor = linear.LinearRegressor(
+    regressor = linear.LinearRegressorV2(
         feature_columns=[
             feature_column_v2.numeric_column_v2('a'),
             feature_column_v2.numeric_column_v2('b')
@@ -612,7 +610,7 @@ class SDCARegressorTest(test.TestCase):
 
     optimizer = linear.LinearSDCA(
         example_id_column='example_id', symmetric_l2_regularization=0.1)
-    regressor = linear.LinearRegressor(
+    regressor = linear.LinearRegressorV2(
         feature_columns=[
             feature_column_v2.numeric_column_v2('a'),
             feature_column_v2.numeric_column_v2('b')
@@ -655,7 +653,7 @@ class SDCARegressorTest(test.TestCase):
     always_zero = feature_column_v2.numeric_column_v2('always_zero')
     optimizer = linear.LinearSDCA(
         example_id_column='example_id', symmetric_l2_regularization=0.1)
-    regressor = linear.LinearRegressor(
+    regressor = linear.LinearRegressorV2(
         feature_columns=[always_zero], optimizer=optimizer)
     regressor.train(input_fn=input_fn, steps=100)
     self.assertNear(regressor.get_variable_value(

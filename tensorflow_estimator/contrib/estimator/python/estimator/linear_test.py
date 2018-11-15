@@ -43,10 +43,12 @@ def _linear_estimator_fn(
   """Returns a LinearEstimator that uses regression_head."""
   return linear.LinearEstimator(
       head=head_lib.regression_head(
-          weight_column=weight_column, label_dimension=label_dimension,
+          weight_column=weight_column,
+          label_dimension=label_dimension,
           # Tests in core (from which this test inherits) test the sum loss.
-          loss_reduction=losses.Reduction.SUM),
-      *args, **kwargs)
+          loss_reduction=losses.Reduction.SUM_OVER_BATCH_SIZE),
+      *args,
+      **kwargs)
 
 
 class LinearEstimatorEvaluateTest(

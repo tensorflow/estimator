@@ -202,7 +202,7 @@ def DNNClassifierWithLayerAnnotations(  # pylint: disable=invalid-name
     input_layer_partitioner=None,
     config=None,
     warm_start_from=None,
-    loss_reduction=losses.Reduction.SUM):
+    loss_reduction=losses.Reduction.SUM_OVER_BATCH_SIZE):
   """A classifier for TensorFlow DNN models with layer annotations.
 
   This classifier is fuctionally identical to estimator.DNNClassifier as far as
@@ -327,7 +327,7 @@ def DNNRegressorWithLayerAnnotations(  # pylint: disable=invalid-name
     input_layer_partitioner=None,
     config=None,
     warm_start_from=None,
-    loss_reduction=losses.Reduction.SUM,
+    loss_reduction=losses.Reduction.SUM_OVER_BATCH_SIZE,
 ):
   """A regressor for TensorFlow DNN models with layer annotations.
 

@@ -1256,24 +1256,36 @@ class BaseDNNClassifierEvaluateTest(object):
     # See that test for calculation of logits.
     # logits = [[-2.08], [-2.08]] =>
     # logistic = 1/(1 + exp(-logits)) = [[0.11105597], [0.11105597]]
-    # loss = -1. * log(0.111) -1. * log(0.889) = 2.31544200
-    expected_loss = 2.31544200
-    self.assertAllClose({
-        metric_keys.MetricKeys.LOSS: expected_loss,
-        metric_keys.MetricKeys.LOSS_MEAN: expected_loss / 2.,
-        metric_keys.MetricKeys.ACCURACY: 0.5,
-        metric_keys.MetricKeys.PRECISION: 0.0,
-        metric_keys.MetricKeys.RECALL: 0.0,
-        metric_keys.MetricKeys.PREDICTION_MEAN: 0.11105597,
-        metric_keys.MetricKeys.LABEL_MEAN: 0.5,
-        metric_keys.MetricKeys.ACCURACY_BASELINE: 0.5,
-        # There is no good way to calculate AUC for only two data points. But
-        # that is what the algorithm returns.
-        metric_keys.MetricKeys.AUC: 0.5,
-        metric_keys.MetricKeys.AUC_PR: 0.75,
-
-        ops.GraphKeys.GLOBAL_STEP: global_step
-    }, dnn_classifier.evaluate(input_fn=_input_fn, steps=1))
+    # loss = (-1. * log(0.111) -1. * log(0.889) = 2.31544200) / 2
+    expected_loss = 1.157721
+    self.assertAllClose(
+        {
+            metric_keys.MetricKeys.LOSS:
+                expected_loss,
+            metric_keys.MetricKeys.LOSS_MEAN:
+                expected_loss,
+            metric_keys.MetricKeys.ACCURACY:
+                0.5,
+            metric_keys.MetricKeys.PRECISION:
+                0.0,
+            metric_keys.MetricKeys.RECALL:
+                0.0,
+            metric_keys.MetricKeys.PREDICTION_MEAN:
+                0.11105597,
+            metric_keys.MetricKeys.LABEL_MEAN:
+                0.5,
+            metric_keys.MetricKeys.ACCURACY_BASELINE:
+                0.5,
+            # There is no good way to calculate AUC for only two data points.
+            # But that is what the algorithm returns.
+            metric_keys.MetricKeys.AUC:
+                0.5,
+            metric_keys.MetricKeys.AUC_PR:
+                0.75,
+            ops.GraphKeys.GLOBAL_STEP:
+                global_step
+        },
+        dnn_classifier.evaluate(input_fn=_input_fn, steps=1))
 
   def test_multi_dim(self):
     """Asserts evaluation metrics for multi-dimensional input and logits."""
@@ -1301,10 +1313,10 @@ class BaseDNNClassifierEvaluateTest(object):
     #               = [[0.16670536, 0.43538380, 0.39791084],
     #                  [0.16670536, 0.43538380, 0.39791084]]
     # loss = -log(0.43538380) - log(0.16670536)
-    expected_loss = 2.62305466
+    expected_loss = 2.62305466 / 2  # batch size
     self.assertAllClose({
         metric_keys.MetricKeys.LOSS: expected_loss,
-        metric_keys.MetricKeys.LOSS_MEAN: expected_loss / 2,
+        metric_keys.MetricKeys.LOSS_MEAN: expected_loss,
         metric_keys.MetricKeys.ACCURACY: 0.5,
         ops.GraphKeys.GLOBAL_STEP: global_step
     }, dnn_classifier.evaluate(input_fn=_input_fn, steps=1))
@@ -1327,10 +1339,11 @@ class BaseDNNClassifierEvaluateTest(object):
     # See that test for calculation of logits.
     # logits = [[-2.08], [-2.08]] =>
     # logistic = 1/(1 + exp(-logits)) = [[0.11105597], [0.11105597]]
-    # loss = -0.8 * log(0.111) -0.2 * log(0.889)
-    #        -0.4 * log(0.111) -0.6 * log(0.889) = 2.7314420
+    # loss = (-0.8 * log(0.111) -0.2 * log(0.889)
+    #        -0.4 * log(0.111) -0.6 * log(0.889)) / 2 = 2.7314420 / 2
+    expected_loss = 1.365721
     metrics = dnn_classifier.evaluate(input_fn=_input_fn, steps=1)
-    self.assertAlmostEqual(2.7314420, metrics[metric_keys.MetricKeys.LOSS])
+    self.assertAlmostEqual(expected_loss, metrics[metric_keys.MetricKeys.LOSS])
 
   def test_multi_dim_weights(self):
     """Tests evaluation with weights."""
@@ -1355,8 +1368,8 @@ class BaseDNNClassifierEvaluateTest(object):
 
     # Uses identical numbers as test_multi_dims
     # See that test for calculation of logits.
-    # loss = -log(0.43538380)*10 - log(0.16670536)*100
-    expected_loss = 187.468007
+    # loss = (-log(0.43538380)*10 - log(0.16670536)*100) / 2
+    expected_loss = 93.734
     metrics = dnn_classifier.evaluate(input_fn=_input_fn, steps=1)
     self.assertAlmostEqual(
         expected_loss, metrics[metric_keys.MetricKeys.LOSS], places=3)
@@ -1426,10 +1439,11 @@ class BaseDNNRegressorEvaluateTest(object):
     # See that test for calculation of logits.
     # logits = [[-0.48, 0.48, 0.39]]
     # loss = (1+0.48)^2 + (-1-0.48)^2 + (0.5-0.39)^2 = 4.3929
-    expected_loss = 4.3929
+    # expected_loss = loss / 3
+    expected_loss = 1.4643
     self.assertAllClose({
         metric_keys.MetricKeys.LOSS: expected_loss,
-        metric_keys.MetricKeys.LOSS_MEAN: expected_loss / label_dimension,
+        metric_keys.MetricKeys.LOSS_MEAN: expected_loss,
         metric_keys.MetricKeys.PREDICTION_MEAN: 0.39 / 3.0,
         metric_keys.MetricKeys.LABEL_MEAN: 0.5 / 3.0,
         ops.GraphKeys.GLOBAL_STEP: global_step
@@ -1457,8 +1471,8 @@ class BaseDNNRegressorEvaluateTest(object):
 
     # Uses identical numbers as test_multi_dim.
     # See that test for calculation of logits.
-    # loss = 4.3929*10
-    expected_loss = 43.929
+    # loss = 4.3929*10/3
+    expected_loss = 14.643
     metrics = dnn_regressor.evaluate(input_fn=_input_fn, steps=1)
     self.assertAlmostEqual(
         expected_loss, metrics[metric_keys.MetricKeys.LOSS], places=3)
@@ -1794,7 +1808,6 @@ class BaseDNNClassifierTrainTest(object):
     for summary in summaries:
       summary_keys = [v.tag for v in summary.value]
       self.assertIn(metric_keys.MetricKeys.LOSS, summary_keys)
-      self.assertIn(metric_keys.MetricKeys.LOSS_MEAN, summary_keys)
 
   def test_binary_classification(self):
     base_global_step = 100
@@ -1831,7 +1844,6 @@ class BaseDNNClassifierTrainTest(object):
       _assert_simple_summary(
           self,
           {
-              metric_keys.MetricKeys.LOSS_MEAN: expected_loss,
               'dnn/dnn/hiddenlayer_0/fraction_of_zero_values': 0.,
               'dnn/dnn/hiddenlayer_1/fraction_of_zero_values': .5,
               'dnn/dnn/logits/fraction_of_zero_values': 0.,
@@ -1908,7 +1920,6 @@ class BaseDNNClassifierTrainTest(object):
       _assert_simple_summary(
           self,
           {
-              metric_keys.MetricKeys.LOSS_MEAN: expected_loss,
               'dnn/dnn/hiddenlayer_0/fraction_of_zero_values': 0.,
               'dnn/dnn/hiddenlayer_1/fraction_of_zero_values': .5,
               'dnn/dnn/logits/fraction_of_zero_values': 0.,
@@ -1976,7 +1987,6 @@ class BaseDNNRegressorTrainTest(object):
     for summary in summaries:
       summary_keys = [v.tag for v in summary.value]
       self.assertIn(metric_keys.MetricKeys.LOSS, summary_keys)
-      self.assertIn(metric_keys.MetricKeys.LOSS_MEAN, summary_keys)
 
   def test_one_dim(self):
     """Asserts train loss for one-dimensional input and logits."""
@@ -2014,7 +2024,6 @@ class BaseDNNRegressorTrainTest(object):
       _assert_simple_summary(
           self,
           {
-              metric_keys.MetricKeys.LOSS_MEAN: expected_loss,
               'dnn/dnn/hiddenlayer_0/fraction_of_zero_values': 0.,
               'dnn/dnn/hiddenlayer_1/fraction_of_zero_values': 0.5,
               'dnn/dnn/logits/fraction_of_zero_values': 0.,
@@ -2042,7 +2051,8 @@ class BaseDNNRegressorTrainTest(object):
     # See that test for calculation of logits.
     # logits = [[-0.48, 0.48, 0.39]]
     # loss = (1+0.48)^2 + (-1-0.48)^2 + (0.5-0.39)^2 = 4.3929
-    expected_loss = 4.3929
+    # expected_loss = loss / 3 (batch size)
+    expected_loss = 1.4643
     opt = mock_optimizer(
         self, hidden_units=hidden_units, expected_loss=expected_loss)
     dnn_regressor = self._dnn_regressor_fn(
@@ -2070,7 +2080,6 @@ class BaseDNNRegressorTrainTest(object):
       _assert_simple_summary(
           self,
           {
-              metric_keys.MetricKeys.LOSS_MEAN: expected_loss / label_dimension,
               'dnn/dnn/hiddenlayer_0/fraction_of_zero_values': 0.,
               'dnn/dnn/hiddenlayer_1/fraction_of_zero_values': 0.5,
               'dnn/dnn/logits/fraction_of_zero_values': 0.,

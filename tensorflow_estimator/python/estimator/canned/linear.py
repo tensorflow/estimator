@@ -592,20 +592,27 @@ class LinearClassifierV2(estimator.Estimator):
 
 
   # Input builders
-  def input_fn_train: # returns x, y (where y represents label's class index).
-    ...
-  def input_fn_eval: # returns x, y (where y represents label's class index).
-    ...
+  def input_fn_train:
+    # Returns tf.data.Dataset of (x, y) tuple where y represents label's class
+    # index.
+    pass
+  def input_fn_eval:
+    # Returns tf.data.Dataset of (x, y) tuple where y represents label's class
+    # index.
+    pass
+  def input_fn_predict:
+    # Returns tf.data.Dataset of (x, None) tuple.
+    pass
   estimator.train(input_fn=input_fn_train)
-  estimator.evaluate(input_fn=input_fn_eval)
-  estimator.predict(input_fn=input_fn_predict)
+  metrics = estimator.evaluate(input_fn=input_fn_eval)
+  predictions = estimator.predict(input_fn=input_fn_predict)
   ```
 
   Input of `train` and `evaluate` should have following features,
     otherwise there will be a `KeyError`:
 
-  * if `weight_column` is not `None`, a feature with
-    `key=weight_column` whose value is a `Tensor`.
+  * if `weight_column` is not `None`, a feature with `key=weight_column` whose
+    value is a `Tensor`.
   * for each `column` in `feature_columns`:
     - if `column` is a `SparseColumn`, a feature with `key=column.name`
       whose `value` is a `SparseTensor`.
@@ -664,188 +671,6 @@ class LinearClassifierV2(estimator.Estimator):
         encoded as integer values in {0, 1,..., n_classes-1} for `n_classes`>2 .
         Also there will be errors if vocabulary is not provided and labels are
         string.
-      optimizer: An instance of `tf.Optimizer` used to train the model. Can also
-        be a string (one of 'Adagrad', 'Adam', 'Ftrl', 'RMSProp', 'SGD'), or
-        callable. Defaults to FTRL optimizer.
-      config: `RunConfig` object to configure the runtime settings.
-      partitioner: Optional. Partitioner for input layer.
-      warm_start_from: A string filepath to a checkpoint to warm-start from, or
-        a `WarmStartSettings` object to fully configure warm-starting.  If the
-        string filepath is provided instead of a `WarmStartSettings`, then all
-        weights and biases are warm-started, and it is assumed that vocabularies
-        and Tensor names are unchanged.
-      loss_reduction: One of `tf.losses.Reduction` except `NONE`. Describes how
-        to reduce training loss over batch. Defaults to `SUM_OVER_BATCH_SIZE`.
-      sparse_combiner: A string specifying how to reduce if a categorical column
-        is multivalent.  One of "mean", "sqrtn", and "sum" -- these are
-        effectively different ways to do example-level normalization, which can
-        be useful for bag-of-words features. for more details, see
-        `tf.feature_column.linear_model`.
-
-    Returns:
-      A `LinearClassifier` estimator.
-
-    Raises:
-      ValueError: if n_classes < 2.
-    """
-    if n_classes == 2:
-      head = head_lib._binary_logistic_head_with_sigmoid_cross_entropy_loss(  # pylint: disable=protected-access
-          weight_column=weight_column,
-          label_vocabulary=label_vocabulary,
-          loss_reduction=loss_reduction)
-    else:
-      head = head_lib._multi_class_head_with_softmax_cross_entropy_loss(  # pylint: disable=protected-access
-          n_classes, weight_column=weight_column,
-          label_vocabulary=label_vocabulary,
-          loss_reduction=loss_reduction)
-
-    def _model_fn(features, labels, mode, config):
-      """Call the defined shared _linear_model_fn."""
-      return _linear_model_fn(
-          features=features,
-          labels=labels,
-          mode=mode,
-          head=head,
-          feature_columns=tuple(feature_columns or []),
-          optimizer=optimizer,
-          partitioner=partitioner,
-          config=config,
-          sparse_combiner=sparse_combiner)
-
-    super(LinearClassifierV2, self).__init__(
-        model_fn=_model_fn,
-        model_dir=model_dir,
-        config=config,
-        warm_start_from=warm_start_from)
-
-
-@estimator_export(v1=['estimator.LinearClassifier'])
-class LinearClassifier(estimator.Estimator):
-  """Linear classifier model.
-
-  Train a linear model to classify instances into one of multiple possible
-  classes. When number of possible classes is 2, this is binary classification.
-
-  Example:
-
-  ```python
-  categorical_column_a = categorical_column_with_hash_bucket(...)
-  categorical_column_b = categorical_column_with_hash_bucket(...)
-
-  categorical_feature_a_x_categorical_feature_b = crossed_column(...)
-
-  # Estimator using the default optimizer.
-  estimator = LinearClassifier(
-      feature_columns=[categorical_column_a,
-                       categorical_feature_a_x_categorical_feature_b])
-
-  # Or estimator using the FTRL optimizer with regularization.
-  estimator = LinearClassifier(
-      feature_columns=[categorical_column_a,
-                       categorical_feature_a_x_categorical_feature_b],
-      optimizer=tf.train.FtrlOptimizer(
-        learning_rate=0.1,
-        l1_regularization_strength=0.001
-      ))
-
-  # Or estimator using an optimizer with a learning rate decay.
-  estimator = LinearClassifier(
-      feature_columns=[categorical_column_a,
-                       categorical_feature_a_x_categorical_feature_b],
-      optimizer=lambda: tf.train.FtrlOptimizer(
-          learning_rate=tf.exponential_decay(
-              learning_rate=0.1,
-              global_step=tf.get_global_step(),
-              decay_steps=10000,
-              decay_rate=0.96))
-
-  # Or estimator with warm-starting from a previous checkpoint.
-  estimator = LinearClassifier(
-      feature_columns=[categorical_column_a,
-                       categorical_feature_a_x_categorical_feature_b],
-      warm_start_from="/path/to/checkpoint/dir")
-
-
-  # Input builders
-  def input_fn_train:
-    # Returns tf.data.Dataset of (x, y) tuple where y represents label's class
-    # index.
-    pass
-  def input_fn_eval:
-    # Returns tf.data.Dataset of (x, y) tuple where y represents label's class
-    # index.
-    pass
-  def input_fn_predict:
-    # Returns tf.data.Dataset of (x, None) tuple.
-    pass
-  estimator.train(input_fn=input_fn_train)
-  metrics = estimator.evaluate(input_fn=input_fn_eval)
-  predictions = estimator.predict(input_fn=input_fn_predict)
-  ```
-
-  Input of `train` and `evaluate` should have following features,
-    otherwise there will be a `KeyError`:
-
-  * if `weight_column` is not `None`, a feature with `key=weight_column` whose
-    value is a `Tensor`.
-  * for each `column` in `feature_columns`:
-    - if `column` is a `SparseColumn`, a feature with `key=column.name`
-      whose `value` is a `SparseTensor`.
-    - if `column` is a `WeightedSparseColumn`, two features: the first with
-      `key` the id column name, the second with `key` the weight column name.
-      Both features' `value` must be a `SparseTensor`.
-    - if `column` is a `RealValuedColumn`, a feature with `key=column.name`
-      whose `value` is a `Tensor`.
-
-  Loss is calculated by using softmax cross entropy.
-
-  @compatibility(eager)
-  Estimators can be used while eager execution is enabled. Note that `input_fn`
-  and all hooks are executed inside a graph context, so they have to be written
-  to be compatible with graph mode. Note that `input_fn` code using `tf.data`
-  generally works in both graph and eager modes.
-  @end_compatibility
-  """
-
-  def __init__(self,
-               feature_columns,
-               model_dir=None,
-               n_classes=2,
-               weight_column=None,
-               label_vocabulary=None,
-               optimizer='Ftrl',
-               config=None,
-               partitioner=None,
-               warm_start_from=None,
-               loss_reduction=losses.Reduction.SUM,
-               sparse_combiner='sum'):
-    """Construct a `LinearClassifier` estimator object.
-
-    Args:
-      feature_columns: An iterable containing all the feature columns used by
-        the model. All items in the set should be instances of classes derived
-        from `FeatureColumn`.
-      model_dir: Directory to save model parameters, graph and etc. This can
-        also be used to load checkpoints from the directory into a estimator
-        to continue training a previously saved model.
-      n_classes: number of label classes. Default is binary classification.
-        Note that class labels are integers representing the class index (i.e.
-        values from 0 to n_classes-1). For arbitrary label values (e.g. string
-        labels), convert to class indices first.
-      weight_column: A string or a `_NumericColumn` created by
-        `tf.feature_column.numeric_column` defining feature column representing
-        weights. It is used to down weight or boost examples during training. It
-        will be multiplied by the loss of the example. If it is a string, it is
-        used as a key to fetch weight tensor from the `features`. If it is a
-        `_NumericColumn`, raw tensor is fetched by key `weight_column.key`,
-        then weight_column.normalizer_fn is applied on it to get weight tensor.
-      label_vocabulary: A list of strings represents possible label values. If
-        given, labels must be string type and have any value in
-        `label_vocabulary`. If it is not given, that means labels are
-        already encoded as integer or float within [0, 1] for `n_classes=2` and
-        encoded as integer values in {0, 1,..., n_classes-1} for `n_classes`>2 .
-        Also there will be errors if vocabulary is not provided and labels are
-        string.
       optimizer: An instance of `tf.Optimizer` or
         `tf.estimator.experimental.LinearSDCA` used to train the model. Can
         also be a string (one of 'Adagrad', 'Adam', 'Ftrl', 'RMSProp', 'SGD'),
@@ -858,7 +683,7 @@ class LinearClassifier(estimator.Estimator):
         weights and biases are warm-started, and it is assumed that vocabularies
         and Tensor names are unchanged.
       loss_reduction: One of `tf.losses.Reduction` except `NONE`. Describes how
-        to reduce training loss over batch. Defaults to `SUM`.
+        to reduce training loss over batch. Defaults to `SUM_OVER_BATCH_SIZE`.
       sparse_combiner: A string specifying how to reduce if a categorical column
         is multivalent.  One of "mean", "sqrtn", and "sum" -- these are
         effectively different ways to do example-level normalization, which can
@@ -905,11 +730,41 @@ class LinearClassifier(estimator.Estimator):
           config=config,
           sparse_combiner=sparse_combiner)
 
-    super(LinearClassifier, self).__init__(
+    super(LinearClassifierV2, self).__init__(
         model_fn=_model_fn,
         model_dir=model_dir,
         config=config,
         warm_start_from=warm_start_from)
+
+
+@estimator_export(v1=['estimator.LinearClassifier'])  # pylint: disable=missing-docstring
+class LinearClassifier(LinearClassifierV2):
+  __doc__ = LinearClassifierV2.__doc__.replace('SUM_OVER_BATCH_SIZE', 'SUM')
+
+  def __init__(self,
+               feature_columns,
+               model_dir=None,
+               n_classes=2,
+               weight_column=None,
+               label_vocabulary=None,
+               optimizer='Ftrl',
+               config=None,
+               partitioner=None,
+               warm_start_from=None,
+               loss_reduction=losses.Reduction.SUM,
+               sparse_combiner='sum'):
+    super(LinearClassifier, self).__init__(
+        feature_columns,
+        model_dir=model_dir,
+        n_classes=n_classes,
+        weight_column=weight_column,
+        label_vocabulary=label_vocabulary,
+        optimizer=optimizer,
+        config=config,
+        partitioner=partitioner,
+        warm_start_from=warm_start_from,
+        loss_reduction=loss_reduction,
+        sparse_combiner=sparse_combiner)
 
 
 # TODO(b/117517419): Update these contrib references once head moves to core.
@@ -1039,8 +894,8 @@ class LinearEstimator(estimator.Estimator):
         model_fn=_model_fn, model_dir=model_dir, config=config)
 
 
-@estimator_export('estimator.LinearRegressor')
-class LinearRegressor(estimator.Estimator):
+@estimator_export('estimator.LinearRegressor', v1=[])
+class LinearRegressorV2(estimator.Estimator):
   """An estimator for TensorFlow Linear regression problems.
 
   Train a linear regression model to predict label value given observation of
@@ -1136,7 +991,7 @@ class LinearRegressor(estimator.Estimator):
                config=None,
                partitioner=None,
                warm_start_from=None,
-               loss_reduction=losses.Reduction.SUM,
+               loss_reduction=losses.Reduction.SUM_OVER_BATCH_SIZE,
                sparse_combiner='sum'):
     """Initializes a `LinearRegressor` instance.
 
@@ -1145,8 +1000,8 @@ class LinearRegressor(estimator.Estimator):
         the model. All items in the set should be instances of classes derived
         from `FeatureColumn`.
       model_dir: Directory to save model parameters, graph and etc. This can
-        also be used to load checkpoints from the directory into a estimator
-        to continue training a previously saved model.
+        also be used to load checkpoints from the directory into a estimator to
+        continue training a previously saved model.
       label_dimension: Number of regression targets per example. This is the
         size of the last dimension of the labels and logits `Tensor` objects
         (typically, these have shape `[batch_size, label_dimension]`).
@@ -1155,12 +1010,12 @@ class LinearRegressor(estimator.Estimator):
         weights. It is used to down weight or boost examples during training. It
         will be multiplied by the loss of the example. If it is a string, it is
         used as a key to fetch weight tensor from the `features`. If it is a
-        `_NumericColumn`, raw tensor is fetched by key `weight_column.key`,
-        then weight_column.normalizer_fn is applied on it to get weight tensor.
+        `_NumericColumn`, raw tensor is fetched by key `weight_column.key`, then
+        weight_column.normalizer_fn is applied on it to get weight tensor.
       optimizer: An instance of `tf.Optimizer` or
-        `tf.estimator.experimental.LinearSDCA` used to train the model. Can
-        also be a string (one of 'Adagrad', 'Adam', 'Ftrl', 'RMSProp', 'SGD'),
-        or callable. Defaults to FTRL optimizer.
+        `tf.estimator.experimental.LinearSDCA` used to train the model. Can also
+        be a string (one of 'Adagrad', 'Adam', 'Ftrl', 'RMSProp', 'SGD'), or
+        callable. Defaults to FTRL optimizer.
       config: `RunConfig` object to configure the runtime settings.
       partitioner: Optional. Partitioner for input layer.
       warm_start_from: A string filepath to a checkpoint to warm-start from, or
@@ -1188,7 +1043,8 @@ class LinearRegressor(estimator.Estimator):
                          'label.')
 
     head = head_lib._regression_head(  # pylint: disable=protected-access
-        label_dimension=label_dimension, weight_column=weight_column,
+        label_dimension=label_dimension,
+        weight_column=weight_column,
         loss_reduction=loss_reduction)
 
     def _model_fn(features, labels, mode, config):
@@ -1204,8 +1060,36 @@ class LinearRegressor(estimator.Estimator):
           config=config,
           sparse_combiner=sparse_combiner)
 
-    super(LinearRegressor, self).__init__(
+    super(LinearRegressorV2, self).__init__(
         model_fn=_model_fn,
         model_dir=model_dir,
         config=config,
         warm_start_from=warm_start_from)
+
+
+@estimator_export(v1=['estimator.LinearRegressor'])  # pylint: disable=missing-docstring
+class LinearRegressor(LinearRegressorV2):
+  __doc__ = LinearRegressorV2.__doc__.replace('SUM_OVER_BATCH_SIZE', 'SUM')
+
+  def __init__(self,
+               feature_columns,
+               model_dir=None,
+               label_dimension=1,
+               weight_column=None,
+               optimizer='Ftrl',
+               config=None,
+               partitioner=None,
+               warm_start_from=None,
+               loss_reduction=losses.Reduction.SUM,
+               sparse_combiner='sum'):
+    super(LinearRegressor, self).__init__(
+        feature_columns,
+        model_dir=model_dir,
+        label_dimension=label_dimension,
+        weight_column=weight_column,
+        optimizer=optimizer,
+        config=config,
+        partitioner=partitioner,
+        warm_start_from=warm_start_from,
+        loss_reduction=loss_reduction,
+        sparse_combiner=sparse_combiner)

@@ -57,7 +57,7 @@ except ImportError:
 
 
 def _dnn_classifier_fn(*args, **kwargs):
-  return dnn.DNNClassifier(*args, **kwargs)
+  return dnn.DNNClassifierV2(*args, **kwargs)
 
 
 class DNNModelFnTest(dnn_testing_utils.BaseDNNModelFnTest, test.TestCase):
@@ -165,7 +165,7 @@ class DNNClassifierTrainV2Test(dnn_testing_utils.BaseDNNClassifierTrainTest,
 
 
 def _dnn_regressor_fn(*args, **kwargs):
-  return dnn.DNNRegressor(*args, **kwargs)
+  return dnn.DNNRegressorV2(*args, **kwargs)
 
 
 class DNNRegressorEvaluateTest(
@@ -254,7 +254,7 @@ class DNNRegressorIntegrationTest(test.TestCase, parameterized.TestCase):
                           fc_impl):
     feature_columns = [fc_impl.numeric_column('x', shape=(input_dimension,))]
 
-    est = dnn.DNNRegressor(
+    est = dnn.DNNRegressorV2(
         hidden_units=(2, 2),
         feature_columns=feature_columns,
         label_dimension=label_dimension,
@@ -264,7 +264,7 @@ class DNNRegressorIntegrationTest(test.TestCase, parameterized.TestCase):
     num_steps = 10
     est.train(train_input_fn, steps=num_steps)
 
-    # EVALUTE
+    # EVALUATE
     scores = est.evaluate(eval_input_fn)
     self.assertEqual(num_steps, scores[ops.GraphKeys.GLOBAL_STEP])
     self.assertIn('loss', six.iterkeys(scores))
@@ -420,7 +420,7 @@ class DNNClassifierIntegrationTest(test.TestCase):
                           input_dimension, n_classes, batch_size, fc_impl):
     feature_columns = [fc_impl.numeric_column('x', shape=(input_dimension,))]
 
-    est = dnn.DNNClassifier(
+    est = dnn.DNNClassifierV2(
         hidden_units=(2, 2),
         feature_columns=feature_columns,
         n_classes=n_classes,
@@ -430,7 +430,7 @@ class DNNClassifierIntegrationTest(test.TestCase):
     num_steps = 10
     est.train(train_input_fn, steps=num_steps)
 
-    # EVALUTE
+    # EVALUATE
     scores = est.evaluate(eval_input_fn)
     self.assertEqual(num_steps, scores[ops.GraphKeys.GLOBAL_STEP])
     self.assertIn('loss', six.iterkeys(scores))

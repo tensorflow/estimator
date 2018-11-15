@@ -304,8 +304,8 @@ def _dnn_model_fn(features,
           logits=logits)
 
 
-@estimator_export('estimator.DNNClassifier')
-class DNNClassifier(estimator.Estimator):
+@estimator_export('estimator.DNNClassifier', v1=[])
+class DNNClassifierV2(estimator.Estimator):
   """A classifier for TensorFlow DNN models.
 
   Example:
@@ -405,7 +405,7 @@ class DNNClassifier(estimator.Estimator):
       input_layer_partitioner=None,
       config=None,
       warm_start_from=None,
-      loss_reduction=losses.Reduction.SUM,
+      loss_reduction=losses.Reduction.SUM_OVER_BATCH_SIZE,
       batch_norm=False,
   ):
     """Initializes a `DNNClassifier` instance.
@@ -452,7 +452,7 @@ class DNNClassifier(estimator.Estimator):
         weights are warm-started, and it is assumed that vocabularies and Tensor
         names are unchanged.
       loss_reduction: One of `tf.losses.Reduction` except `NONE`. Describes how
-        to reduce training loss over batch. Defaults to `SUM`.
+        to reduce training loss over batch. Defaults to `SUM_OVER_BATCH_SIZE`.
       batch_norm: Whether to use batch normalization after each hidden layer.
     """
     head = head_lib._binary_logistic_or_multi_class_head(  # pylint: disable=protected-access
@@ -474,9 +474,49 @@ class DNNClassifier(estimator.Estimator):
           config=config,
           batch_norm=batch_norm)
 
-    super(DNNClassifier, self).__init__(
-        model_fn=_model_fn, model_dir=model_dir, config=config,
+    super(DNNClassifierV2, self).__init__(
+        model_fn=_model_fn,
+        model_dir=model_dir,
+        config=config,
         warm_start_from=warm_start_from)
+
+
+@estimator_export(v1=['estimator.DNNClassifier'])  # pylint: disable=missing-docstring
+class DNNClassifier(DNNClassifierV2):
+  __doc__ = DNNClassifierV2.__doc__.replace('SUM_OVER_BATCH_SIZE', 'SUM')
+
+  def __init__(
+      self,
+      hidden_units,
+      feature_columns,
+      model_dir=None,
+      n_classes=2,
+      weight_column=None,
+      label_vocabulary=None,
+      optimizer='Adagrad',
+      activation_fn=nn.relu,
+      dropout=None,
+      input_layer_partitioner=None,
+      config=None,
+      warm_start_from=None,
+      loss_reduction=losses.Reduction.SUM,
+      batch_norm=False,
+  ):
+    super(DNNClassifier, self).__init__(
+        hidden_units,
+        feature_columns,
+        model_dir=model_dir,
+        n_classes=n_classes,
+        weight_column=weight_column,
+        label_vocabulary=label_vocabulary,
+        optimizer=optimizer,
+        activation_fn=activation_fn,
+        dropout=dropout,
+        input_layer_partitioner=input_layer_partitioner,
+        config=config,
+        warm_start_from=warm_start_from,
+        loss_reduction=loss_reduction,
+        batch_norm=batch_norm)
 
 
 # TODO(b/117517419): Update these contrib references once head moves to core.
@@ -635,8 +675,8 @@ class DNNEstimator(estimator.Estimator):
         warm_start_from=warm_start_from)
 
 
-@estimator_export('estimator.DNNRegressor')
-class DNNRegressor(estimator.Estimator):
+@estimator_export('estimator.DNNRegressor', v1=[])
+class DNNRegressorV2(estimator.Estimator):
   """A regressor for TensorFlow DNN models.
 
   Example:
@@ -735,7 +775,7 @@ class DNNRegressor(estimator.Estimator):
       input_layer_partitioner=None,
       config=None,
       warm_start_from=None,
-      loss_reduction=losses.Reduction.SUM,
+      loss_reduction=losses.Reduction.SUM_OVER_BATCH_SIZE,
       batch_norm=False,
   ):
     """Initializes a `DNNRegressor` instance.
@@ -776,7 +816,7 @@ class DNNRegressor(estimator.Estimator):
         weights are warm-started, and it is assumed that vocabularies and Tensor
         names are unchanged.
       loss_reduction: One of `tf.losses.Reduction` except `NONE`. Describes how
-        to reduce training loss over batch. Defaults to `SUM`.
+        to reduce training loss over batch. Defaults to `SUM_OVER_BATCH_SIZE`.
       batch_norm: Whether to use batch normalization after each hidden layer.
     """
 
@@ -799,6 +839,44 @@ class DNNRegressor(estimator.Estimator):
           config=config,
           batch_norm=batch_norm)
 
-    super(DNNRegressor, self).__init__(
-        model_fn=_model_fn, model_dir=model_dir, config=config,
+    super(DNNRegressorV2, self).__init__(
+        model_fn=_model_fn,
+        model_dir=model_dir,
+        config=config,
         warm_start_from=warm_start_from)
+
+
+@estimator_export(v1=['estimator.DNNRegressor'])  # pylint: disable=missing-docstring
+class DNNRegressor(DNNRegressorV2):
+  __doc__ = DNNRegressorV2.__doc__.replace('SUM_OVER_BATCH_SIZE', 'SUM')
+
+  def __init__(
+      self,
+      hidden_units,
+      feature_columns,
+      model_dir=None,
+      label_dimension=1,
+      weight_column=None,
+      optimizer='Adagrad',
+      activation_fn=nn.relu,
+      dropout=None,
+      input_layer_partitioner=None,
+      config=None,
+      warm_start_from=None,
+      loss_reduction=losses.Reduction.SUM,
+      batch_norm=False,
+  ):
+    super(DNNRegressor, self).__init__(
+        hidden_units,
+        feature_columns,
+        model_dir=model_dir,
+        label_dimension=label_dimension,
+        weight_column=weight_column,
+        optimizer=optimizer,
+        activation_fn=activation_fn,
+        dropout=dropout,
+        input_layer_partitioner=input_layer_partitioner,
+        config=config,
+        warm_start_from=warm_start_from,
+        loss_reduction=loss_reduction,
+        batch_norm=batch_norm)

@@ -40,11 +40,11 @@ feature_column_v2.categorical_column_with_vocabulary_file = feature_column_v2.ca
 
 
 def _linear_regressor_fn(*args, **kwargs):
-  return linear.LinearRegressor(*args, **kwargs)
+  return linear.LinearRegressorV2(*args, **kwargs)
 
 
 def _linear_classifier_fn(*args, **kwargs):
-  return linear.LinearClassifier(*args, **kwargs)
+  return linear.LinearClassifierV2(*args, **kwargs)
 
 
 # Tests for Linear Regressor.

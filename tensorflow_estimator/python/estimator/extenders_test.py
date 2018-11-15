@@ -51,8 +51,8 @@ class AddMetricsTest(test.TestCase):
       input_fn = get_input_fn(
           x=np.arange(4)[:, None, None], y=np.ones(4)[:, None])
       config = run_config.RunConfig(log_step_count_steps=1)
-      estimator = linear.LinearClassifier([fc.numeric_column('x')],
-                                          config=config)
+      estimator = linear.LinearClassifierV2([fc.numeric_column('x')],
+                                            config=config)
 
       estimator = extenders.add_metrics(estimator, metric_fn)
 
@@ -74,7 +74,7 @@ class AddMetricsTest(test.TestCase):
     _test_metric_fn(metric_fn_2)
 
   def test_should_error_out_for_not_recognized_args(self):
-    estimator = linear.LinearClassifier([fc.numeric_column('x')])
+    estimator = linear.LinearClassifierV2([fc.numeric_column('x')])
 
     def metric_fn(features, not_recognized):
       _, _ = features, not_recognized
@@ -85,7 +85,7 @@ class AddMetricsTest(test.TestCase):
 
   def test_all_supported_args(self):
     input_fn = get_input_fn(x=[[[0.]]], y=[[[1]]])
-    estimator = linear.LinearClassifier([fc.numeric_column('x')])
+    estimator = linear.LinearClassifierV2([fc.numeric_column('x')])
 
     def metric_fn(features, predictions, labels, config):
       self.assertIn('x', features)
@@ -101,7 +101,7 @@ class AddMetricsTest(test.TestCase):
 
   def test_all_supported_args_in_different_order(self):
     input_fn = get_input_fn(x=[[[0.]]], y=[[[1]]])
-    estimator = linear.LinearClassifier([fc.numeric_column('x')])
+    estimator = linear.LinearClassifierV2([fc.numeric_column('x')])
 
     def metric_fn(labels, config, features, predictions):
       self.assertIn('x', features)
@@ -118,7 +118,7 @@ class AddMetricsTest(test.TestCase):
   def test_all_args_are_optional(self):
     def _test_metric_fn(metric_fn):
       input_fn = get_input_fn(x=[[[0.]]], y=[[[1]]])
-      estimator = linear.LinearClassifier([fc.numeric_column('x')])
+      estimator = linear.LinearClassifierV2([fc.numeric_column('x')])
       estimator = extenders.add_metrics(estimator, metric_fn)
 
       estimator.train(input_fn=input_fn)
@@ -138,7 +138,7 @@ class AddMetricsTest(test.TestCase):
   def test_overrides_existing_metrics(self):
     def _test_metric_fn(metric_fn):
       input_fn = get_input_fn(x=[[[0.]]], y=[[[1]]])
-      estimator = linear.LinearClassifier([fc.numeric_column('x')])
+      estimator = linear.LinearClassifierV2([fc.numeric_column('x')])
       estimator.train(input_fn=input_fn)
       metrics = estimator.evaluate(input_fn=input_fn)
       self.assertNotEqual(2., metrics['auc'])

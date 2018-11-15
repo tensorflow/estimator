@@ -45,7 +45,7 @@ def _dnn_estimator_fn(weight_column=None, label_dimension=1, **kwargs):
           weight_column=weight_column,
           label_dimension=label_dimension,
           # Tests in core (from which this test inherits) test the sum loss.
-          loss_reduction=losses.Reduction.SUM),
+          loss_reduction=losses.Reduction.SUM_OVER_BATCH_SIZE),
       **kwargs)
 
 

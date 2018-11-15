@@ -42,10 +42,12 @@ def _dnn_estimator_fn(weight_column=None, label_dimension=1, *args, **kwargs):  
   """Returns a DNNEstimator that uses regression_head."""
   return dnn.DNNEstimator(
       head=head_lib.regression_head(
-          weight_column=weight_column, label_dimension=label_dimension,
+          weight_column=weight_column,
+          label_dimension=label_dimension,
           # Tests in core (from which this test inherits) test the sum loss.
-          loss_reduction=losses.Reduction.SUM),
-      *args, **kwargs)
+          loss_reduction=losses.Reduction.SUM_OVER_BATCH_SIZE),
+      *args,
+      **kwargs)
 
 
 def _dnn_estimator_classifier_fn(n_classes=3, *args, **kwargs):  # pylint: disable=keyword-arg-before-vararg

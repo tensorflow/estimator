@@ -114,7 +114,7 @@ def _linear_regressor_fn(feature_columns,
                          config=None,
                          partitioner=None,
                          sparse_combiner='sum'):
-  return dnn_linear_combined.DNNLinearCombinedRegressor(
+  return dnn_linear_combined.DNNLinearCombinedRegressorV2(
       model_dir=model_dir,
       linear_feature_columns=feature_columns,
       linear_optimizer=optimizer,
@@ -224,7 +224,7 @@ def _linear_classifier_fn(feature_columns,
                           config=None,
                           partitioner=None,
                           sparse_combiner='sum'):
-  return dnn_linear_combined.DNNLinearCombinedClassifier(
+  return dnn_linear_combined.DNNLinearCombinedClassifierV2(
       model_dir=model_dir,
       linear_feature_columns=feature_columns,
       linear_optimizer=optimizer,
@@ -331,7 +331,7 @@ class DNNLinearCombinedRegressorIntegrationTest(test.TestCase):
       self, linear_feature_columns, dnn_feature_columns, feature_spec,
       train_input_fn, eval_input_fn, predict_input_fn, input_dimension,
       label_dimension, batch_size):
-    est = dnn_linear_combined.DNNLinearCombinedRegressor(
+    est = dnn_linear_combined.DNNLinearCombinedRegressorV2(
         linear_feature_columns=linear_feature_columns,
         dnn_hidden_units=(2, 2),
         dnn_feature_columns=dnn_feature_columns,
@@ -569,7 +569,7 @@ def _dnn_classifier_fn(hidden_units,
                        optimizer='Adagrad',
                        config=None,
                        input_layer_partitioner=None):
-  return dnn_linear_combined.DNNLinearCombinedClassifier(
+  return dnn_linear_combined.DNNLinearCombinedClassifierV2(
       model_dir=model_dir,
       dnn_hidden_units=hidden_units,
       dnn_feature_columns=feature_columns,
@@ -644,7 +644,7 @@ def _dnn_regressor_fn(hidden_units,
                       optimizer='Adagrad',
                       config=None,
                       input_layer_partitioner=None):
-  return dnn_linear_combined.DNNLinearCombinedRegressor(
+  return dnn_linear_combined.DNNLinearCombinedRegressorV2(
       model_dir=model_dir,
       dnn_hidden_units=hidden_units,
       dnn_feature_columns=feature_columns,
@@ -732,7 +732,7 @@ class DNNLinearCombinedClassifierIntegrationTest(test.TestCase):
         fc_impl.numeric_column('x', shape=(input_dimension,))
     ]
     feature_columns = linear_feature_columns + dnn_feature_columns
-    est = dnn_linear_combined.DNNLinearCombinedClassifier(
+    est = dnn_linear_combined.DNNLinearCombinedClassifierV2(
         linear_feature_columns=linear_feature_columns,
         dnn_hidden_units=(2, 2),
         dnn_feature_columns=dnn_feature_columns,
@@ -929,7 +929,7 @@ class DNNLinearCombinedTests(test.TestCase):
         y=np.array([[0.], [1.]]),
         batch_size=1,
         shuffle=False)
-    est = dnn_linear_combined.DNNLinearCombinedClassifier(
+    est = dnn_linear_combined.DNNLinearCombinedClassifierV2(
         linear_feature_columns=[x_column],
         # verifies linear_optimizer is used only for linear part.
         linear_optimizer=self._mock_optimizer(opt, 'linear'),
@@ -960,7 +960,7 @@ class DNNLinearCombinedTests(test.TestCase):
       linear_testing_utils.save_variables_to_ckpt(self._model_dir)
 
     x_column = fc_impl.numeric_column('x')
-    est = dnn_linear_combined.DNNLinearCombinedRegressor(
+    est = dnn_linear_combined.DNNLinearCombinedRegressorV2(
         linear_feature_columns=[x_column],
         dnn_hidden_units=[1],
         dnn_feature_columns=[x_column],
@@ -1008,7 +1008,7 @@ class DNNLinearCombinedWarmStartingTest(test.TestCase):
         dimension=5)
 
     # Create a DNNLinearCombinedClassifier and train to save a checkpoint.
-    dnn_lc_classifier = dnn_linear_combined.DNNLinearCombinedClassifier(
+    dnn_lc_classifier = dnn_linear_combined.DNNLinearCombinedClassifierV2(
         linear_feature_columns=[age],
         dnn_feature_columns=[city],
         dnn_hidden_units=[256, 128],
@@ -1022,7 +1022,7 @@ class DNNLinearCombinedWarmStartingTest(test.TestCase):
     # Use a learning_rate = 0.0 optimizer to check values (use SGD so we don't
     # have accumulator values that change).
     warm_started_dnn_lc_classifier = (
-        dnn_linear_combined.DNNLinearCombinedClassifier(
+        dnn_linear_combined.DNNLinearCombinedClassifierV2(
             linear_feature_columns=[age],
             dnn_feature_columns=[city],
             dnn_hidden_units=[256, 128],
@@ -1048,7 +1048,7 @@ class DNNLinearCombinedWarmStartingTest(test.TestCase):
         dimension=5)
 
     # Create a DNNLinearCombinedRegressor and train to save a checkpoint.
-    dnn_lc_regressor = dnn_linear_combined.DNNLinearCombinedRegressor(
+    dnn_lc_regressor = dnn_linear_combined.DNNLinearCombinedRegressorV2(
         linear_feature_columns=[age],
         dnn_feature_columns=[city],
         dnn_hidden_units=[256, 128],
@@ -1061,7 +1061,7 @@ class DNNLinearCombinedWarmStartingTest(test.TestCase):
     # Use a learning_rate = 0.0 optimizer to check values (use SGD so we don't
     # have accumulator values that change).
     warm_started_dnn_lc_regressor = (
-        dnn_linear_combined.DNNLinearCombinedRegressor(
+        dnn_linear_combined.DNNLinearCombinedRegressorV2(
             linear_feature_columns=[age],
             dnn_feature_columns=[city],
             dnn_hidden_units=[256, 128],
@@ -1086,7 +1086,7 @@ class DNNLinearCombinedWarmStartingTest(test.TestCase):
         dimension=5)
 
     # Create a DNNLinearCombinedClassifier and train to save a checkpoint.
-    dnn_lc_classifier = dnn_linear_combined.DNNLinearCombinedClassifier(
+    dnn_lc_classifier = dnn_linear_combined.DNNLinearCombinedClassifierV2(
         linear_feature_columns=[age],
         dnn_feature_columns=[city],
         dnn_hidden_units=[256, 128],
@@ -1100,7 +1100,7 @@ class DNNLinearCombinedWarmStartingTest(test.TestCase):
     # Use a learning_rate = 0.0 optimizer to check values (use SGD so we don't
     # have accumulator values that change).
     warm_started_dnn_lc_classifier = (
-        dnn_linear_combined.DNNLinearCombinedClassifier(
+        dnn_linear_combined.DNNLinearCombinedClassifierV2(
             linear_feature_columns=[age],
             dnn_feature_columns=[city],
             dnn_hidden_units=[256, 128],
