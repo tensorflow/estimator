@@ -23,8 +23,10 @@ import six
 from tensorflow_estimator.contrib.estimator.python.estimator import extenders
 from tensorflow.contrib.feature_column.python.feature_column import sequence_feature_column as seq_fc
 from tensorflow_estimator.python.estimator import estimator
-from tensorflow_estimator.python.estimator.canned import head as head_lib
 from tensorflow_estimator.python.estimator.canned import optimizers
+from tensorflow_estimator.python.estimator.head import binary_class_head as binary_head_lib
+from tensorflow_estimator.python.estimator.head import multi_class_head as multi_head_lib
+from tensorflow_estimator.python.estimator.head import sequential_head as seq_head_lib
 from tensorflow.python.feature_column import feature_column as feature_column_lib
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
@@ -211,7 +213,8 @@ def _rnn_logit_fn_builder(output_units, rnn_cell_fn, sequence_feature_columns,
             `ModeKeys`.
 
     Returns:
-      A `Tensor` representing the logits.
+      A tuple of `Tensor` objects representing the logits and the sequence
+      length mask.
     """
     with variable_scope.variable_scope(
         'sequence_input_layer',
@@ -246,7 +249,8 @@ def _rnn_logit_fn_builder(output_units, rnn_cell_fn, sequence_feature_columns,
           units=output_units,
           activation=None,
           kernel_initializer=init_ops.glorot_uniform_initializer())
-    return logits
+    sequence_length_mask = array_ops.sequence_mask(sequence_length)
+    return logits, sequence_length_mask
 
   return rnn_logit_fn
 
@@ -270,7 +274,7 @@ def _rnn_model_fn(features,
     labels: `Tensor` of shape [batch_size, 1] or [batch_size] with labels.
     mode: Defines whether this is training, evaluation or prediction.
       See `ModeKeys`.
-    head: A `head_lib._Head` instance.
+    head: A `Head` instance.
     rnn_cell_fn: A function with one argument, a `tf.estimator.ModeKeys`, and
       returns an object of type `tf.nn.rnn_cell.RNNCell`.
     sequence_feature_columns: Iterable containing `FeatureColumn`s that
@@ -323,7 +327,7 @@ def _rnn_model_fn(features,
         context_feature_columns=context_feature_columns,
         input_layer_partitioner=input_layer_partitioner,
         return_sequences=return_sequences)
-    logits = logit_fn(features=features, mode=mode)
+    logits, sequence_length_mask = logit_fn(features=features, mode=mode)
 
     def _train_op_fn(loss):
       """Returns the op to optimize the loss."""
@@ -331,6 +335,8 @@ def _rnn_model_fn(features,
           loss,
           global_step=training_util.get_global_step())
 
+    if return_sequences and head.input_sequence_mask_key not in features:
+      features[head.input_sequence_mask_key] = sequence_length_mask
     return head.create_estimator_spec(
         features=features,
         mode=mode,
@@ -478,13 +484,13 @@ class RNNClassifier(estimator.Estimator):
     rnn_cell_fn = _assert_rnn_cell_fn(rnn_cell_fn, num_units, cell_type)
 
     if n_classes == 2:
-      head = head_lib._binary_logistic_head_with_sigmoid_cross_entropy_loss(  # pylint: disable=protected-access
+      head = binary_head_lib.BinaryClassHead(
           weight_column=weight_column,
           label_vocabulary=label_vocabulary,
           loss_reduction=loss_reduction)
     else:
-      head = head_lib._multi_class_head_with_softmax_cross_entropy_loss(  # pylint: disable=protected-access
-          n_classes,
+      head = multi_head_lib.MultiClassHead(
+          n_classes=n_classes,
           weight_column=weight_column,
           label_vocabulary=label_vocabulary,
           loss_reduction=loss_reduction)
@@ -516,7 +522,7 @@ class RNNEstimator(estimator.Estimator):
   token_emb = embedding_column(categorical_column=token_sequence, ...)
 
   estimator = RNNEstimator(
-      head=tf.contrib.estimator.regression_head(),
+      head=tf.estimator.RegressionHead(),
       sequence_feature_columns=[token_emb],
       num_units=[32, 16], cell_type='lstm')
 
@@ -529,7 +535,7 @@ class RNNEstimator(estimator.Estimator):
     return tf.contrib.rnn.MultiRNNCell(cells)
 
   estimator = RNNEstimator(
-      head=tf.contrib.estimator.regression_head(),
+      head=tf.estimator.RegressionHead(),
       sequence_feature_columns=[token_emb],
       rnn_cell_fn=rnn_cell_fn)
 
@@ -584,9 +590,8 @@ class RNNEstimator(estimator.Estimator):
     """Initializes a `RNNEstimator` instance.
 
     Args:
-      head: A `_Head` instance constructed with a method such as
-        `tf.contrib.estimator.multi_label_head`. This specifies the model's
-        output and loss function to be optimized.
+      head: A `Head` instance. This specifies the model's output and loss
+        function to be optimized.
       sequence_feature_columns: An iterable containing the `FeatureColumn`s
         that represent sequential input. All items in the set should either be
         sequence columns (e.g. `sequence_numeric_column`) or constructed from
@@ -626,6 +631,13 @@ class RNNEstimator(estimator.Estimator):
         compatible.
     """
     rnn_cell_fn = _assert_rnn_cell_fn(rnn_cell_fn, num_units, cell_type)
+
+    # TODO(aarg): Instead of raising an error convert head to sequential head.
+    if return_sequences and not isinstance(
+        head, seq_head_lib._SequentialHead):  # pylint: disable=protected-access
+      raise ValueError(
+          'Provided head must be a `_SequentialHead` object when '
+          '`return_sequences` is set to True.')
 
     def _model_fn(features, labels, mode, config):
       return _rnn_model_fn(

@@ -26,7 +26,6 @@ from absl.testing import parameterized
 import numpy as np
 import six
 
-from tensorflow_estimator.contrib.estimator.python.estimator import head as head_lib
 from tensorflow_estimator.contrib.estimator.python.estimator import rnn
 from tensorflow.contrib.feature_column.python.feature_column import sequence_feature_column as seq_fc
 from tensorflow.core.example import example_pb2
@@ -37,6 +36,8 @@ from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.canned import parsing_utils
 from tensorflow_estimator.python.estimator.canned import prediction_keys
 from tensorflow_estimator.python.estimator.export import export
+from tensorflow_estimator.python.estimator.head import multi_class_head as multi_head_lib
+from tensorflow_estimator.python.estimator.head import sequential_head as seq_head_lib
 from tensorflow_estimator.python.estimator.inputs import numpy_io
 from tensorflow.python.feature_column import feature_column as fc
 from tensorflow.python.framework import dtypes
@@ -55,9 +56,8 @@ from tensorflow.python.platform import test
 from tensorflow.python.summary.writer import writer_cache
 from tensorflow.python.training import checkpoint_utils
 from tensorflow.python.training import monitored_session
-from tensorflow.python.training import optimizer
+from tensorflow.python.training import optimizer as optimizer_lib
 from tensorflow.python.training import training_util
-
 
 # Names of variables created by BasicRNNCell model.
 TOKEN_EMBEDDING_NAME = 'rnn/sequence_input_layer/input_layer/tokens_sequential_embedding/embedding_weights'
@@ -169,6 +169,7 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
 
     Intermediate values are rounded for ease in reading.
     input_layer = [[[10]], [[5]]]
+    sequence_mask = [[1, 1]]
     initial_state = [0, 0]
     rnn_output_timestep_1 = [[tanh(.1*10 + .2*0 + .3*0 +.2),
                               tanh(-.2*10 - .3*0 - .4*0 +.5)]]
@@ -184,6 +185,7 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
         in the output sequence, or the full sequence.
       expected_logits: An array with expected logits result.
     """
+    expected_mask = [[1, 1]]
     base_global_step = 100
     create_checkpoint(
         rnn_weights=[[.1, -.2], [.2, -.3], [.3, -.4]],
@@ -216,7 +218,7 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
           features_fn=features_fn,
           sequence_feature_columns=sequence_feature_columns,
           context_feature_columns=context_feature_columns,
-          expected_logits=expected_logits,
+          expected_logits=(expected_logits, expected_mask),
           return_sequences=return_sequences)
 
   @parameterized.named_parameters(
@@ -233,6 +235,7 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
 
     Intermediate values are rounded for ease in reading.
     input_layer = [[[10]], [[5]]]
+    sequence_mask = [[1, 1]]
     initial_state = [0, 0]
     rnn_output_timestep_1 = [[tanh(.1*10 + .2*0 + .3*0 +.2),
                               tanh(-.2*10 - .3*0 - .4*0 +.5)]]
@@ -254,6 +257,7 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
         in the output sequence, or the full sequence.
       expected_logits: An array with expected logits result.
     """
+    expected_mask = [[1, 1]]
     base_global_step = 100
     create_checkpoint(
         rnn_weights=[[.1, -.2], [.2, -.3], [.3, -.4]],
@@ -287,7 +291,7 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
           features_fn=features_fn,
           sequence_feature_columns=sequence_feature_columns,
           context_feature_columns=context_feature_columns,
-          expected_logits=expected_logits,
+          expected_logits=(expected_logits, expected_mask),
           return_sequences=return_sequences)
 
   @parameterized.named_parameters(
@@ -306,6 +310,7 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
 
     Intermediate values are rounded for ease in reading.
     input_layer = [[[10], [5]], [[2], [7]]]
+    sequence_mask = [[1, 1], [1, 1]]
     initial_state = [[0, 0], [0, 0]]
     rnn_output_timestep_1 = [[tanh(.1*10 + .2*0 + .3*0 +.2),
                               tanh(-.2*10 - .3*0 - .4*0 +.5)],
@@ -337,6 +342,7 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
         in the output sequence, or the full sequence.
       expected_logits: An array with expected logits result.
     """
+    expected_mask = [[1, 1], [1, 1]]
     base_global_step = 100
     create_checkpoint(
         rnn_weights=[[.1, -.2], [.2, -.3], [.3, -.4]],
@@ -371,7 +377,7 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
           features_fn=features_fn,
           sequence_feature_columns=sequence_feature_columns,
           context_feature_columns=context_feature_columns,
-          expected_logits=expected_logits,
+          expected_logits=(expected_logits, expected_mask),
           return_sequences=return_sequences)
 
   @parameterized.named_parameters(
@@ -387,6 +393,7 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
 
     Intermediate values are rounded for ease in reading.
     input_layer = [[[10], [5]], [[2], [0]]]
+    sequence_mask = [[1, 1], [1, 0]]
     initial_state = [[0, 0], [0, 0]]
     rnn_output_timestep_1 = [[tanh(.1*10 + .2*0 + .3*0 +.2),
                               tanh(-.2*10 - .3*0 - .4*0 +.5)],
@@ -410,6 +417,7 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
         in the output sequence, or the full sequence.
       expected_logits: An array with expected logits result.
     """
+    expected_mask = [[1, 1], [1, 0]]
     base_global_step = 100
     create_checkpoint(
         rnn_weights=[[.1, -.2], [.2, -.3], [.3, -.4]],
@@ -443,7 +451,7 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
           features_fn=features_fn,
           sequence_feature_columns=sequence_feature_columns,
           context_feature_columns=context_feature_columns,
-          expected_logits=expected_logits,
+          expected_logits=(expected_logits, expected_mask),
           return_sequences=return_sequences)
 
   def testMultiExamplesWithContext(self):
@@ -451,6 +459,7 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
 
     Intermediate values are rounded for ease in reading.
     input_layer = [[[10, -0.5], [5, -0.5]], [[2, 0.8], [0, 0]]]
+    sequence_mask = [[1, 1], [1, 0]]
     initial_state = [[0, 0], [0, 0]]
     rnn_output_timestep_1 = [[tanh(.1*10 - 1*.5 + .2*0 + .3*0 +.2),
                               tanh(-.2*10 - 0.9*.5 - .3*0 - .4*0 +.5)],
@@ -465,6 +474,7 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
               [-1*0.83 + 1*0.68 + 0.3]]
            = [[-0.3662], [0.1414]]
     """
+    expected_mask = [[1, 1], [1, 0]]
     base_global_step = 100
     create_checkpoint(
         # Context features weights are inserted between input and state weights.
@@ -500,13 +510,14 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
           features_fn=features_fn,
           sequence_feature_columns=sequence_feature_columns,
           context_feature_columns=context_feature_columns,
-          expected_logits=[[-0.3662], [0.1414]])
+          expected_logits=([[-0.3662], [0.1414]], expected_mask))
 
   def testMultiExamplesMultiFeatures(self):
     """Tests examples with multiple sequential feature columns.
 
     Intermediate values are rounded for ease in reading.
     input_layer = [[[1, 0, 10], [0, 1, 5]], [[1, 0, 2], [0, 0, 0]]]
+    sequence_mask = [[1, 1], [1, 0]]
     initial_state = [[0, 0], [0, 0]]
     rnn_output_timestep_1 = [[tanh(.5*1 + 1*0 + .1*10 + .2*0 + .3*0 +.2),
                               tanh(-.5*1 - 1*0 - .2*10 - .3*0 - .4*0 +.5)],
@@ -521,6 +532,7 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
               [-1*0.72 - 1*0.38 + 0.3]]
            = [[-1.5056], [-0.7962]]
     """
+    expected_mask = [[1, 1], [1, 0]]
     base_global_step = 100
     create_checkpoint(
         # FeatureColumns are sorted alphabetically, so on_sale weights are
@@ -564,7 +576,7 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
           features_fn=features_fn,
           sequence_feature_columns=sequence_feature_columns,
           context_feature_columns=context_feature_columns,
-          expected_logits=[[-1.5056], [-0.7962]])
+          expected_logits=([[-1.5056], [-0.7962]], expected_mask))
 
 
 class RNNClassifierTrainingTest(test.TestCase):
@@ -636,8 +648,8 @@ class RNNClassifierTrainingTest(test.TestCase):
         return state_ops.assign_add(global_step, 1).op
 
     mock_optimizer = test.mock.NonCallableMock(
-        spec=optimizer.Optimizer,
-        wraps=optimizer.Optimizer(use_locking=False, name='my_optimizer'))
+        spec=optimizer_lib.Optimizer,
+        wraps=optimizer_lib.Optimizer(use_locking=False, name='my_optimizer'))
     mock_optimizer.minimize = test.mock.MagicMock(wraps=_minimize)
 
     # NOTE: Estimator.params performs a deepcopy, which wreaks havoc with mocks.
@@ -666,6 +678,15 @@ class RNNClassifierTrainingTest(test.TestCase):
           sequence_feature_columns=[embed],
           rnn_cell_fn=lambda x: x,
           cell_type='lstm')
+
+    with self.assertRaisesRegexp(
+        ValueError,
+        'Provided head must be a `_SequentialHead` object when '
+        '`return_sequences` is set to True.'):
+      rnn.RNNEstimator(
+          head=multi_head_lib.MultiClassHead(n_classes=3),
+          sequence_feature_columns=[embed],
+          return_sequences=True)
 
   def _testFromScratchWithDefaultOptimizer(self, n_classes):
     def train_input_fn():
@@ -901,19 +922,7 @@ class RNNClassifierEvaluationTest(test.TestCase):
         metric_keys.MetricKeys.PREDICTION_MEAN:
             0.429262,
         metric_keys.MetricKeys.LABEL_MEAN:
-            0.5,
-        metric_keys.MetricKeys.ACCURACY_BASELINE:
-            0.5,
-        # With default threshold of 0.5, the model is a perfect classifier.
-        metric_keys.MetricKeys.RECALL:
-            1.0,
-        metric_keys.MetricKeys.PRECISION:
-            1.0,
-        # Positive example is scored above negative, so AUC = 1.0.
-        metric_keys.MetricKeys.AUC:
-            1.0,
-        metric_keys.MetricKeys.AUC_PR:
-            1.0,
+            0.5
     }
     self.assertAllClose(
         sorted_key_dict(expected_metrics), sorted_key_dict(eval_metrics))
@@ -1243,7 +1252,7 @@ class RNNClassifierIntegrationTest(BaseRNNClassificationIntegrationTest,
 
 def _rnn_estimator_fn(feature_columns, n_classes, cell_units, model_dir):
   return rnn.RNNEstimator(
-      head=head_lib.multi_class_head(n_classes=n_classes),
+      head=multi_head_lib.MultiClassHead(n_classes=n_classes),
       num_units=cell_units,
       sequence_feature_columns=feature_columns,
       model_dir=model_dir)
@@ -1256,6 +1265,57 @@ class RNNEstimatorIntegrationTest(BaseRNNClassificationIntegrationTest,
     test.TestCase.__init__(self, methodName)
     BaseRNNClassificationIntegrationTest.__init__(self, _rnn_estimator_fn)
 
+
+class _MockSeqHead(seq_head_lib._SequentialHead,
+                   multi_head_lib.MultiClassHead):
+  """Used to test that the sequence mask is properly passed to the head."""
+
+  @property
+  def input_sequence_mask_key(self,):
+    return 'sequence_mask'
+
+  def create_estimator_spec(
+      self, features, mode, logits, labels=None, optimizer=None,
+      train_op_fn=None, regularization_losses=None):
+    return features
+
+
+class ModelFnTest(test.TestCase):
+  """Tests correctness of RNNEstimator's model function."""
+
+  def _test_sequential_mask_in_head(self, mask=None):
+    with ops.Graph().as_default():
+      features = {
+          'price': sparse_tensor.SparseTensor(
+              values=[10., 5., 4.],
+              indices=[[0, 0], [0, 1], [1, 0]],
+              dense_shape=[2, 2])}
+      if mask:
+        features['sequence_mask'] = ops.convert_to_tensor(mask)
+      expected_mask = mask or [[1, 1], [1, 0]]
+
+      sequence_feature_columns = [
+          seq_fc.sequence_numeric_column('price', shape=(1,))]
+
+      passed_features = rnn._rnn_model_fn(
+          features=features,
+          labels=None,
+          mode=model_fn.ModeKeys.PREDICT,
+          head=_MockSeqHead(n_classes=3),
+          rnn_cell_fn=rnn._make_rnn_cell_fn([10]),
+          sequence_feature_columns=sequence_feature_columns,
+          context_feature_columns=[],
+          return_sequences=True)
+      self.assertIn('sequence_mask', passed_features)
+      with monitored_session.MonitoredTrainingSession() as sess:
+        sequence_mask = sess.run(passed_features['sequence_mask'])
+        self.assertAllEqual(sequence_mask, expected_mask)
+
+  def testSequentialMaskInHead(self):
+    self._test_sequential_mask_in_head()
+
+  def testSequentialMaskInHeadWithMasks(self):
+    self._test_sequential_mask_in_head([[1, 1], [1, 1]])
 
 if __name__ == '__main__':
   test.main()

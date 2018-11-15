@@ -388,10 +388,12 @@ py_library(
     deps = [
         ":extenders",
         "//tensorflow_estimator/python/estimator",
+        "//tensorflow_estimator/python/estimator:binary_class_head",
         "//tensorflow_estimator/python/estimator:expect_six_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
-        "//tensorflow_estimator/python/estimator:head",
+        "//tensorflow_estimator/python/estimator:multi_class_head",
         "//tensorflow_estimator/python/estimator:optimizers",
+        "//tensorflow_estimator/python/estimator:sequential_head",
     ],
 )
 
@@ -414,8 +416,10 @@ py_test(
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
         "//tensorflow_estimator/python/estimator:expect_six_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+        "//tensorflow_estimator/python/estimator:multi_class_head",
         "//tensorflow_estimator/python/estimator:numpy_io",
         "//tensorflow_estimator/python/estimator:parsing_utils",
+        "//tensorflow_estimator/python/estimator:sequential_head",
     ],
 )
 

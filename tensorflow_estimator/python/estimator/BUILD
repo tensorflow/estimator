@@ -821,6 +821,15 @@ py_test(
 )
 
 py_library(
+    name = "sequential_head",
+    srcs = ["head/sequential_head.py"],
+    srcs_version = "PY2AND3",
+    deps = [
+        ":base_head",
+    ],
+)
+
+py_library(
     name = "inputs",
     srcs = ["inputs/inputs.py"],
     srcs_version = "PY2AND3",
