@@ -1284,7 +1284,7 @@ class EstimatorV2(object):
             ctx.set_last_step_output(
                 name='loss',
                 output=estimator_spec.loss,
-                aggregation=distribute_lib.get_loss_reduction())
+                reduce_op=distribute_lib.get_loss_reduction())
             ctx.set_non_tensor_output(
                 name='estimator_spec', output=estimator_spec)
             return estimator_spec.train_op
