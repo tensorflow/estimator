@@ -30,15 +30,7 @@ import time
 import numpy as np
 
 from tensorflow.python.data.ops import dataset_ops
-from tensorflow_estimator.python.estimator import estimator as estimator_lib
-from tensorflow_estimator.python.estimator import exporter as exporter_lib
-from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
-from tensorflow_estimator.python.estimator import run_config as run_config_lib
-from tensorflow_estimator.python.estimator import training
-from tensorflow_estimator.python.estimator.canned import dnn
-from tensorflow_estimator.python.estimator.canned import prediction_keys
-from tensorflow_estimator.python.estimator.export import export as export_lib
-from tensorflow.python.feature_column import feature_column
+from tensorflow.python.feature_column import feature_column_lib as feature_column
 from tensorflow.python.framework import constant_op
 from tensorflow.python.framework import ops
 from tensorflow.python.ops import control_flow_ops
@@ -55,6 +47,14 @@ from tensorflow.python.training import server_lib
 from tensorflow.python.training import session_run_hook
 from tensorflow.python.training import training_util
 from tensorflow.python.util import compat
+from tensorflow_estimator.python.estimator import estimator as estimator_lib
+from tensorflow_estimator.python.estimator import exporter as exporter_lib
+from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
+from tensorflow_estimator.python.estimator import run_config as run_config_lib
+from tensorflow_estimator.python.estimator import training
+from tensorflow_estimator.python.estimator.canned import dnn
+from tensorflow_estimator.python.estimator.canned import prediction_keys
+from tensorflow_estimator.python.estimator.export import export as export_lib
 
 _DEFAULT_EVAL_STEPS = 100
 _DEFAULT_EVAL_DELAY_SECS = 120

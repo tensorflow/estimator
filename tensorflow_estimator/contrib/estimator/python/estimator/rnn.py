@@ -20,13 +20,7 @@ from __future__ import print_function
 
 import six
 
-from tensorflow_estimator.contrib.estimator.python.estimator import extenders
 from tensorflow.contrib.feature_column.python.feature_column import sequence_feature_column as seq_fc
-from tensorflow_estimator.python.estimator import estimator
-from tensorflow_estimator.python.estimator.canned import optimizers
-from tensorflow_estimator.python.estimator.head import binary_class_head as binary_head_lib
-from tensorflow_estimator.python.estimator.head import multi_class_head as multi_head_lib
-from tensorflow_estimator.python.estimator.head import sequential_head as seq_head_lib
 from tensorflow.python.feature_column import feature_column as feature_column_lib
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
@@ -43,7 +37,12 @@ from tensorflow.python.ops.losses import losses
 from tensorflow.python.summary import summary
 from tensorflow.python.training import optimizer as optimizer_lib
 from tensorflow.python.training import training_util
-
+from tensorflow_estimator.contrib.estimator.python.estimator import extenders
+from tensorflow_estimator.python.estimator import estimator
+from tensorflow_estimator.python.estimator.canned import optimizers
+from tensorflow_estimator.python.estimator.head import binary_class_head as binary_head_lib
+from tensorflow_estimator.python.estimator.head import multi_class_head as multi_head_lib
+from tensorflow_estimator.python.estimator.head import sequential_head as seq_head_lib
 
 # The defaults are historical artifacts of the initial implementation, but seem
 # reasonable choices.

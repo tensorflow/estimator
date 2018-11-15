@@ -26,7 +26,7 @@ import numpy as np
 import six
 
 from tensorflow.python.client import session as tf_session
-from tensorflow.python.feature_column import feature_column as feature_column_lib
+from tensorflow.python.feature_column import feature_column_lib
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
 from tensorflow.python.ops import check_ops

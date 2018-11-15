@@ -26,19 +26,10 @@ from absl.testing import parameterized
 import numpy as np
 import six
 
-from tensorflow_estimator.contrib.estimator.python.estimator import rnn
 from tensorflow.contrib.feature_column.python.feature_column import sequence_feature_column as seq_fc
 from tensorflow.core.example import example_pb2
 from tensorflow.core.example import feature_pb2
 from tensorflow.python.data.experimental.ops import readers
-from tensorflow_estimator.python.estimator import model_fn
-from tensorflow_estimator.python.estimator.canned import metric_keys
-from tensorflow_estimator.python.estimator.canned import parsing_utils
-from tensorflow_estimator.python.estimator.canned import prediction_keys
-from tensorflow_estimator.python.estimator.export import export
-from tensorflow_estimator.python.estimator.head import multi_class_head as multi_head_lib
-from tensorflow_estimator.python.estimator.head import sequential_head as seq_head_lib
-from tensorflow_estimator.python.estimator.inputs import numpy_io
 from tensorflow.python.feature_column import feature_column as fc
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
@@ -58,6 +49,15 @@ from tensorflow.python.training import checkpoint_utils
 from tensorflow.python.training import monitored_session
 from tensorflow.python.training import optimizer as optimizer_lib
 from tensorflow.python.training import training_util
+from tensorflow_estimator.contrib.estimator.python.estimator import rnn
+from tensorflow_estimator.python.estimator import model_fn
+from tensorflow_estimator.python.estimator.canned import metric_keys
+from tensorflow_estimator.python.estimator.canned import parsing_utils
+from tensorflow_estimator.python.estimator.canned import prediction_keys
+from tensorflow_estimator.python.estimator.export import export
+from tensorflow_estimator.python.estimator.head import multi_class_head as multi_head_lib
+from tensorflow_estimator.python.estimator.head import sequential_head as seq_head_lib
+from tensorflow_estimator.python.estimator.inputs import numpy_io
 
 # Names of variables created by BasicRNNCell model.
 TOKEN_EMBEDDING_NAME = 'rnn/sequence_input_layer/input_layer/tokens_sequential_embedding/embedding_weights'

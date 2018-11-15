@@ -22,7 +22,7 @@ import numpy as np
 
 from tensorflow.python.data.ops import dataset_ops
 from tensorflow.python.eager import context
-from tensorflow.python.feature_column import feature_column as feature_column_lib
+from tensorflow.python.feature_column import feature_column_lib
 from tensorflow.python.framework import constant_op
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import errors

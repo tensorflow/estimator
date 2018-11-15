@@ -34,7 +34,7 @@ from tensorflow_estimator.python.estimator.canned import prediction_keys
 from tensorflow_estimator.python.estimator.export import export
 from tensorflow_estimator.python.estimator.inputs import numpy_io
 from tensorflow_estimator.python.estimator.inputs import pandas_io
-from tensorflow.python.feature_column import feature_column
+from tensorflow.python.feature_column import feature_column_lib as feature_column
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
 from tensorflow.python.ops import array_ops

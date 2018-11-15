@@ -24,18 +24,18 @@ import tempfile
 import numpy as np
 import six
 
+from tensorflow.python.feature_column import feature_column_lib as feature_column
+from tensorflow.python.framework import ops
+from tensorflow.python.ops.losses import losses
+from tensorflow.python.platform import gfile
+from tensorflow.python.platform import test
+from tensorflow.python.summary.writer import writer_cache
 from tensorflow_estimator.contrib.estimator.python.estimator import head as head_lib
 from tensorflow_estimator.contrib.estimator.python.estimator import linear
 from tensorflow_estimator.python.estimator.canned import linear_testing_utils
 from tensorflow_estimator.python.estimator.canned import prediction_keys
 from tensorflow_estimator.python.estimator.export import export
 from tensorflow_estimator.python.estimator.inputs import numpy_io
-from tensorflow.python.feature_column import feature_column
-from tensorflow.python.framework import ops
-from tensorflow.python.ops.losses import losses
-from tensorflow.python.platform import gfile
-from tensorflow.python.platform import test
-from tensorflow.python.summary.writer import writer_cache
 
 
 def _linear_estimator_fn(

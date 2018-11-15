@@ -29,12 +29,7 @@ import six
 from tensorflow.core.example import example_pb2
 from tensorflow.core.example import feature_pb2
 from tensorflow.python.client import session as tf_session
-from tensorflow_estimator.python.estimator.canned import baseline
-from tensorflow_estimator.python.estimator.canned import metric_keys
-from tensorflow_estimator.python.estimator.export import export
-from tensorflow_estimator.python.estimator.inputs import numpy_io
-from tensorflow_estimator.python.estimator.inputs import pandas_io
-from tensorflow.python.feature_column import feature_column as feature_column_lib
+from tensorflow.python.feature_column import feature_column_lib
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
 from tensorflow.python.ops import check_ops
@@ -53,6 +48,11 @@ from tensorflow.python.training import input as input_lib
 from tensorflow.python.training import optimizer
 from tensorflow.python.training import queue_runner
 from tensorflow.python.training import saver
+from tensorflow_estimator.python.estimator.canned import baseline
+from tensorflow_estimator.python.estimator.canned import metric_keys
+from tensorflow_estimator.python.estimator.export import export
+from tensorflow_estimator.python.estimator.inputs import numpy_io
+from tensorflow_estimator.python.estimator.inputs import pandas_io
 
 
 try:

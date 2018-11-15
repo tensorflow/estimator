@@ -22,13 +22,7 @@ import numpy as np
 import six
 
 from tensorflow.core.framework import summary_pb2
-from tensorflow_estimator.python.estimator import model_fn
-from tensorflow_estimator.python.estimator.canned import dnn_testing_utils
-from tensorflow_estimator.python.estimator.canned import head as head_lib
-from tensorflow_estimator.python.estimator.canned import metric_keys
-from tensorflow_estimator.python.estimator.canned import prediction_keys
-from tensorflow_estimator.python.estimator.inputs import numpy_io
-from tensorflow.python.feature_column import feature_column as feature_column_lib
+from tensorflow.python.feature_column import feature_column_lib
 from tensorflow.python.framework import constant_op
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import errors
@@ -45,6 +39,12 @@ from tensorflow.python.platform import test
 from tensorflow.python.saved_model import signature_constants
 from tensorflow.python.training import monitored_session
 from tensorflow.python.training import queue_runner_impl
+from tensorflow_estimator.python.estimator import model_fn
+from tensorflow_estimator.python.estimator.canned import dnn_testing_utils
+from tensorflow_estimator.python.estimator.canned import head as head_lib
+from tensorflow_estimator.python.estimator.canned import metric_keys
+from tensorflow_estimator.python.estimator.canned import prediction_keys
+from tensorflow_estimator.python.estimator.inputs import numpy_io
 
 
 _DEFAULT_SERVING_KEY = signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY
