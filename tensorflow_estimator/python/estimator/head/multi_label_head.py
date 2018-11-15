@@ -523,7 +523,7 @@ class MultiLabelHead(base_head.Head):
           self._name, optimizer, train_op_fn, regularized_training_loss)
     # Create summary.
     base_head.create_estimator_spec_summary(
-        self._summary_key, regularized_training_loss, regularization_losses)
+        regularized_training_loss, regularization_losses, self._summary_key)
     return model_fn._TPUEstimatorSpec(  # pylint: disable=protected-access
         mode=model_fn.ModeKeys.TRAIN,
         predictions=predictions,

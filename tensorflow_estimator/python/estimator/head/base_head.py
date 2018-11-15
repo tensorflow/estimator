@@ -318,7 +318,7 @@ class Head(object):
     raise NotImplementedError(
         'TPUEstimatorSpec not available for this model head.')
 
-
+# TODO(b/119617064): unify eager and graph implementations
 # Note that, tensor shape checking is slow in Eager mode. To amend it, the
 # tensor static shape is used for checking. The duplication of shape checking
 # for eager mode in the following helper functions can be safely removed
@@ -763,13 +763,16 @@ def create_estimator_spec_train_op(head_name, optimizer, train_op_fn,
     return train_op
 
 
-def create_estimator_spec_summary(summary_key_fn, regularized_training_loss,
-                                  regularization_losses):
+def create_estimator_spec_summary(
+    regularized_training_loss, regularization_losses, summary_key_fn=None):
   """Create summary for estimator_spec."""
   with ops.name_scope(''):
     keys = metric_keys.MetricKeys
-    summary.scalar(summary_key_fn(keys.LOSS), regularized_training_loss)
+    loss_key = summary_key_fn(keys.LOSS) if summary_key_fn else keys.LOSS
+    summary.scalar(loss_key, regularized_training_loss)
     if regularization_losses is not None:
       regularization_loss = math_ops.add_n(regularization_losses)
-      summary.scalar(
-          summary_key_fn(keys.LOSS_REGULARIZATION), regularization_loss)
+      regularization_loss_key = (
+          summary_key_fn(keys.LOSS_REGULARIZATION) if summary_key_fn
+          else keys.LOSS_REGULARIZATION)
+      summary.scalar(regularization_loss_key, regularization_loss)
