@@ -178,8 +178,8 @@ def _baseline_model_fn(features, labels, mode, head, optimizer,
       train_op_fn=train_op_fn)
 
 
-@estimator_export('estimator.BaselineClassifier')
-class BaselineClassifier(estimator.Estimator):
+@estimator_export('estimator.BaselineClassifier', v1=[])
+class BaselineClassifierV2(estimator.Estimator):
   """A classifier that can establish a simple baseline.
 
   This classifier ignores feature values and will learn to predict the average
@@ -239,7 +239,7 @@ class BaselineClassifier(estimator.Estimator):
                label_vocabulary=None,
                optimizer='Ftrl',
                config=None,
-               loss_reduction=losses.Reduction.SUM):
+               loss_reduction=losses.Reduction.SUM_OVER_BATCH_SIZE):
     """Initializes a BaselineClassifier instance.
 
     Args:
@@ -260,7 +260,7 @@ class BaselineClassifier(estimator.Estimator):
         `FtrlOptimizer` with a default learning rate of 0.3.
       config: `RunConfig` object to configure the runtime settings.
       loss_reduction: One of `tf.losses.Reduction` except `NONE`. Describes how
-        to reduce training loss over batch. Defaults to `SUM`.
+        to reduce training loss over batch. Defaults to `SUM_OVER_BATCH_SIZE`.
     Returns:
       A `BaselineClassifier` estimator.
 
@@ -288,10 +288,31 @@ class BaselineClassifier(estimator.Estimator):
           optimizer=optimizer,
           weight_column=weight_column,
           config=config)
+
+    super(BaselineClassifierV2, self).__init__(
+        model_fn=_model_fn, model_dir=model_dir, config=config)
+
+
+@estimator_export(v1=['estimator.BaselineClassifier'])  # pylint: disable=missing-docstring
+class BaselineClassifier(BaselineClassifierV2):
+  __doc__ = BaselineClassifierV2.__doc__.replace('SUM_OVER_BATCH_SIZE', 'SUM')
+
+  def __init__(self,
+               model_dir=None,
+               n_classes=2,
+               weight_column=None,
+               label_vocabulary=None,
+               optimizer='Ftrl',
+               config=None,
+               loss_reduction=losses.Reduction.SUM):
     super(BaselineClassifier, self).__init__(
-        model_fn=_model_fn,
         model_dir=model_dir,
-        config=config)
+        n_classes=n_classes,
+        weight_column=weight_column,
+        label_vocabulary=label_vocabulary,
+        optimizer=optimizer,
+        config=config,
+        loss_reduction=loss_reduction)
 
 
 # TODO(b/117517419): Update these contrib references once head moves to core.
@@ -379,8 +400,8 @@ class BaselineEstimator(estimator.Estimator):
         config=config)
 
 
-@estimator_export('estimator.BaselineRegressor')
-class BaselineRegressor(estimator.Estimator):
+@estimator_export('estimator.BaselineRegressor', v1=[])
+class BaselineRegressorV2(estimator.Estimator):
   """A regressor that can establish a simple baseline.
 
   This regressor ignores feature values and will learn to predict the average
@@ -434,7 +455,7 @@ class BaselineRegressor(estimator.Estimator):
                weight_column=None,
                optimizer='Ftrl',
                config=None,
-               loss_reduction=losses.Reduction.SUM):
+               loss_reduction=losses.Reduction.SUM_OVER_BATCH_SIZE):
     """Initializes a BaselineRegressor instance.
 
     Args:
@@ -452,7 +473,7 @@ class BaselineRegressor(estimator.Estimator):
         `FtrlOptimizer` with a default learning rate of 0.3.
       config: `RunConfig` object to configure the runtime settings.
       loss_reduction: One of `tf.losses.Reduction` except `NONE`. Describes how
-        to reduce training loss over batch. Defaults to `SUM`.
+        to reduce training loss over batch. Defaults to `SUM_OVER_BATCH_SIZE`.
     Returns:
       A `BaselineRegressor` estimator.
     """
@@ -470,7 +491,26 @@ class BaselineRegressor(estimator.Estimator):
           head=head,
           optimizer=optimizer,
           config=config)
+
+    super(BaselineRegressorV2, self).__init__(
+        model_fn=_model_fn, model_dir=model_dir, config=config)
+
+
+@estimator_export(v1=['estimator.BaselineRegressor'])  # pylint: disable=missing-docstring
+class BaselineRegressor(BaselineRegressorV2):
+  __doc__ = BaselineRegressorV2.__doc__.replace('SUM_OVER_BATCH_SIZE', 'SUM')
+
+  def __init__(self,
+               model_dir=None,
+               label_dimension=1,
+               weight_column=None,
+               optimizer='Ftrl',
+               config=None,
+               loss_reduction=losses.Reduction.SUM):
     super(BaselineRegressor, self).__init__(
-        model_fn=_model_fn,
         model_dir=model_dir,
-        config=config)
+        label_dimension=label_dimension,
+        weight_column=weight_column,
+        optimizer=optimizer,
+        config=config,
+        loss_reduction=loss_reduction)
