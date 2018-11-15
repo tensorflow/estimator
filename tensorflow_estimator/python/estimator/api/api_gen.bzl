@@ -9,39 +9,30 @@ and it imports TensorFlow code, that installing TensorFlow python package
 is required to Bazel build Estimator.
 """
 
-# keep sorted
-ESTIMATOR_API_INIT_FILES = [
-    # BEGIN GENERATED ESTIMATOR FILES
+ESTIMATOR_API_INIT_FILES_V1 = [
     "__init__.py",
-    "compat/__init__.py",
-    "compat/v1/__init__.py",
-    "compat/v1/estimator/__init__.py",
-    "compat/v1/estimator/experimental/__init__.py",
-    "compat/v1/estimator/export/__init__.py",
-    "compat/v1/estimator/inputs/__init__.py",
-    "compat/v2/__init__.py",
-    "compat/v2/estimator/__init__.py",
-    "compat/v2/estimator/experimental/__init__.py",
-    "compat/v2/estimator/export/__init__.py",
-    "compat/v2/estimator/inputs/__init__.py",
     "estimator/__init__.py",
     "estimator/experimental/__init__.py",
     "estimator/export/__init__.py",
     "estimator/inputs/__init__.py",
-    # END GENERATED ESTIMATOR FILES
+]
+
+ESTIMATOR_API_INIT_FILES_V2 = [
+    "__init__.py",
+    "estimator/__init__.py",
+    "estimator/experimental/__init__.py",
+    "estimator/export/__init__.py",
+    "estimator/inputs/__init__.py",
 ]
 
 def gen_api_init_files(
         name,
-        output_files = ESTIMATOR_API_INIT_FILES,
+        output_files,
         root_init_template = None,
         srcs = [],
         api_name = "estimator",
         api_version = 2,
-        compat_api_versions = [
-            1,
-            2,
-        ],
+        compat_api_versions = [],
         compat_init_templates = [],
         packages = ["tensorflow_estimator.python.estimator"],
         package_deps = ["//tensorflow_estimator/python/estimator:estimator_py"],
