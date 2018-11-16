@@ -267,18 +267,9 @@ class BaselineClassifierV2(estimator.Estimator):
     Raises:
       ValueError: If `n_classes` < 2.
     """
-    if n_classes == 2:
-      # TODO(b/117517419): Update this reference once head moves to core.
-      head = head_lib._binary_logistic_head_with_sigmoid_cross_entropy_loss(  # pylint: disable=protected-access
-          weight_column=weight_column,
-          label_vocabulary=label_vocabulary,
-          loss_reduction=loss_reduction)
-    else:
-      # TODO(b/117517419): Update this reference once head moves to core.
-      head = head_lib._multi_class_head_with_softmax_cross_entropy_loss(  # pylint: disable=protected-access
-          n_classes, weight_column=weight_column,
-          label_vocabulary=label_vocabulary,
-          loss_reduction=loss_reduction)
+    # TODO(b/117517419): Update this reference once head moves to core.
+    head = head_lib._binary_logistic_or_multi_class_head(  # pylint: disable=protected-access
+        n_classes, weight_column, label_vocabulary, loss_reduction)
     def _model_fn(features, labels, mode, config):
       return _baseline_model_fn(
           features=features,

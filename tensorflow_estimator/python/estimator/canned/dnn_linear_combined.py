@@ -407,17 +407,8 @@ class DNNLinearCombinedClassifierV2(estimator.Estimator):
     if not self._feature_columns:
       raise ValueError('Either linear_feature_columns or dnn_feature_columns '
                        'must be defined.')
-    if n_classes == 2:
-      head = head_lib._binary_logistic_head_with_sigmoid_cross_entropy_loss(  # pylint: disable=protected-access
-          weight_column=weight_column,
-          label_vocabulary=label_vocabulary,
-          loss_reduction=loss_reduction)
-    else:
-      head = head_lib._multi_class_head_with_softmax_cross_entropy_loss(  # pylint: disable=protected-access
-          n_classes,
-          weight_column=weight_column,
-          label_vocabulary=label_vocabulary,
-          loss_reduction=loss_reduction)
+    head = head_lib._binary_logistic_or_multi_class_head(  # pylint: disable=protected-access
+        n_classes, weight_column, label_vocabulary, loss_reduction)
 
     def _model_fn(features, labels, mode, config):
       """Call the _dnn_linear_combined_model_fn."""
