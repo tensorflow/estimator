@@ -1273,8 +1273,13 @@ class EstimatorV2(object):
 
         if is_tpu_strategy:
           # Create a step_fn from the train_op of grouped_estimator_spec
-          def step_fn(ctx, features, labels=None):
+          def step_fn(ctx, inputs):
             """A single step that is passed to run_on_dataset."""
+            if isinstance(inputs, tuple):
+               features, labels = inputs
+            else:
+              features = inputs
+              labels = None
             estimator_spec = strategy.call_for_each_replica(
                 self._call_model_fn,
                 features,
@@ -1532,8 +1537,13 @@ class EstimatorV2(object):
 
     if is_tpu_strategy:
       steps_per_run_variable = training.get_or_create_steps_per_run_variable()
-      def step_fn(ctx, features, labels=None):
+      def step_fn(ctx, inputs):
         """Runs one step of the eval computation and captures outputs."""
+        if isinstance(inputs, tuple):
+           features, labels = inputs
+        else:
+          features = inputs
+          labels = None
         estimator_spec = self._eval_distribution.call_for_each_replica(
             self._call_model_fn, features, labels, model_fn_lib.ModeKeys.EVAL,
             config)
