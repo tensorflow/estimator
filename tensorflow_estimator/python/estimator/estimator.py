@@ -374,7 +374,8 @@ class EstimatorV2(object):
     """
     if steps is not None or max_steps is not None:
       if self._train_distribution:
-        steps_per_run = getattr(self._train_distribution, 'steps_per_run', 1)
+        steps_per_run = getattr(
+            self._train_distribution.extended, 'steps_per_run', 1)
         if steps_per_run > 1:
           return [basic_session_run_hooks._MultiStepStopAtStepHook(  # pylint: disable=protected-access
               steps, max_steps, steps_per_run)]
@@ -532,7 +533,8 @@ class EstimatorV2(object):
     # by other libraries or open source users. This should be the only usage
     # of the estimator evaluation hooks.
     if self._eval_distribution:
-      steps_per_run = getattr(self._eval_distribution, 'steps_per_run', 1)
+      steps_per_run = getattr(
+          self._eval_distribution.extended, 'steps_per_run', 1)
       if steps_per_run > 1:
         return [evaluation._MultiStepStopAfterNEvalsHook(  # pylint: disable=protected-access
             num_evals=steps, steps_per_run=steps_per_run)]
