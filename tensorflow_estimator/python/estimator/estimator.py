@@ -834,10 +834,12 @@ class Estimator(object):
           raise ValueError("Couldn't find trained model at {}.".format(
               self._model_dir))
 
-      export_dir = export_lib.get_timestamped_export_dir(export_dir_base)
-      temp_export_dir = export_lib.get_temp_export_dir(export_dir)
-
-      builder = saved_model_builder.SavedModelBuilder(temp_export_dir)
+      final_export_dir = export_helpers.get_timestamped_export_dir(export_dir_base)
+      if gfile.NeedsTempLocation(final_export_dir):
+        current_export_dir = export_helpers.get_temp_export_dir(final_export_dir)
+      else:
+        current_export_dir = final_export_dir
+      builder = saved_model_builder.SavedModelBuilder(current_export_dir)
 
       save_variables = True
       # Note that the order in which we run here matters, as the first
@@ -872,7 +874,7 @@ class Estimator(object):
 
       # Add the extra assets
       if assets_extra:
-        assets_extra_path = os.path.join(compat.as_bytes(temp_export_dir),
+        assets_extra_path = os.path.join(compat.as_bytes(current_export_dir),
                                          compat.as_bytes('assets.extra'))
         for dest_relative, source in assets_extra.items():
           dest_absolute = os.path.join(compat.as_bytes(assets_extra_path),
@@ -881,8 +883,9 @@ class Estimator(object):
           gfile.MakeDirs(dest_path)
           gfile.Copy(source, dest_absolute)
 
-      gfile.Rename(temp_export_dir, export_dir)
-      return export_dir
+      if gfile.NeedsTempLocation(final_export_dir):
+        gfile.Rename(current_export_dir, final_export_dir)
+      return final_export_dir
 
   def _add_meta_graph_for_mode(self,
                                builder,
