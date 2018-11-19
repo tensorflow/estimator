@@ -59,15 +59,6 @@ from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.canned import prediction_keys
 from tensorflow_estimator.python.estimator.inputs import numpy_io
 
-# This is so that we can easily switch between feature_column and
-# feature_column_v2 for testing.
-feature_column_v2.numeric_column = feature_column_v2.numeric_column_v2
-feature_column_v2.categorical_column_with_hash_bucket = feature_column_v2.categorical_column_with_hash_bucket_v2  # pylint: disable=line-too-long
-feature_column_v2.make_parse_example_spec = feature_column_v2.make_parse_example_spec_v2  # pylint: disable=line-too-long
-feature_column_v2.categorical_column_with_vocabulary_list = feature_column_v2.categorical_column_with_vocabulary_list_v2  # pylint: disable=line-too-long
-feature_column_v2.categorical_column_with_vocabulary_file = feature_column_v2.categorical_column_with_vocabulary_file_v2  # pylint: disable=line-too-long
-feature_column_v2.embedding_column = feature_column_v2.embedding_column_v2
-
 # pylint rules which are disabled by default for test files.
 # pylint: disable=invalid-name,protected-access,missing-docstring
 
@@ -86,6 +77,15 @@ OCCUPATION_EMBEDDING_NAME = ('dnn/input_from_feature_columns/input_layer/'
                              'occupation_embedding/embedding_weights')
 CITY_EMBEDDING_NAME = ('dnn/input_from_feature_columns/input_layer/'
                        'city_embedding/embedding_weights')
+
+
+# This is so that we can easily switch between feature_column and
+# feature_column_v2 for testing.
+feature_column.numeric_column = feature_column._numeric_column
+feature_column.categorical_column_with_hash_bucket = feature_column._categorical_column_with_hash_bucket  # pylint: disable=line-too-long
+feature_column.categorical_column_with_vocabulary_list = feature_column._categorical_column_with_vocabulary_list  # pylint: disable=line-too-long
+feature_column.categorical_column_with_vocabulary_file = feature_column._categorical_column_with_vocabulary_file  # pylint: disable=line-too-long
+feature_column.embedding_column = feature_column._embedding_column
 
 
 def assert_close(expected, actual, rtol=1e-04, message='', name='assert_close'):

@@ -30,15 +30,6 @@ from tensorflow_estimator.python.estimator.canned import linear
 from tensorflow_estimator.python.estimator.canned import linear_testing_utils
 
 
-# This is so that we can easily switch between feature_column and
-# feature_column_v2 for testing.
-feature_column_v2.numeric_column = feature_column_v2.numeric_column_v2
-feature_column_v2.categorical_column_with_hash_bucket = feature_column_v2.categorical_column_with_hash_bucket_v2  # pylint: disable=line-too-long
-feature_column_v2.make_parse_example_spec = feature_column_v2.make_parse_example_spec_v2  # pylint: disable=line-too-long
-feature_column_v2.categorical_column_with_vocabulary_list = feature_column_v2.categorical_column_with_vocabulary_list_v2  # pylint: disable=line-too-long
-feature_column_v2.categorical_column_with_vocabulary_file = feature_column_v2.categorical_column_with_vocabulary_file_v2  # pylint: disable=line-too-long
-
-
 def _linear_regressor_fn(*args, **kwargs):
   return linear.LinearRegressorV2(*args, **kwargs)
 

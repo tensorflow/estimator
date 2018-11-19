@@ -24,7 +24,7 @@ import tempfile
 import numpy as np
 import six
 
-from tensorflow.python.feature_column import feature_column
+from tensorflow.python.feature_column import feature_column_lib as feature_column
 from tensorflow.python.framework import ops
 from tensorflow.python.ops.losses import losses
 from tensorflow.python.platform import gfile

@@ -64,12 +64,11 @@ except ImportError:
 
 # This is so that we can easily switch between feature_column and
 # feature_column_v2 for testing.
-feature_column_v2.numeric_column = feature_column_v2.numeric_column_v2
-feature_column_v2.categorical_column_with_hash_bucket = feature_column_v2.categorical_column_with_hash_bucket_v2  # pylint: disable=line-too-long
-feature_column_v2.make_parse_example_spec = feature_column_v2.make_parse_example_spec_v2  # pylint: disable=line-too-long
-feature_column_v2.categorical_column_with_vocabulary_list = feature_column_v2.categorical_column_with_vocabulary_list_v2  # pylint: disable=line-too-long
-feature_column_v2.categorical_column_with_vocabulary_file = feature_column_v2.categorical_column_with_vocabulary_file_v2  # pylint: disable=line-too-long
-feature_column_v2.embedding_column = feature_column_v2.embedding_column_v2
+feature_column.numeric_column = feature_column._numeric_column
+feature_column.categorical_column_with_hash_bucket = feature_column._categorical_column_with_hash_bucket  # pylint: disable=line-too-long
+feature_column.categorical_column_with_vocabulary_list = feature_column._categorical_column_with_vocabulary_list  # pylint: disable=line-too-long
+feature_column.categorical_column_with_vocabulary_file = feature_column._categorical_column_with_vocabulary_file  # pylint: disable=line-too-long
+feature_column.embedding_column = feature_column._embedding_column
 
 
 class DNNOnlyModelFnTest(dnn_testing_utils.BaseDNNModelFnTest, test.TestCase):
@@ -371,7 +370,7 @@ class DNNLinearCombinedRegressorIntegrationTest(test.TestCase):
         fc_impl.numeric_column('x', shape=(input_dimension,))
     ]
     feature_columns = linear_feature_columns + dnn_feature_columns
-    feature_spec = fc_impl.make_parse_example_spec(feature_columns)
+    feature_spec = feature_column.make_parse_example_spec(feature_columns)
     self._test_complete_flow_helper(linear_feature_columns, dnn_feature_columns,
                                     feature_spec, train_input_fn, eval_input_fn,
                                     predict_input_fn, input_dimension,
@@ -382,10 +381,10 @@ class DNNLinearCombinedRegressorIntegrationTest(test.TestCase):
                                label_dimension, batch_size, fc_impl):
     del fc_impl
     linear_feature_columns = [
-        feature_column.numeric_column('x', shape=(input_dimension,))
+        feature_column_v2.numeric_column('x', shape=(input_dimension,))
     ]
     dnn_feature_columns = [
-        feature_column_v2.numeric_column('x', shape=(input_dimension,))
+        feature_column.numeric_column('x', shape=(input_dimension,))
     ]
     feature_columns = linear_feature_columns + dnn_feature_columns
     feature_spec = feature_column.make_parse_example_spec(feature_columns)
@@ -399,10 +398,10 @@ class DNNLinearCombinedRegressorIntegrationTest(test.TestCase):
                                label_dimension, batch_size, fc_impl):
     del fc_impl
     linear_feature_columns = [
-        feature_column_v2.numeric_column('x', shape=(input_dimension,))
+        feature_column.numeric_column('x', shape=(input_dimension,))
     ]
     dnn_feature_columns = [
-        feature_column.numeric_column('x', shape=(input_dimension,))
+        feature_column_v2.numeric_column('x', shape=(input_dimension,))
     ]
     feature_columns = linear_feature_columns + dnn_feature_columns
     feature_spec = feature_column.make_parse_example_spec(feature_columns)
@@ -756,7 +755,7 @@ class DNNLinearCombinedClassifierIntegrationTest(test.TestCase):
     self.assertAllEqual((batch_size, n_classes), predicted_proba.shape)
 
     # EXPORT
-    feature_spec = fc_impl.make_parse_example_spec(feature_columns)
+    feature_spec = feature_column.make_parse_example_spec(feature_columns)
     serving_input_receiver_fn = export.build_parsing_serving_input_receiver_fn(
         feature_spec)
     export_dir = est.export_savedmodel(tempfile.mkdtemp(),

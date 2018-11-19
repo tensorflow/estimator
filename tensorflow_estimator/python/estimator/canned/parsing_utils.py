@@ -20,7 +20,7 @@ from __future__ import print_function
 
 import six
 
-from tensorflow.python.feature_column import feature_column as fc
+from tensorflow.python.feature_column import feature_column_lib as fc
 from tensorflow.python.framework import dtypes
 from tensorflow.python.ops import parsing_ops
 from tensorflow.python.util.tf_export import estimator_export
@@ -151,7 +151,7 @@ def classifier_parse_example_spec(feature_columns,
   if isinstance(weight_column, six.string_types):
     weight_column = fc.numeric_column(weight_column)
 
-  if not isinstance(weight_column, fc._NumericColumn):  # pylint: disable=protected-access
+  if not isinstance(weight_column, fc.NumericColumn):
     raise ValueError('weight_column should be an instance of '
                      'tf.feature_column.numeric_column. '
                      'Given type: {} value: {}'.format(
@@ -162,7 +162,7 @@ def classifier_parse_example_spec(feature_columns,
                      'weight_column: {}, features: {}'.format(
                          weight_column.key, parsing_spec.keys()))
 
-  parsing_spec.update(weight_column._parse_example_spec)  # pylint: disable=protected-access
+  parsing_spec.update(weight_column.parse_example_spec)
   return parsing_spec
 
 
@@ -287,7 +287,7 @@ def regressor_parse_example_spec(feature_columns,
   if isinstance(weight_column, six.string_types):
     weight_column = fc.numeric_column(weight_column)
 
-  if not isinstance(weight_column, fc._NumericColumn):  # pylint: disable=protected-access
+  if not isinstance(weight_column, fc.NumericColumn):
     raise ValueError('weight_column should be an instance of '
                      'tf.feature_column.numeric_column. '
                      'Given type: {} value: {}'.format(
@@ -298,5 +298,5 @@ def regressor_parse_example_spec(feature_columns,
                      'weight_column: {}, features: {}'.format(
                          weight_column.key, parsing_spec.keys()))
 
-  parsing_spec.update(weight_column._parse_example_spec)  # pylint: disable=protected-access
+  parsing_spec.update(weight_column.parse_example_spec)
   return parsing_spec

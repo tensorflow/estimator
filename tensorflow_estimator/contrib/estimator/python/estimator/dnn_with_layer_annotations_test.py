@@ -24,17 +24,9 @@ import tempfile
 import numpy as np
 import six
 
-from tensorflow_estimator.contrib.estimator.python.estimator import dnn_with_layer_annotations
 from tensorflow.core.example import example_pb2
 from tensorflow.core.example import feature_pb2
-from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
-from tensorflow_estimator.python.estimator.canned import dnn
-from tensorflow_estimator.python.estimator.canned import dnn_testing_utils
-from tensorflow_estimator.python.estimator.canned import prediction_keys
-from tensorflow_estimator.python.estimator.export import export
-from tensorflow_estimator.python.estimator.inputs import numpy_io
-from tensorflow_estimator.python.estimator.inputs import pandas_io
-from tensorflow.python.feature_column import feature_column_lib as feature_column
+from tensorflow.python.feature_column import feature_column
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
 from tensorflow.python.ops import array_ops
@@ -45,6 +37,14 @@ from tensorflow.python.platform import test
 from tensorflow.python.summary.writer import writer_cache
 from tensorflow.python.training import input as input_lib
 from tensorflow.python.training import queue_runner
+from tensorflow_estimator.contrib.estimator.python.estimator import dnn_with_layer_annotations
+from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
+from tensorflow_estimator.python.estimator.canned import dnn
+from tensorflow_estimator.python.estimator.canned import dnn_testing_utils
+from tensorflow_estimator.python.estimator.canned import prediction_keys
+from tensorflow_estimator.python.estimator.export import export
+from tensorflow_estimator.python.estimator.inputs import numpy_io
+from tensorflow_estimator.python.estimator.inputs import pandas_io
 
 try:
   # pylint: disable=g-import-not-at-top
@@ -123,9 +123,9 @@ class DNNWithLayerAnnotationsTest(test.TestCase):
 
   def _testAnnotationsPresentForEstimator(self, estimator_class):
     feature_columns = [
-        feature_column.numeric_column('x', shape=(1,)),
-        feature_column.embedding_column(
-            feature_column.categorical_column_with_vocabulary_list(
+        feature_column._numeric_column('x', shape=(1,)),
+        feature_column._embedding_column(
+            feature_column._categorical_column_with_vocabulary_list(
                 'y', vocabulary_list=['a', 'b', 'c']),
             dimension=3)
     ]
@@ -171,7 +171,7 @@ class DNNWithLayerAnnotationsTest(test.TestCase):
       annotated_class, prediction_key, estimator_args):
     input_dimension = 2
     feature_columns = [
-        feature_column.numeric_column('x', shape=(input_dimension,))
+        feature_column._numeric_column('x', shape=(input_dimension,))
     ]
     estimator = non_annotated_class(
         model_dir=self._model_dir,
@@ -306,7 +306,7 @@ class DNNRegressorWithLayerAnnotationsIntegrationTest(test.TestCase):
   def _test_complete_flow(self, train_input_fn, eval_input_fn, predict_input_fn,
                           input_dimension, label_dimension, batch_size):
     feature_columns = [
-        feature_column.numeric_column('x', shape=(input_dimension,))
+        feature_column._numeric_column('x', shape=(input_dimension,))
     ]
     est = dnn_with_layer_annotations.DNNRegressorWithLayerAnnotations(
         hidden_units=(2, 2),
@@ -461,7 +461,7 @@ class DNNClassifierWithLayerAnnotationsIntegrationTest(test.TestCase):
   def _test_complete_flow(self, train_input_fn, eval_input_fn, predict_input_fn,
                           input_dimension, n_classes, batch_size):
     feature_columns = [
-        feature_column.numeric_column('x', shape=(input_dimension,))
+        feature_column._numeric_column('x', shape=(input_dimension,))
     ]
     est = dnn_with_layer_annotations.DNNClassifierWithLayerAnnotations(
         hidden_units=(2, 2),

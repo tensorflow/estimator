@@ -21,7 +21,7 @@ from __future__ import print_function
 import six
 
 from tensorflow.python.feature_column import feature_column
-from tensorflow.python.feature_column import feature_column_v2
+from tensorflow.python.feature_column import feature_column_lib
 from tensorflow.python.framework import ops
 from tensorflow.python.keras.engine import training
 from tensorflow.python.layers import core as core_layers
@@ -126,8 +126,8 @@ class _DNNModel(training.Model):
                name=None,
                **kwargs):
     super(_DNNModel, self).__init__(name=name, **kwargs)
-    if feature_column_v2.is_feature_column_v2(feature_columns):
-      self._input_layer = feature_column_v2.DenseFeatures(
+    if feature_column_lib.is_feature_column_v2(feature_columns):
+      self._input_layer = feature_column_lib.DenseFeatures(
           feature_columns=feature_columns, name='input_layer')
     else:
       self._input_layer = feature_column.InputLayer(

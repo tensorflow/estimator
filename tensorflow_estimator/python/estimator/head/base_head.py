@@ -23,7 +23,9 @@ import abc
 import six
 
 from tensorflow.python.eager import context
-from tensorflow.python.feature_column import feature_column as feature_column_lib
+from tensorflow.python.feature_column import feature_column_lib
+from tensorflow.python.feature_column.feature_column import _LazyBuilder
+from tensorflow.python.feature_column.feature_column import _NumericColumn
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import sparse_tensor
 from tensorflow.python.framework import tensor_util
@@ -470,11 +472,12 @@ def get_weights_and_check_match_logits(
     if isinstance(weight_column, six.string_types):
       weight_column = feature_column_lib.numeric_column(
           key=weight_column, shape=(1,))
-    if not isinstance(weight_column, feature_column_lib._NumericColumn):  # pylint: disable=protected-access
-      raise TypeError('Weight column must be either a string or _NumericColumn.'
+    if not isinstance(weight_column,
+                      (feature_column_lib.NumericColumn, _NumericColumn)):
+      raise TypeError('Weight column must be either a string or NumericColumn.'
                       ' Given type: {}.'.format(type(weight_column)))
     weights = weight_column._get_dense_tensor(  # pylint: disable=protected-access
-        feature_column_lib._LazyBuilder(features))  # pylint: disable=protected-access
+        _LazyBuilder(features))
     if not (weights.dtype.is_floating or weights.dtype.is_integer):
       raise ValueError('Weight column should be castable to float. '
                        'Given dtype: {}'.format(weights.dtype))

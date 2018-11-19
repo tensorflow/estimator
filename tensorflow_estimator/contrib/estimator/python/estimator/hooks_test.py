@@ -24,11 +24,8 @@ import os
 import tempfile
 import time
 
-from tensorflow_estimator.contrib.estimator.python.estimator import hooks as hooks_lib
 from tensorflow.python.client import session as tf_session
 from tensorflow.python.data.ops import dataset_ops
-from tensorflow_estimator.python.estimator import estimator_lib
-from tensorflow_estimator.python.estimator import run_config as run_config_lib
 from tensorflow.python.feature_column import feature_column_lib
 from tensorflow.python.framework import constant_op
 from tensorflow.python.framework import dtypes
@@ -43,6 +40,9 @@ from tensorflow.python.platform import test
 from tensorflow.python.summary import summary_iterator
 from tensorflow.python.summary.writer import writer_cache
 from tensorflow.python.training import training
+from tensorflow_estimator.contrib.estimator.python.estimator import hooks as hooks_lib
+from tensorflow_estimator.python.estimator import estimator_lib
+from tensorflow_estimator.python.estimator import run_config as run_config_lib
 
 
 def summary_step_keyword_to_value_mapping(dir_):

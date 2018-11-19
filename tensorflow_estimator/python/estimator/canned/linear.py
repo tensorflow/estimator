@@ -23,7 +23,7 @@ import math
 import six
 
 from tensorflow.python.feature_column import feature_column
-from tensorflow.python.feature_column import feature_column_v2
+from tensorflow.python.feature_column import feature_column_lib
 from tensorflow.python.framework import constant_op
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
@@ -185,7 +185,7 @@ class LinearSDCA(object):
     """Returns the training operation of an SdcaModel optimizer."""
 
     batch_size = array_ops.shape(targets)[0]
-    cache = feature_column_v2.FeatureTransformationCache(features)
+    cache = feature_column_lib.FeatureTransformationCache(features)
 
     # Iterate over all feature columns and create appropriate lists for dense
     # and sparse features as well as dense and sparse weights (variables) for
@@ -193,7 +193,7 @@ class LinearSDCA(object):
     dense_features, dense_feature_weights = [], []
     sparse_feature_with_values, sparse_feature_with_values_weights = [], []
     for column in sorted(feature_columns, key=lambda x: x.name):
-      if isinstance(column, feature_column_v2.CategoricalColumn):
+      if isinstance(column, feature_column_lib.CategoricalColumn):
         id_weight_pair = column.get_sparse_tensors(cache, state_manager)
         sparse_feature_with_values.append(
             self._prune_and_unique_sparse_ids(id_weight_pair))
@@ -201,7 +201,7 @@ class LinearSDCA(object):
         # list of Variables here larger than 1.
         sparse_feature_with_values_weights.append(
             state_manager.get_variable(column, 'weights'))
-      elif isinstance(column, feature_column_v2.DenseColumn):
+      elif isinstance(column, feature_column_lib.DenseColumn):
         if column.variable_shape.ndims != 1:
           raise ValueError('Column %s has rank %d, larger than 1.' % (
               type(column).__name__, column.variable_shape.ndims))
@@ -334,11 +334,12 @@ def linear_logit_fn_builder(units, feature_columns, sparse_combiner='sum'):
     Returns:
       A `Tensor` representing the logits.
     """
-    if feature_column_v2.is_feature_column_v2(feature_columns):
-      linear_model = feature_column_v2.LinearModel(
+    if feature_column_lib.is_feature_column_v2(feature_columns):
+      linear_model = feature_column_lib.LinearModel(
           feature_columns=feature_columns,
           units=units,
-          sparse_combiner=sparse_combiner)
+          sparse_combiner=sparse_combiner,
+          name='linear_model')
       logits = linear_model(features)
       bias = linear_model.bias
 
@@ -395,7 +396,7 @@ def _sdca_model_fn(features, labels, mode, head, feature_columns, optimizer):
   Raises:
     ValueError: mode or params are invalid, or features has the wrong type.
   """
-  assert feature_column_v2.is_feature_column_v2(feature_columns)
+  assert feature_column_lib.is_feature_column_v2(feature_columns)
   if isinstance(head, head_lib._BinaryLogisticHeadWithSigmoidCrossEntropyLoss):  # pylint: disable=protected-access
     loss_type = 'logistic_loss'
   elif isinstance(head, head_lib._RegressionHeadWithMeanSquaredErrorLoss):  # pylint: disable=protected-access
@@ -404,10 +405,8 @@ def _sdca_model_fn(features, labels, mode, head, feature_columns, optimizer):
   else:
     raise ValueError('Unsupported head type: {}'.format(head))
 
-  linear_model = feature_column_v2.LinearModel(
-      feature_columns=feature_columns,
-      units=1,
-      sparse_combiner='sum')
+  linear_model = feature_column_lib.LinearModel(
+      feature_columns=feature_columns, units=1, sparse_combiner='sum')
   logits = linear_model(features)
 
   bias = linear_model.bias
@@ -700,7 +699,7 @@ class LinearClassifierV2(estimator.Estimator):
       if sparse_combiner != 'sum':
         raise ValueError('sparse_combiner must be "sum" when optimizer '
                          'is a LinearSDCA object.')
-      if not feature_column_v2.is_feature_column_v2(feature_columns):
+      if not feature_column_lib.is_feature_column_v2(feature_columns):
         raise ValueError('V2 feature columns required when optimizer '
                          'is a LinearSDCA object.')
       if n_classes > 2:
@@ -1035,7 +1034,7 @@ class LinearRegressorV2(estimator.Estimator):
       if sparse_combiner != 'sum':
         raise ValueError('sparse_combiner must be "sum" when optimizer '
                          'is a LinearSDCA object.')
-      if not feature_column_v2.is_feature_column_v2(feature_columns):
+      if not feature_column_lib.is_feature_column_v2(feature_columns):
         raise ValueError('V2 feature columns required when optimizer '
                          'is a LinearSDCA object.')
       if label_dimension > 1:

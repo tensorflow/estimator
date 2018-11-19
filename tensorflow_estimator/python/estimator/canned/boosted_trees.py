@@ -25,11 +25,8 @@ import numpy as np
 import six
 
 from tensorflow.core.kernels.boosted_trees import boosted_trees_pb2
-from tensorflow_estimator.python.estimator import estimator
-from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
-from tensorflow_estimator.python.estimator.canned import boosted_trees_utils
-from tensorflow_estimator.python.estimator.canned import head as head_lib
-from tensorflow.python.feature_column import feature_column as feature_column_lib
+from tensorflow.python.feature_column import feature_column as fc_old
+from tensorflow.python.feature_column import feature_column_lib
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
 from tensorflow.python.ops import array_ops
@@ -48,6 +45,10 @@ from tensorflow.python.training import checkpoint_utils
 from tensorflow.python.training import session_run_hook
 from tensorflow.python.training import training_util
 from tensorflow.python.util.tf_export import estimator_export
+from tensorflow_estimator.python.estimator import estimator
+from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
+from tensorflow_estimator.python.estimator.canned import boosted_trees_utils
+from tensorflow_estimator.python.estimator.canned import head as head_lib
 
 # TODO(nponomareva): Reveal pruning params here.
 _TreeHParams = collections.namedtuple('TreeHParams', [
@@ -73,7 +74,8 @@ def _get_float_feature_columns(sorted_feature_columns):
   """
   float_columns = []
   for feature_column in sorted_feature_columns:
-    if isinstance(feature_column, feature_column_lib._NumericColumn):  # pylint:disable=protected-access
+    if isinstance(feature_column,
+                  (feature_column_lib.NumericColumn, fc_old._NumericColumn)):  # pylint:disable=protected-access
       float_columns.append(feature_column)
   return float_columns
 
@@ -95,11 +97,13 @@ def _get_transformed_features(features,
     ValueError: when unsupported features/columns are tried.
   """
   # pylint:disable=protected-access
-  transformed_features = feature_column_lib._transform_features(
-      features, sorted_feature_columns)
+  transformed_features = fc_old._transform_features(features,
+                                                    sorted_feature_columns)
   result_features = []
   for column in sorted_feature_columns:
-    if isinstance(column, feature_column_lib._BucketizedColumn):
+    if isinstance(
+        column,
+        (feature_column_lib.BucketizedColumn, fc_old._BucketizedColumn)):  # pylint: disable=protected-access
       source_name = column.source_column.name
       squeezed_tensor = array_ops.squeeze(transformed_features[column], axis=1)
       if len(squeezed_tensor.shape) > 1:
@@ -107,7 +111,8 @@ def _get_transformed_features(features,
                          'but column `{}` got: {}'.format(
                              source_name, features[source_name].shape))
       result_features.append(squeezed_tensor)
-    elif isinstance(column, feature_column_lib._IndicatorColumn):
+    elif isinstance(
+        column, (feature_column_lib.IndicatorColumn, fc_old._IndicatorColumn)):
       source_name = column.categorical_column.name
       tensor = math_ops.to_int32(transformed_features[column])
       if len(tensor.shape) > 2:
@@ -116,7 +121,8 @@ def _get_transformed_features(features,
                              source_name, features[source_name].shape))
       unstacked = array_ops.unstack(tensor, axis=1)
       result_features.extend(unstacked)
-    elif isinstance(column, feature_column_lib._NumericColumn):
+    elif isinstance(column,
+                    (feature_column_lib.NumericColumn, fc_old._NumericColumn)):
       source_name = column.name
       tensor = transformed_features[column]
       # TODO(tanzheny): Add support for multi dim with rank > 2
@@ -193,7 +199,8 @@ def _group_features_by_num_buckets(sorted_feature_columns, num_quantiles):
   # pylint:disable=protected-access
 
   for column in sorted_feature_columns:
-    if isinstance(column, feature_column_lib._IndicatorColumn):
+    if isinstance(
+        column, (feature_column_lib.IndicatorColumn, fc_old._IndicatorColumn)):
       num_categorical_features = column.categorical_column._num_buckets
       if max_buckets_for_indicator not in bucket_size_to_feature_ids_dict:
         bucket_size_to_feature_ids_dict[max_buckets_for_indicator] = []
@@ -203,12 +210,15 @@ def _group_features_by_num_buckets(sorted_feature_columns, num_quantiles):
         bucket_size_to_feature_ids_dict[max_buckets_for_indicator].append(
             feature_idx)
         feature_idx += 1
-    elif isinstance(column, feature_column_lib._BucketizedColumn):
+    elif isinstance(
+        column,
+        (feature_column_lib.BucketizedColumn, fc_old._BucketizedColumn)):
       max_buckets_for_bucketized = max(max_buckets_for_bucketized,
                                        len(column.boundaries) + 1)
       bucket_size_to_feature_ids_dict[_DUMMY_NUM_BUCKETS].append(feature_idx)
       feature_idx += 1
-    elif isinstance(column, feature_column_lib._NumericColumn):
+    elif isinstance(column,
+                    (feature_column_lib.NumericColumn, fc_old._NumericColumn)):
       if num_quantiles not in bucket_size_to_feature_ids_dict:
         bucket_size_to_feature_ids_dict[num_quantiles] = []
       num_float_features = column.shape[0] if column.shape else 1
@@ -241,11 +251,15 @@ def _calculate_num_features(sorted_feature_columns):
   num_features = 0
   # pylint:disable=protected-access
   for column in sorted_feature_columns:
-    if isinstance(column, feature_column_lib._IndicatorColumn):
+    if isinstance(
+        column, (fc_old._IndicatorColumn, feature_column_lib.IndicatorColumn)):
       num_features += column.categorical_column._num_buckets
-    elif isinstance(column, feature_column_lib._NumericColumn):
+    elif isinstance(column,
+                    (feature_column_lib.NumericColumn, fc_old._NumericColumn)):
       num_features += column.shape[0] if column.shape else 1
-    elif isinstance(column, feature_column_lib._BucketizedColumn):
+    elif isinstance(
+        column,
+        (fc_old._BucketizedColumn, feature_column_lib.BucketizedColumn)):
       num_features += 1
     else:
       raise ValueError('For now, only {} is supported but got: {}'.format(
@@ -268,23 +282,32 @@ def _generate_feature_name_mapping(sorted_feature_columns):
   """
   names = []
   for column in sorted_feature_columns:
-    if isinstance(column, feature_column_lib._IndicatorColumn):  # pylint:disable=protected-access
+    if isinstance(
+        column, (feature_column_lib.IndicatorColumn, fc_old._IndicatorColumn)):  # pylint:disable=protected-access
       categorical_column = column.categorical_column
       if isinstance(categorical_column,
-                    feature_column_lib._VocabularyListCategoricalColumn):  # pylint:disable=protected-access
+                    (feature_column_lib.VocabularyListCategoricalColumn,
+                     fc_old._VocabularyListCategoricalColumn)):  # pylint:disable=protected-access
         for value in categorical_column.vocabulary_list:
           names.append('{}:{}'.format(column.name, value))
-      elif isinstance(categorical_column,
-                      feature_column_lib._BucketizedColumn):  # pylint:disable=protected-access
+      elif isinstance(
+          categorical_column,
+          (feature_column_lib.BucketizedColumn, fc_old._BucketizedColumn)):  # pylint:disable=protected-access
         boundaries = [-np.inf] + list(categorical_column.boundaries) + [np.inf]
         for pair in zip(boundaries[:-1], boundaries[1:]):
           names.append('{}:{}'.format(column.name, pair))
       else:
         for num in range(categorical_column._num_buckets):  # pylint:disable=protected-access
           names.append('{}:{}'.format(column.name, num))
-    elif isinstance(column, feature_column_lib._BucketizedColumn):  # pylint:disable=protected-access
+    elif isinstance(
+        column,
+        (feature_column_lib.BucketizedColumn, fc_old._BucketizedColumn)):  # pylint:disable=protected-access
       names.append(column.name)
-    elif isinstance(column, feature_column_lib._NumericColumn):  # pylint:disable=protected-access
+    elif isinstance(
+        column,
+        (
+            fc_old._NumericColumn,  # pylint:disable=protected-access
+            feature_column_lib.NumericColumn)):
       num_float_features = column.shape[0] if column.shape else 1
       for num in range(num_float_features):
         names.append('{}:{}'.format(column.name, num))
@@ -857,7 +880,7 @@ def _bt_model_fn(
     mode: Defines whether this is training, evaluation or prediction.
       See `ModeKeys`.
     head: A `head_lib._Head` instance.
-    feature_columns: Iterable of `feature_column._FeatureColumn` model inputs.
+    feature_columns: Iterable of `fc_old._FeatureColumn` model inputs.
     tree_hparams: TODO. collections.namedtuple for hyper parameters.
     n_batches_per_layer: A `Tensor` of `int64`. Each layer is built after at
       least n_batches_per_layer accumulations.
@@ -868,7 +891,7 @@ def _bt_model_fn(
     example_id_column_name: Name of the feature for a unique ID per example.
       Currently experimental -- not exposed to public API.
     weight_column: A string or a `_NumericColumn` created by
-      `tf.feature_column.numeric_column` defining feature column representing
+      `tf.fc_old.numeric_column` defining feature column representing
       weights. It is used to downweight or boost examples during training. It
       will be multiplied by the loss of the example. If it is a string, it is
       used as a key to fetch weight tensor from the `features`. If it is a
@@ -1253,7 +1276,7 @@ def _bt_explanations_fn(features,
   Args:
     features: dict of `Tensor`.
     head: A `head_lib._Head` instance.
-    sorted_feature_columns: Sorted iterable of `feature_column._FeatureColumn`
+    sorted_feature_columns: Sorted iterable of `fc_old._FeatureColumn`
       model inputs.
     quantile_sketch_epsilon: float between 0 and 1. Error bound for quantile
         computation. This is only used for float feature columns, and the number
@@ -1559,13 +1582,13 @@ class BoostedTreesClassifier(_BoostedTreesBase):
         continue training a previously saved model.
       n_classes: number of label classes. Default is binary classification.
         Multiclass support is not yet implemented.
-      weight_column: A string or a `_NumericColumn` created by
-        `tf.feature_column.numeric_column` defining feature column representing
+      weight_column: A string or a `NumericColumn` created by
+        `tf.fc_old.numeric_column` defining feature column representing
         weights. It is used to downweight or boost examples during training. It
         will be multiplied by the loss of the example. If it is a string, it is
         used as a key to fetch weight tensor from the `features`. If it is a
-        `_NumericColumn`, raw tensor is fetched by key `weight_column.key`, then
-        weight_column.normalizer_fn is applied on it to get weight tensor.
+        `NumericColumn`, raw tensor is fetched by key `weight_column.key`,
+        then weight_column.normalizer_fn is applied on it to get weight tensor.
       label_vocabulary: A list of strings represents possible label values. If
         given, labels must be string type and have any value in
         `label_vocabulary`. If it is not given, that means labels are already
@@ -1713,13 +1736,13 @@ class BoostedTreesRegressor(_BoostedTreesBase):
         continue training a previously saved model.
       label_dimension: Number of regression targets per example.
         Multi-dimensional support is not yet implemented.
-      weight_column: A string or a `_NumericColumn` created by
-        `tf.feature_column.numeric_column` defining feature column representing
+      weight_column: A string or a `NumericColumn` created by
+        `tf.fc_old.numeric_column` defining feature column representing
         weights. It is used to downweight or boost examples during training. It
         will be multiplied by the loss of the example. If it is a string, it is
         used as a key to fetch weight tensor from the `features`. If it is a
-        `_NumericColumn`, raw tensor is fetched by key `weight_column.key`, then
-        weight_column.normalizer_fn is applied on it to get weight tensor.
+        `NumericColumn`, raw tensor is fetched by key `weight_column.key`,
+        then weight_column.normalizer_fn is applied on it to get weight tensor.
       n_trees: number trees to be created.
       max_depth: maximum depth of the tree to grow.
       learning_rate: shrinkage parameter to be used when a tree added to the

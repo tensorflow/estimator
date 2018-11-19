@@ -56,6 +56,11 @@ except ImportError:
   HAS_PANDAS = False
 
 
+# This is so that we can easily switch between feature_column and
+# feature_column_v2 for testing.
+feature_column.numeric_column = feature_column._numeric_column
+
+
 def _dnn_classifier_fn(*args, **kwargs):
   return dnn.DNNClassifierV2(*args, **kwargs)
 
@@ -277,7 +282,7 @@ class DNNRegressorIntegrationTest(test.TestCase, parameterized.TestCase):
     self.assertAllEqual((batch_size, label_dimension), predictions.shape)
 
     # EXPORT
-    feature_spec = fc_impl.make_parse_example_spec(feature_columns)
+    feature_spec = feature_column.make_parse_example_spec(feature_columns)
     serving_input_receiver_fn = export.build_parsing_serving_input_receiver_fn(
         feature_spec)
     export_dir = est.export_savedmodel(tempfile.mkdtemp(),
@@ -443,7 +448,7 @@ class DNNClassifierIntegrationTest(test.TestCase):
     self.assertAllEqual((batch_size, n_classes), predicted_proba.shape)
 
     # EXPORT
-    feature_spec = fc_impl.make_parse_example_spec(feature_columns)
+    feature_spec = feature_column.make_parse_example_spec(feature_columns)
     serving_input_receiver_fn = export.build_parsing_serving_input_receiver_fn(
         feature_spec)
     export_dir = est.export_savedmodel(tempfile.mkdtemp(),

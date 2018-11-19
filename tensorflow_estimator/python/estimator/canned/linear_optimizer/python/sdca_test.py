@@ -20,7 +20,7 @@ from __future__ import print_function
 
 import numpy as np
 
-from tensorflow.python.feature_column import feature_column_v2
+from tensorflow.python.feature_column import feature_column_lib
 from tensorflow.python.framework import constant_op
 from tensorflow.python.framework import sparse_tensor
 from tensorflow.python.ops import array_ops
@@ -42,8 +42,8 @@ class SDCAClassifierTest(test.TestCase):
           'weights': constant_op.constant([[1.0], [1.0]])
       }, constant_op.constant([[0], [1]])
 
-    maintenance_cost = feature_column_v2.numeric_column_v2('maintenance_cost')
-    sq_footage = feature_column_v2.numeric_column_v2('sq_footage')
+    maintenance_cost = feature_column_lib.numeric_column('maintenance_cost')
+    sq_footage = feature_column_lib.numeric_column('sq_footage')
     optimizer = linear.LinearSDCA(example_id_column='example_id')
     classifier = linear.LinearClassifierV2(
         feature_columns=[maintenance_cost, sq_footage],
@@ -67,8 +67,7 @@ class SDCAClassifierTest(test.TestCase):
               constant_op.constant([[500.0, 800.0], [200.0, 600.0]])
       }, constant_op.constant([[0], [1]])
 
-    dense_feature = feature_column_v2.numeric_column_v2(
-        'dense_feature', shape=2)
+    dense_feature = feature_column_lib.numeric_column('dense_feature', shape=2)
     optimizer = linear.LinearSDCA(example_id_column='example_id')
     classifier = linear.LinearClassifierV2(
         feature_columns=[dense_feature], optimizer=optimizer)
@@ -87,10 +86,10 @@ class SDCAClassifierTest(test.TestCase):
           'weights': constant_op.constant([[1.0], [1.0], [1.0]])
       }, constant_op.constant([[1], [0], [1]])
 
-    price_bucket = feature_column_v2.bucketized_column_v2(
-        feature_column_v2.numeric_column_v2('price'), boundaries=[500.0, 700.0])
-    sq_footage_bucket = feature_column_v2.bucketized_column_v2(
-        feature_column_v2.numeric_column_v2('sq_footage'), boundaries=[650.0])
+    price_bucket = feature_column_lib.bucketized_column(
+        feature_column_lib.numeric_column('price'), boundaries=[500.0, 700.0])
+    sq_footage_bucket = feature_column_lib.bucketized_column(
+        feature_column_lib.numeric_column('sq_footage'), boundaries=[650.0])
     optimizer = linear.LinearSDCA(
         example_id_column='example_id', symmetric_l2_regularization=0.01)
     classifier = linear.LinearClassifierV2(
@@ -117,7 +116,7 @@ class SDCAClassifierTest(test.TestCase):
               constant_op.constant([[1.0], [1.0], [1.0]])
       }, constant_op.constant([[1], [0], [1]])
 
-    country = feature_column_v2.categorical_column_with_hash_bucket_v2(
+    country = feature_column_lib.categorical_column_with_hash_bucket(
         'country', hash_bucket_size=5)
     optimizer = linear.LinearSDCA(
         example_id_column='example_id', symmetric_l2_regularization=0.01)
@@ -146,11 +145,10 @@ class SDCAClassifierTest(test.TestCase):
                   dense_shape=[3, 5])
       }, constant_op.constant([[1], [0], [1]])
 
-    country = feature_column_v2.categorical_column_with_hash_bucket_v2(
+    country = feature_column_lib.categorical_column_with_hash_bucket(
         'country', hash_bucket_size=5)
-    country_weighted_by_price = (feature_column_v2.
-                                 weighted_categorical_column_v2(country,
-                                                                'price'))
+    country_weighted_by_price = (
+        feature_column_lib.weighted_categorical_column(country, 'price'))
     optimizer = linear.LinearSDCA(
         example_id_column='example_id', symmetric_l2_regularization=0.01)
     classifier = linear.LinearClassifierV2(
@@ -179,11 +177,10 @@ class SDCAClassifierTest(test.TestCase):
                   dense_shape=[3, 5])
       }, constant_op.constant([[1], [0], [1]])
 
-    country = feature_column_v2.categorical_column_with_vocabulary_list_v2(
+    country = feature_column_lib.categorical_column_with_vocabulary_list(
         'country', vocabulary_list=['US', 'CA', 'MK', 'IT', 'CN'])
-    country_weighted_by_price = (feature_column_v2.
-                                 weighted_categorical_column_v2(country,
-                                                                'price'))
+    country_weighted_by_price = (
+        feature_column_lib.weighted_categorical_column(country, 'price'))
     optimizer = linear.LinearSDCA(
         example_id_column='example_id', symmetric_l2_regularization=0.01)
     classifier = linear.LinearClassifierV2(
@@ -211,7 +208,7 @@ class SDCAClassifierTest(test.TestCase):
                   dense_shape=[3, 1])
       }, constant_op.constant([[0], [0], [1]])
 
-    country_language = feature_column_v2.crossed_column_v2(
+    country_language = feature_column_lib.crossed_column(
         ['language', 'country'], hash_bucket_size=100)
     optimizer = linear.LinearSDCA(
         example_id_column='example_id', symmetric_l2_regularization=0.01)
@@ -241,13 +238,13 @@ class SDCAClassifierTest(test.TestCase):
               constant_op.constant([[3.0], [1.0], [1.0]])
       }, constant_op.constant([[1], [0], [1]])
 
-    price = feature_column_v2.numeric_column_v2('price')
-    sq_footage_bucket = feature_column_v2.bucketized_column_v2(
-        feature_column_v2.numeric_column_v2('sq_footage'),
+    price = feature_column_lib.numeric_column('price')
+    sq_footage_bucket = feature_column_lib.bucketized_column(
+        feature_column_lib.numeric_column('sq_footage'),
         boundaries=[650.0, 800.0])
-    country = feature_column_v2.categorical_column_with_hash_bucket_v2(
+    country = feature_column_lib.categorical_column_with_hash_bucket(
         'country', hash_bucket_size=5)
-    sq_footage_country = feature_column_v2.crossed_column_v2(
+    sq_footage_country = feature_column_lib.crossed_column(
         [sq_footage_bucket, 'country'], hash_bucket_size=10)
     optimizer = linear.LinearSDCA(
         example_id_column='example_id', symmetric_l2_regularization=0.01)
@@ -279,13 +276,13 @@ class SDCAClassifierTest(test.TestCase):
               constant_op.constant([[3.0], [1.0], [1.0]])
       }, constant_op.constant([[1], [0], [1]])
 
-    price = feature_column_v2.numeric_column_v2('price')
-    sq_footage_bucket = feature_column_v2.bucketized_column_v2(
-        feature_column_v2.numeric_column_v2('sq_footage'),
+    price = feature_column_lib.numeric_column('price')
+    sq_footage_bucket = feature_column_lib.bucketized_column(
+        feature_column_lib.numeric_column('sq_footage'),
         boundaries=[650.0, 800.0])
-    country = feature_column_v2.categorical_column_with_hash_bucket_v2(
+    country = feature_column_lib.categorical_column_with_hash_bucket(
         'country', hash_bucket_size=5)
-    sq_footage_country = feature_column_v2.crossed_column_v2(
+    sq_footage_country = feature_column_lib.crossed_column(
         [sq_footage_bucket, 'country'], hash_bucket_size=10)
 
     optimizer = linear.LinearSDCA(
@@ -317,7 +314,7 @@ class SDCARegressorTest(test.TestCase):
           'weights': constant_op.constant([[10.0], [10.0], [10.0]])
       }, constant_op.constant(y)
 
-    x_column = feature_column_v2.numeric_column_v2('x', shape=3)
+    x_column = feature_column_lib.numeric_column('x', shape=3)
     optimizer = linear.LinearSDCA(
         example_id_column='example_id', symmetric_l2_regularization=0.1)
     regressor = linear.LinearRegressorV2(
@@ -354,13 +351,13 @@ class SDCARegressorTest(test.TestCase):
               constant_op.constant([[3.0], [5.0], [7.0]])
       }, constant_op.constant([[1.55], [-1.25], [-3.0]])
 
-    price = feature_column_v2.numeric_column_v2('price')
-    sq_footage_bucket = feature_column_v2.bucketized_column_v2(
-        feature_column_v2.numeric_column_v2('sq_footage'),
+    price = feature_column_lib.numeric_column('price')
+    sq_footage_bucket = feature_column_lib.bucketized_column(
+        feature_column_lib.numeric_column('sq_footage'),
         boundaries=[650.0, 800.0])
-    country = feature_column_v2.categorical_column_with_hash_bucket_v2(
+    country = feature_column_lib.categorical_column_with_hash_bucket(
         'country', hash_bucket_size=5)
-    sq_footage_country = feature_column_v2.crossed_column_v2(
+    sq_footage_country = feature_column_lib.crossed_column(
         [sq_footage_bucket, 'country'], hash_bucket_size=10)
     optimizer = linear.LinearSDCA(
         example_id_column='example_id', symmetric_l2_regularization=0.1)
@@ -392,13 +389,13 @@ class SDCARegressorTest(test.TestCase):
               constant_op.constant([[3.0], [5.0], [7.0]])
       }, constant_op.constant([[1.55], [-1.25], [-3.0]])
 
-    price = feature_column_v2.numeric_column_v2('price')
-    sq_footage_bucket = feature_column_v2.bucketized_column_v2(
-        feature_column_v2.numeric_column_v2('sq_footage'),
+    price = feature_column_lib.numeric_column('price')
+    sq_footage_bucket = feature_column_lib.bucketized_column(
+        feature_column_lib.numeric_column('sq_footage'),
         boundaries=[650.0, 800.0])
-    country = feature_column_v2.categorical_column_with_hash_bucket_v2(
+    country = feature_column_lib.categorical_column_with_hash_bucket(
         'country', hash_bucket_size=5)
-    sq_footage_country = feature_column_v2.crossed_column_v2(
+    sq_footage_country = feature_column_lib.crossed_column(
         [sq_footage_bucket, 'country'], hash_bucket_size=10)
     optimizer = linear.LinearSDCA(
         example_id_column='example_id', symmetric_l2_regularization=0.1)
@@ -431,8 +428,8 @@ class SDCARegressorTest(test.TestCase):
               constant_op.constant([[10.0], [10.0], [10.0]])
       }, constant_op.constant([[1.4], [-0.8], [2.6]])
 
-    price = feature_column_v2.numeric_column_v2('price')
-    country = feature_column_v2.categorical_column_with_hash_bucket_v2(
+    price = feature_column_lib.numeric_column('price')
+    country = feature_column_lib.categorical_column_with_hash_bucket(
         'country', hash_bucket_size=5)
     # Regressor with no L1 regularization.
     optimizer = linear.LinearSDCA(
@@ -510,7 +507,7 @@ class SDCARegressorTest(test.TestCase):
       }, constant_op.constant(
           [1 if i % 4 is 0 else 0 for i in range(num_examples)])
 
-    place_holder = feature_column_v2.numeric_column_v2('place_holder')
+    place_holder = feature_column_lib.numeric_column('place_holder')
     optimizer = linear.LinearSDCA(
         example_id_column='example_id', symmetric_l2_regularization=0.1)
     regressor = linear.LinearRegressorV2(
@@ -560,8 +557,8 @@ class SDCARegressorTest(test.TestCase):
         example_id_column='example_id', symmetric_l2_regularization=0.1)
     regressor = linear.LinearRegressorV2(
         feature_columns=[
-            feature_column_v2.numeric_column_v2('a'),
-            feature_column_v2.numeric_column_v2('b')
+            feature_column_lib.numeric_column('a'),
+            feature_column_lib.numeric_column('b')
         ],
         optimizer=optimizer)
 
@@ -612,8 +609,8 @@ class SDCARegressorTest(test.TestCase):
         example_id_column='example_id', symmetric_l2_regularization=0.1)
     regressor = linear.LinearRegressorV2(
         feature_columns=[
-            feature_column_v2.numeric_column_v2('a'),
-            feature_column_v2.numeric_column_v2('b')
+            feature_column_lib.numeric_column('a'),
+            feature_column_lib.numeric_column('b')
         ],
         optimizer=optimizer)
 
@@ -650,7 +647,7 @@ class SDCARegressorTest(test.TestCase):
       }, array_ops.placeholder_with_default(constant_op.constant([0.0, 1.0]),
                                             shape=[None])
 
-    always_zero = feature_column_v2.numeric_column_v2('always_zero')
+    always_zero = feature_column_lib.numeric_column('always_zero')
     optimizer = linear.LinearSDCA(
         example_id_column='example_id', symmetric_l2_regularization=0.1)
     regressor = linear.LinearRegressorV2(

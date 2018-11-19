@@ -22,7 +22,7 @@ import numpy as np
 import six
 
 from tensorflow.core.framework import summary_pb2
-from tensorflow.python.feature_column import feature_column_lib
+from tensorflow.python.feature_column import feature_column_lib as feature_column
 from tensorflow.python.framework import constant_op
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import errors
@@ -3506,7 +3506,7 @@ class RegressionHead(test.TestCase):
   def test_weight_with_numeric_column(self):
     """1d label, 3 examples, 1 batch."""
     head = head_lib._regression_head(
-        weight_column=feature_column_lib.numeric_column(
+        weight_column=feature_column.numeric_column(
             'label_weights', normalizer_fn=lambda x: x + 1.))
 
     # Create estimator spec.

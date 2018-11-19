@@ -84,6 +84,15 @@ BIAS_NAME = 'linear/linear_model/bias_weights'
 LANGUAGE_WEIGHT_NAME = 'linear/linear_model/language/weights'
 
 
+# This is so that we can easily switch between feature_column and
+# feature_column_v2 for testing.
+feature_column.numeric_column = feature_column._numeric_column
+feature_column.categorical_column_with_hash_bucket = feature_column._categorical_column_with_hash_bucket  # pylint: disable=line-too-long
+feature_column.categorical_column_with_vocabulary_list = feature_column._categorical_column_with_vocabulary_list  # pylint: disable=line-too-long
+feature_column.categorical_column_with_vocabulary_file = feature_column._categorical_column_with_vocabulary_file  # pylint: disable=line-too-long
+feature_column.embedding_column = feature_column._embedding_column
+
+
 def assert_close(expected, actual, rtol=1e-04, name='assert_close'):
   with ops.name_scope(name, 'assert_close', (expected, actual, rtol)) as scope:
     expected = ops.convert_to_tensor(expected, name='expected')
@@ -413,7 +422,7 @@ class BaseLinearRegressorEvaluationTest(object):
     batch_size = 2
     feature_columns = [
         feature_column.numeric_column('age'),
-        feature_column_v2.numeric_column_v2('height')
+        feature_column_v2.numeric_column('height')
     ]
 
     def _input_fn():
@@ -548,7 +557,7 @@ class BaseLinearRegressorPredictTest(object):
 
     linear_regressor = self._linear_regressor_fn(
         feature_columns=(feature_column.numeric_column('x0'),
-                         feature_column_v2.numeric_column_v2('x1')),
+                         feature_column_v2.numeric_column('x1')),
         model_dir=self._model_dir)
 
     def _predict_input_fn():
@@ -664,7 +673,7 @@ class BaseLinearRegressorIntegrationTest(object):
     self.assertAllEqual((prediction_length, label_dimension), predictions.shape)
 
     # EXPORT
-    feature_spec = self._fc_lib.make_parse_example_spec(feature_columns)
+    feature_spec = feature_column.make_parse_example_spec(feature_columns)
     serving_input_receiver_fn = export.build_parsing_serving_input_receiver_fn(
         feature_spec)
     export_dir = est.export_savedmodel(tempfile.mkdtemp(),
@@ -1895,7 +1904,7 @@ class BaseLinearClassifierIntegrationTest(object):
     self.assertAllEqual((prediction_length, 1), predictions.shape)
 
     # EXPORT
-    feature_spec = self._fc_lib.make_parse_example_spec(feature_columns)
+    feature_spec = feature_column.make_parse_example_spec(feature_columns)
     serving_input_receiver_fn = export.build_parsing_serving_input_receiver_fn(
         feature_spec)
     export_dir = est.export_savedmodel(tempfile.mkdtemp(),
@@ -2072,7 +2081,7 @@ class BaseLinearLogitFnTest(object):
     """Tests the calculation of sparsity."""
     if self._fc_lib != feature_column:
       return
-    age = feature_column.numeric_column('age')
+    age = feature_column_v2.numeric_column('age')
     occupation = feature_column.categorical_column_with_hash_bucket(
         'occupation', hash_bucket_size=5)
     with ops.Graph().as_default():
@@ -2104,8 +2113,8 @@ class BaseLinearLogitFnTest(object):
     if self._fc_lib != feature_column_v2:
       return
 
-    age = feature_column_v2.numeric_column_v2('age')
-    occupation = feature_column_v2.categorical_column_with_hash_bucket_v2(
+    age = feature_column_v2.numeric_column('age')
+    occupation = feature_column_v2.categorical_column_with_hash_bucket(
         'occupation', hash_bucket_size=5)
     with ops.Graph().as_default():
       model = feature_column_v2.LinearModel(

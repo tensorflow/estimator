@@ -22,7 +22,6 @@ import math
 
 import six
 
-from tensorflow.python.feature_column import feature_column_v2
 from tensorflow.python.framework import ops
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import nn

@@ -23,11 +23,8 @@ import collections
 
 import six
 
-from tensorflow_estimator.python.estimator import model_fn
-from tensorflow_estimator.python.estimator.canned import metric_keys
-from tensorflow_estimator.python.estimator.canned import prediction_keys
-from tensorflow_estimator.python.estimator.export import export_output
-from tensorflow.python.feature_column import feature_column as feature_column_lib
+from tensorflow.python.feature_column import feature_column
+from tensorflow.python.feature_column import feature_column_lib
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import sparse_tensor
@@ -46,6 +43,10 @@ from tensorflow.python.saved_model import signature_constants
 from tensorflow.python.summary import summary
 from tensorflow.python.training import training_util
 from tensorflow.python.util import function_utils
+from tensorflow_estimator.python.estimator import model_fn
+from tensorflow_estimator.python.estimator.canned import metric_keys
+from tensorflow_estimator.python.estimator.canned import prediction_keys
+from tensorflow_estimator.python.estimator.export import export_output
 
 _DEFAULT_SERVING_KEY = signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY
 
@@ -387,11 +388,13 @@ def _get_weights_and_check_match_logits(
     if isinstance(weight_column, six.string_types):
       weight_column = feature_column_lib.numeric_column(
           key=weight_column, shape=(1,))
-    if not isinstance(weight_column, feature_column_lib._NumericColumn):  # pylint: disable=protected-access
+    if not isinstance(
+        weight_column,
+        (feature_column_lib.NumericColumn, feature_column._NumericColumn)):  # pylint: disable=protected-access
       raise TypeError('Weight column must be either a string or _NumericColumn.'
                       ' Given type: {}.'.format(type(weight_column)))
     weights = weight_column._get_dense_tensor(  # pylint: disable=protected-access
-        feature_column_lib._LazyBuilder(features))  # pylint: disable=protected-access
+        feature_column._LazyBuilder(features))  # pylint: disable=protected-access
     if not (weights.dtype.is_floating or weights.dtype.is_integer):
       raise ValueError('Weight column should be castable to float. '
                        'Given dtype: {}'.format(weights.dtype))

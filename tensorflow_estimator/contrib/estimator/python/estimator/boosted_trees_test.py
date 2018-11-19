@@ -19,17 +19,17 @@ from __future__ import print_function
 
 import numpy as np
 
-from tensorflow_estimator.contrib.estimator.python.estimator import boosted_trees
 from tensorflow.core.kernels.boosted_trees import boosted_trees_pb2
 from tensorflow.python.data.ops import dataset_ops
-from tensorflow_estimator.python.estimator.canned import boosted_trees as canned_boosted_trees
-from tensorflow_estimator.python.estimator.inputs import numpy_io
 from tensorflow.python.feature_column import feature_column_lib as feature_column
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import test_util
 from tensorflow.python.platform import googletest
 from tensorflow.python.training import checkpoint_utils
+from tensorflow_estimator.contrib.estimator.python.estimator import boosted_trees
+from tensorflow_estimator.python.estimator.canned import boosted_trees as canned_boosted_trees
+from tensorflow_estimator.python.estimator.inputs import numpy_io
 
 NUM_FEATURES = 3
 
