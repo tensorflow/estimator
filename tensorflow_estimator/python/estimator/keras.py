@@ -24,9 +24,6 @@ import re
 import six
 
 from tensorflow.python.client import session
-from tensorflow_estimator.python.estimator import estimator as estimator_lib
-from tensorflow_estimator.python.estimator import export as export_lib
-from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import random_seed
 from tensorflow.python.framework import sparse_tensor as sparse_tensor_lib
@@ -46,6 +43,9 @@ from tensorflow.python.training import distribution_strategy_context
 from tensorflow.python.training import optimizer as tf_optimizer_module
 from tensorflow.python.training import saver as saver_lib
 from tensorflow.python.training import training_util
+from tensorflow_estimator.python.estimator import estimator as estimator_lib
+from tensorflow_estimator.python.estimator import export as export_lib
+from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
 
 
 _DEFAULT_SERVING_KEY = signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY
@@ -406,11 +406,13 @@ def _get_file_from_google_storage(keras_model_path, model_dir):
   return file_name
 
 
+# LINT.IfChange
 def model_to_estimator(keras_model=None,
                        keras_model_path=None,
                        custom_objects=None,
                        model_dir=None,
                        config=None):
+# LINT.ThenChange(//third_party/tensorflow/python/keras/estimator/__init__.py)
   """Constructs an `Estimator` instance from given keras model.
 
   For usage example, please see:
