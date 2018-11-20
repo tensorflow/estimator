@@ -1271,7 +1271,7 @@ class EstimatorV2(object):
         # replica threads.
         ops.add_to_collection(
             training_util.GLOBAL_STEP_READ_KEY,
-            strategy.read_var(global_step_tensor))
+            strategy.extended.read_var(global_step_tensor))
 
         if is_tpu_strategy:
           # Create a step_fn from the train_op of grouped_estimator_spec
@@ -1282,12 +1282,12 @@ class EstimatorV2(object):
             else:
               features = inputs
               labels = None
-            estimator_spec = strategy.call_for_each_replica(
+            estimator_spec = strategy.extended.call_for_each_replica(
                 self._call_model_fn,
-                features,
-                labels,
-                model_fn_lib.ModeKeys.TRAIN,
-                self.config)
+                args=(features,
+                      labels,
+                      model_fn_lib.ModeKeys.TRAIN,
+                      self.config))
             ctx.set_last_step_output(
                 name='loss',
                 output=estimator_spec.loss,
@@ -1298,7 +1298,7 @@ class EstimatorV2(object):
 
           # Create new train_op post graph rewrites
           initial_training_loss = constant_op.constant(1e7)
-          ctx = strategy.run_steps_on_dataset(
+          ctx = strategy.extended.experimental_run_steps_on_iterator(
               step_fn, iterator, iterations=steps_per_run_variable,
               initial_loop_values={'loss': initial_training_loss})
           distributed_train_op = ctx.run_op
@@ -1307,14 +1307,14 @@ class EstimatorV2(object):
         else:
           features, labels = estimator_util.parse_iterator_result(
               iterator.get_next())
-          grouped_estimator_spec = strategy.call_for_each_replica(
+          grouped_estimator_spec = strategy.extended.call_for_each_replica(
               self._call_model_fn,
-              features,
-              labels,  # although this will be None it seems
-              model_fn_lib.ModeKeys.TRAIN,
-              self.config)
+              args=(features,
+                    labels,  # although this will be None it seems
+                    model_fn_lib.ModeKeys.TRAIN,
+                    self.config))
           loss = strategy.unwrap(
-              strategy.reduce(
+              strategy.extended.reduce_to(
                   distribute_lib.get_loss_reduction(),
                   grouped_estimator_spec.loss,
                   destinations='/device:CPU:0'))[0]
@@ -1546,9 +1546,9 @@ class EstimatorV2(object):
         else:
           features = inputs
           labels = None
-        estimator_spec = self._eval_distribution.call_for_each_replica(
-            self._call_model_fn, features, labels, model_fn_lib.ModeKeys.EVAL,
-            config)
+        estimator_spec = self._eval_distribution.extended.call_for_each_replica(
+            self._call_model_fn,
+            args=(features, labels, model_fn_lib.ModeKeys.EVAL, config))
         eval_metric_ops = _verify_and_create_loss_metric(
             estimator_spec.eval_metric_ops, estimator_spec.loss,
             self._eval_distribution)
@@ -1559,7 +1559,7 @@ class EstimatorV2(object):
         return update_op
 
       # TODO(priyag): Fix eval step hook to account for steps_per_run.
-      ctx = self._eval_distribution.run_steps_on_dataset(
+      ctx = self._eval_distribution.extended.experimental_run_steps_on_iterator(
           step_fn, iterator, iterations=steps_per_run_variable)
       update_op = ctx.run_op
       eval_dict = ctx.non_tensor_outputs['eval_dict']
@@ -1567,9 +1567,10 @@ class EstimatorV2(object):
     else:
       features, labels = estimator_util.parse_iterator_result(
           iterator.get_next())
-      grouped_estimator_spec = self._eval_distribution.call_for_each_replica(
-          self._call_model_fn, features, labels,
-          model_fn_lib.ModeKeys.EVAL, config)
+      grouped_estimator_spec = (
+          self._eval_distribution.extended.call_for_each_replica(
+              self._call_model_fn,
+              args=(features, labels, model_fn_lib.ModeKeys.EVAL, config)))
       eval_metric_ops = _verify_and_create_loss_metric(
           grouped_estimator_spec.eval_metric_ops, grouped_estimator_spec.loss,
           self._eval_distribution)
@@ -1747,8 +1748,8 @@ def _verify_and_create_loss_metric(eval_metric_ops, loss, distribution=None):
   if distribution is None:
     loss_metric = metrics_lib.mean(loss)
   else:
-    loss_metric = distribution.call_for_each_replica(
-        metrics_lib.mean, loss)
+    loss_metric = distribution.extended.call_for_each_replica(
+        metrics_lib.mean, args=(loss,))
   eval_metric_ops[model_fn_lib.LOSS_METRIC_KEY] = loss_metric
   return eval_metric_ops
 
@@ -1811,7 +1812,7 @@ def create_per_replica_ready_for_local_init_op(scaffold):
 
 
 def _combine_distributed_scaffold(grouped_scaffold, distribution):
-  """Combines scaffold(s) returned from `distribution.call_for_each_replica`."""
+  """Combines scaffold(s) returned from `call_for_each_replica`."""
 
   # TODO(anjalisridhar): Figure out how to resolve the following scaffold
   # parameters: init_feed_dict, init_fn.
@@ -1844,13 +1845,13 @@ def _combine_distributed_scaffold(grouped_scaffold, distribution):
       return array_ops.concat(value, 0)
     return value[0]
 
-  ready_op = distribution.call_for_each_replica(
-      lambda scaffold: scaffold.ready_op, grouped_scaffold)
+  ready_op = distribution.extended.call_for_each_replica(
+      lambda scaffold: scaffold.ready_op, args=(grouped_scaffold,))
   if ready_op is not None:
     ready_op = _unwrap_and_concat(ready_op)
 
-  ready_for_local_init_op = distribution.call_for_each_replica(
-      create_per_replica_ready_for_local_init_op, grouped_scaffold)
+  ready_for_local_init_op = distribution.extended.call_for_each_replica(
+      create_per_replica_ready_for_local_init_op, args=(grouped_scaffold,))
   if ready_for_local_init_op is not None:
     ready_for_local_init_op = _unwrap_and_concat(ready_for_local_init_op)
   else:
