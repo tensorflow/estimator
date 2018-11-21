@@ -103,10 +103,6 @@ def dnn_logit_fn_builder(units, hidden_units, feature_columns, activation_fn,
   return dnn_logit_fn
 
 
-# TODO(mikecase): Remove callers of private _dnn_logit_fn_builder
-_dnn_logit_fn_builder = dnn_logit_fn_builder
-
-
 def _get_previous_name_scope():
   current_name_scope = ops.get_name_scope()
   return current_name_scope.rsplit('/', 1)[0] + '/'

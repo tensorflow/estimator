@@ -454,7 +454,6 @@ def _sdca_model_fn(features, labels, mode, head, feature_columns, optimizer):
         logits=logits)
 
 
-
 class _SDCAUpdateWeightsHook(session_run_hook.SessionRunHook):
   """SessionRunHook to update and shrink SDCA model weights."""
 
@@ -472,10 +471,6 @@ class _SDCAUpdateWeightsHook(session_run_hook.SessionRunHook):
   def before_run(self, run_context):
     """Return the update_weights op so that it is executed during this run."""
     return session_run_hook.SessionRunArgs(self._update_op)
-
-
-# TODO(mikecase): Remove callers of private _dnn_logit_fn_builder
-_linear_logit_fn_builder = linear_logit_fn_builder
 
 
 def _linear_model_fn(features, labels, mode, head, feature_columns, optimizer,
