@@ -135,7 +135,6 @@ def _tensor_forest_model_fn(features,
   return estimator_spec
 
 
-# @estimator_export('estimator.TensorForestClassifier')
 class TensorForestClassifier(estimator.Estimator):
   """ TensorForest Classifier """
 
@@ -235,14 +234,14 @@ class TensorForestClassifier(estimator.Estimator):
           label_vocabulary=label_vocabulary,
           loss_reduction=losses.Reduction.SUM_OVER_BATCH_SIZE)
     else:
-      assert head.logits_dimension == n_classes, 'head logits_dimension: %s ' \
-          % head.logits_dimension + \
-          'should match n_classes: %s' % n_classes
+      if n_classes > 2:
+        assert head.logits_dimension == n_classes, 'head logits_dimension: %s ' \
+            % head.logits_dimension + \
+            'should match n_classes: %s' % n_classes
 
     for fc in feature_columns:
         assert len(fc.shape) == 1, \
             'Only rank 2 Columns are supported for now, %s violates it' % fc
-
 
     num_features = sum(fc.shape[0] for fc in feature_columns)
 
