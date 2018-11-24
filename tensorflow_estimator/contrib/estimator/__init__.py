@@ -26,7 +26,6 @@ from tensorflow_estimator.contrib.estimator.python.estimator.export import *
 from tensorflow_estimator.contrib.estimator.python.estimator.extenders import *
 from tensorflow_estimator.contrib.estimator.python.estimator.head import *
 from tensorflow_estimator.contrib.estimator.python.estimator.hooks import *
-from tensorflow_estimator.contrib.estimator.python.estimator.linear import *
 from tensorflow_estimator.contrib.estimator.python.estimator.logit_fns import *
 from tensorflow_estimator.contrib.estimator.python.estimator.multi_head import *
 from tensorflow_estimator.contrib.estimator.python.estimator.replicate_model_fn import *
@@ -50,7 +49,6 @@ _allowed_symbols = [
     'multi_label_head',
     'poisson_regression_head',
     'regression_head',
-    'LinearEstimator',
     'boosted_trees_classifier_train_in_memory',
     'boosted_trees_regressor_train_in_memory',
     'call_logit_fn',

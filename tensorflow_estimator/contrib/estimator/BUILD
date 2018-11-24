@@ -22,7 +22,6 @@ py_library(
         ":extenders",
         ":head",
         ":hooks",
-        ":linear",
         ":logit_fns",
         ":multi_head",
         ":replicate_model_fn",
@@ -238,38 +237,6 @@ py_test(
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
         "//tensorflow_estimator/python/estimator:expect_six_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
-    ],
-)
-
-py_library(
-    name = "linear",
-    srcs = ["python/estimator/linear.py"],
-    srcs_version = "PY2AND3",
-    deps = [
-        "//tensorflow_estimator/python/estimator",
-        "//tensorflow_estimator/python/estimator:linear",
-    ],
-)
-
-py_test(
-    name = "linear_test",
-    size = "medium",
-    srcs = ["python/estimator/linear_test.py"],
-    srcs_version = "PY2AND3",
-    tags = [
-        "no_pip",
-        "notsan",
-    ],
-    deps = [
-        ":head",
-        ":linear",
-        "//tensorflow_estimator/python/estimator:expect_numpy_installed",
-        "//tensorflow_estimator/python/estimator:expect_six_installed",
-        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
-        "//tensorflow_estimator/python/estimator:export_export",
-        "//tensorflow_estimator/python/estimator:linear_testing_utils",
-        "//tensorflow_estimator/python/estimator:numpy_io",
-        "//tensorflow_estimator/python/estimator:prediction_keys",
     ],
 )
 
