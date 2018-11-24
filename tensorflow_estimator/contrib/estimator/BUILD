@@ -15,7 +15,6 @@ py_library(
     visibility = ["//visibility:public"],
     deps = [
         ":boosted_trees",
-        ":dnn",
         ":dnn_with_layer_annotations",
         ":early_stopping",
         ":export",
@@ -58,40 +57,6 @@ py_test(
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:numpy_io",
-    ],
-)
-
-py_library(
-    name = "dnn",
-    srcs = ["python/estimator/dnn.py"],
-    srcs_version = "PY2AND3",
-    deps = [
-        "//tensorflow_estimator/python/estimator",
-        "//tensorflow_estimator/python/estimator:dnn",
-        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
-    ],
-)
-
-py_test(
-    name = "dnn_test",
-    size = "medium",
-    srcs = ["python/estimator/dnn_test.py"],
-    srcs_version = "PY2AND3",
-    tags = [
-        "no_pip",
-        "notsan",
-        "optonly",  # times out http://b/79220679
-    ],
-    deps = [
-        ":dnn",
-        ":head",
-        "//tensorflow_estimator/python/estimator:dnn_testing_utils",
-        "//tensorflow_estimator/python/estimator:expect_numpy_installed",
-        "//tensorflow_estimator/python/estimator:expect_six_installed",
-        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
-        "//tensorflow_estimator/python/estimator:export_export",
-        "//tensorflow_estimator/python/estimator:numpy_io",
-        "//tensorflow_estimator/python/estimator:prediction_keys",
     ],
 )
 
