@@ -1036,15 +1036,51 @@ class EstimatorV2(object):
                       'QueueRunner. That means predict yields forever. '
                       'This is probably a mistake.')
 
-  def _get_iterator_from_input_fn(self, input_fn, mode, distribution=None):
-    if distribution is not None:
+  def _has_input_context_arg(self, input_fn_args):
+    # Only support 4 arguments at most. They are `mode`, `config`, `params`
+    # and `input_context` for input_fn. The additional arg will be taken
+    # as the `input_context`. It should be the first one and it is useful 
+    # for distributio strategy.
+    optional_args = tuple(['mode', 'params', 'config'])
+    difference = set(input_fn_args).difference(set(optional_args))
+    if len(difference) > 0:
+      assert len(difference) == 1, ('Only one more arg should be taken as '
+          '`input_context` of input_fn except for `mode`, `params` and '
+          '`config`, but found %d.' % len(difference))
+      assert input_fn_args.index(list(difference)[0]) == 0, ('`%s` of input_fn '
+          'will be taken as `input_context` for DistributionStrategy usage. '
+          'It should be the 1st arg of `input_fn`' % list(difference)[0])
+      return True
+    else:
+      return False
+
+  def _get_distribute_iterator_and_hooks(self,
+                                         input_fn,
+                                         mode,
+                                         distribution=None):
+    input_fn_args = function_utils.fn_args(input_fn)
+    has_input_context = self._has_input_context_arg(input_fn_args)
+    if has_input_context:
+      kwargs = self._wrap_optional_args_for_input_fn(input_fn_args, mode)
+      iterator = distribution.make_input_fn_iterator(
+          lambda context: input_fn(context, **kwargs))
+      input_hooks = [estimator_util.MultiHostDatasetInitializerHook(
+          iterator.initialize())]
+    else:
       result = distribution.distribute_dataset(
           lambda: self._call_input_fn(input_fn, mode))
+      iterator = result.make_initializable_iterator()
+      input_hooks = [estimator_util._DatasetInitializerHook(iterator)]  # pylint: disable=protected-access
+    return iterator, input_hooks
+
+  def _get_iterator_from_input_fn(self, input_fn, mode, distribution=None):
+    if distribution is not None:
+      iterator, input_hooks = self._get_distribute_iterator_and_hooks(
+           input_fn, mode, distribution)
     else:
       result = self._call_input_fn(input_fn, mode)
-
-    iterator = result.make_initializable_iterator()
-    input_hooks = [estimator_util._DatasetInitializerHook(iterator)]  # pylint: disable=protected-access
+      iterator = result.make_initializable_iterator()
+      input_hooks = [estimator_util._DatasetInitializerHook(iterator)]  # pylint: disable=protected-access
     return iterator, input_hooks
 
   def _get_features_and_labels_from_input_fn(self, input_fn, mode):
@@ -1107,6 +1143,25 @@ class EstimatorV2(object):
     assert step.dtype.is_integer
     return step
 
+  def _wrap_optional_args_for_input_fn(self, input_fn_args, mode):
+    """ Wrap the `mode`, `params` and `config` args into `kwargs`.
+
+    Args:
+      input_fn_args: The args of `input_fn`
+      mode: `tf.estimator.ModeKeys`
+
+    Returns:
+      kwargs for input_fn
+    """
+    kwargs = {}
+    if 'mode' in input_fn_args:
+      kwargs['mode'] = mode
+    if 'params' in input_fn_args:
+      kwargs['params'] = self.params
+    if 'config' in input_fn_args:
+      kwargs['config'] = self.config
+    return kwargs
+
   def _call_input_fn(self, input_fn, mode):
     """Calls the input function.
 
@@ -1129,13 +1184,7 @@ class EstimatorV2(object):
       ValueError: if `input_fn` takes invalid arguments.
     """
     input_fn_args = function_utils.fn_args(input_fn)
-    kwargs = {}
-    if 'mode' in input_fn_args:
-      kwargs['mode'] = mode
-    if 'params' in input_fn_args:
-      kwargs['params'] = self.params
-    if 'config' in input_fn_args:
-      kwargs['config'] = self.config
+    kwargs = self._wrap_optional_args_for_input_fn(input_fn_args, mode)
     with ops.device('/cpu:0'):
       return input_fn(**kwargs)
 
