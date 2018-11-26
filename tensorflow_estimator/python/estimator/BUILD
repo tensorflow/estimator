@@ -346,13 +346,12 @@ py_library(
 
 py_test(
     name = "dnn_test",
-    size = "medium",
+    size = "large",
     srcs = ["canned/dnn_test.py"],
     shard_count = 4,
     srcs_version = "PY2AND3",
     tags = [
         "no_pip",
-        "notap",  # b/119885677
         "notsan",  # b/67510291
     ],
     deps = [
