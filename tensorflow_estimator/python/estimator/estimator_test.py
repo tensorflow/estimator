@@ -44,6 +44,7 @@ from tensorflow.python.framework import errors
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import tensor_util
 from tensorflow.python.framework import test_util
+from tensorflow.python.keras import losses as losses_module
 from tensorflow.python.keras import metrics as metrics_module
 from tensorflow.python.layers import layers
 from tensorflow.python.lib.io import file_io
@@ -3275,7 +3276,7 @@ class EstimatorIntegrationTest(test.TestCase):
         return model_fn_lib.EstimatorSpec(
             mode, predictions=predictions, export_outputs=export_outputs)
 
-      loss = losses.mean_squared_error(labels, predictions)
+      loss = losses_module.MeanSquaredError()(labels, predictions)
       train_op = training.GradientDescentOptimizer(learning_rate=0.5).minimize(
           loss, training.get_global_step())
       mean = metrics_module.Mean()
