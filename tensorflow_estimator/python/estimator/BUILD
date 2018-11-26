@@ -345,9 +345,34 @@ py_library(
 )
 
 py_test(
-    name = "dnn_test",
-    size = "large",
-    srcs = ["canned/dnn_test.py"],
+    name = "dnn_test_v1",
+    size = "medium",
+    srcs = ["canned/dnn_test_v1.py"],
+    shard_count = 4,
+    srcs_version = "PY2AND3",
+    tags = [
+        "no_pip",
+        "notsan",  # b/67510291
+    ],
+    deps = [
+        ":dnn",
+        ":dnn_testing_utils",
+        ":export_export",
+        ":numpy_io",
+        ":pandas_io",
+        ":prediction_keys",
+        "//tensorflow_estimator/python/estimator:expect_absl_installed",
+        "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_pandas_installed",
+        "//tensorflow_estimator/python/estimator:expect_six_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
+py_test(
+    name = "dnn_test_v2",
+    size = "medium",
+    srcs = ["canned/dnn_test_v2.py"],
     shard_count = 4,
     srcs_version = "PY2AND3",
     tags = [

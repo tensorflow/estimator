@@ -65,14 +65,6 @@ def _dnn_classifier_fn(*args, **kwargs):
   return dnn.DNNClassifierV2(*args, **kwargs)
 
 
-class DNNModelFnTest(dnn_testing_utils.BaseDNNModelFnTest, test.TestCase):
-
-  def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
-    dnn_testing_utils.BaseDNNModelFnTest.__init__(
-        self, dnn._dnn_model_fn, fc_impl=feature_column)
-
-
 class DNNModelFnV2Test(dnn_testing_utils.BaseDNNModelFnTest, test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
@@ -81,29 +73,12 @@ class DNNModelFnV2Test(dnn_testing_utils.BaseDNNModelFnTest, test.TestCase):
         self, dnn._dnn_model_fn, fc_impl=feature_column_v2)
 
 
-class DNNLogitFnTest(dnn_testing_utils.BaseDNNLogitFnTest, test.TestCase):
-
-  def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
-    dnn_testing_utils.BaseDNNLogitFnTest.__init__(
-        self, dnn.dnn_logit_fn_builder, fc_impl=feature_column)
-
-
 class DNNLogitFnV2Test(dnn_testing_utils.BaseDNNLogitFnTest, test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
     test.TestCase.__init__(self, methodName)
     dnn_testing_utils.BaseDNNLogitFnTest.__init__(
         self, dnn.dnn_logit_fn_builder, fc_impl=feature_column_v2)
-
-
-class DNNWarmStartingTest(dnn_testing_utils.BaseDNNWarmStartingTest,
-                          test.TestCase):
-
-  def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
-    dnn_testing_utils.BaseDNNWarmStartingTest.__init__(
-        self, _dnn_classifier_fn, _dnn_regressor_fn, fc_impl=feature_column)
 
 
 class DNNWarmStartingV2Test(dnn_testing_utils.BaseDNNWarmStartingTest,
@@ -115,15 +90,6 @@ class DNNWarmStartingV2Test(dnn_testing_utils.BaseDNNWarmStartingTest,
         self, _dnn_classifier_fn, _dnn_regressor_fn, fc_impl=feature_column_v2)
 
 
-class DNNClassifierEvaluateTest(
-    dnn_testing_utils.BaseDNNClassifierEvaluateTest, test.TestCase):
-
-  def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
-    dnn_testing_utils.BaseDNNClassifierEvaluateTest.__init__(
-        self, _dnn_classifier_fn, fc_impl=feature_column)
-
-
 class DNNClassifierEvaluateV2Test(
     dnn_testing_utils.BaseDNNClassifierEvaluateTest, test.TestCase):
 
@@ -133,15 +99,6 @@ class DNNClassifierEvaluateV2Test(
         self, _dnn_classifier_fn, fc_impl=feature_column_v2)
 
 
-class DNNClassifierPredictTest(
-    dnn_testing_utils.BaseDNNClassifierPredictTest, test.TestCase):
-
-  def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
-    dnn_testing_utils.BaseDNNClassifierPredictTest.__init__(
-        self, _dnn_classifier_fn, fc_impl=feature_column)
-
-
 class DNNClassifierPredictV2Test(dnn_testing_utils.BaseDNNClassifierPredictTest,
                                  test.TestCase):
 
@@ -149,15 +106,6 @@ class DNNClassifierPredictV2Test(dnn_testing_utils.BaseDNNClassifierPredictTest,
     test.TestCase.__init__(self, methodName)
     dnn_testing_utils.BaseDNNClassifierPredictTest.__init__(
         self, _dnn_classifier_fn, fc_impl=feature_column_v2)
-
-
-class DNNClassifierTrainTest(
-    dnn_testing_utils.BaseDNNClassifierTrainTest, test.TestCase):
-
-  def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
-    dnn_testing_utils.BaseDNNClassifierTrainTest.__init__(
-        self, _dnn_classifier_fn, fc_impl=feature_column)
 
 
 class DNNClassifierTrainV2Test(dnn_testing_utils.BaseDNNClassifierTrainTest,
@@ -173,15 +121,6 @@ def _dnn_regressor_fn(*args, **kwargs):
   return dnn.DNNRegressorV2(*args, **kwargs)
 
 
-class DNNRegressorEvaluateTest(
-    dnn_testing_utils.BaseDNNRegressorEvaluateTest, test.TestCase):
-
-  def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
-    dnn_testing_utils.BaseDNNRegressorEvaluateTest.__init__(
-        self, _dnn_regressor_fn, fc_impl=feature_column)
-
-
 class DNNRegressorEvaluateV2Test(dnn_testing_utils.BaseDNNRegressorEvaluateTest,
                                  test.TestCase):
 
@@ -191,15 +130,6 @@ class DNNRegressorEvaluateV2Test(dnn_testing_utils.BaseDNNRegressorEvaluateTest,
         self, _dnn_regressor_fn, fc_impl=feature_column_v2)
 
 
-class DNNRegressorPredictTest(
-    dnn_testing_utils.BaseDNNRegressorPredictTest, test.TestCase):
-
-  def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
-    dnn_testing_utils.BaseDNNRegressorPredictTest.__init__(
-        self, _dnn_regressor_fn, fc_impl=feature_column)
-
-
 class DNNRegressorPredictV2Test(dnn_testing_utils.BaseDNNRegressorPredictTest,
                                 test.TestCase):
 
@@ -207,15 +137,6 @@ class DNNRegressorPredictV2Test(dnn_testing_utils.BaseDNNRegressorPredictTest,
     test.TestCase.__init__(self, methodName)
     dnn_testing_utils.BaseDNNRegressorPredictTest.__init__(
         self, _dnn_regressor_fn, fc_impl=feature_column_v2)
-
-
-class DNNRegressorTrainTest(
-    dnn_testing_utils.BaseDNNRegressorTrainTest, test.TestCase):
-
-  def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
-    dnn_testing_utils.BaseDNNRegressorTrainTest.__init__(
-        self, _dnn_regressor_fn, fc_impl=feature_column)
 
 
 class DNNRegressorTrainV2Test(dnn_testing_utils.BaseDNNRegressorTrainTest,
@@ -243,7 +164,6 @@ def _queue_parsed_features(feature_map):
   return {keys[i]: dequeued_tensors[i] for i in range(len(dequeued_tensors))}
 
 
-@parameterized.parameters((feature_column,), (feature_column_v2,))
 class DNNRegressorIntegrationTest(test.TestCase, parameterized.TestCase):
 
   def setUp(self):
@@ -255,9 +175,8 @@ class DNNRegressorIntegrationTest(test.TestCase, parameterized.TestCase):
       shutil.rmtree(self._model_dir)
 
   def _test_complete_flow(self, train_input_fn, eval_input_fn, predict_input_fn,
-                          input_dimension, label_dimension, batch_size,
-                          fc_impl):
-    feature_columns = [fc_impl.numeric_column('x', shape=(input_dimension,))]
+                          input_dimension, label_dimension, batch_size):
+    feature_columns = [feature_column_v2.numeric_column('x', shape=(input_dimension,))]
 
     est = dnn.DNNRegressorV2(
         hidden_units=(2, 2),
@@ -289,7 +208,7 @@ class DNNRegressorIntegrationTest(test.TestCase, parameterized.TestCase):
                                        serving_input_receiver_fn)
     self.assertTrue(gfile.Exists(export_dir))
 
-  def test_numpy_input_fn(self, fc_impl):
+  def test_numpy_input_fn(self):
     """Tests complete flow with numpy_input_fn."""
     label_dimension = 2
     batch_size = 10
@@ -318,10 +237,9 @@ class DNNRegressorIntegrationTest(test.TestCase, parameterized.TestCase):
         predict_input_fn=predict_input_fn,
         input_dimension=label_dimension,
         label_dimension=label_dimension,
-        batch_size=batch_size,
-        fc_impl=fc_impl)
+        batch_size=batch_size)
 
-  def test_pandas_input_fn(self, fc_impl):
+  def test_pandas_input_fn(self):
     """Tests complete flow with pandas_input_fn."""
     if not HAS_PANDAS:
       return
@@ -352,10 +270,9 @@ class DNNRegressorIntegrationTest(test.TestCase, parameterized.TestCase):
         predict_input_fn=predict_input_fn,
         input_dimension=label_dimension,
         label_dimension=label_dimension,
-        batch_size=batch_size,
-        fc_impl=fc_impl)
+        batch_size=batch_size)
 
-  def test_input_fn_from_parse_example(self, fc_impl):
+  def test_input_fn_from_parse_example(self):
     """Tests complete flow with input_fn constructed from parse_example."""
     label_dimension = 2
     batch_size = 10
@@ -403,11 +320,9 @@ class DNNRegressorIntegrationTest(test.TestCase, parameterized.TestCase):
         predict_input_fn=_predict_input_fn,
         input_dimension=label_dimension,
         label_dimension=label_dimension,
-        batch_size=batch_size,
-        fc_impl=fc_impl)
+        batch_size=batch_size)
 
 
-@parameterized.parameters((feature_column,), (feature_column_v2,))
 class DNNClassifierIntegrationTest(test.TestCase):
 
   def setUp(self):
@@ -422,8 +337,8 @@ class DNNClassifierIntegrationTest(test.TestCase):
     return np.rint(data_in_float).astype(np.int64)
 
   def _test_complete_flow(self, train_input_fn, eval_input_fn, predict_input_fn,
-                          input_dimension, n_classes, batch_size, fc_impl):
-    feature_columns = [fc_impl.numeric_column('x', shape=(input_dimension,))]
+                          input_dimension, n_classes, batch_size):
+    feature_columns = [feature_column_v2.numeric_column('x', shape=(input_dimension,))]
 
     est = dnn.DNNClassifierV2(
         hidden_units=(2, 2),
@@ -455,7 +370,7 @@ class DNNClassifierIntegrationTest(test.TestCase):
                                        serving_input_receiver_fn)
     self.assertTrue(gfile.Exists(export_dir))
 
-  def test_numpy_input_fn(self, fc_impl):
+  def test_numpy_input_fn(self):
     """Tests complete flow with numpy_input_fn."""
     n_classes = 3
     input_dimension = 2
@@ -487,10 +402,9 @@ class DNNClassifierIntegrationTest(test.TestCase):
         predict_input_fn=predict_input_fn,
         input_dimension=input_dimension,
         n_classes=n_classes,
-        batch_size=batch_size,
-        fc_impl=fc_impl)
+        batch_size=batch_size)
 
-  def test_pandas_input_fn(self, fc_impl):
+  def test_pandas_input_fn(self):
     """Tests complete flow with pandas_input_fn."""
     if not HAS_PANDAS:
       return
@@ -522,10 +436,9 @@ class DNNClassifierIntegrationTest(test.TestCase):
         predict_input_fn=predict_input_fn,
         input_dimension=input_dimension,
         n_classes=n_classes,
-        batch_size=batch_size,
-        fc_impl=fc_impl)
+        batch_size=batch_size)
 
-  def test_input_fn_from_parse_example(self, fc_impl):
+  def test_input_fn_from_parse_example(self):
     """Tests complete flow with input_fn constructed from parse_example."""
     input_dimension = 2
     n_classes = 3
@@ -577,8 +490,7 @@ class DNNClassifierIntegrationTest(test.TestCase):
         predict_input_fn=_predict_input_fn,
         input_dimension=input_dimension,
         n_classes=n_classes,
-        batch_size=batch_size,
-        fc_impl=fc_impl)
+        batch_size=batch_size)
 
 
 if __name__ == '__main__':
