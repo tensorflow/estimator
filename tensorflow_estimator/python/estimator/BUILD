@@ -352,6 +352,7 @@ py_test(
     srcs_version = "PY2AND3",
     tags = [
         "no_pip",
+        "notap",  # b/119885677
         "notsan",  # b/67510291
     ],
     deps = [
