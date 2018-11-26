@@ -1041,10 +1041,7 @@ def _bt_model_fn(
       if isinstance(weight_column, six.string_types):
         weight_column = feature_column_lib.numeric_column(
             key=weight_column, shape=(1,))
-      weights = array_ops.squeeze(
-          feature_column_lib._transform_features(  # pylint: disable=protected-access
-              features, [weight_column])[weight_column],
-          axis=1)
+      weights = _get_transformed_features(features, [weight_column])[0]
 
     # Create training graph.
     def _train_op_fn(loss):
