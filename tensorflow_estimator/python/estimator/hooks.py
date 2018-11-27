@@ -48,7 +48,7 @@ class InMemoryEvaluatorHook(training.SessionRunHook):
 
   estimator = tf.estimator.DNNClassifier(...)
 
-  evaluator = tf.contrib.estimator.InMemoryEvaluatorHook(
+  evaluator = tf.estimator.experimental.InMemoryEvaluatorHook(
       estimator, eval_input_fn)
   estimator.train(train_input_fn, hooks=[evaluator])
   ```
