@@ -30,6 +30,7 @@ import six
 from google.protobuf import message
 from tensorflow.core.framework import summary_pb2
 from tensorflow.python.client import session as tf_session
+from tensorflow.python.distribute import distribute_lib
 from tensorflow.python.distribute import estimator_training as distribute_coordinator_training
 from tensorflow.python.eager import context
 from tensorflow.python.framework import constant_op
@@ -51,7 +52,6 @@ from tensorflow.python.summary.writer import writer_cache
 from tensorflow.python.training import basic_session_run_hooks
 from tensorflow.python.training import checkpoint_management
 from tensorflow.python.training import device_setter
-from tensorflow.python.training import distribute as distribute_lib
 from tensorflow.python.training import evaluation
 from tensorflow.python.training import monitored_session
 from tensorflow.python.training import saver
