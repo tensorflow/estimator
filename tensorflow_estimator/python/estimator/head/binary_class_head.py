@@ -295,8 +295,7 @@ class BinaryClassHead(base_head.Head):
       # Mean metric.
       eval_metrics = {}
       eval_metrics[self._loss_mean_key] = metrics.Mean(name=keys.LOSS_MEAN)
-      eval_metrics[self._accuracy_key] = (
-          metrics.SparseCategoricalAccuracy(name=keys.ACCURACY))
+      eval_metrics[self._accuracy_key] = metrics.Accuracy(name=keys.ACCURACY)
       # TODO(b/118843532): create Keras metrics
       # eval_metrics[self._precision_key] = metrics.Precision(name=keys.AUC)
       # eval_metrics[self._recall_key] = metrics.Precision(name=keys.RECALL)
@@ -325,9 +324,9 @@ class BinaryClassHead(base_head.Head):
   def update_metrics(self, eval_metrics, features, logits, labels,
                      regularization_losses=None):
     """Updates eval metrics. See `base_head.Head` for details."""
+    preds = self.predictions(logits)
+    class_ids = preds[prediction_keys.PredictionKeys.CLASS_IDS]
     logits = base_head.check_logits_final_dim(logits, self.logits_dimension)
-    two_class_logits = array_ops.concat((array_ops.zeros_like(logits), logits),
-                                        axis=-1, name='two_class_logits')
     labels = self._processed_labels(logits, labels)
     unweighted_loss, weights = self._unweighted_loss_and_weights(
         logits, labels, features)
@@ -335,7 +334,7 @@ class BinaryClassHead(base_head.Head):
     eval_metrics[self._loss_mean_key].update_state(
         values=unweighted_loss, sample_weight=weights)
     eval_metrics[self._accuracy_key].update_state(
-        y_true=labels, y_pred=two_class_logits, sample_weight=weights)
+        y_true=labels, y_pred=class_ids, sample_weight=weights)
     # TODO(b/118843532): update Keras metrics
     # eval_metrics[self._precision_key].update(...)
     # eval_metrics[self._recall_key].update(...)

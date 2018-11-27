@@ -310,13 +310,14 @@ class MultiClassHead(base_head.Head):
             name=keys.LOSS_REGULARIZATION)
       # Accuracy metric.
       eval_metrics[self._accuracy_key] = (
-          metrics.SparseCategoricalAccuracy(name=keys.ACCURACY))
+          metrics.Accuracy(name=keys.ACCURACY))
     return eval_metrics
 
   def update_metrics(self, eval_metrics, features, logits, labels,
                      regularization_losses=None):
     """Updates eval metrics. See `base_head.Head` for details."""
-    # SparseCategoricalAccuracy metric uses logits as input for `y_pred` arg.
+    preds = self.predictions(logits)
+    class_ids = preds[prediction_keys.PredictionKeys.CLASS_IDS]
     logits = base_head.check_logits_final_dim(logits, self.logits_dimension)
     label_ids = self._processed_labels(logits, labels)
     unweighted_loss, weights = self._unweighted_loss_and_weights(
@@ -326,7 +327,7 @@ class MultiClassHead(base_head.Head):
     eval_metrics[self._loss_mean_key].update_state(
         values=unweighted_loss, sample_weight=weights)
     eval_metrics[self._accuracy_key].update_state(
-        y_true=label_ids, y_pred=logits, sample_weight=weights)
+        y_true=label_ids, y_pred=class_ids, sample_weight=weights)
 
     if regularization_losses is not None:
       regularization_loss = math_ops.add_n(regularization_losses)

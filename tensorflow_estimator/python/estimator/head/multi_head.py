@@ -125,7 +125,7 @@ class MultiHead(base_head.Head):
     head_weights: Optional list of weights, same length as `heads`. Used when
       merging losses to calculate the weighted sum of losses from each head. If
       `None`, all losses are weighted equally.
-"""
+  """
 
   def __init__(self, heads, head_weights=None):
     if not heads:
