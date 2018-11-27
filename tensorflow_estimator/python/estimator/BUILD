@@ -22,6 +22,7 @@ py_library(
         ":export",
         ":exporter",
         ":extenders",
+        ":hooks",
         ":inputs",
         ":keras",
         ":linear",
@@ -103,6 +104,27 @@ py_test(
     srcs_version = "PY2AND3",
     deps = [
         ":gc",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
+py_library(
+    name = "hooks",
+    srcs = ["hooks.py"],
+    srcs_version = "PY2AND3",
+    deps = [
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
+py_test(
+    name = "hooks_test",
+    srcs = ["hooks_test.py"],
+    srcs_version = "PY2AND3",
+    deps = [
+        ":estimator_py",
+        ":hooks",
+        "//tensorflow_estimator/python/estimator",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
     ],
 )
