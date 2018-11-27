@@ -1472,7 +1472,7 @@ class EstimatorV2(object):
         any_step_done = True
     if not any_step_done:
       logging.warning('Training with estimator made no steps. '
-                      'Perhaphs input is empty or misspecified.')
+                      'Perhaps input is empty or misspecified.')
     return loss
 
   def _evaluate_build_graph(self, input_fn, hooks=None, checkpoint_path=None):
