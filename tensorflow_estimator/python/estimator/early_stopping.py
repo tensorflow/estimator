@@ -101,6 +101,7 @@ def stop_if_higher_hook(estimator,
                         threshold,
                         eval_dir=None,
                         min_steps=0,
+                        min_delta=0,
                         run_every_secs=60,
                         run_every_steps=None):
   """Creates hook to stop if the given metric is higher than the threshold.
@@ -130,6 +131,9 @@ def stop_if_higher_hook(estimator,
       default, `estimator.eval_dir()` will be used.
     min_steps: `int`, stop is never requested if global step is less than this
       value. Defaults to 0.
+    min_delta: `float`, minimum required change in the given metric to determine
+      if movement has occurred. Defaults to 0. Raises ValueError for negative
+      values.
     run_every_secs: If specified, calls `should_stop_fn` at an interval of
       `run_every_secs` seconds. Defaults to 60 seconds. Either this or
       `run_every_steps` must be set.
@@ -141,6 +145,9 @@ def stop_if_higher_hook(estimator,
     if the given metric is higher than specified threshold and initiates
     early stopping if true.
   """
+  if min_delta < 0:
+      raise ValueError('min_delta must be non-negative.')
+
   return _stop_if_threshold_crossed_hook(
       estimator=estimator,
       metric_name=metric_name,
@@ -148,6 +155,7 @@ def stop_if_higher_hook(estimator,
       higher_is_better=True,
       eval_dir=eval_dir,
       min_steps=min_steps,
+      min_delta=min_delta,
       run_every_secs=run_every_secs,
       run_every_steps=run_every_steps)
 
@@ -157,6 +165,7 @@ def stop_if_lower_hook(estimator,
     threshold,
     eval_dir=None,
     min_steps=0,
+    min_delta=0,
     run_every_secs=60,
     run_every_steps=None):
   """Creates hook to stop if the given metric is lower than the threshold.
@@ -186,6 +195,9 @@ def stop_if_lower_hook(estimator,
       default, `estimator.eval_dir()` will be used.
     min_steps: `int`, stop is never requested if global step is less than this
       value. Defaults to 0.
+    min_delta: `float`, minimum required change in the given metric to determine
+      if movement has occurred. Defaults to 0. Raises ValueError for negative
+      values.
     run_every_secs: If specified, calls `should_stop_fn` at an interval of
       `run_every_secs` seconds. Defaults to 60 seconds. Either this or
       `run_every_steps` must be set.
@@ -197,6 +209,9 @@ def stop_if_lower_hook(estimator,
     if the given metric is lower than specified threshold and initiates
     early stopping if true.
   """
+  if min_delta < 0:
+      raise ValueError('min_delta must be non-negative.')
+
   return _stop_if_threshold_crossed_hook(
       estimator=estimator,
       metric_name=metric_name,
@@ -204,6 +219,7 @@ def stop_if_lower_hook(estimator,
       higher_is_better=False,
       eval_dir=eval_dir,
       min_steps=min_steps,
+      min_delta=min_delta,
       run_every_secs=run_every_secs,
       run_every_steps=run_every_steps)
 
@@ -214,6 +230,7 @@ def stop_if_no_increase_hook(estimator,
     max_steps_without_increase,
     eval_dir=None,
     min_steps=0,
+    min_delta=0,
     run_every_secs=60,
     run_every_steps=None):
   """Creates hook to stop if metric does not increase within given max steps.
@@ -244,6 +261,9 @@ def stop_if_no_increase_hook(estimator,
       default, `estimator.eval_dir()` will be used.
     min_steps: `int`, stop is never requested if global step is less than this
       value. Defaults to 0.
+    min_delta: `float`, minimum required change in the given metric to determine
+      if movement has occurred. Defaults to 0. Raises ValueError for negative
+      values.
     run_every_secs: If specified, calls `should_stop_fn` at an interval of
       `run_every_secs` seconds. Defaults to 60 seconds. Either this or
       `run_every_steps` must be set.
@@ -255,6 +275,9 @@ def stop_if_no_increase_hook(estimator,
     if the given metric shows no increase over given maximum number of
     training steps, and initiates early stopping if true.
   """
+  if min_delta < 0:
+      raise ValueError('min_delta must be non-negative.')
+
   return _stop_if_no_metric_improvement_hook(
       estimator=estimator,
       metric_name=metric_name,
@@ -262,6 +285,7 @@ def stop_if_no_increase_hook(estimator,
       higher_is_better=True,
       eval_dir=eval_dir,
       min_steps=min_steps,
+      min_delta=min_delta,
       run_every_secs=run_every_secs,
       run_every_steps=run_every_steps)
 
@@ -272,6 +296,7 @@ def stop_if_no_decrease_hook(estimator,
     max_steps_without_decrease,
     eval_dir=None,
     min_steps=0,
+    min_delta=0,
     run_every_secs=60,
     run_every_steps=None):
   """Creates hook to stop if metric does not decrease within given max steps.
@@ -302,6 +327,9 @@ def stop_if_no_decrease_hook(estimator,
       default, `estimator.eval_dir()` will be used.
     min_steps: `int`, stop is never requested if global step is less than this
       value. Defaults to 0.
+    min_delta: `float`, minimum required change in the given metric to determine
+      if movement has occurred. Defaults to 0. Raises ValueError for negative
+      values.
     run_every_secs: If specified, calls `should_stop_fn` at an interval of
       `run_every_secs` seconds. Defaults to 60 seconds. Either this or
       `run_every_steps` must be set.
@@ -313,6 +341,9 @@ def stop_if_no_decrease_hook(estimator,
     if the given metric shows no decrease over given maximum number of
     training steps, and initiates early stopping if true.
   """
+  if min_delta < 0:
+      raise ValueError('min_delta must be non-negative.')
+
   return _stop_if_no_metric_improvement_hook(
       estimator=estimator,
       metric_name=metric_name,
@@ -320,6 +351,7 @@ def stop_if_no_decrease_hook(estimator,
       higher_is_better=False,
       eval_dir=eval_dir,
       min_steps=min_steps,
+      min_delta=min_delta,
       run_every_secs=run_every_secs,
       run_every_steps=run_every_steps)
 
@@ -349,13 +381,18 @@ def read_eval_metrics(eval_dir):
 
 def _stop_if_threshold_crossed_hook(estimator, metric_name, threshold,
                                     higher_is_better, eval_dir, min_steps,
-                                    run_every_secs, run_every_steps):
+                                    min_delta, run_every_secs, run_every_steps):
   """Creates early-stopping hook to stop training if threshold is crossed."""
 
   if eval_dir is None:
     eval_dir = estimator.eval_dir()
 
-  is_lhs_better = operator.gt if higher_is_better else operator.lt
+  def is_lhs_better_by_min_delta(lhs_val, val):
+    if higher_is_better:
+      return (lhs_val - val) > min_delta
+    else:
+      return (val - lhs_val) > min_delta
+
   greater_or_lesser = 'greater than' if higher_is_better else 'less than'
 
   def stop_if_threshold_crossed_fn():
@@ -367,7 +404,7 @@ def _stop_if_threshold_crossed_hook(estimator, metric_name, threshold,
       if step < min_steps:
         continue
       val = metrics[metric_name]
-      if is_lhs_better(val, threshold):
+      if is_lhs_better_by_min_delta(val, threshold):
         tf_logging.info(
             'At step %s, metric "%s" has value %s which is %s the configured '
             'threshold (%s) for early stopping.', step, metric_name, val,
@@ -384,13 +421,18 @@ def _stop_if_threshold_crossed_hook(estimator, metric_name, threshold,
 
 def _stop_if_no_metric_improvement_hook(
     estimator, metric_name, max_steps_without_improvement, higher_is_better,
-    eval_dir, min_steps, run_every_secs, run_every_steps):
+    eval_dir, min_steps, min_delta, run_every_secs, run_every_steps):
   """Returns hook to stop training if given metric shows no improvement."""
 
   if eval_dir is None:
     eval_dir = estimator.eval_dir()
 
-  is_lhs_better = operator.gt if higher_is_better else operator.lt
+  def is_lhs_better_by_min_delta(lhs_val, val):
+    if higher_is_better:
+      return (lhs_val - val) > min_delta
+    else:
+      return (val - lhs_val) > min_delta
+
   increase_or_decrease = 'increase' if higher_is_better else 'decrease'
 
   def stop_if_no_metric_improvement_fn():
@@ -404,7 +446,7 @@ def _stop_if_no_metric_improvement_hook(
       if step < min_steps:
         continue
       val = metrics[metric_name]
-      if best_val is None or is_lhs_better(val, best_val):
+      if best_val is None or is_lhs_better_by_min_delta(val, best_val):
         best_val = val
         best_val_step = step
       if step - best_val_step >= max_steps_without_improvement:

@@ -135,23 +135,29 @@ class EarlyStoppingHooksTest(test.TestCase, parameterized.TestCase):
         mon_sess.run(no_op)
         self.assertEqual(mon_sess.should_stop(), should_stop)
 
-  @parameterized.parameters((0.8, 0, False), (0.6, 4000, False), (0.6, 0, True))
-  def test_stop_if_higher_hook(self, threshold, min_steps, should_stop):
+  @parameterized.parameters((0.8, 0, 0, False), (0.7, 0, 0.1, True),
+                            (0.6, 4000, 0, False), (0.6, 0, 0, True))
+  def test_stop_if_higher_hook(self, threshold, min_steps, min_delta,
+                               should_stop):
     self.run_session(
         early_stopping.stop_if_higher_hook(
             self._estimator,
             metric_name='accuracy',
             threshold=threshold,
-            min_steps=min_steps), should_stop)
+            min_steps=min_steps,
+            min_delta=min_delta), should_stop)
 
-  @parameterized.parameters((0.3, 0, False), (0.5, 4000, False), (0.5, 0, True))
-  def test_stop_if_lower_hook(self, threshold, min_steps, should_stop):
+  @parameterized.parameters((0.3, 0, 0, False), (0.5, 4000, 0, False),
+                            (0.41, 3000, 0.02, False), (0.5, 0, 0, True))
+  def test_stop_if_lower_hook(self, threshold, min_steps, min_delta,
+                              should_stop):
     self.run_session(
         early_stopping.stop_if_lower_hook(
             self._estimator,
             metric_name='loss',
             threshold=threshold,
-            min_steps=min_steps), should_stop)
+            min_steps=min_steps,
+            min_delta=min_delta), should_stop)
 
   @parameterized.parameters((1500, 0, False), (500, 4000, False),
                             (500, 0, True))
