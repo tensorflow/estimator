@@ -413,27 +413,6 @@ class EstimatorSpecEvalTest(test.TestCase):
             loss=loss,
             eval_metric_ops={'loss': loss})
 
-  def testEvalMetricOpsNoTensorOrOperation(self):
-    with ops.Graph().as_default(), self.cached_session():
-      loss = constant_op.constant(1.)
-      with self.assertRaisesRegexp(TypeError, 'must be Operation or Tensor'):
-        model_fn.EstimatorSpec(
-            mode=model_fn.ModeKeys.EVAL,
-            predictions={'loss': loss},
-            loss=loss,
-            eval_metric_ops={'loss': ('NonTensor', loss)})
-
-  def testEvalMetricNestedNoTensorOrOperation(self):
-    with ops.Graph().as_default(), self.cached_session():
-      loss = constant_op.constant(1.)
-      with self.assertRaisesRegexp(TypeError, 'must be Operation or Tensor'):
-        model_fn.EstimatorSpec(
-            mode=model_fn.ModeKeys.EVAL,
-            predictions={'loss': loss},
-            loss=loss,
-            eval_metric_ops={'loss': ((('NonTensor',),),
-                                      control_flow_ops.no_op())})
-
   def testEvalMetricOpsFromDifferentGraphWithMetricTuple(self):
     with ops.Graph().as_default():
       eval_metric_ops = {

@@ -570,14 +570,6 @@ def _validate_eval_metric_ops(eval_metric_ops):
           raise TypeError(
               'Values of eval_metric_ops must be (metric_value, update_op) '
               'tuples, given: {} for key: {}'.format(value, key))
-        metric_value, metric_update = value
-        for metric_value_member in nest.flatten(metric_value):
-          # Allow (possibly nested) tuples for metric values, but require that
-          # each of them be Tensors or Operation.
-          _check_is_tensor_or_operation(metric_value_member,
-                                        'eval_metric_ops[{}]'.format(key))
-        _check_is_tensor_or_operation(metric_update,
-                                      'eval_metric_ops[{}]'.format(key))
   # Verify all tensors and ops are from default graph.
   default_graph = ops.get_default_graph()
   for key, value in list(six.iteritems(eval_metric_ops)):
