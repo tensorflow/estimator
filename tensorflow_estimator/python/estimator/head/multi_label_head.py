@@ -380,7 +380,7 @@ class MultiLabelHead(base_head.Head):
       eval_metrics = {}
       eval_metrics[self._loss_mean_key] = metrics.Mean(name=keys.LOSS_MEAN)
       # TODO(b/118843532): create Keras metrics
-      # eval_metrics[self._precision_key] = metrics.Precision(name=keys.AUC)
+      # eval_metrics[self._auc] = metrics.Precision(name=keys.AUC)
       # eval_metrics[self._auc_pr_key] = metrics.Precision(name=keys.AUC_PR)
       if regularization_losses is not None:
         eval_metrics[self._loss_regularization_key] = metrics.Mean(
@@ -388,12 +388,11 @@ class MultiLabelHead(base_head.Head):
       for i, threshold in enumerate(self._thresholds):
         eval_metrics[self._accuracy_keys[i]] = metrics.BinaryAccuracy(
             name=self._accuracy_keys[i], threshold=threshold)
-        # TODO(b/118843532): create Keras metrics
-        # eval_metrics[self._precision_keys[i]] = (
-        #     metrics.PRECISION_AT_THRESHOLD(
-        #     name=self._precision_keys[i], threshold=threshold))
-        # eval_metrics[self._recall_keys[i]] = metrics.RECALL_AT_THRESHOLD(
-        #     name=self._recall_keys[i], threshold=threshold)
+        eval_metrics[self._precision_keys[i]] = (
+            metrics.Precision(name=self._precision_keys[i],
+                              thresholds=threshold))
+        eval_metrics[self._recall_keys[i]] = metrics.Recall(
+            name=self._recall_keys[i], thresholds=threshold)
       for i in range(len(self._classes_for_class_based_metrics)):
         # TODO(b/118843532): create Keras metrics
         eval_metrics[self._prob_keys[i]] = metrics.Mean(name=self._prob_keys[i])
@@ -427,11 +426,10 @@ class MultiLabelHead(base_head.Head):
     for i in range(len(self._thresholds)):
       eval_metrics[self._accuracy_keys[i]].update_state(
           y_true=labels, y_pred=probabilities, sample_weight=weights)
-      # TODO(b/118843532): update Keras metrics
-      # eval_metrics[self._precision_keys[i]].update_state(
-      #     ...)
-      # eval_metrics[self._recall_keys[i]].update_state(
-      #     ...)
+      eval_metrics[self._precision_keys[i]].update_state(
+          y_true=labels, y_pred=probabilities, sample_weight=weights)
+      eval_metrics[self._recall_keys[i]].update_state(
+          y_true=labels, y_pred=probabilities, sample_weight=weights)
     for i, class_id in enumerate(self._classes_for_class_based_metrics):
       batch_rank = array_ops.rank(probabilities) - 1
       begin = array_ops.concat(

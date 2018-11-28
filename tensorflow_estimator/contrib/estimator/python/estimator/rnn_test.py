@@ -922,7 +922,20 @@ class RNNClassifierEvaluationTest(test.TestCase):
         metric_keys.MetricKeys.PREDICTION_MEAN:
             0.429262,
         metric_keys.MetricKeys.LABEL_MEAN:
-            0.5
+            0.5,
+        # TODO(b/118843532): update metrics
+        # metric_keys.MetricKeys.ACCURACY_BASELINE:
+        #     0.5,
+        # With default threshold of 0.5, the model is a perfect classifier.
+        metric_keys.MetricKeys.RECALL:
+            1.0,
+        metric_keys.MetricKeys.PRECISION:
+            1.0,
+        # # Positive example is scored above negative, so AUC = 1.0.
+        # metric_keys.MetricKeys.AUC:
+        #     1.0,
+        # metric_keys.MetricKeys.AUC_PR:
+        #     1.0,
     }
     self.assertAllClose(
         sorted_key_dict(expected_metrics), sorted_key_dict(eval_metrics))

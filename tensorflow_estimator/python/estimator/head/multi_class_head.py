@@ -309,8 +309,7 @@ class MultiClassHead(base_head.Head):
         eval_metrics[self._loss_regularization_key] = metrics.Mean(
             name=keys.LOSS_REGULARIZATION)
       # Accuracy metric.
-      eval_metrics[self._accuracy_key] = (
-          metrics.Accuracy(name=keys.ACCURACY))
+      eval_metrics[self._accuracy_key] = metrics.Accuracy(name=keys.ACCURACY)
     return eval_metrics
 
   def update_metrics(self, eval_metrics, features, logits, labels,

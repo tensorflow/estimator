@@ -598,14 +598,14 @@ class MultiLabelHead(test.TestCase):
         # keys.AUC: 0.3333,
         # keys.AUC_PR: 0.7639,
         keys.ACCURACY_AT_THRESHOLD % thresholds[0]: 2. / 4.,
-        # keys.PRECISION_AT_THRESHOLD % thresholds[0]: 2. / 3.,
-        # keys.RECALL_AT_THRESHOLD % thresholds[0]: 2. / 3.,
+        keys.PRECISION_AT_THRESHOLD % thresholds[0]: 2. / 3.,
+        keys.RECALL_AT_THRESHOLD % thresholds[0]: 2. / 3.,
         keys.ACCURACY_AT_THRESHOLD % thresholds[1]: 1. / 4.,
-        # keys.PRECISION_AT_THRESHOLD % thresholds[1]: 1. / 2.,
-        # keys.RECALL_AT_THRESHOLD % thresholds[1]: 1. / 3.,
+        keys.PRECISION_AT_THRESHOLD % thresholds[1]: 1. / 2.,
+        keys.RECALL_AT_THRESHOLD % thresholds[1]: 1. / 3.,
         keys.ACCURACY_AT_THRESHOLD % thresholds[2]: 2. / 4.,
-        # keys.PRECISION_AT_THRESHOLD % thresholds[2]: 1. / 1.,
-        # keys.RECALL_AT_THRESHOLD % thresholds[2]: 1. / 3.,
+        keys.PRECISION_AT_THRESHOLD % thresholds[2]: 1. / 1.,
+        keys.RECALL_AT_THRESHOLD % thresholds[2]: 1. / 3.,
     }
 
     self._test_eval(

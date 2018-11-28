@@ -296,9 +296,8 @@ class BinaryClassHead(base_head.Head):
       eval_metrics = {}
       eval_metrics[self._loss_mean_key] = metrics.Mean(name=keys.LOSS_MEAN)
       eval_metrics[self._accuracy_key] = metrics.Accuracy(name=keys.ACCURACY)
-      # TODO(b/118843532): create Keras metrics
-      # eval_metrics[self._precision_key] = metrics.Precision(name=keys.AUC)
-      # eval_metrics[self._recall_key] = metrics.Precision(name=keys.RECALL)
+      eval_metrics[self._precision_key] = metrics.Precision(name=keys.PRECISION)
+      eval_metrics[self._recall_key] = metrics.Recall(name=keys.RECALL)
       eval_metrics[self._prediction_mean_key] = metrics.Mean(
           name=keys.PREDICTION_MEAN)
       eval_metrics[self._label_mean_key] = metrics.Mean(name=keys.LABEL_MEAN)
@@ -313,12 +312,10 @@ class BinaryClassHead(base_head.Head):
       for i, threshold in enumerate(self._thresholds):
         eval_metrics[self._accuracy_keys[i]] = metrics.BinaryAccuracy(
             name=self._accuracy_keys[i], threshold=threshold)
-        # TODO(b/118843532): create Keras metrics
-        # eval_metrics[self._precision_keys[i]] = (
-        #     metrics.PRECISION_AT_THRESHOLD(
-        #         name=self._precision_keys[i], threshold=threshold))
-        # eval_metrics[self._recall_keys[i]] = metrics.RECALL_AT_THRESHOLD(
-        #     name=self._recall_keys[i], threshold=threshold)
+        eval_metrics[self._precision_keys[i]] = metrics.Precision(
+            name=self._precision_keys[i], thresholds=threshold)
+        eval_metrics[self._recall_keys[i]] = metrics.Recall(
+            name=self._recall_keys[i], thresholds=threshold)
     return eval_metrics
 
   def update_metrics(self, eval_metrics, features, logits, labels,
@@ -335,9 +332,10 @@ class BinaryClassHead(base_head.Head):
         values=unweighted_loss, sample_weight=weights)
     eval_metrics[self._accuracy_key].update_state(
         y_true=labels, y_pred=class_ids, sample_weight=weights)
-    # TODO(b/118843532): update Keras metrics
-    # eval_metrics[self._precision_key].update(...)
-    # eval_metrics[self._recall_key].update(...)
+    eval_metrics[self._precision_key].update_state(
+        y_true=labels, y_pred=class_ids, sample_weight=weights)
+    eval_metrics[self._recall_key].update_state(
+        y_true=labels, y_pred=class_ids, sample_weight=weights)
     logistic_key = prediction_keys.PredictionKeys.LOGISTIC
     predictions = self.predictions(logits, [logistic_key])
     logistic = predictions[logistic_key]
@@ -356,11 +354,10 @@ class BinaryClassHead(base_head.Head):
     for i in range(len(self._thresholds)):
       eval_metrics[self._accuracy_keys[i]].update_state(
           y_true=labels, y_pred=logistic, sample_weight=weights)
-      # TODO(b/118843532): update Keras metrics
-      # eval_metrics[self._precision_keys[i]].update_state(
-      #     ...)
-      # eval_metrics[self._recall_keys[i]].update_state(
-      #     ...)
+      eval_metrics[self._precision_keys[i]].update_state(
+          y_true=labels, y_pred=logistic, sample_weight=weights)
+      eval_metrics[self._recall_keys[i]].update_state(
+          y_true=labels, y_pred=logistic, sample_weight=weights)
     return eval_metrics
 
   def _create_tpu_estimator_spec(

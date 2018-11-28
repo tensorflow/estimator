@@ -406,11 +406,11 @@ class BinaryClassHeadTest(test.TestCase):
     expected_metrics = {
         keys.LOSS_MEAN: expected_loss,
         keys.ACCURACY: 1./2,
-        # TODO(b/118843532): update metrics
-        # keys.PRECISION: 1.,
-        # keys.RECALL: 1./2,
+        keys.PRECISION: 1.,
+        keys.RECALL: 1./2,
         keys.PREDICTION_MEAN: 1./2,
         keys.LABEL_MEAN: 2./2,
+        # TODO(b/118843532): update metrics
         # keys.ACCURACY_BASELINE: 2./2,
         # keys.AUC: 0.,
         # keys.AUC_PR: 1.,
@@ -464,11 +464,11 @@ class BinaryClassHeadTest(test.TestCase):
     expected_metric_keys = [
         '{}/some_binary_head'.format(keys.LOSS_MEAN),
         '{}/some_binary_head'.format(keys.ACCURACY),
-        # TODO(b/118843532): update metrics
-        # '{}/some_binary_head'.format(keys.PRECISION),
-        # '{}/some_binary_head'.format(keys.RECALL),
+        '{}/some_binary_head'.format(keys.PRECISION),
+        '{}/some_binary_head'.format(keys.RECALL),
         '{}/some_binary_head'.format(keys.PREDICTION_MEAN),
         '{}/some_binary_head'.format(keys.LABEL_MEAN),
+        # TODO(b/118843532): update metrics
         # '{}/some_binary_head'.format(keys.ACCURACY_BASELINE),
         # '{}/some_binary_head'.format(keys.AUC),
         # '{}/some_binary_head'.format(keys.AUC_PR),
@@ -497,10 +497,11 @@ class BinaryClassHeadTest(test.TestCase):
         keys.LOSS_MEAN: expected_unregularized_loss,
         keys.LOSS_REGULARIZATION: expected_regularization_loss,
         keys.ACCURACY: 1./2,
-        # keys.PRECISION: 1.,
-        # keys.RECALL: 1./2,
+        keys.PRECISION: 1.,
+        keys.RECALL: 1./2,
         keys.PREDICTION_MEAN: 1./2,
         keys.LABEL_MEAN: 2./2,
+        # TODO(b/118843532): update metrics
         # keys.ACCURACY_BASELINE: 2./2,
         # keys.AUC: 0.,
         # keys.AUC_PR: 1.,
@@ -633,23 +634,23 @@ class BinaryClassHeadTest(test.TestCase):
     expected_metrics = {
         keys.LOSS_MEAN: 1.62652338 / 2.,
         keys.ACCURACY: 1./2,
-        # TODO(b/118843532): update metrics
-        # keys.PRECISION: 1.,
-        # keys.RECALL: .5,
+        keys.PRECISION: 1.,
+        keys.RECALL: .5,
         keys.PREDICTION_MEAN: 1./2,
         keys.LABEL_MEAN: 2./2,
+        # TODO(b/118843532): update metrics
         # keys.ACCURACY_BASELINE: 2./2,
         # keys.AUC: 0.,
         # keys.AUC_PR: 1.,
         keys.ACCURACY_AT_THRESHOLD % thresholds[0]: 1.,
-        # keys.PRECISION_AT_THRESHOLD % thresholds[0]: 1.,
-        # keys.RECALL_AT_THRESHOLD % thresholds[0]: 1.,
+        keys.PRECISION_AT_THRESHOLD % thresholds[0]: 1.,
+        keys.RECALL_AT_THRESHOLD % thresholds[0]: 1.,
         keys.ACCURACY_AT_THRESHOLD % thresholds[1]: .5,
-        # keys.PRECISION_AT_THRESHOLD % thresholds[1]: 1.,
-        # keys.RECALL_AT_THRESHOLD % thresholds[1]: .5,
+        keys.PRECISION_AT_THRESHOLD % thresholds[1]: 1.,
+        keys.RECALL_AT_THRESHOLD % thresholds[1]: .5,
         keys.ACCURACY_AT_THRESHOLD % thresholds[2]: 0.,
-        # keys.PRECISION_AT_THRESHOLD % thresholds[2]: 0.,
-        # keys.RECALL_AT_THRESHOLD % thresholds[2]: 0.,
+        keys.PRECISION_AT_THRESHOLD % thresholds[2]: 0.,
+        keys.RECALL_AT_THRESHOLD % thresholds[2]: 0.,
     }
     tol = 1e-2
     if context.executing_eagerly():
@@ -1141,13 +1142,13 @@ class BinaryClassHeadTest(test.TestCase):
         keys.LOSS_MEAN: 26.9615384615,
         # accuracy = (1*1 + .1*0 + 1.5*0)/(1 + .1 + 1.5) = 1/2.6 = .38461538461
         keys.ACCURACY: .38461538461,
-        # TODO(b/118843532): update metrics
-        # keys.PRECISION: 1./2.5,
-        # keys.RECALL: 1./1.1,
+        keys.PRECISION: 1./2.5,
+        keys.RECALL: 1./1.1,
         # prediction_mean = (1*1 + .1*0 + 1.5*1)/(1 + .1 + 1.5) = 2.5/2.6
         #                 = .96153846153
         keys.PREDICTION_MEAN: .96153846153,
         keys.LABEL_MEAN: expected_label_mean,
+        # TODO(b/118843532): update metrics
         # keys.ACCURACY_BASELINE: 1 - expected_label_mean,
         # keys.AUC: .45454565,
         # keys.AUC_PR: .6737757325172424,
@@ -1390,11 +1391,11 @@ class BinaryClassHeadTest(test.TestCase):
     expected_metrics = {
         keys.LOSS_MEAN: weighted_sum_loss / np.sum(weights),
         keys.ACCURACY: (1.*0. + 1.5*1. + 2.*1. + 2.5*0.) / np.sum(weights),
-        # TODO(b/118843532): update metrics
-        # keys.PRECISION: 2.0/3.0,
-        # keys.RECALL: 2.0/4.5,
+        keys.PRECISION: 2.0/3.0,
+        keys.RECALL: 2.0/4.5,
         keys.PREDICTION_MEAN: (1.*1 + 1.5*0 + 2.*1 + 2.5*0) / np.sum(weights),
         keys.LABEL_MEAN: (1.*0 + 1.5*0 + 2.*1 + 2.5*1) / np.sum(weights),
+        # TODO(b/118843532): update metrics
         # keys.ACCURACY_BASELINE:
         #     (1.*0 + 1.5*0 + 2.*1 + 2.5*1) / np.sum(weights),
         # keys.AUC: 0.5222,
