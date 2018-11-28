@@ -26,12 +26,7 @@ from __future__ import print_function
 import os
 import tempfile
 
-from tensorflow_estimator.contrib.estimator.python.estimator import export as contrib_export
 from tensorflow.python.client import session
-from tensorflow_estimator.python.estimator import estimator
-from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
-from tensorflow_estimator.python.estimator.export import export
-from tensorflow_estimator.python.estimator.export import export_output
 from tensorflow.python.framework import constant_op
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
@@ -47,6 +42,11 @@ from tensorflow.python.saved_model import loader
 from tensorflow.python.saved_model import tag_constants
 from tensorflow.python.training import training
 from tensorflow.python.util import compat
+from tensorflow_estimator.contrib.estimator.python.estimator import export as contrib_export
+from tensorflow_estimator.python.estimator import estimator
+from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
+from tensorflow_estimator.python.estimator.export import export
+from tensorflow_estimator.python.estimator.export import export_output
 
 
 def _model_fn_for_export_tests(features, labels, mode):

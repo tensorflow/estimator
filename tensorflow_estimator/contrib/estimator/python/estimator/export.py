@@ -26,9 +26,7 @@ def export_saved_model_for_mode(
     assets_extra=None,
     as_text=False,
     checkpoint_path=None,
-    strip_default_attrs=False,
     mode=model_fn_lib.ModeKeys.PREDICT):
-  # pylint: disable=line-too-long
   """Exports a single train/eval/predict graph as a SavedModel.
 
   For a detailed guide, see [Using SavedModel with Estimators](
@@ -82,9 +80,6 @@ def export_saved_model_for_mode(
     as_text: whether to write the SavedModel proto in text format.
     checkpoint_path: The checkpoint path to export.  If `None` (the default),
       the most recent checkpoint found within the model directory is chosen.
-    strip_default_attrs: Boolean. If `True`, default-valued attributes will be
-      removed from the NodeDefs. For a detailed guide, see
-      [Stripping Default-Valued Attributes](https://github.com/tensorflow/tensorflow/blob/master/tensorflow/python/saved_model/README.md#stripping-default-valued-attributes).
     mode: tf.estimator.ModeKeys value indicating with mode will be exported.
 
   Returns:
@@ -94,26 +89,20 @@ def export_saved_model_for_mode(
     ValueError: if input_receiver_fn is None, no export_outputs
       are provided, or no checkpoint can be found.
   """
-  # pylint: enable=line-too-long
 
-  # pylint: disable=protected-access
-  return estimator._export_saved_model_for_mode(
+  return estimator.export_saved_model(
       export_dir_base, input_receiver_fn,
       assets_extra=assets_extra,
       as_text=as_text,
       checkpoint_path=checkpoint_path,
-      strip_default_attrs=strip_default_attrs,
-      mode=mode)
-  # pylint: enable=protected-access
+      experimental_mode=mode)
 
 
 def export_all_saved_models(
     estimator, export_dir_base, input_receiver_fn_map,
     assets_extra=None,
     as_text=False,
-    checkpoint_path=None,
-    strip_default_attrs=False):
-  # pylint: disable=line-too-long
+    checkpoint_path=None):
   """Exports requested train/eval/predict graphs as separate SavedModels.
 
   See tf.contrib.estimator.export_all_saved_models for the currently
@@ -199,9 +188,6 @@ def export_all_saved_models(
     as_text: whether to write the SavedModel proto in text format.
     checkpoint_path: The checkpoint path to export.  If `None` (the default),
       the most recent checkpoint found within the model directory is chosen.
-    strip_default_attrs: Boolean. If `True`, default-valued attributes will be
-      removed from the NodeDefs. For a detailed guide, see
-      [Stripping Default-Valued Attributes](https://github.com/tensorflow/tensorflow/blob/master/tensorflow/python/saved_model/README.md#stripping-default-valued-attributes).
 
   Returns:
     The string path to the exported directory.
@@ -210,13 +196,9 @@ def export_all_saved_models(
     ValueError: if any input_receiver_fn is None, no export_outputs
       are provided, or no checkpoint can be found.
   """
-  # pylint: enable=line-too-long
 
-  # pylint: disable=protected-access
-  return estimator._export_all_saved_models(
+  return estimator.experimental_export_all_saved_models(
       export_dir_base, input_receiver_fn_map,
       assets_extra=assets_extra,
       as_text=as_text,
-      checkpoint_path=checkpoint_path,
-      strip_default_attrs=strip_default_attrs)
-  # pylint: enable=protected-access
+      checkpoint_path=checkpoint_path)

@@ -23,7 +23,6 @@ import os
 
 import six
 
-from tensorflow_estimator.python.estimator import util
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import sparse_tensor
@@ -35,6 +34,8 @@ from tensorflow.python.saved_model import signature_constants
 from tensorflow.python.saved_model import signature_def_utils
 from tensorflow.python.util import compat
 from tensorflow.python.util.tf_export import estimator_export
+from tensorflow_estimator.python.estimator import util
+
 
 _SINGLE_FEATURE_DEFAULT_NAME = 'feature'
 _SINGLE_RECEIVER_DEFAULT_NAME = 'input'
@@ -373,6 +374,8 @@ def build_raw_serving_input_receiver_fn(features, default_batch_size=None):
   return serving_input_receiver_fn
 
 
+@estimator_export(
+    'estimator.experimental.build_raw_supervised_input_receiver_fn')
 def build_raw_supervised_input_receiver_fn(features,
                                            labels,
                                            default_batch_size=None):

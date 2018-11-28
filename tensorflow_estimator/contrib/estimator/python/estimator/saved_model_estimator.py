@@ -20,10 +20,6 @@ from __future__ import print_function
 
 import six
 
-from tensorflow_estimator.python.estimator import estimator as estimator_lib
-from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
-from tensorflow_estimator.python.estimator.export import export as export_lib
-from tensorflow_estimator.python.estimator.export import export_output
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import tensor_shape
@@ -34,14 +30,18 @@ from tensorflow.python.saved_model import signature_constants
 from tensorflow.python.training import checkpoint_utils
 from tensorflow.python.training import monitored_session
 from tensorflow.python.training import training_util
+from tensorflow_estimator.python.estimator import estimator as estimator_lib
+from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
+from tensorflow_estimator.python.estimator.export import export as export_lib
+from tensorflow_estimator.python.estimator.export import export_output
 
 
 class SavedModelEstimator(estimator_lib.Estimator):
   """Create an Estimator from a SavedModel.
 
   Only SavedModels exported with
-  `tf.contrib.estimator.export_all_saved_models()` or
-  `tf.estimator.Estimator.export_savedmodel()` are supported for this class.
+  `tf.estimator.Estimator.experimental_export_all_saved_models()` or
+  `tf.estimator.Estimator.export_saved_model()` are supported for this class.
 
   Example with `tf.estimator.DNNClassifier`:
 
@@ -71,7 +71,7 @@ class SavedModelEstimator(estimator_lib.Estimator):
   ```python
   # During train and evaluation, both the features and labels should be defined.
   supervised_input_receiver_fn = (
-      tf.contrib.estimator.build_raw_supervised_input_receiver_fn(
+      tf.estimator.experimental.build_raw_supervised_input_receiver_fn(
           {'feature1': tf.placeholder(dtype=tf.string, shape=[None]),
            'feature2': tf.placeholder(dtype=tf.float32, shape=[None])},
           tf.placeholder(dtype=tf.float32, shape=[None])))
@@ -88,14 +88,14 @@ class SavedModelEstimator(estimator_lib.Estimator):
 
   ```python
   # Option 1: Save all modes (train, eval, predict)
-  export_dir = tf.contrib.estimator.export_all_saved_models(
-      classifier, '/tmp/export_all',
+  export_dir = classifier.experimental_export_all_saved_models(
+      '/tmp/export_all',
       {tf.estimator.ModeKeys.TRAIN: supervised_input_receiver_fn,
        tf.estimator.ModeKeys.EVAL: supervised_input_receiver_fn,
        tf.estimator.ModeKeys.PREDICT: serving_input_receiver_fn})
 
   # Option 2: Only export predict mode
-  export_dir = classifier.export_savedmodel(
+  export_dir = classifier.export_saved_model(
       '/tmp/export_predict', serving_input_receiver_fn)
   ```
 
