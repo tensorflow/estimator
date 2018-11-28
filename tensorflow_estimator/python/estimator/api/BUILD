@@ -6,6 +6,12 @@ load("//tensorflow_estimator/python/estimator/api:api_gen.bzl", "gen_api_init_fi
 load("//tensorflow_estimator/python/estimator/api:api_gen.bzl", "ESTIMATOR_API_INIT_FILES_V1")
 load("//tensorflow_estimator/python/estimator/api:api_gen.bzl", "ESTIMATOR_API_INIT_FILES_V2")
 
+exports_files(
+    [
+        "create_python_api_wrapper.py",
+    ],
+)
+
 gen_api_init_files(
     name = "estimator_python_api_gen",
     api_version = 1,
