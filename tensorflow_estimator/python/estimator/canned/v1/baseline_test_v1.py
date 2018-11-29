@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Tests for baseline.py."""
+"""Tests for v1 version of baseline.py."""
 
 from __future__ import absolute_import
 from __future__ import division
@@ -118,11 +118,11 @@ def sigmoid(x):
 
 
 def _baseline_regressor_fn(*args, **kwargs):
-  return baseline.BaselineRegressorV2(*args, **kwargs)
+  return baseline.BaselineRegressor(*args, **kwargs)
 
 
 def _baseline_classifier_fn(*args, **kwargs):
-  return baseline.BaselineClassifierV2(*args, **kwargs)
+  return baseline.BaselineClassifier(*args, **kwargs)
 
 
 # Tests for Baseline Regressor.
@@ -173,10 +173,10 @@ class BaselineRegressorEvaluationTest(test.TestCase):
 
     # Logit is bias = 13, while label is 10.
     # Loss per example is 3**2 = 9.
-    # Training loss is the sum over batch size = (9 + 9) / 2 = 9
+    # Training loss is the sum over batch = 9 + 9 = 18
     # Average loss is the average over batch = 9
     self.assertDictEqual({
-        metric_keys.MetricKeys.LOSS: 9.,
+        metric_keys.MetricKeys.LOSS: 18.,
         metric_keys.MetricKeys.LOSS_MEAN: 9.,
         metric_keys.MetricKeys.PREDICTION_MEAN: 13.,
         metric_keys.MetricKeys.LABEL_MEAN: 10.,
@@ -203,10 +203,10 @@ class BaselineRegressorEvaluationTest(test.TestCase):
 
     # Logit is bias = 13, while label is 10.
     # Loss per example is 3**2 = 9.
-    # Training loss is the weighted sum over batch size = (9 + 2*9) / 2 = 13.5
+    # Training loss is the weighted sum over batch = 9 + 2*9 = 27
     # average loss is the weighted average = 9 + 2*9 / (1 + 2) = 9
     self.assertDictEqual({
-        metric_keys.MetricKeys.LOSS: 13.5,
+        metric_keys.MetricKeys.LOSS: 27.,
         metric_keys.MetricKeys.LOSS_MEAN: 9.,
         metric_keys.MetricKeys.PREDICTION_MEAN: 13.,
         metric_keys.MetricKeys.LABEL_MEAN: 10.,
@@ -338,8 +338,8 @@ class BaselineRegressorIntegrationTest(test.TestCase):
     feature_spec = feature_column_lib.make_parse_example_spec(feature_columns)
     serving_input_receiver_fn = export.build_parsing_serving_input_receiver_fn(
         feature_spec)
-    export_dir = est.export_saved_model(tempfile.mkdtemp(),
-                                        serving_input_receiver_fn)
+    export_dir = est.export_savedmodel(tempfile.mkdtemp(),
+                                       serving_input_receiver_fn)
     self.assertTrue(gfile.Exists(export_dir))
 
   def test_numpy_input_fn(self):
@@ -648,9 +648,8 @@ class BaselineRegressorTrainingTest(test.TestCase):
     # logits = bias
     # logits[0] = 5.
     # logits[1] = 5.
-    # loss = (sum(logits - label)^2 = (5 - 5)^2 + (5 - 3)^2) / 2 (batch size)
-    # loss = 2
-    mock_optimizer = self._mock_optimizer(expected_loss=2.)
+    # loss = sum(logits - label)^2 = (5 - 5)^2 + (5 - 3)^2 = 4
+    mock_optimizer = self._mock_optimizer(expected_loss=4.)
     baseline_regressor = _baseline_regressor_fn(
         model_dir=self._model_dir,
         optimizer=mock_optimizer)
@@ -1136,12 +1135,12 @@ class BaselineClassifierEvaluationTest(test.TestCase):
       #   loss for row 1: 1 * -log(sigmoid(-1)) = 1.3133
       #   loss for row 2: (1 - 0) * -log(1 - sigmoid(-1)) = 0.3132
       # Prediction = sigmoid(-1) = 0.2689
-      expected_loss = (1.3133 + 0.3132) / 2  # batch size
+      expected_loss = 1.3133 + 0.3132
 
       expected_metrics = {
           metric_keys.MetricKeys.LOSS: expected_loss,
           ops.GraphKeys.GLOBAL_STEP: 100,
-          metric_keys.MetricKeys.LOSS_MEAN: expected_loss,
+          metric_keys.MetricKeys.LOSS_MEAN: expected_loss / 2,
           metric_keys.MetricKeys.ACCURACY: 0.5,
           metric_keys.MetricKeys.PRECISION: 0.,
           metric_keys.MetricKeys.RECALL: 0.,
@@ -1159,12 +1158,12 @@ class BaselineClassifierEvaluationTest(test.TestCase):
       softmax_row_1 = logits_exp[1] / logits_exp[1].sum()
       expected_loss_0 = -1 * math.log(softmax_row_0[label[0]])
       expected_loss_1 = -1 * math.log(softmax_row_1[label[1]])
-      expected_loss = (expected_loss_0 + expected_loss_1) / 2  # batch size
+      expected_loss = expected_loss_0 + expected_loss_1
 
       expected_metrics = {
           metric_keys.MetricKeys.LOSS: expected_loss,
           ops.GraphKeys.GLOBAL_STEP: 100,
-          metric_keys.MetricKeys.LOSS_MEAN: expected_loss,
+          metric_keys.MetricKeys.LOSS_MEAN: expected_loss / 2,
           metric_keys.MetricKeys.ACCURACY: 0.5,
       }
 
@@ -1208,8 +1207,8 @@ class BaselineClassifierEvaluationTest(test.TestCase):
       #   loss for row 1: 1 * -log(sigmoid(-1)) = 1.3133
       #   loss for row 2: (1 - 0) * -log(1 - sigmoid(-1)) = 0.3132
       #   weights = [1., 2.]
-      expected_loss = (1.3133 * 1. + 0.3132 * 2.) / 2  # batch size
-      loss_mean = (1.3133 * 1. + 0.3132 * 2.) / (1.0 + 2.0)
+      expected_loss = 1.3133 * 1. + 0.3132 * 2.
+      loss_mean = expected_loss / (1.0 + 2.0)
       label_mean = np.average(label, weights=weights)
       logits = [-1, -1]
       logistics = sigmoid(np.array(logits))
@@ -1240,7 +1239,7 @@ class BaselineClassifierEvaluationTest(test.TestCase):
       expected_loss_1 = -1 * math.log(softmax_row_1[label[1]])
       loss_mean = np.average([expected_loss_0, expected_loss_1],
                              weights=weights)
-      expected_loss = (loss_mean * np.sum(weights)) / 2  # batch size
+      expected_loss = loss_mean * np.sum(weights)
 
       expected_metrics = {
           metric_keys.MetricKeys.LOSS: expected_loss,
@@ -1391,8 +1390,8 @@ class BaselineClassifierIntegrationTest(test.TestCase):
     feature_spec = feature_column_lib.make_parse_example_spec(feature_columns)
     serving_input_receiver_fn = export.build_parsing_serving_input_receiver_fn(
         feature_spec)
-    export_dir = est.export_saved_model(tempfile.mkdtemp(),
-                                        serving_input_receiver_fn)
+    export_dir = est.export_savedmodel(tempfile.mkdtemp(),
+                                       serving_input_receiver_fn)
     self.assertTrue(gfile.Exists(export_dir))
 
   def _test_numpy_input_fn(self, n_classes):

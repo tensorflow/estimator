@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Tests for v2 version of dnn_linear_combined.py."""
+"""Tests for v1 version of dnn_linear_combined.py."""
 
 from __future__ import absolute_import
 from __future__ import division
@@ -43,9 +43,9 @@ from tensorflow.python.training import input as input_lib
 from tensorflow.python.training import optimizer as optimizer_lib
 from tensorflow_estimator.python.estimator import estimator
 from tensorflow_estimator.python.estimator.canned import dnn_linear_combined
-from tensorflow_estimator.python.estimator.canned import dnn_testing_utils
-from tensorflow_estimator.python.estimator.canned import linear_testing_utils
 from tensorflow_estimator.python.estimator.canned import prediction_keys
+from tensorflow_estimator.python.estimator.canned.v1 import dnn_testing_utils_v1
+from tensorflow_estimator.python.estimator.canned.v1 import linear_testing_utils_v1
 from tensorflow_estimator.python.estimator.export import export
 from tensorflow_estimator.python.estimator.inputs import numpy_io
 from tensorflow_estimator.python.estimator.inputs import pandas_io
@@ -64,6 +64,8 @@ except ImportError:
 
 # This is so that we can easily switch between feature_column and
 # feature_column_v2 for testing.
+# Note that following V2 version of tests are for feature_column_v2, not the v2
+# version of canned estimator.
 feature_column.numeric_column = feature_column._numeric_column
 feature_column.categorical_column_with_hash_bucket = feature_column._categorical_column_with_hash_bucket  # pylint: disable=line-too-long
 feature_column.categorical_column_with_vocabulary_list = feature_column._categorical_column_with_vocabulary_list  # pylint: disable=line-too-long
@@ -71,11 +73,13 @@ feature_column.categorical_column_with_vocabulary_file = feature_column._categor
 feature_column.embedding_column = feature_column._embedding_column
 
 
-class DNNOnlyModelFnTest(dnn_testing_utils.BaseDNNModelFnTest, test.TestCase):
+class DNNOnlyModelFnTest(dnn_testing_utils_v1.BaseDNNModelFnTest,
+                         test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
     test.TestCase.__init__(self, methodName)
-    dnn_testing_utils.BaseDNNModelFnTest.__init__(self, self._dnn_only_model_fn)
+    dnn_testing_utils_v1.BaseDNNModelFnTest.__init__(
+        self, self._dnn_only_model_fn)
 
   def _dnn_only_model_fn(self,
                          features,
@@ -113,7 +117,7 @@ def _linear_regressor_fn(feature_columns,
                          config=None,
                          partitioner=None,
                          sparse_combiner='sum'):
-  return dnn_linear_combined.DNNLinearCombinedRegressorV2(
+  return dnn_linear_combined.DNNLinearCombinedRegressor(
       model_dir=model_dir,
       linear_feature_columns=feature_columns,
       linear_optimizer=optimizer,
@@ -125,92 +129,92 @@ def _linear_regressor_fn(feature_columns,
 
 
 class LinearOnlyRegressorPartitionerTest(
-    linear_testing_utils.BaseLinearRegressorPartitionerTest, test.TestCase):
+    linear_testing_utils_v1.BaseLinearRegressorPartitionerTest, test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
     test.TestCase.__init__(self, methodName)
-    linear_testing_utils.BaseLinearRegressorPartitionerTest.__init__(
+    linear_testing_utils_v1.BaseLinearRegressorPartitionerTest.__init__(
         self, _linear_regressor_fn, fc_lib=feature_column)
 
 
 class LinearOnlyRegressorPartitionerV2Test(
-    linear_testing_utils.BaseLinearRegressorPartitionerTest, test.TestCase):
+    linear_testing_utils_v1.BaseLinearRegressorPartitionerTest, test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
     test.TestCase.__init__(self, methodName)
-    linear_testing_utils.BaseLinearRegressorPartitionerTest.__init__(
+    linear_testing_utils_v1.BaseLinearRegressorPartitionerTest.__init__(
         self, _linear_regressor_fn, fc_lib=feature_column_v2)
 
 
 class LinearOnlyRegressorEvaluationTest(
-    linear_testing_utils.BaseLinearRegressorEvaluationTest, test.TestCase):
+    linear_testing_utils_v1.BaseLinearRegressorEvaluationTest, test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
     test.TestCase.__init__(self, methodName)
-    linear_testing_utils.BaseLinearRegressorEvaluationTest.__init__(
+    linear_testing_utils_v1.BaseLinearRegressorEvaluationTest.__init__(
         self, _linear_regressor_fn, fc_lib=feature_column)
 
 
 class LinearOnlyRegressorEvaluationV2Test(
-    linear_testing_utils.BaseLinearRegressorEvaluationTest, test.TestCase):
+    linear_testing_utils_v1.BaseLinearRegressorEvaluationTest, test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
     test.TestCase.__init__(self, methodName)
-    linear_testing_utils.BaseLinearRegressorEvaluationTest.__init__(
+    linear_testing_utils_v1.BaseLinearRegressorEvaluationTest.__init__(
         self, _linear_regressor_fn, fc_lib=feature_column_v2)
 
 
 class LinearOnlyRegressorPredictTest(
-    linear_testing_utils.BaseLinearRegressorPredictTest, test.TestCase):
+    linear_testing_utils_v1.BaseLinearRegressorPredictTest, test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
     test.TestCase.__init__(self, methodName)
-    linear_testing_utils.BaseLinearRegressorPredictTest.__init__(
+    linear_testing_utils_v1.BaseLinearRegressorPredictTest.__init__(
         self, _linear_regressor_fn, fc_lib=feature_column)
 
 
 class LinearOnlyRegressorPredictV2Test(
-    linear_testing_utils.BaseLinearRegressorPredictTest, test.TestCase):
+    linear_testing_utils_v1.BaseLinearRegressorPredictTest, test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
     test.TestCase.__init__(self, methodName)
-    linear_testing_utils.BaseLinearRegressorPredictTest.__init__(
+    linear_testing_utils_v1.BaseLinearRegressorPredictTest.__init__(
         self, _linear_regressor_fn, fc_lib=feature_column_v2)
 
 
 class LinearOnlyRegressorIntegrationTest(
-    linear_testing_utils.BaseLinearRegressorIntegrationTest, test.TestCase):
+    linear_testing_utils_v1.BaseLinearRegressorIntegrationTest, test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
     test.TestCase.__init__(self, methodName)
-    linear_testing_utils.BaseLinearRegressorIntegrationTest.__init__(
+    linear_testing_utils_v1.BaseLinearRegressorIntegrationTest.__init__(
         self, _linear_regressor_fn, fc_lib=feature_column)
 
 
 class LinearOnlyRegressorIntegrationV2Test(
-    linear_testing_utils.BaseLinearRegressorIntegrationTest, test.TestCase):
+    linear_testing_utils_v1.BaseLinearRegressorIntegrationTest, test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
     test.TestCase.__init__(self, methodName)
-    linear_testing_utils.BaseLinearRegressorIntegrationTest.__init__(
+    linear_testing_utils_v1.BaseLinearRegressorIntegrationTest.__init__(
         self, _linear_regressor_fn, fc_lib=feature_column_v2)
 
 
 class LinearOnlyRegressorTrainingTest(
-    linear_testing_utils.BaseLinearRegressorTrainingTest, test.TestCase):
+    linear_testing_utils_v1.BaseLinearRegressorTrainingTest, test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
     test.TestCase.__init__(self, methodName)
-    linear_testing_utils.BaseLinearRegressorTrainingTest.__init__(
+    linear_testing_utils_v1.BaseLinearRegressorTrainingTest.__init__(
         self, _linear_regressor_fn, fc_lib=feature_column)
 
 
 class LinearOnlyRegressorTrainingV2Test(
-    linear_testing_utils.BaseLinearRegressorTrainingTest, test.TestCase):
+    linear_testing_utils_v1.BaseLinearRegressorTrainingTest, test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
     test.TestCase.__init__(self, methodName)
-    linear_testing_utils.BaseLinearRegressorTrainingTest.__init__(
+    linear_testing_utils_v1.BaseLinearRegressorTrainingTest.__init__(
         self, _linear_regressor_fn, fc_lib=feature_column_v2)
 
 
@@ -223,7 +227,7 @@ def _linear_classifier_fn(feature_columns,
                           config=None,
                           partitioner=None,
                           sparse_combiner='sum'):
-  return dnn_linear_combined.DNNLinearCombinedClassifierV2(
+  return dnn_linear_combined.DNNLinearCombinedClassifier(
       model_dir=model_dir,
       linear_feature_columns=feature_columns,
       linear_optimizer=optimizer,
@@ -236,80 +240,80 @@ def _linear_classifier_fn(feature_columns,
 
 
 class LinearOnlyClassifierTrainingTest(
-    linear_testing_utils.BaseLinearClassifierTrainingTest, test.TestCase):
+    linear_testing_utils_v1.BaseLinearClassifierTrainingTest, test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
     test.TestCase.__init__(self, methodName)
-    linear_testing_utils.BaseLinearClassifierTrainingTest.__init__(
+    linear_testing_utils_v1.BaseLinearClassifierTrainingTest.__init__(
         self, linear_classifier_fn=_linear_classifier_fn, fc_lib=feature_column)
 
 
 class LinearOnlyClassifierTrainingV2Test(
-    linear_testing_utils.BaseLinearClassifierTrainingTest, test.TestCase):
+    linear_testing_utils_v1.BaseLinearClassifierTrainingTest, test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
     test.TestCase.__init__(self, methodName)
-    linear_testing_utils.BaseLinearClassifierTrainingTest.__init__(
+    linear_testing_utils_v1.BaseLinearClassifierTrainingTest.__init__(
         self,
         linear_classifier_fn=_linear_classifier_fn,
         fc_lib=feature_column_v2)
 
 
 class LinearOnlyClassifierClassesEvaluationTest(
-    linear_testing_utils.BaseLinearClassifierEvaluationTest, test.TestCase):
+    linear_testing_utils_v1.BaseLinearClassifierEvaluationTest, test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
     test.TestCase.__init__(self, methodName)
-    linear_testing_utils.BaseLinearClassifierEvaluationTest.__init__(
+    linear_testing_utils_v1.BaseLinearClassifierEvaluationTest.__init__(
         self, linear_classifier_fn=_linear_classifier_fn, fc_lib=feature_column)
 
 
 class LinearOnlyClassifierClassesEvaluationV2Test(
-    linear_testing_utils.BaseLinearClassifierEvaluationTest, test.TestCase):
+    linear_testing_utils_v1.BaseLinearClassifierEvaluationTest, test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
     test.TestCase.__init__(self, methodName)
-    linear_testing_utils.BaseLinearClassifierEvaluationTest.__init__(
+    linear_testing_utils_v1.BaseLinearClassifierEvaluationTest.__init__(
         self,
         linear_classifier_fn=_linear_classifier_fn,
         fc_lib=feature_column_v2)
 
 
 class LinearOnlyClassifierPredictTest(
-    linear_testing_utils.BaseLinearClassifierPredictTest, test.TestCase):
+    linear_testing_utils_v1.BaseLinearClassifierPredictTest, test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
     test.TestCase.__init__(self, methodName)
-    linear_testing_utils.BaseLinearClassifierPredictTest.__init__(
+    linear_testing_utils_v1.BaseLinearClassifierPredictTest.__init__(
         self, linear_classifier_fn=_linear_classifier_fn, fc_lib=feature_column)
 
 
 class LinearOnlyClassifierPredictV2Test(
-    linear_testing_utils.BaseLinearClassifierPredictTest, test.TestCase):
+    linear_testing_utils_v1.BaseLinearClassifierPredictTest, test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
     test.TestCase.__init__(self, methodName)
-    linear_testing_utils.BaseLinearClassifierPredictTest.__init__(
+    linear_testing_utils_v1.BaseLinearClassifierPredictTest.__init__(
         self,
         linear_classifier_fn=_linear_classifier_fn,
         fc_lib=feature_column_v2)
 
 
 class LinearOnlyClassifierIntegrationTest(
-    linear_testing_utils.BaseLinearClassifierIntegrationTest, test.TestCase):
+    linear_testing_utils_v1.BaseLinearClassifierIntegrationTest, test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
     test.TestCase.__init__(self, methodName)
-    linear_testing_utils.BaseLinearClassifierIntegrationTest.__init__(
+    linear_testing_utils_v1.BaseLinearClassifierIntegrationTest.__init__(
         self, linear_classifier_fn=_linear_classifier_fn, fc_lib=feature_column)
 
 
 class LinearOnlyClassifierIntegrationV2Test(
-    linear_testing_utils.BaseLinearClassifierIntegrationTest, test.TestCase):
+    linear_testing_utils_v1.BaseLinearClassifierIntegrationTest, test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
     test.TestCase.__init__(self, methodName)
-    linear_testing_utils.BaseLinearClassifierIntegrationTest.__init__(
+    linear_testing_utils_v1.BaseLinearClassifierIntegrationTest.__init__(
         self,
         linear_classifier_fn=_linear_classifier_fn,
         fc_lib=feature_column_v2)
@@ -330,7 +334,7 @@ class DNNLinearCombinedRegressorIntegrationTest(test.TestCase):
       self, linear_feature_columns, dnn_feature_columns, feature_spec,
       train_input_fn, eval_input_fn, predict_input_fn, input_dimension,
       label_dimension, batch_size):
-    est = dnn_linear_combined.DNNLinearCombinedRegressorV2(
+    est = dnn_linear_combined.DNNLinearCombinedRegressor(
         linear_feature_columns=linear_feature_columns,
         dnn_hidden_units=(2, 2),
         dnn_feature_columns=dnn_feature_columns,
@@ -518,21 +522,21 @@ class DNNLinearCombinedRegressorIntegrationTest(test.TestCase):
     }
     def _train_input_fn():
       feature_map = parsing_ops.parse_example(serialized_examples, feature_spec)
-      features = linear_testing_utils.queue_parsed_features(feature_map)
+      features = linear_testing_utils_v1.queue_parsed_features(feature_map)
       labels = features.pop('y')
       return features, labels
     def _eval_input_fn():
       feature_map = parsing_ops.parse_example(
           input_lib.limit_epochs(serialized_examples, num_epochs=1),
           feature_spec)
-      features = linear_testing_utils.queue_parsed_features(feature_map)
+      features = linear_testing_utils_v1.queue_parsed_features(feature_map)
       labels = features.pop('y')
       return features, labels
     def _predict_input_fn():
       feature_map = parsing_ops.parse_example(
           input_lib.limit_epochs(serialized_examples, num_epochs=1),
           feature_spec)
-      features = linear_testing_utils.queue_parsed_features(feature_map)
+      features = linear_testing_utils_v1.queue_parsed_features(feature_map)
       features.pop('y')
       return features, None
 
@@ -568,7 +572,7 @@ def _dnn_classifier_fn(hidden_units,
                        optimizer='Adagrad',
                        config=None,
                        input_layer_partitioner=None):
-  return dnn_linear_combined.DNNLinearCombinedClassifierV2(
+  return dnn_linear_combined.DNNLinearCombinedClassifier(
       model_dir=model_dir,
       dnn_hidden_units=hidden_units,
       dnn_feature_columns=feature_columns,
@@ -581,56 +585,56 @@ def _dnn_classifier_fn(hidden_units,
 
 
 class DNNOnlyClassifierEvaluateTest(
-    dnn_testing_utils.BaseDNNClassifierEvaluateTest, test.TestCase):
+    dnn_testing_utils_v1.BaseDNNClassifierEvaluateTest, test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
     test.TestCase.__init__(self, methodName)
-    dnn_testing_utils.BaseDNNClassifierEvaluateTest.__init__(
+    dnn_testing_utils_v1.BaseDNNClassifierEvaluateTest.__init__(
         self, _dnn_classifier_fn, fc_impl=feature_column)
 
 
 class DNNOnlyClassifierEvaluateV2Test(
-    dnn_testing_utils.BaseDNNClassifierEvaluateTest, test.TestCase):
+    dnn_testing_utils_v1.BaseDNNClassifierEvaluateTest, test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
     test.TestCase.__init__(self, methodName)
-    dnn_testing_utils.BaseDNNClassifierEvaluateTest.__init__(
+    dnn_testing_utils_v1.BaseDNNClassifierEvaluateTest.__init__(
         self, _dnn_classifier_fn, fc_impl=feature_column_v2)
 
 
 class DNNOnlyClassifierPredictTest(
-    dnn_testing_utils.BaseDNNClassifierPredictTest, test.TestCase):
+    dnn_testing_utils_v1.BaseDNNClassifierPredictTest, test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
     test.TestCase.__init__(self, methodName)
-    dnn_testing_utils.BaseDNNClassifierPredictTest.__init__(
+    dnn_testing_utils_v1.BaseDNNClassifierPredictTest.__init__(
         self, _dnn_classifier_fn, fc_impl=feature_column)
 
 
 class DNNOnlyClassifierPredictV2Test(
-    dnn_testing_utils.BaseDNNClassifierPredictTest, test.TestCase):
+    dnn_testing_utils_v1.BaseDNNClassifierPredictTest, test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
     test.TestCase.__init__(self, methodName)
-    dnn_testing_utils.BaseDNNClassifierPredictTest.__init__(
+    dnn_testing_utils_v1.BaseDNNClassifierPredictTest.__init__(
         self, _dnn_classifier_fn, fc_impl=feature_column_v2)
 
 
 class DNNOnlyClassifierTrainTest(
-    dnn_testing_utils.BaseDNNClassifierTrainTest, test.TestCase):
+    dnn_testing_utils_v1.BaseDNNClassifierTrainTest, test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
     test.TestCase.__init__(self, methodName)
-    dnn_testing_utils.BaseDNNClassifierTrainTest.__init__(
+    dnn_testing_utils_v1.BaseDNNClassifierTrainTest.__init__(
         self, _dnn_classifier_fn, fc_impl=feature_column)
 
 
-class DNNOnlyClassifierTrainV2Test(dnn_testing_utils.BaseDNNClassifierTrainTest,
-                                   test.TestCase):
+class DNNOnlyClassifierTrainV2Test(
+    dnn_testing_utils_v1.BaseDNNClassifierTrainTest, test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
     test.TestCase.__init__(self, methodName)
-    dnn_testing_utils.BaseDNNClassifierTrainTest.__init__(
+    dnn_testing_utils_v1.BaseDNNClassifierTrainTest.__init__(
         self, _dnn_classifier_fn, fc_impl=feature_column_v2)
 
 
@@ -643,7 +647,7 @@ def _dnn_regressor_fn(hidden_units,
                       optimizer='Adagrad',
                       config=None,
                       input_layer_partitioner=None):
-  return dnn_linear_combined.DNNLinearCombinedRegressorV2(
+  return dnn_linear_combined.DNNLinearCombinedRegressor(
       model_dir=model_dir,
       dnn_hidden_units=hidden_units,
       dnn_feature_columns=feature_columns,
@@ -655,56 +659,56 @@ def _dnn_regressor_fn(hidden_units,
 
 
 class DNNOnlyRegressorEvaluateTest(
-    dnn_testing_utils.BaseDNNRegressorEvaluateTest, test.TestCase):
+    dnn_testing_utils_v1.BaseDNNRegressorEvaluateTest, test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
     test.TestCase.__init__(self, methodName)
-    dnn_testing_utils.BaseDNNRegressorEvaluateTest.__init__(
+    dnn_testing_utils_v1.BaseDNNRegressorEvaluateTest.__init__(
         self, _dnn_regressor_fn, fc_impl=feature_column)
 
 
 class DNNOnlyRegressorEvaluateV2Test(
-    dnn_testing_utils.BaseDNNRegressorEvaluateTest, test.TestCase):
+    dnn_testing_utils_v1.BaseDNNRegressorEvaluateTest, test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
     test.TestCase.__init__(self, methodName)
-    dnn_testing_utils.BaseDNNRegressorEvaluateTest.__init__(
+    dnn_testing_utils_v1.BaseDNNRegressorEvaluateTest.__init__(
         self, _dnn_regressor_fn, fc_impl=feature_column_v2)
 
 
 class DNNOnlyRegressorPredictTest(
-    dnn_testing_utils.BaseDNNRegressorPredictTest, test.TestCase):
+    dnn_testing_utils_v1.BaseDNNRegressorPredictTest, test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
     test.TestCase.__init__(self, methodName)
-    dnn_testing_utils.BaseDNNRegressorPredictTest.__init__(
+    dnn_testing_utils_v1.BaseDNNRegressorPredictTest.__init__(
         self, _dnn_regressor_fn, fc_impl=feature_column)
 
 
 class DNNOnlyRegressorPredictV2Test(
-    dnn_testing_utils.BaseDNNRegressorPredictTest, test.TestCase):
+    dnn_testing_utils_v1.BaseDNNRegressorPredictTest, test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
     test.TestCase.__init__(self, methodName)
-    dnn_testing_utils.BaseDNNRegressorPredictTest.__init__(
+    dnn_testing_utils_v1.BaseDNNRegressorPredictTest.__init__(
         self, _dnn_regressor_fn, fc_impl=feature_column_v2)
 
 
 class DNNOnlyRegressorTrainTest(
-    dnn_testing_utils.BaseDNNRegressorTrainTest, test.TestCase):
+    dnn_testing_utils_v1.BaseDNNRegressorTrainTest, test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
     test.TestCase.__init__(self, methodName)
-    dnn_testing_utils.BaseDNNRegressorTrainTest.__init__(
+    dnn_testing_utils_v1.BaseDNNRegressorTrainTest.__init__(
         self, _dnn_regressor_fn, fc_impl=feature_column)
 
 
-class DNNOnlyRegressorTrainV2Test(dnn_testing_utils.BaseDNNRegressorTrainTest,
-                                  test.TestCase):
+class DNNOnlyRegressorTrainV2Test(
+    dnn_testing_utils_v1.BaseDNNRegressorTrainTest, test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
     test.TestCase.__init__(self, methodName)
-    dnn_testing_utils.BaseDNNRegressorTrainTest.__init__(
+    dnn_testing_utils_v1.BaseDNNRegressorTrainTest.__init__(
         self, _dnn_regressor_fn, fc_impl=feature_column_v2)
 
 
@@ -731,7 +735,7 @@ class DNNLinearCombinedClassifierIntegrationTest(test.TestCase):
         fc_impl.numeric_column('x', shape=(input_dimension,))
     ]
     feature_columns = linear_feature_columns + dnn_feature_columns
-    est = dnn_linear_combined.DNNLinearCombinedClassifierV2(
+    est = dnn_linear_combined.DNNLinearCombinedClassifier(
         linear_feature_columns=linear_feature_columns,
         dnn_hidden_units=(2, 2),
         dnn_feature_columns=dnn_feature_columns,
@@ -860,21 +864,21 @@ class DNNLinearCombinedClassifierIntegrationTest(test.TestCase):
     }
     def _train_input_fn():
       feature_map = parsing_ops.parse_example(serialized_examples, feature_spec)
-      features = linear_testing_utils.queue_parsed_features(feature_map)
+      features = linear_testing_utils_v1.queue_parsed_features(feature_map)
       labels = features.pop('y')
       return features, labels
     def _eval_input_fn():
       feature_map = parsing_ops.parse_example(
           input_lib.limit_epochs(serialized_examples, num_epochs=1),
           feature_spec)
-      features = linear_testing_utils.queue_parsed_features(feature_map)
+      features = linear_testing_utils_v1.queue_parsed_features(feature_map)
       labels = features.pop('y')
       return features, labels
     def _predict_input_fn():
       feature_map = parsing_ops.parse_example(
           input_lib.limit_epochs(serialized_examples, num_epochs=1),
           feature_spec)
-      features = linear_testing_utils.queue_parsed_features(feature_map)
+      features = linear_testing_utils_v1.queue_parsed_features(feature_map)
       features.pop('y')
       return features, None
 
@@ -928,7 +932,7 @@ class DNNLinearCombinedTests(test.TestCase):
         y=np.array([[0.], [1.]]),
         batch_size=1,
         shuffle=False)
-    est = dnn_linear_combined.DNNLinearCombinedClassifierV2(
+    est = dnn_linear_combined.DNNLinearCombinedClassifier(
         linear_feature_columns=[x_column],
         # verifies linear_optimizer is used only for linear part.
         linear_optimizer=self._mock_optimizer(opt, 'linear'),
@@ -956,10 +960,10 @@ class DNNLinearCombinedTests(test.TestCase):
       variables_lib.Variable([[5.0]], name='dnn/logits/kernel')
       variables_lib.Variable([6.0], name='dnn/logits/bias')
       variables_lib.Variable(1, name='global_step', dtype=dtypes.int64)
-      linear_testing_utils.save_variables_to_ckpt(self._model_dir)
+      linear_testing_utils_v1.save_variables_to_ckpt(self._model_dir)
 
     x_column = fc_impl.numeric_column('x')
-    est = dnn_linear_combined.DNNLinearCombinedRegressorV2(
+    est = dnn_linear_combined.DNNLinearCombinedRegressor(
         linear_feature_columns=[x_column],
         dnn_hidden_units=[1],
         dnn_feature_columns=[x_column],
@@ -1007,7 +1011,7 @@ class DNNLinearCombinedWarmStartingTest(test.TestCase):
         dimension=5)
 
     # Create a DNNLinearCombinedClassifier and train to save a checkpoint.
-    dnn_lc_classifier = dnn_linear_combined.DNNLinearCombinedClassifierV2(
+    dnn_lc_classifier = dnn_linear_combined.DNNLinearCombinedClassifier(
         linear_feature_columns=[age],
         dnn_feature_columns=[city],
         dnn_hidden_units=[256, 128],
@@ -1021,7 +1025,7 @@ class DNNLinearCombinedWarmStartingTest(test.TestCase):
     # Use a learning_rate = 0.0 optimizer to check values (use SGD so we don't
     # have accumulator values that change).
     warm_started_dnn_lc_classifier = (
-        dnn_linear_combined.DNNLinearCombinedClassifierV2(
+        dnn_linear_combined.DNNLinearCombinedClassifier(
             linear_feature_columns=[age],
             dnn_feature_columns=[city],
             dnn_hidden_units=[256, 128],
@@ -1047,7 +1051,7 @@ class DNNLinearCombinedWarmStartingTest(test.TestCase):
         dimension=5)
 
     # Create a DNNLinearCombinedRegressor and train to save a checkpoint.
-    dnn_lc_regressor = dnn_linear_combined.DNNLinearCombinedRegressorV2(
+    dnn_lc_regressor = dnn_linear_combined.DNNLinearCombinedRegressor(
         linear_feature_columns=[age],
         dnn_feature_columns=[city],
         dnn_hidden_units=[256, 128],
@@ -1060,7 +1064,7 @@ class DNNLinearCombinedWarmStartingTest(test.TestCase):
     # Use a learning_rate = 0.0 optimizer to check values (use SGD so we don't
     # have accumulator values that change).
     warm_started_dnn_lc_regressor = (
-        dnn_linear_combined.DNNLinearCombinedRegressorV2(
+        dnn_linear_combined.DNNLinearCombinedRegressor(
             linear_feature_columns=[age],
             dnn_feature_columns=[city],
             dnn_hidden_units=[256, 128],
@@ -1085,7 +1089,7 @@ class DNNLinearCombinedWarmStartingTest(test.TestCase):
         dimension=5)
 
     # Create a DNNLinearCombinedClassifier and train to save a checkpoint.
-    dnn_lc_classifier = dnn_linear_combined.DNNLinearCombinedClassifierV2(
+    dnn_lc_classifier = dnn_linear_combined.DNNLinearCombinedClassifier(
         linear_feature_columns=[age],
         dnn_feature_columns=[city],
         dnn_hidden_units=[256, 128],
@@ -1099,7 +1103,7 @@ class DNNLinearCombinedWarmStartingTest(test.TestCase):
     # Use a learning_rate = 0.0 optimizer to check values (use SGD so we don't
     # have accumulator values that change).
     warm_started_dnn_lc_classifier = (
-        dnn_linear_combined.DNNLinearCombinedClassifierV2(
+        dnn_linear_combined.DNNLinearCombinedClassifier(
             linear_feature_columns=[age],
             dnn_feature_columns=[city],
             dnn_hidden_units=[256, 128],

@@ -246,9 +246,61 @@ py_test(
 )
 
 py_test(
+    name = "baseline_test_v1",
+    size = "medium",
+    srcs = ["canned/v1/baseline_test_v1.py"],
+    shard_count = 4,
+    srcs_version = "PY2AND3",
+    tags = [
+        "no_pip",
+        "noasan",  # test flakily times out in asan mode.
+        "notsan",  # b/67510291
+        "optonly",  # flakily times out in fastbuild
+    ],
+    deps = [
+        ":baseline",
+        ":estimator",
+        ":export_export",
+        ":metric_keys",
+        ":numpy_io",
+        ":pandas_io",
+        ":run_config",
+        "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_pandas_installed",
+        "//tensorflow_estimator/python/estimator:expect_six_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
+py_test(
     name = "baseline_estimator_test",
     size = "medium",
     srcs = ["canned/baseline_estimator_test.py"],
+    shard_count = 4,
+    srcs_version = "PY2AND3",
+    tags = [
+        "no_pip",
+        "noasan",  # test flakily times out in asan mode.
+        "notsan",  # b/67510291
+        "optonly",  # flakily times out in fastbuild
+    ],
+    deps = [
+        ":baseline",
+        ":estimator",
+        ":export_export",
+        ":metric_keys",
+        ":numpy_io",
+        ":run_config",
+        "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_six_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
+py_test(
+    name = "baseline_estimator_test_v1",
+    size = "medium",
+    srcs = ["canned/v1/baseline_estimator_test_v1.py"],
     shard_count = 4,
     srcs_version = "PY2AND3",
     tags = [
@@ -366,10 +418,29 @@ py_library(
     ],
 )
 
+py_library(
+    name = "dnn_testing_utils_v1",
+    testonly = 1,
+    srcs = ["canned/v1/dnn_testing_utils_v1.py"],
+    srcs_version = "PY2AND3",
+    deps = [
+        ":estimator",
+        ":head",
+        ":metric_keys",
+        ":model_fn",
+        ":numpy_io",
+        ":prediction_keys",
+        "//tensorflow_estimator/python/estimator:expect_absl_installed",
+        "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_six_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
 py_test(
-    name = "dnn_test_v1",
+    name = "dnn_test_fc_v1",
     size = "medium",
-    srcs = ["canned/dnn_test_v1.py"],
+    srcs = ["canned/dnn_test_fc_v1.py"],
     shard_count = 4,
     srcs_version = "PY2AND3",
     tags = [
@@ -392,9 +463,34 @@ py_test(
 )
 
 py_test(
-    name = "dnn_test_v2",
+    name = "dnn_test_fc_v1_v1",
     size = "medium",
-    srcs = ["canned/dnn_test_v2.py"],
+    srcs = ["canned/v1/dnn_test_fc_v1_v1.py"],
+    shard_count = 4,
+    srcs_version = "PY2AND3",
+    tags = [
+        "no_pip",
+        "notsan",  # b/67510291
+    ],
+    deps = [
+        ":dnn",
+        ":dnn_testing_utils_v1",
+        ":export_export",
+        ":numpy_io",
+        ":pandas_io",
+        ":prediction_keys",
+        "//tensorflow_estimator/python/estimator:expect_absl_installed",
+        "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_pandas_installed",
+        "//tensorflow_estimator/python/estimator:expect_six_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
+py_test(
+    name = "dnn_test_fc_v2",
+    size = "medium",
+    srcs = ["canned/dnn_test_fc_v2.py"],
     shard_count = 4,
     srcs_version = "PY2AND3",
     tags = [
@@ -404,6 +500,31 @@ py_test(
     deps = [
         ":dnn",
         ":dnn_testing_utils",
+        ":export_export",
+        ":numpy_io",
+        ":pandas_io",
+        ":prediction_keys",
+        "//tensorflow_estimator/python/estimator:expect_absl_installed",
+        "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_pandas_installed",
+        "//tensorflow_estimator/python/estimator:expect_six_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
+py_test(
+    name = "dnn_test_fc_v2_v1",
+    size = "medium",
+    srcs = ["canned/v1/dnn_test_fc_v2_v1.py"],
+    shard_count = 4,
+    srcs_version = "PY2AND3",
+    tags = [
+        "no_pip",
+        "notsan",  # b/67510291
+    ],
+    deps = [
+        ":dnn",
+        ":dnn_testing_utils_v1",
         ":export_export",
         ":numpy_io",
         ":pandas_io",
@@ -429,6 +550,29 @@ py_test(
     deps = [
         ":dnn",
         ":dnn_testing_utils",
+        ":export_export",
+        ":head",
+        ":numpy_io",
+        ":prediction_keys",
+        "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_six_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
+py_test(
+    name = "dnn_estimator_test_v1",
+    size = "medium",
+    srcs = ["canned/v1/dnn_estimator_test_v1.py"],
+    srcs_version = "PY2AND3",
+    tags = [
+        "no_pip",
+        "notsan",
+        "optonly",  # times out http://b/79220679
+    ],
+    deps = [
+        ":dnn",
+        ":dnn_testing_utils_v1",
         ":export_export",
         ":head",
         ":numpy_io",
@@ -480,6 +624,30 @@ py_test(
 )
 
 py_test(
+    name = "dnn_linear_combined_estimator_test_v1",
+    size = "medium",
+    srcs = ["canned/v1/dnn_linear_combined_estimator_test_v1.py"],
+    shard_count = 3,
+    srcs_version = "PY2AND3",
+    tags = [
+        "no_pip",
+        "notsan",
+    ],
+    deps = [
+        ":dnn_linear_combined",
+        ":dnn_testing_utils_v1",
+        ":export_export",
+        ":head",
+        ":linear_testing_utils_v1",
+        ":numpy_io",
+        ":prediction_keys",
+        "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_six_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
+py_test(
     name = "dnn_linear_combined_test",
     size = "medium",
     srcs = ["canned/dnn_linear_combined_test.py"],
@@ -494,6 +662,32 @@ py_test(
         ":dnn_testing_utils",
         ":export_export",
         ":linear_testing_utils",
+        ":numpy_io",
+        ":pandas_io",
+        ":prediction_keys",
+        "//tensorflow_estimator/python/estimator:expect_absl_installed",
+        "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_pandas_installed",
+        "//tensorflow_estimator/python/estimator:expect_six_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
+py_test(
+    name = "dnn_linear_combined_test_v1",
+    size = "medium",
+    srcs = ["canned/v1/dnn_linear_combined_test_v1.py"],
+    shard_count = 16,
+    srcs_version = "PY2AND3",
+    tags = [
+        "no_pip",
+        "notsan",  # TODO(b/67510291)
+    ],
+    deps = [
+        ":dnn_linear_combined",
+        ":dnn_testing_utils_v1",
+        ":export_export",
+        ":linear_testing_utils_v1",
         ":numpy_io",
         ":pandas_io",
         ":prediction_keys",
@@ -957,6 +1151,26 @@ py_library(
     ],
 )
 
+py_library(
+    name = "linear_testing_utils_v1",
+    testonly = 1,
+    srcs = ["canned/v1/linear_testing_utils_v1.py"],
+    srcs_version = "PY2AND3",
+    deps = [
+        ":estimator",
+        ":export_export",
+        ":linear",
+        ":metric_keys",
+        ":numpy_io",
+        ":pandas_io",
+        ":run_config",
+        "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_pandas_installed",
+        "//tensorflow_estimator/python/estimator:expect_six_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
 py_test(
     name = "linear_estimator_test",
     size = "medium",
@@ -980,6 +1194,28 @@ py_test(
 )
 
 py_test(
+    name = "linear_estimator_test_v1",
+    size = "medium",
+    srcs = ["canned/v1/linear_estimator_test_v1.py"],
+    srcs_version = "PY2AND3",
+    tags = [
+        "no_pip",
+        "notsan",
+    ],
+    deps = [
+        ":export_export",
+        ":head",
+        ":linear",
+        ":linear_testing_utils_v1",
+        ":numpy_io",
+        ":prediction_keys",
+        "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_six_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
+py_test(
     name = "linear_test",
     size = "medium",
     srcs = ["canned/linear_test.py"],
@@ -992,6 +1228,23 @@ py_test(
     deps = [
         ":linear",
         ":linear_testing_utils",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
+py_test(
+    name = "linear_test_v1",
+    size = "medium",
+    srcs = ["canned/v1/linear_test_v1.py"],
+    shard_count = 8,
+    srcs_version = "PY2AND3",
+    tags = [
+        "no_pip",
+        "notsan",  # b/67510291
+    ],
+    deps = [
+        ":linear",
+        ":linear_testing_utils_v1",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
     ],
 )

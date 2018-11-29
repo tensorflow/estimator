@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Tests for dnn.py."""
+"""Tests for dnn.py with feature_column_v2."""
 
 from __future__ import absolute_import
 from __future__ import division
@@ -27,7 +27,6 @@ import six
 
 from tensorflow.core.example import example_pb2
 from tensorflow.core.example import feature_pb2
-from tensorflow.python.feature_column import feature_column
 from tensorflow.python.feature_column import feature_column_v2
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
@@ -54,11 +53,6 @@ except IOError:
   HAS_PANDAS = False
 except ImportError:
   HAS_PANDAS = False
-
-
-# This is so that we can easily switch between feature_column and
-# feature_column_v2 for testing.
-feature_column.numeric_column = feature_column._numeric_column
 
 
 def _dnn_classifier_fn(*args, **kwargs):
@@ -201,11 +195,11 @@ class DNNRegressorIntegrationTest(test.TestCase, parameterized.TestCase):
     self.assertAllEqual((batch_size, label_dimension), predictions.shape)
 
     # EXPORT
-    feature_spec = feature_column.make_parse_example_spec(feature_columns)
+    feature_spec = feature_column_v2.make_parse_example_spec_v2(feature_columns)
     serving_input_receiver_fn = export.build_parsing_serving_input_receiver_fn(
         feature_spec)
-    export_dir = est.export_savedmodel(tempfile.mkdtemp(),
-                                       serving_input_receiver_fn)
+    export_dir = est.export_saved_model(tempfile.mkdtemp(),
+                                        serving_input_receiver_fn)
     self.assertTrue(gfile.Exists(export_dir))
 
   def test_numpy_input_fn(self):
@@ -363,11 +357,11 @@ class DNNClassifierIntegrationTest(test.TestCase):
     self.assertAllEqual((batch_size, n_classes), predicted_proba.shape)
 
     # EXPORT
-    feature_spec = feature_column.make_parse_example_spec(feature_columns)
+    feature_spec = feature_column_v2.make_parse_example_spec_v2(feature_columns)
     serving_input_receiver_fn = export.build_parsing_serving_input_receiver_fn(
         feature_spec)
-    export_dir = est.export_savedmodel(tempfile.mkdtemp(),
-                                       serving_input_receiver_fn)
+    export_dir = est.export_saved_model(tempfile.mkdtemp(),
+                                        serving_input_receiver_fn)
     self.assertTrue(gfile.Exists(export_dir))
 
   def test_numpy_input_fn(self):

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Tests for dnn.py."""
+"""Tests for dnn.py with feature_column_v1."""
 
 from __future__ import absolute_import
 from __future__ import division
@@ -28,7 +28,6 @@ import six
 from tensorflow.core.example import example_pb2
 from tensorflow.core.example import feature_pb2
 from tensorflow.python.feature_column import feature_column
-from tensorflow.python.feature_column import feature_column_v2
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
 from tensorflow.python.ops import data_flow_ops
@@ -39,8 +38,8 @@ from tensorflow.python.summary.writer import writer_cache
 from tensorflow.python.training import input as input_lib
 from tensorflow.python.training import queue_runner
 from tensorflow_estimator.python.estimator.canned import dnn
-from tensorflow_estimator.python.estimator.canned import dnn_testing_utils
 from tensorflow_estimator.python.estimator.canned import prediction_keys
+from tensorflow_estimator.python.estimator.canned.v1 import dnn_testing_utils_v1
 from tensorflow_estimator.python.estimator.export import export
 from tensorflow_estimator.python.estimator.inputs import numpy_io
 from tensorflow_estimator.python.estimator.inputs import pandas_io
@@ -56,95 +55,94 @@ except ImportError:
   HAS_PANDAS = False
 
 
-# This is so that we can easily switch between feature_column and
-# feature_column_v2 for testing.
-feature_column.numeric_column = feature_column._numeric_column
+# Uses feature_column_v1 for testing.
+feature_column.numeric_column = feature_column._numeric_column  # pylint: disable=protected-access
 
 
 def _dnn_classifier_fn(*args, **kwargs):
-  return dnn.DNNClassifierV2(*args, **kwargs)
+  return dnn.DNNClassifier(*args, **kwargs)
 
 
-class DNNModelFnTest(dnn_testing_utils.BaseDNNModelFnTest, test.TestCase):
+class DNNModelFnTest(dnn_testing_utils_v1.BaseDNNModelFnTest, test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
     test.TestCase.__init__(self, methodName)
-    dnn_testing_utils.BaseDNNModelFnTest.__init__(
+    dnn_testing_utils_v1.BaseDNNModelFnTest.__init__(
         self, dnn._dnn_model_fn, fc_impl=feature_column)
 
 
-class DNNLogitFnTest(dnn_testing_utils.BaseDNNLogitFnTest, test.TestCase):
+class DNNLogitFnTest(dnn_testing_utils_v1.BaseDNNLogitFnTest, test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
     test.TestCase.__init__(self, methodName)
-    dnn_testing_utils.BaseDNNLogitFnTest.__init__(
+    dnn_testing_utils_v1.BaseDNNLogitFnTest.__init__(
         self, dnn.dnn_logit_fn_builder, fc_impl=feature_column)
 
 
-class DNNWarmStartingTest(dnn_testing_utils.BaseDNNWarmStartingTest,
+class DNNWarmStartingTest(dnn_testing_utils_v1.BaseDNNWarmStartingTest,
                           test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
     test.TestCase.__init__(self, methodName)
-    dnn_testing_utils.BaseDNNWarmStartingTest.__init__(
+    dnn_testing_utils_v1.BaseDNNWarmStartingTest.__init__(
         self, _dnn_classifier_fn, _dnn_regressor_fn, fc_impl=feature_column)
 
 
 class DNNClassifierEvaluateTest(
-    dnn_testing_utils.BaseDNNClassifierEvaluateTest, test.TestCase):
+    dnn_testing_utils_v1.BaseDNNClassifierEvaluateTest, test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
     test.TestCase.__init__(self, methodName)
-    dnn_testing_utils.BaseDNNClassifierEvaluateTest.__init__(
+    dnn_testing_utils_v1.BaseDNNClassifierEvaluateTest.__init__(
         self, _dnn_classifier_fn, fc_impl=feature_column)
 
 
 class DNNClassifierPredictTest(
-    dnn_testing_utils.BaseDNNClassifierPredictTest, test.TestCase):
+    dnn_testing_utils_v1.BaseDNNClassifierPredictTest, test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
     test.TestCase.__init__(self, methodName)
-    dnn_testing_utils.BaseDNNClassifierPredictTest.__init__(
+    dnn_testing_utils_v1.BaseDNNClassifierPredictTest.__init__(
         self, _dnn_classifier_fn, fc_impl=feature_column)
 
 
 class DNNClassifierTrainTest(
-    dnn_testing_utils.BaseDNNClassifierTrainTest, test.TestCase):
+    dnn_testing_utils_v1.BaseDNNClassifierTrainTest, test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
     test.TestCase.__init__(self, methodName)
-    dnn_testing_utils.BaseDNNClassifierTrainTest.__init__(
+    dnn_testing_utils_v1.BaseDNNClassifierTrainTest.__init__(
         self, _dnn_classifier_fn, fc_impl=feature_column)
 
 
 def _dnn_regressor_fn(*args, **kwargs):
-  return dnn.DNNRegressorV2(*args, **kwargs)
+  return dnn.DNNRegressor(*args, **kwargs)
 
 
 class DNNRegressorEvaluateTest(
-    dnn_testing_utils.BaseDNNRegressorEvaluateTest, test.TestCase):
+    dnn_testing_utils_v1.BaseDNNRegressorEvaluateTest, test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
     test.TestCase.__init__(self, methodName)
-    dnn_testing_utils.BaseDNNRegressorEvaluateTest.__init__(
+    dnn_testing_utils_v1.BaseDNNRegressorEvaluateTest.__init__(
         self, _dnn_regressor_fn, fc_impl=feature_column)
 
 
 class DNNRegressorPredictTest(
-    dnn_testing_utils.BaseDNNRegressorPredictTest, test.TestCase):
+    dnn_testing_utils_v1.BaseDNNRegressorPredictTest, test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
     test.TestCase.__init__(self, methodName)
-    dnn_testing_utils.BaseDNNRegressorPredictTest.__init__(
+    dnn_testing_utils_v1.BaseDNNRegressorPredictTest.__init__(
         self, _dnn_regressor_fn, fc_impl=feature_column)
 
 
 class DNNRegressorTrainTest(
-    dnn_testing_utils.BaseDNNRegressorTrainTest, test.TestCase):
+    dnn_testing_utils_v1.BaseDNNRegressorTrainTest, test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
     test.TestCase.__init__(self, methodName)
-    dnn_testing_utils.BaseDNNRegressorTrainTest.__init__(
+    dnn_testing_utils_v1.BaseDNNRegressorTrainTest.__init__(
         self, _dnn_regressor_fn, fc_impl=feature_column)
 
 
@@ -178,7 +176,7 @@ class DNNRegressorIntegrationTest(test.TestCase, parameterized.TestCase):
                           input_dimension, label_dimension, batch_size):
     feature_columns = [feature_column.numeric_column('x', shape=(input_dimension,))]
 
-    est = dnn.DNNRegressorV2(
+    est = dnn.DNNRegressor(
         hidden_units=(2, 2),
         feature_columns=feature_columns,
         label_dimension=label_dimension,
@@ -338,9 +336,10 @@ class DNNClassifierIntegrationTest(test.TestCase):
 
   def _test_complete_flow(self, train_input_fn, eval_input_fn, predict_input_fn,
                           input_dimension, n_classes, batch_size):
-    feature_columns = [feature_column.numeric_column('x', shape=(input_dimension,))]
+    feature_columns = [
+        feature_column.numeric_column('x', shape=(input_dimension,))]
 
-    est = dnn.DNNClassifierV2(
+    est = dnn.DNNClassifier(
         hidden_units=(2, 2),
         feature_columns=feature_columns,
         n_classes=n_classes,

@@ -538,8 +538,54 @@ def _linear_model_fn(features, labels, mode, head, feature_columns, optimizer,
           logits=logits)
 
 
+def _init_linear_classifier(
+    feature_columns,
+    n_classes,
+    weight_column,
+    label_vocabulary,
+    optimizer,
+    partitioner,
+    loss_reduction,
+    sparse_combiner):
+  """Helper function for the initialization of LinearClassifier."""
+  if isinstance(optimizer, LinearSDCA):
+    if sparse_combiner != 'sum':
+      raise ValueError('sparse_combiner must be "sum" when optimizer '
+                       'is a LinearSDCA object.')
+    if not feature_column_lib.is_feature_column_v2(feature_columns):
+      raise ValueError('V2 feature columns required when optimizer '
+                       'is a LinearSDCA object.')
+    if n_classes > 2:
+      raise ValueError('LinearSDCA cannot be used in a multi-class setting.')
+
+  if n_classes == 2:
+    head = head_lib._binary_logistic_head_with_sigmoid_cross_entropy_loss(  # pylint: disable=protected-access
+        weight_column=weight_column,
+        label_vocabulary=label_vocabulary,
+        loss_reduction=loss_reduction)
+  else:
+    head = head_lib._multi_class_head_with_softmax_cross_entropy_loss(  # pylint: disable=protected-access
+        n_classes, weight_column=weight_column,
+        label_vocabulary=label_vocabulary,
+        loss_reduction=loss_reduction)
+
+  def _model_fn(features, labels, mode, config):
+    """Call the defined shared _linear_model_fn."""
+    return _linear_model_fn(
+        features=features,
+        labels=labels,
+        mode=mode,
+        head=head,
+        feature_columns=tuple(feature_columns or []),
+        optimizer=optimizer,
+        partitioner=partitioner,
+        config=config,
+        sparse_combiner=sparse_combiner)
+  return _model_fn
+
+
 @estimator_export('estimator.LinearClassifier', v1=[])
-class LinearClassifierV2(estimator.Estimator):
+class LinearClassifierV2(estimator.EstimatorV2):
   """Linear classifier model.
 
   Train a linear model to classify instances into one of multiple possible
@@ -690,49 +736,24 @@ class LinearClassifierV2(estimator.Estimator):
     Raises:
       ValueError: if n_classes < 2.
     """
-    if isinstance(optimizer, LinearSDCA):
-      if sparse_combiner != 'sum':
-        raise ValueError('sparse_combiner must be "sum" when optimizer '
-                         'is a LinearSDCA object.')
-      if not feature_column_lib.is_feature_column_v2(feature_columns):
-        raise ValueError('V2 feature columns required when optimizer '
-                         'is a LinearSDCA object.')
-      if n_classes > 2:
-        raise ValueError('LinearSDCA cannot be used in a multi-class setting.')
-
-    if n_classes == 2:
-      head = head_lib._binary_logistic_head_with_sigmoid_cross_entropy_loss(  # pylint: disable=protected-access
-          weight_column=weight_column,
-          label_vocabulary=label_vocabulary,
-          loss_reduction=loss_reduction)
-    else:
-      head = head_lib._multi_class_head_with_softmax_cross_entropy_loss(  # pylint: disable=protected-access
-          n_classes, weight_column=weight_column,
-          label_vocabulary=label_vocabulary,
-          loss_reduction=loss_reduction)
-
-    def _model_fn(features, labels, mode, config):
-      """Call the defined shared _linear_model_fn."""
-      return _linear_model_fn(
-          features=features,
-          labels=labels,
-          mode=mode,
-          head=head,
-          feature_columns=tuple(feature_columns or []),
-          optimizer=optimizer,
-          partitioner=partitioner,
-          config=config,
-          sparse_combiner=sparse_combiner)
-
+    linear_classifier_model_fn = _init_linear_classifier(
+        feature_columns=feature_columns,
+        n_classes=n_classes,
+        weight_column=weight_column,
+        label_vocabulary=label_vocabulary,
+        optimizer=optimizer,
+        partitioner=partitioner,
+        loss_reduction=loss_reduction,
+        sparse_combiner=sparse_combiner)
     super(LinearClassifierV2, self).__init__(
-        model_fn=_model_fn,
+        model_fn=linear_classifier_model_fn,
         model_dir=model_dir,
         config=config,
         warm_start_from=warm_start_from)
 
 
 @estimator_export(v1=['estimator.LinearClassifier'])  # pylint: disable=missing-docstring
-class LinearClassifier(LinearClassifierV2):
+class LinearClassifier(estimator.Estimator):
   __doc__ = LinearClassifierV2.__doc__.replace('SUM_OVER_BATCH_SIZE', 'SUM')
 
   def __init__(self,
@@ -747,24 +768,27 @@ class LinearClassifier(LinearClassifierV2):
                warm_start_from=None,
                loss_reduction=losses.Reduction.SUM,
                sparse_combiner='sum'):
-    super(LinearClassifier, self).__init__(
-        feature_columns,
-        model_dir=model_dir,
+    linear_classifier_model_fn = _init_linear_classifier(
+        feature_columns=feature_columns,
         n_classes=n_classes,
         weight_column=weight_column,
         label_vocabulary=label_vocabulary,
         optimizer=optimizer,
-        config=config,
         partitioner=partitioner,
-        warm_start_from=warm_start_from,
         loss_reduction=loss_reduction,
         sparse_combiner=sparse_combiner)
+
+    super(LinearClassifier, self).__init__(
+        model_fn=linear_classifier_model_fn,
+        model_dir=model_dir,
+        config=config,
+        warm_start_from=warm_start_from)
 
 
 # TODO(b/117517419): Update these contrib references once head moves to core.
 # Also references to the "_Head" class need to be replaced with "Head".
-@estimator_export('estimator.LinearEstimator')
-class LinearEstimator(estimator.Estimator):
+@estimator_export('estimator.LinearEstimator', v1=[])
+class LinearEstimatorV2(estimator.EstimatorV2):
   """An estimator for TensorFlow linear models with user-specified head.
 
   Example:
@@ -884,12 +908,101 @@ class LinearEstimator(estimator.Estimator):
           partitioner=partitioner,
           config=config,
           sparse_combiner=sparse_combiner)
+    super(LinearEstimatorV2, self).__init__(
+        model_fn=_model_fn, model_dir=model_dir, config=config)
+
+
+@estimator_export(v1=['estimator.LinearEstimator'])  # pylint: disable=missing-docstring
+class LinearEstimator(estimator.Estimator):
+  __doc__ = LinearEstimatorV2.__doc__
+
+  def __init__(self,
+               head,
+               feature_columns,
+               model_dir=None,
+               optimizer='Ftrl',
+               config=None,
+               partitioner=None,
+               sparse_combiner='sum'):
+    """Initializes a `LinearEstimator` instance.
+
+    Args:
+      head: A `_Head` instance constructed with a method such as
+        `tf.contrib.estimator.multi_label_head`.
+      feature_columns: An iterable containing all the feature columns used by
+        the model. All items in the set should be instances of classes derived
+        from `FeatureColumn`.
+      model_dir: Directory to save model parameters, graph and etc. This can
+        also be used to load checkpoints from the directory into a estimator
+        to continue training a previously saved model.
+      optimizer: An instance of `tf.Optimizer` used to train the model. Can also
+        be a string (one of 'Adagrad', 'Adam', 'Ftrl', 'RMSProp', 'SGD'), or
+        callable. Defaults to FTRL optimizer.
+      config: `RunConfig` object to configure the runtime settings.
+      partitioner: Optional. Partitioner for input layer.
+      sparse_combiner: A string specifying how to reduce if a categorical column
+        is multivalent.  One of "mean", "sqrtn", and "sum" -- these are
+        effectively different ways to do example-level normalization, which can
+        be useful for bag-of-words features. for more details, see
+        `tf.feature_column.linear_model`.
+    """
+    def _model_fn(features, labels, mode, config):
+      return _linear_model_fn(
+          features=features,
+          labels=labels,
+          mode=mode,
+          head=head,
+          feature_columns=tuple(feature_columns or []),
+          optimizer=optimizer,
+          partitioner=partitioner,
+          config=config,
+          sparse_combiner=sparse_combiner)
     super(LinearEstimator, self).__init__(
         model_fn=_model_fn, model_dir=model_dir, config=config)
 
 
+def _init_linear_regressor(
+    feature_columns,
+    label_dimension,
+    weight_column,
+    optimizer,
+    partitioner,
+    loss_reduction,
+    sparse_combiner):
+  """Helper function for the initialization of LinearRegressor."""
+  if isinstance(optimizer, LinearSDCA):
+    if sparse_combiner != 'sum':
+      raise ValueError('sparse_combiner must be "sum" when optimizer '
+                       'is a LinearSDCA object.')
+    if not feature_column_lib.is_feature_column_v2(feature_columns):
+      raise ValueError('V2 feature columns required when optimizer '
+                       'is a LinearSDCA object.')
+    if label_dimension > 1:
+      raise ValueError('LinearSDCA can only be used with one-dimensional '
+                       'label.')
+
+  head = head_lib._regression_head(  # pylint: disable=protected-access
+      label_dimension=label_dimension,
+      weight_column=weight_column,
+      loss_reduction=loss_reduction)
+
+  def _model_fn(features, labels, mode, config):
+    """Call the defined shared _linear_model_fn."""
+    return _linear_model_fn(
+        features=features,
+        labels=labels,
+        mode=mode,
+        head=head,
+        feature_columns=tuple(feature_columns or []),
+        optimizer=optimizer,
+        partitioner=partitioner,
+        config=config,
+        sparse_combiner=sparse_combiner)
+  return _model_fn
+
+
 @estimator_export('estimator.LinearRegressor', v1=[])
-class LinearRegressorV2(estimator.Estimator):
+class LinearRegressorV2(estimator.EstimatorV2):
   """An estimator for TensorFlow Linear regression problems.
 
   Train a linear regression model to predict label value given observation of
@@ -1025,44 +1138,24 @@ class LinearRegressorV2(estimator.Estimator):
         be useful for bag-of-words features. for more details, see
         `tf.feature_column.linear_model`.
     """
-    if isinstance(optimizer, LinearSDCA):
-      if sparse_combiner != 'sum':
-        raise ValueError('sparse_combiner must be "sum" when optimizer '
-                         'is a LinearSDCA object.')
-      if not feature_column_lib.is_feature_column_v2(feature_columns):
-        raise ValueError('V2 feature columns required when optimizer '
-                         'is a LinearSDCA object.')
-      if label_dimension > 1:
-        raise ValueError('LinearSDCA can only be used with one-dimensional '
-                         'label.')
-
-    head = head_lib._regression_head(  # pylint: disable=protected-access
+    linear_regressor_model_fn = _init_linear_regressor(
+        feature_columns=feature_columns,
         label_dimension=label_dimension,
         weight_column=weight_column,
-        loss_reduction=loss_reduction)
-
-    def _model_fn(features, labels, mode, config):
-      """Call the defined shared _linear_model_fn."""
-      return _linear_model_fn(
-          features=features,
-          labels=labels,
-          mode=mode,
-          head=head,
-          feature_columns=tuple(feature_columns or []),
-          optimizer=optimizer,
-          partitioner=partitioner,
-          config=config,
-          sparse_combiner=sparse_combiner)
+        optimizer=optimizer,
+        partitioner=partitioner,
+        loss_reduction=loss_reduction,
+        sparse_combiner=sparse_combiner)
 
     super(LinearRegressorV2, self).__init__(
-        model_fn=_model_fn,
+        model_fn=linear_regressor_model_fn,
         model_dir=model_dir,
         config=config,
         warm_start_from=warm_start_from)
 
 
 @estimator_export(v1=['estimator.LinearRegressor'])  # pylint: disable=missing-docstring
-class LinearRegressor(LinearRegressorV2):
+class LinearRegressor(estimator.Estimator):
   __doc__ = LinearRegressorV2.__doc__.replace('SUM_OVER_BATCH_SIZE', 'SUM')
 
   def __init__(self,
@@ -1076,14 +1169,17 @@ class LinearRegressor(LinearRegressorV2):
                warm_start_from=None,
                loss_reduction=losses.Reduction.SUM,
                sparse_combiner='sum'):
-    super(LinearRegressor, self).__init__(
-        feature_columns,
-        model_dir=model_dir,
+    linear_regressor_model_fn = _init_linear_regressor(
+        feature_columns=feature_columns,
         label_dimension=label_dimension,
         weight_column=weight_column,
         optimizer=optimizer,
-        config=config,
         partitioner=partitioner,
-        warm_start_from=warm_start_from,
         loss_reduction=loss_reduction,
         sparse_combiner=sparse_combiner)
+
+    super(LinearRegressor, self).__init__(
+        model_fn=linear_regressor_model_fn,
+        model_dir=model_dir,
+        config=config,
+        warm_start_from=warm_start_from)

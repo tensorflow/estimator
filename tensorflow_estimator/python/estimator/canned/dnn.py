@@ -300,8 +300,42 @@ def _dnn_model_fn(features,
           logits=logits)
 
 
+def _init_dnn_classifier(
+    hidden_units,
+    feature_columns,
+    n_classes,
+    weight_column,
+    label_vocabulary,
+    optimizer,
+    activation_fn,
+    dropout,
+    input_layer_partitioner,
+    loss_reduction,
+    batch_norm):
+  """Helper function for the initialization of DNNClassifier."""
+  head = head_lib._binary_logistic_or_multi_class_head(  # pylint: disable=protected-access
+      n_classes, weight_column, label_vocabulary, loss_reduction)
+
+  def _model_fn(features, labels, mode, config):
+    """Call the defined shared _dnn_model_fn."""
+    return _dnn_model_fn(
+        features=features,
+        labels=labels,
+        mode=mode,
+        head=head,
+        hidden_units=hidden_units,
+        feature_columns=tuple(feature_columns or []),
+        optimizer=optimizer,
+        activation_fn=activation_fn,
+        dropout=dropout,
+        input_layer_partitioner=input_layer_partitioner,
+        config=config,
+        batch_norm=batch_norm)
+  return _model_fn
+
+
 @estimator_export('estimator.DNNClassifier', v1=[])
-class DNNClassifierV2(estimator.Estimator):
+class DNNClassifierV2(estimator.EstimatorV2):
   """A classifier for TensorFlow DNN models.
 
   Example:
@@ -451,34 +485,27 @@ class DNNClassifierV2(estimator.Estimator):
         to reduce training loss over batch. Defaults to `SUM_OVER_BATCH_SIZE`.
       batch_norm: Whether to use batch normalization after each hidden layer.
     """
-    head = head_lib._binary_logistic_or_multi_class_head(  # pylint: disable=protected-access
-        n_classes, weight_column, label_vocabulary, loss_reduction)
-
-    def _model_fn(features, labels, mode, config):
-      """Call the defined shared _dnn_model_fn."""
-      return _dnn_model_fn(
-          features=features,
-          labels=labels,
-          mode=mode,
-          head=head,
-          hidden_units=hidden_units,
-          feature_columns=tuple(feature_columns or []),
-          optimizer=optimizer,
-          activation_fn=activation_fn,
-          dropout=dropout,
-          input_layer_partitioner=input_layer_partitioner,
-          config=config,
-          batch_norm=batch_norm)
-
+    dnn_classifier_model_fn = _init_dnn_classifier(
+        hidden_units=hidden_units,
+        feature_columns=feature_columns,
+        n_classes=n_classes,
+        weight_column=weight_column,
+        label_vocabulary=label_vocabulary,
+        optimizer=optimizer,
+        activation_fn=activation_fn,
+        dropout=dropout,
+        input_layer_partitioner=input_layer_partitioner,
+        loss_reduction=loss_reduction,
+        batch_norm=batch_norm)
     super(DNNClassifierV2, self).__init__(
-        model_fn=_model_fn,
+        model_fn=dnn_classifier_model_fn,
         model_dir=model_dir,
         config=config,
         warm_start_from=warm_start_from)
 
 
 @estimator_export(v1=['estimator.DNNClassifier'])  # pylint: disable=missing-docstring
-class DNNClassifier(DNNClassifierV2):
+class DNNClassifier(estimator.Estimator):
   __doc__ = DNNClassifierV2.__doc__.replace('SUM_OVER_BATCH_SIZE', 'SUM')
 
   def __init__(
@@ -498,10 +525,9 @@ class DNNClassifier(DNNClassifierV2):
       loss_reduction=losses.Reduction.SUM,
       batch_norm=False,
   ):
-    super(DNNClassifier, self).__init__(
-        hidden_units,
-        feature_columns,
-        model_dir=model_dir,
+    dnn_classifier_model_fn = _init_dnn_classifier(
+        hidden_units=hidden_units,
+        feature_columns=feature_columns,
         n_classes=n_classes,
         weight_column=weight_column,
         label_vocabulary=label_vocabulary,
@@ -509,16 +535,20 @@ class DNNClassifier(DNNClassifierV2):
         activation_fn=activation_fn,
         dropout=dropout,
         input_layer_partitioner=input_layer_partitioner,
-        config=config,
-        warm_start_from=warm_start_from,
         loss_reduction=loss_reduction,
         batch_norm=batch_norm)
+
+    super(DNNClassifier, self).__init__(
+        model_fn=dnn_classifier_model_fn,
+        model_dir=model_dir,
+        config=config,
+        warm_start_from=warm_start_from)
 
 
 # TODO(b/117517419): Update these contrib references once head moves to core.
 # Also references to the "_Head" class need to be replaced with "Head".
-@estimator_export('estimator.DNNEstimator')
-class DNNEstimator(estimator.Estimator):
+@estimator_export('estimator.DNNEstimator', v1=[])
+class DNNEstimatorV2(estimator.EstimatorV2):
   """An estimator for TensorFlow DNN models with user-specified head.
 
   Example:
@@ -666,13 +696,84 @@ class DNNEstimator(estimator.Estimator):
           input_layer_partitioner=input_layer_partitioner,
           config=config,
           batch_norm=batch_norm)
+    super(DNNEstimatorV2, self).__init__(
+        model_fn=_model_fn, model_dir=model_dir, config=config,
+        warm_start_from=warm_start_from)
+
+
+@estimator_export(v1=['estimator.DNNEstimator'])  # pylint: disable=missing-docstring
+class DNNEstimator(estimator.Estimator):
+  __doc__ = DNNEstimatorV2.__doc__
+
+  def __init__(self,
+               head,
+               hidden_units,
+               feature_columns,
+               model_dir=None,
+               optimizer='Adagrad',
+               activation_fn=nn.relu,
+               dropout=None,
+               input_layer_partitioner=None,
+               config=None,
+               warm_start_from=None,
+               batch_norm=False):
+    def _model_fn(features, labels, mode, config):
+      """Call the defined shared _dnn_model_fn."""
+      return _dnn_model_fn(
+          features=features,
+          labels=labels,
+          mode=mode,
+          head=head,
+          hidden_units=hidden_units,
+          feature_columns=tuple(feature_columns or []),
+          optimizer=optimizer,
+          activation_fn=activation_fn,
+          dropout=dropout,
+          input_layer_partitioner=input_layer_partitioner,
+          config=config,
+          batch_norm=batch_norm)
     super(DNNEstimator, self).__init__(
         model_fn=_model_fn, model_dir=model_dir, config=config,
         warm_start_from=warm_start_from)
 
 
+def _init_dnn_regressor(
+    hidden_units,
+    feature_columns,
+    label_dimension,
+    weight_column,
+    optimizer,
+    activation_fn,
+    dropout,
+    input_layer_partitioner,
+    loss_reduction,
+    batch_norm):
+  """Helper function for the initialization of DNNRegressor."""
+  head = head_lib._regression_head(  # pylint: disable=protected-access
+      label_dimension=label_dimension,
+      weight_column=weight_column,
+      loss_reduction=loss_reduction)
+
+  def _model_fn(features, labels, mode, config):
+    """Call the defined shared _dnn_model_fn."""
+    return _dnn_model_fn(
+        features=features,
+        labels=labels,
+        mode=mode,
+        head=head,
+        hidden_units=hidden_units,
+        feature_columns=tuple(feature_columns or []),
+        optimizer=optimizer,
+        activation_fn=activation_fn,
+        dropout=dropout,
+        input_layer_partitioner=input_layer_partitioner,
+        config=config,
+        batch_norm=batch_norm)
+  return _model_fn
+
+
 @estimator_export('estimator.DNNRegressor', v1=[])
-class DNNRegressorV2(estimator.Estimator):
+class DNNRegressorV2(estimator.EstimatorV2):
   """A regressor for TensorFlow DNN models.
 
   Example:
@@ -815,35 +916,27 @@ class DNNRegressorV2(estimator.Estimator):
         to reduce training loss over batch. Defaults to `SUM_OVER_BATCH_SIZE`.
       batch_norm: Whether to use batch normalization after each hidden layer.
     """
-
-    def _model_fn(features, labels, mode, config):
-      """Call the defined shared _dnn_model_fn."""
-      return _dnn_model_fn(
-          features=features,
-          labels=labels,
-          mode=mode,
-          head=head_lib._regression_head(  # pylint: disable=protected-access
-              label_dimension=label_dimension,
-              weight_column=weight_column,
-              loss_reduction=loss_reduction),
-          hidden_units=hidden_units,
-          feature_columns=tuple(feature_columns or []),
-          optimizer=optimizer,
-          activation_fn=activation_fn,
-          dropout=dropout,
-          input_layer_partitioner=input_layer_partitioner,
-          config=config,
-          batch_norm=batch_norm)
+    dnn_regressor_model_fn = _init_dnn_regressor(
+        hidden_units=hidden_units,
+        feature_columns=feature_columns,
+        label_dimension=label_dimension,
+        weight_column=weight_column,
+        optimizer=optimizer,
+        activation_fn=activation_fn,
+        dropout=dropout,
+        input_layer_partitioner=input_layer_partitioner,
+        loss_reduction=loss_reduction,
+        batch_norm=batch_norm)
 
     super(DNNRegressorV2, self).__init__(
-        model_fn=_model_fn,
+        model_fn=dnn_regressor_model_fn,
         model_dir=model_dir,
         config=config,
         warm_start_from=warm_start_from)
 
 
 @estimator_export(v1=['estimator.DNNRegressor'])  # pylint: disable=missing-docstring
-class DNNRegressor(DNNRegressorV2):
+class DNNRegressor(estimator.Estimator):
   __doc__ = DNNRegressorV2.__doc__.replace('SUM_OVER_BATCH_SIZE', 'SUM')
 
   def __init__(
@@ -862,17 +955,20 @@ class DNNRegressor(DNNRegressorV2):
       loss_reduction=losses.Reduction.SUM,
       batch_norm=False,
   ):
-    super(DNNRegressor, self).__init__(
-        hidden_units,
-        feature_columns,
-        model_dir=model_dir,
+    dnn_regressor_model_fn = _init_dnn_regressor(
+        hidden_units=hidden_units,
+        feature_columns=feature_columns,
         label_dimension=label_dimension,
         weight_column=weight_column,
         optimizer=optimizer,
         activation_fn=activation_fn,
         dropout=dropout,
         input_layer_partitioner=input_layer_partitioner,
-        config=config,
-        warm_start_from=warm_start_from,
         loss_reduction=loss_reduction,
         batch_norm=batch_norm)
+
+    super(DNNRegressor, self).__init__(
+        model_fn=dnn_regressor_model_fn,
+        model_dir=model_dir,
+        config=config,
+        warm_start_from=warm_start_from)

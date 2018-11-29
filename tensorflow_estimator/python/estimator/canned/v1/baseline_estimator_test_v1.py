@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Tests for BaselineEstimator."""
+"""Tests for BaselineEstimatorV1."""
 
 from __future__ import absolute_import
 from __future__ import division
@@ -76,11 +76,11 @@ def save_variables_to_ckpt(model_dir):
 def _baseline_estimator_fn(weight_column=None,
                            label_dimension=1,
                            **kwargs):
-  return baseline.BaselineEstimatorV2(
+  return baseline.BaselineEstimator(
       head=head_lib._regression_head(
           weight_column=weight_column,
           label_dimension=label_dimension,
-          loss_reduction=losses.Reduction.SUM_OVER_BATCH_SIZE),
+          loss_reduction=losses.Reduction.SUM),
       **kwargs)
 
 
@@ -108,10 +108,10 @@ class BaselineEstimatorEvaluationTest(test.TestCase):
 
     # Logit is bias = 13, while label is 10.
     # Loss per example is 3**2 = 9.
-    # Training loss is the sum over batch size = (9 + 9) / 2 = 9
+    # Training loss is the sum over batch = 9 + 9 = 18
     # Average loss is the average over batch = 9
     self.assertDictEqual({
-        metric_keys.MetricKeys.LOSS: 9.,
+        metric_keys.MetricKeys.LOSS: 18.,
         metric_keys.MetricKeys.LOSS_MEAN: 9.,
         metric_keys.MetricKeys.PREDICTION_MEAN: 13.,
         metric_keys.MetricKeys.LABEL_MEAN: 10.,
@@ -138,10 +138,10 @@ class BaselineEstimatorEvaluationTest(test.TestCase):
 
     # Logit is bias = 13, while label is 10.
     # Loss per example is 3**2 = 9.
-    # Training loss is the weighted sum over batch size= (9 + 2*9) / 2 = 13.5
+    # Training loss is the weighted sum over batch = 9 + 2*9 = 27
     # average loss is the weighted average = 9 + 2*9 / (1 + 2) = 9
     self.assertDictEqual({
-        metric_keys.MetricKeys.LOSS: 13.5,
+        metric_keys.MetricKeys.LOSS: 27.,
         metric_keys.MetricKeys.LOSS_MEAN: 9.,
         metric_keys.MetricKeys.PREDICTION_MEAN: 13.,
         metric_keys.MetricKeys.LABEL_MEAN: 10.,
@@ -273,8 +273,8 @@ class BaselineEstimatorIntegrationTest(test.TestCase):
     feature_spec = feature_column_lib.make_parse_example_spec(feature_columns)
     serving_input_receiver_fn = export.build_parsing_serving_input_receiver_fn(
         feature_spec)
-    export_dir = est.export_saved_model(tempfile.mkdtemp(),
-                                        serving_input_receiver_fn)
+    export_dir = est.export_savedmodel(tempfile.mkdtemp(),
+                                       serving_input_receiver_fn)
     self.assertTrue(gfile.Exists(export_dir))
 
   def test_numpy_input_fn(self):

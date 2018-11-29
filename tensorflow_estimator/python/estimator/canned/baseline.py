@@ -51,9 +51,6 @@ from __future__ import print_function
 
 import six
 
-from tensorflow_estimator.python.estimator import estimator
-from tensorflow_estimator.python.estimator.canned import head as head_lib
-from tensorflow_estimator.python.estimator.canned import optimizers
 from tensorflow.python.feature_column import feature_column as feature_column_lib
 from tensorflow.python.framework import ops
 from tensorflow.python.ops import array_ops
@@ -64,6 +61,9 @@ from tensorflow.python.ops import variable_scope
 from tensorflow.python.ops.losses import losses
 from tensorflow.python.training import training_util
 from tensorflow.python.util.tf_export import estimator_export
+from tensorflow_estimator.python.estimator import estimator
+from tensorflow_estimator.python.estimator.canned import head as head_lib
+from tensorflow_estimator.python.estimator.canned import optimizers
 
 # The default learning rate of 0.3 is a historical artifact of the initial
 # implementation, but seems a reasonable choice.
@@ -178,8 +178,29 @@ def _baseline_model_fn(features, labels, mode, head, optimizer,
       train_op_fn=train_op_fn)
 
 
+def _init_baseline_classifier(
+    n_classes,
+    weight_column,
+    label_vocabulary,
+    optimizer,
+    loss_reduction):
+  """Helper function for the initialization of BaselineClassifier."""
+  head = head_lib._binary_logistic_or_multi_class_head(  # pylint: disable=protected-access
+      n_classes, weight_column, label_vocabulary, loss_reduction)
+  def _model_fn(features, labels, mode, config):
+    return _baseline_model_fn(
+        features=features,
+        labels=labels,
+        mode=mode,
+        head=head,
+        optimizer=optimizer,
+        weight_column=weight_column,
+        config=config)
+  return _model_fn
+
+
 @estimator_export('estimator.BaselineClassifier', v1=[])
-class BaselineClassifierV2(estimator.Estimator):
+class BaselineClassifierV2(estimator.EstimatorV2):
   """A classifier that can establish a simple baseline.
 
   This classifier ignores feature values and will learn to predict the average
@@ -267,25 +288,21 @@ class BaselineClassifierV2(estimator.Estimator):
     Raises:
       ValueError: If `n_classes` < 2.
     """
-    # TODO(b/117517419): Update this reference once head moves to core.
-    head = head_lib._binary_logistic_or_multi_class_head(  # pylint: disable=protected-access
-        n_classes, weight_column, label_vocabulary, loss_reduction)
-    def _model_fn(features, labels, mode, config):
-      return _baseline_model_fn(
-          features=features,
-          labels=labels,
-          mode=mode,
-          head=head,
-          optimizer=optimizer,
-          weight_column=weight_column,
-          config=config)
+    baseline_classifier_model_fn = _init_baseline_classifier(
+        n_classes=n_classes,
+        weight_column=weight_column,
+        label_vocabulary=label_vocabulary,
+        optimizer=optimizer,
+        loss_reduction=loss_reduction)
 
     super(BaselineClassifierV2, self).__init__(
-        model_fn=_model_fn, model_dir=model_dir, config=config)
+        model_fn=baseline_classifier_model_fn,
+        model_dir=model_dir,
+        config=config)
 
 
 @estimator_export(v1=['estimator.BaselineClassifier'])  # pylint: disable=missing-docstring
-class BaselineClassifier(BaselineClassifierV2):
+class BaselineClassifier(estimator.Estimator):
   __doc__ = BaselineClassifierV2.__doc__.replace('SUM_OVER_BATCH_SIZE', 'SUM')
 
   def __init__(self,
@@ -296,20 +313,23 @@ class BaselineClassifier(BaselineClassifierV2):
                optimizer='Ftrl',
                config=None,
                loss_reduction=losses.Reduction.SUM):
-    super(BaselineClassifier, self).__init__(
-        model_dir=model_dir,
+    baseline_classifier_model_fn = _init_baseline_classifier(
         n_classes=n_classes,
         weight_column=weight_column,
         label_vocabulary=label_vocabulary,
         optimizer=optimizer,
-        config=config,
         loss_reduction=loss_reduction)
+
+    super(BaselineClassifier, self).__init__(
+        model_fn=baseline_classifier_model_fn,
+        model_dir=model_dir,
+        config=config)
 
 
 # TODO(b/117517419): Update these contrib references once head moves to core.
 # Also references to the "_Head" class need to be replaced with "Head".
-@estimator_export('estimator.BaselineEstimator')
-class BaselineEstimator(estimator.Estimator):
+@estimator_export('estimator.BaselineEstimator', v1=[])
+class BaselineEstimatorV2(estimator.EstimatorV2):
   """An estimator that can establish a simple baseline.
 
   The estimator uses a user-specified head.
@@ -385,14 +405,59 @@ class BaselineEstimator(estimator.Estimator):
           head=head,
           optimizer=optimizer,
           config=config)
+    super(BaselineEstimatorV2, self).__init__(
+        model_fn=_model_fn,
+        model_dir=model_dir,
+        config=config)
+
+
+@estimator_export(v1=['estimator.BaselineEstimator'])  # pylint: disable=missing-docstring
+class BaselineEstimator(estimator.Estimator):
+  __doc__ = BaselineEstimatorV2.__doc__
+
+  def __init__(self,
+               head,
+               model_dir=None,
+               optimizer='Ftrl',
+               config=None):
+    def _model_fn(features, labels, mode, config):
+      return _baseline_model_fn(
+          features=features,
+          labels=labels,
+          mode=mode,
+          head=head,
+          optimizer=optimizer,
+          config=config)
     super(BaselineEstimator, self).__init__(
         model_fn=_model_fn,
         model_dir=model_dir,
         config=config)
 
 
+def _init_baseline_regressor(
+    label_dimension,
+    weight_column,
+    optimizer,
+    loss_reduction):
+  """Helper function for the initialization of BaselineRegressor."""
+  # TODO(b/117517419): Update this reference once head moves to core.
+  head = head_lib._regression_head(  # pylint: disable=protected-access
+      label_dimension=label_dimension,
+      weight_column=weight_column,
+      loss_reduction=loss_reduction)
+  def _model_fn(features, labels, mode, config):
+    return _baseline_model_fn(
+        features=features,
+        labels=labels,
+        mode=mode,
+        head=head,
+        optimizer=optimizer,
+        config=config)
+  return _model_fn
+
+
 @estimator_export('estimator.BaselineRegressor', v1=[])
-class BaselineRegressorV2(estimator.Estimator):
+class BaselineRegressorV2(estimator.EstimatorV2):
   """A regressor that can establish a simple baseline.
 
   This regressor ignores feature values and will learn to predict the average
@@ -468,27 +533,20 @@ class BaselineRegressorV2(estimator.Estimator):
     Returns:
       A `BaselineRegressor` estimator.
     """
-
-    # TODO(b/117517419): Update this reference once head moves to core.
-    head = head_lib._regression_head(  # pylint: disable=protected-access
+    baseline_regressor_model_fn = _init_baseline_regressor(
         label_dimension=label_dimension,
         weight_column=weight_column,
+        optimizer=optimizer,
         loss_reduction=loss_reduction)
-    def _model_fn(features, labels, mode, config):
-      return _baseline_model_fn(
-          features=features,
-          labels=labels,
-          mode=mode,
-          head=head,
-          optimizer=optimizer,
-          config=config)
 
     super(BaselineRegressorV2, self).__init__(
-        model_fn=_model_fn, model_dir=model_dir, config=config)
+        model_fn=baseline_regressor_model_fn,
+        model_dir=model_dir,
+        config=config)
 
 
 @estimator_export(v1=['estimator.BaselineRegressor'])  # pylint: disable=missing-docstring
-class BaselineRegressor(BaselineRegressorV2):
+class BaselineRegressor(estimator.Estimator):
   __doc__ = BaselineRegressorV2.__doc__.replace('SUM_OVER_BATCH_SIZE', 'SUM')
 
   def __init__(self,
@@ -498,10 +556,13 @@ class BaselineRegressor(BaselineRegressorV2):
                optimizer='Ftrl',
                config=None,
                loss_reduction=losses.Reduction.SUM):
-    super(BaselineRegressor, self).__init__(
-        model_dir=model_dir,
+    baseline_regressor_model_fn = _init_baseline_regressor(
         label_dimension=label_dimension,
         weight_column=weight_column,
         optimizer=optimizer,
-        config=config,
         loss_reduction=loss_reduction)
+
+    super(BaselineRegressor, self).__init__(
+        model_fn=baseline_regressor_model_fn,
+        model_dir=model_dir,
+        config=config)

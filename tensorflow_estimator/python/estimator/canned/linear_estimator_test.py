@@ -41,7 +41,7 @@ from tensorflow_estimator.python.estimator.inputs import numpy_io
 def _linear_estimator_fn(
     weight_column=None, label_dimension=1, **kwargs):
   """Returns a LinearEstimator that uses regression_head."""
-  return linear.LinearEstimator(
+  return linear.LinearEstimatorV2(
       head=head_lib._regression_head(
           weight_column=weight_column,
           label_dimension=label_dimension,
@@ -92,7 +92,7 @@ class LinearEstimatorIntegrationTest(test.TestCase):
       label_dimension, batch_size):
     feature_columns = [
         feature_column.numeric_column('x', shape=(input_dimension,))]
-    est = linear.LinearEstimator(
+    est = linear.LinearEstimatorV2(
         head=head_lib._regression_head(label_dimension=label_dimension),
         feature_columns=feature_columns,
         model_dir=self._model_dir)
@@ -117,8 +117,8 @@ class LinearEstimatorIntegrationTest(test.TestCase):
     feature_spec = feature_column.make_parse_example_spec(feature_columns)
     serving_input_receiver_fn = export.build_parsing_serving_input_receiver_fn(
         feature_spec)
-    export_dir = est.export_savedmodel(tempfile.mkdtemp(),
-                                       serving_input_receiver_fn)
+    export_dir = est.export_saved_model(tempfile.mkdtemp(),
+                                        serving_input_receiver_fn)
     self.assertTrue(gfile.Exists(export_dir))
 
   def test_numpy_input_fn(self):

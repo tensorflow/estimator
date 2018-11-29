@@ -294,10 +294,10 @@ class BaseLinearRegressorEvaluationTest(object):
 
     # Logit is (1. * 11.0 + 2.0) = 13, while label is 10.
     # Loss per example is 3**2 = 9.
-    # Training loss is the sum over batch size = (9 + 9) / 2 = 9
+    # Training loss is the sum over batch = 9 + 9 = 18
     # Average loss is the average over batch = 9
     self.assertDictEqual({
-        metric_keys.MetricKeys.LOSS: 9.,
+        metric_keys.MetricKeys.LOSS: 18.,
         metric_keys.MetricKeys.LOSS_MEAN: 9.,
         metric_keys.MetricKeys.PREDICTION_MEAN: 13.,
         metric_keys.MetricKeys.LABEL_MEAN: 10.,
@@ -326,11 +326,10 @@ class BaseLinearRegressorEvaluationTest(object):
 
     # Logit is (1. * 11.0 + 2.0) = 13, while label is 10.
     # Loss per example is 3**2 = 9.
-    # Training loss is the weighted sum over batch / batch size =
-    #     (9 + 2*9) / 2 = 13.5
+    # Training loss is the weighted sum over batch = 9 + 2*9 = 27
     # average loss is the weighted average = 9 + 2*9 / (1 + 2) = 9
     self.assertDictEqual({
-        metric_keys.MetricKeys.LOSS: 13.5,
+        metric_keys.MetricKeys.LOSS: 27.,
         metric_keys.MetricKeys.LOSS_MEAN: 9.,
         metric_keys.MetricKeys.PREDICTION_MEAN: 13.,
         metric_keys.MetricKeys.LABEL_MEAN: 10.,
@@ -676,8 +675,8 @@ class BaseLinearRegressorIntegrationTest(object):
     feature_spec = feature_column.make_parse_example_spec(feature_columns)
     serving_input_receiver_fn = export.build_parsing_serving_input_receiver_fn(
         feature_spec)
-    export_dir = est.export_saved_model(tempfile.mkdtemp(),
-                                        serving_input_receiver_fn)
+    export_dir = est.export_savedmodel(tempfile.mkdtemp(),
+                                       serving_input_receiver_fn)
     self.assertTrue(gfile.Exists(export_dir))
 
   def test_numpy_input_fn(self):
@@ -1010,8 +1009,7 @@ class BaseLinearRegressorTrainingTest(object):
     # logits[0] = 17 * 10. + 5. = 175
     # logits[1] = 15 * 10. + 5. = 155
     # loss = sum(logits - label)^2 = (175 - 5)^2 + (155 - 3)^2 = 52004
-    # expected_loss = loss / 2 = 26002
-    mock_optimizer = self._mock_optimizer(expected_loss=26002.)
+    mock_optimizer = self._mock_optimizer(expected_loss=52004.)
     linear_regressor = self._linear_regressor_fn(
         feature_columns=(self._fc_lib.numeric_column('age'),),
         model_dir=self._model_dir,
@@ -1109,7 +1107,7 @@ class BaseLinearClassifierTrainingTest(object):
   def _testFromScratchWithDefaultOptimizer(self, n_classes):
     label = 0
     age = 17
-    est = linear.LinearClassifierV2(
+    est = linear.LinearClassifier(
         feature_columns=(self._fc_lib.numeric_column('age'),),
         n_classes=n_classes,
         model_dir=self._model_dir)
@@ -1129,7 +1127,7 @@ class BaseLinearClassifierTrainingTest(object):
   def _testTrainWithTwoDimsLabel(self, n_classes):
     batch_size = 20
 
-    est = linear.LinearClassifierV2(
+    est = linear.LinearClassifier(
         feature_columns=(self._fc_lib.numeric_column('age'),),
         n_classes=n_classes,
         model_dir=self._model_dir)
@@ -1156,7 +1154,7 @@ class BaseLinearClassifierTrainingTest(object):
   def _testTrainWithOneDimLabel(self, n_classes):
     batch_size = 20
 
-    est = linear.LinearClassifierV2(
+    est = linear.LinearClassifier(
         feature_columns=(self._fc_lib.numeric_column('age'),),
         n_classes=n_classes,
         model_dir=self._model_dir)
@@ -1181,7 +1179,7 @@ class BaseLinearClassifierTrainingTest(object):
   def _testTrainWithTwoDimsWeight(self, n_classes):
     batch_size = 20
 
-    est = linear.LinearClassifierV2(
+    est = linear.LinearClassifier(
         feature_columns=(self._fc_lib.numeric_column('age'),),
         weight_column='w',
         n_classes=n_classes,
@@ -1207,7 +1205,7 @@ class BaseLinearClassifierTrainingTest(object):
   def _testTrainWithOneDimWeight(self, n_classes):
     batch_size = 20
 
-    est = linear.LinearClassifierV2(
+    est = linear.LinearClassifier(
         feature_columns=(self._fc_lib.numeric_column('age'),),
         weight_column='w',
         n_classes=n_classes,
@@ -1244,7 +1242,7 @@ class BaseLinearClassifierTrainingTest(object):
     mock_optimizer = self._mock_optimizer(
         expected_loss=-1 * math.log(1.0/n_classes))
 
-    est = linear.LinearClassifierV2(
+    est = linear.LinearClassifier(
         feature_columns=(self._fc_lib.numeric_column('age'),),
         n_classes=n_classes,
         optimizer=mock_optimizer,
@@ -1307,7 +1305,7 @@ class BaseLinearClassifierTrainingTest(object):
 
     mock_optimizer = self._mock_optimizer(expected_loss=expected_loss)
 
-    est = linear.LinearClassifierV2(
+    est = linear.LinearClassifier(
         feature_columns=(self._fc_lib.numeric_column('age'),),
         n_classes=n_classes,
         optimizer=mock_optimizer,
@@ -1355,7 +1353,7 @@ class BaseLinearClassifierTrainingTest(object):
     # => loss = -0.8 * log(sigmoid(-1)) -0.2 * log(sigmoid(+1)) = 1.1132617
     mock_optimizer = self._mock_optimizer(expected_loss=1.1132617)
 
-    est = linear.LinearClassifierV2(
+    est = linear.LinearClassifier(
         feature_columns=(self._fc_lib.numeric_column('age'),),
         n_classes=n_classes,
         optimizer=mock_optimizer,
@@ -1402,14 +1400,14 @@ class BaseLinearClassifierTrainingTest(object):
     #   loss = sigmoid_cross_entropy(logits, label)
     #   so, loss[0] = 1 * -log ( sigmoid(-1) ) = 1.3133
     #       loss[1] = (1 - 0) * -log ( 1- sigmoid(2) ) = 2.1269
-    #   expected_loss = (loss[0] + loss[1]) / batch size (2)
+    #   expected_loss = loss[0] + loss[1]
     # For multi class classifier:
     #   loss = cross_entropy(logits, label)
     #   where logits = [17, 18.5] * age_weight + bias and label = [1, 0]
     #   so, loss = 1 * -log ( soft_max(logits)[label] )
-    #   expected_loss = (loss[0] + loss[1]) / batch size (2)
+    #   expected_loss = loss[0] + loss[1]
     if n_classes == 2:
-      expected_loss = (1.3133 + 2.1269) / 2
+      expected_loss = 1.3133 + 2.1269
     else:
       logits = age_weight * np.reshape(age, (2, 1)) + bias
       logits_exp = np.exp(logits)
@@ -1417,11 +1415,11 @@ class BaseLinearClassifierTrainingTest(object):
       softmax_row_1 = logits_exp[1] / logits_exp[1].sum()
       expected_loss_0 = -1 * math.log(softmax_row_0[label[0]])
       expected_loss_1 = -1 * math.log(softmax_row_1[label[1]])
-      expected_loss = (expected_loss_0 + expected_loss_1) / 2
+      expected_loss = expected_loss_0 + expected_loss_1
 
     mock_optimizer = self._mock_optimizer(expected_loss=expected_loss)
 
-    est = linear.LinearClassifierV2(
+    est = linear.LinearClassifier(
         feature_columns=(self._fc_lib.numeric_column('age'),),
         n_classes=n_classes,
         optimizer=mock_optimizer,
@@ -1557,12 +1555,12 @@ class BaseLinearClassifierEvaluationTest(object):
       # Loss is
       #   loss for row 1: 1 * -log(sigmoid(-1)) = 1.3133
       #   loss for row 2: (1 - 0) * -log(1 - sigmoid(1)) = 1.3133
-      expected_loss = (1.3133 * 2) / 2  # Divided by batch size
+      expected_loss = 1.3133 * 2
 
       expected_metrics = {
           metric_keys.MetricKeys.LOSS: expected_loss,
           ops.GraphKeys.GLOBAL_STEP: 100,
-          metric_keys.MetricKeys.LOSS_MEAN: expected_loss,
+          metric_keys.MetricKeys.LOSS_MEAN: expected_loss / 2,
           metric_keys.MetricKeys.ACCURACY: 0.,
           metric_keys.MetricKeys.PRECISION: 0.,
           metric_keys.MetricKeys.RECALL: 0.,
@@ -1580,11 +1578,11 @@ class BaseLinearClassifierEvaluationTest(object):
       softmax_row_1 = logits_exp[1] / logits_exp[1].sum()
       expected_loss_0 = -1 * math.log(softmax_row_0[label[0]])
       expected_loss_1 = -1 * math.log(softmax_row_1[label[1]])
-      expected_loss = (expected_loss_0 + expected_loss_1) / 2  # batch size
+      expected_loss = expected_loss_0 + expected_loss_1
 
       expected_metrics = {
           metric_keys.MetricKeys.LOSS: expected_loss,
-          metric_keys.MetricKeys.LOSS_MEAN: expected_loss,
+          metric_keys.MetricKeys.LOSS_MEAN: expected_loss / 2,
           ops.GraphKeys.GLOBAL_STEP: 100,
           metric_keys.MetricKeys.ACCURACY: 0.,
       }
@@ -1635,8 +1633,8 @@ class BaseLinearClassifierEvaluationTest(object):
       #   loss for row 1: 1 * -log(sigmoid(-1)) = 1.3133
       #   loss for row 2: (1 - 0) * -log(1 - sigmoid(1)) = 1.3133
       #   weights = [1., 2.]
-      expected_loss = (1.3133 * (1. + 2.)) / 2  # Divided by batch size
-      loss_mean = (1.3133 * (1. + 2.)) / (1.0 + 2.0)
+      expected_loss = 1.3133 * (1. + 2.)
+      loss_mean = expected_loss / (1.0 + 2.0)
       label_mean = np.average(label, weights=weights)
       logits = [-1, 1]
       logistics = sigmoid(np.array(logits))
@@ -1676,7 +1674,7 @@ class BaseLinearClassifierEvaluationTest(object):
       expected_loss_1 = -1 * math.log(softmax_row_1[label[1]])
       loss_mean = np.average([expected_loss_0, expected_loss_1],
                              weights=weights)
-      expected_loss = (loss_mean * np.sum(weights)) / 2  # batch size
+      expected_loss = loss_mean * np.sum(weights)
 
       expected_metrics = {
           metric_keys.MetricKeys.LOSS: expected_loss,
@@ -1907,8 +1905,8 @@ class BaseLinearClassifierIntegrationTest(object):
     feature_spec = feature_column.make_parse_example_spec(feature_columns)
     serving_input_receiver_fn = export.build_parsing_serving_input_receiver_fn(
         feature_spec)
-    export_dir = est.export_saved_model(tempfile.mkdtemp(),
-                                        serving_input_receiver_fn)
+    export_dir = est.export_savedmodel(tempfile.mkdtemp(),
+                                       serving_input_receiver_fn)
     self.assertTrue(gfile.Exists(export_dir))
 
   def _test_numpy_input_fn(self, n_classes):
