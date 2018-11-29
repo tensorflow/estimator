@@ -1252,11 +1252,8 @@ class EstimatorV2(object):
                     labels,  # although this will be None it seems
                     model_fn_lib.ModeKeys.TRAIN,
                     self.config))
-          loss = strategy.unwrap(
-              strategy.extended.reduce_to(
-                  distribute_lib.get_loss_reduction(),
-                  grouped_estimator_spec.loss,
-                  destinations='/device:CPU:0'))[0]
+          loss = strategy.reduce(distribute_lib.get_loss_reduction(),
+                                 grouped_estimator_spec.loss)
           distributed_train_op = grouped_estimator_spec.train_op
 
         scaffold = _combine_distributed_scaffold(
