@@ -76,25 +76,41 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
 
   def setUp(self):
     self._head = canned_boosted_trees._create_regression_head(label_dimension=1)
-    self._feature_columns = {
-        feature_column.bucketized_column(
-            feature_column.numeric_column('f_%d' % i, dtype=dtypes.float32),
-            BUCKET_BOUNDARIES)
+    self._numeric_feature_columns = {
+        feature_column.numeric_column('f_%d' % i, dtype=dtypes.float32)
         for i in range(NUM_FEATURES)
     }
 
-  def _assert_checkpoint(self, model_dir, global_step, finalized_trees,
-                         attempted_layers):
+    self._feature_columns = {
+        feature_column.bucketized_column(f, BUCKET_BOUNDARIES)
+        for f in self._numeric_feature_columns
+    }
+
+  def _assert_checkpoint(self,
+                         model_dir,
+                         global_step,
+                         finalized_trees,
+                         attempted_layers,
+                         bucket_boundaries=None):
     reader = checkpoint_utils.load_checkpoint(model_dir)
     self.assertEqual(global_step, reader.get_tensor(ops.GraphKeys.GLOBAL_STEP))
     serialized = reader.get_tensor('boosted_trees:0_serialized')
     ensemble_proto = boosted_trees_pb2.TreeEnsemble()
     ensemble_proto.ParseFromString(serialized)
+
     self.assertEqual(
         finalized_trees,
         sum([1 for t in ensemble_proto.tree_metadata if t.is_finalized]))
     self.assertEqual(attempted_layers,
                      ensemble_proto.growing_metadata.num_layers_attempted)
+
+    if bucket_boundaries:
+      for i, bucket_boundary in enumerate(bucket_boundaries):
+        self.assertAllClose(
+            bucket_boundary,
+            reader.get_tensor(
+                'boosted_trees/QuantileAccumulator/_bucket_boundaries_' +
+                str(i)))
 
   def testTrainAndEvaluateEstimator(self):
     input_fn = _make_train_input_fn(is_classification=False)
@@ -236,8 +252,10 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
         x=FEATURES_DICT, y=None, batch_size=1, num_epochs=1, shuffle=False)
 
     est = boosted_trees.boosted_trees_classifier_train_in_memory(
-        train_input_fn=train_input_fn, feature_columns=self._feature_columns,
-        n_trees=1, max_depth=5)
+        train_input_fn=train_input_fn,
+        feature_columns=self._feature_columns,
+        n_trees=1,
+        max_depth=5)
     # It will stop after 5 steps because of the max depth and num trees.
     self._assert_checkpoint(
         est.model_dir, global_step=5, finalized_trees=1, attempted_layers=5)
@@ -320,14 +338,42 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
     self.assertAllClose([[0], [1], [1], [0], [0]],
                         [pred['class_ids'] for pred in predictions])
 
+  def testBinaryClassifierTrainInMemoryFloatColumns(self):
+    train_input_fn = _make_train_input_fn_dataset(is_classification=True)
+    predict_input_fn = numpy_io.numpy_input_fn(
+        x=FEATURES_DICT, y=None, batch_size=1, num_epochs=1, shuffle=False)
+
+    est = boosted_trees.boosted_trees_classifier_train_in_memory(
+        train_input_fn=train_input_fn,
+        feature_columns=self._numeric_feature_columns,
+        n_trees=1,
+        max_depth=5,
+        quantile_sketch_epsilon=0.33)
+
+    # It will stop after 5 steps because of the max depth and num trees.
+    self._assert_checkpoint(
+        est.model_dir,
+        global_step=5,
+        finalized_trees=1,
+        attempted_layers=5,
+        bucket_boundaries=[[-2.001, -1.999, 12.5], [-3., 0.4995, 2.],
+                           [-100., 20., 102.75]])
+    eval_res = est.evaluate(input_fn=train_input_fn, steps=1)
+    self.assertAllClose(eval_res['accuracy'], 1.0)
+    predictions = list(est.predict(input_fn=predict_input_fn))
+    self.assertAllClose([[0], [1], [1], [0], [0]],
+                        [pred['class_ids'] for pred in predictions])
+
   def testRegressorTrainInMemoryAndEvalAndInfer(self):
     train_input_fn = _make_train_input_fn(is_classification=False)
     predict_input_fn = numpy_io.numpy_input_fn(
         x=FEATURES_DICT, y=None, batch_size=1, num_epochs=1, shuffle=False)
 
     est = boosted_trees.boosted_trees_regressor_train_in_memory(
-        train_input_fn=train_input_fn, feature_columns=self._feature_columns,
-        n_trees=1, max_depth=5)
+        train_input_fn=train_input_fn,
+        feature_columns=self._feature_columns,
+        n_trees=1,
+        max_depth=5)
     # It will stop after 5 steps because of the max depth and num trees.
     self._assert_checkpoint(
         est.model_dir, global_step=5, finalized_trees=1, attempted_layers=5)
@@ -340,14 +386,45 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
         [[0.571619], [0.262821], [0.124549], [0.956801], [1.769801]],
         [pred['predictions'] for pred in predictions])
 
+  def testRegressorTrainInMemoryWithFloatColumns(self):
+    train_input_fn = _make_train_input_fn(is_classification=False)
+    predict_input_fn = numpy_io.numpy_input_fn(
+        x=FEATURES_DICT, y=None, batch_size=1, num_epochs=1, shuffle=False)
+
+    est = boosted_trees.boosted_trees_regressor_train_in_memory(
+        train_input_fn=train_input_fn,
+        feature_columns=self._numeric_feature_columns,
+        n_trees=1,
+        max_depth=5,
+        quantile_sketch_epsilon=0.33)
+
+    # It will stop after 5 steps because of the max depth and num trees.
+    self._assert_checkpoint(
+        est.model_dir,
+        global_step=5,
+        finalized_trees=1,
+        attempted_layers=5,
+        bucket_boundaries=[[-2.001, -1.999, 12.5], [-3., 0.4995, 2.],
+                           [-100., 20., 102.75]])
+
+    # Check evaluate and predict.
+    eval_res = est.evaluate(input_fn=train_input_fn, steps=1)
+    self.assertAllClose(eval_res['average_loss'], 2.4182191)
+    predictions = list(est.predict(input_fn=predict_input_fn))
+    self.assertAllClose(
+        [[0.663432], [0.31798199], [0.081902], [0.75843203], [1.86384201]],
+        [pred['predictions'] for pred in predictions])
+
   def testRegressorTrainInMemoryWithDataset(self):
     train_input_fn = _make_train_input_fn_dataset(is_classification=False)
     predict_input_fn = numpy_io.numpy_input_fn(
         x=FEATURES_DICT, y=None, batch_size=1, num_epochs=1, shuffle=False)
 
     est = boosted_trees.boosted_trees_regressor_train_in_memory(
-        train_input_fn=train_input_fn, feature_columns=self._feature_columns,
-        n_trees=1, max_depth=5)
+        train_input_fn=train_input_fn,
+        feature_columns=self._feature_columns,
+        n_trees=1,
+        max_depth=5)
     # It will stop after 5 steps because of the max depth and num trees.
     self._assert_checkpoint(
         est.model_dir, global_step=5, finalized_trees=1, attempted_layers=5)

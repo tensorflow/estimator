@@ -320,7 +320,8 @@ def _generate_feature_name_mapping(sorted_feature_columns):
 def _cache_transformed_features(features,
                                 sorted_feature_columns,
                                 batch_size,
-                                bucket_boundaries=None):
+                                bucket_boundaries,
+                                are_boundaries_ready):
   """Transform features and cache, then returns (cached_features, cache_op)."""
   num_features = _calculate_num_features(sorted_feature_columns)
   cached_features = [
@@ -352,7 +353,10 @@ def _cache_transformed_features(features,
     # TODO(youngheek): Try other combination of dependencies so that the
     # function returns a single result, not a tuple.
     with ops.control_dependencies(cached):
-      cache_flip_op = are_features_cached.assign(True)
+      # Do not cache if boundaries are not ready.
+      cache_flip_op = control_flow_ops.cond(
+          are_boundaries_ready, lambda: are_features_cached.assign(True),
+          control_flow_ops.no_op)
     return cached, cache_flip_op
 
   input_feature_list, cache_flip_op = control_flow_ops.cond(
@@ -685,8 +689,9 @@ class _InMemoryEnsembleGrower(_EnsembleGrower):
     summary_op = self._quantile_accumulator.add_summaries(
         float_features, weights)
     with ops.control_dependencies([summary_op]):
-      return control_flow_ops.group(self._quantile_accumulator.flush(),
-                                    are_boundaries_ready.assign(True).op)
+      flush = self._quantile_accumulator.flush()
+      with ops.control_dependencies([flush]):
+        return are_boundaries_ready.assign(True).op
 
   def center_bias(self, center_bias_var, gradients, hessians):
     # For in memory, we already have a full batch of gradients and hessians,
@@ -970,11 +975,21 @@ def _bt_model_fn(
     worker_device = control_flow_ops.no_op().device
     # Extract input features and set up cache for training.
     training_state_cache = None
+
+    are_boundaries_ready = variable_scope.variable(
+            initial_value=False,
+            name='are_boundaries_ready',
+            trainable=False,
+            use_resource=True)
+
+
     if train_in_memory:
       # cache transformed features as well for in-memory training.
       batch_size = array_ops.shape(labels)[0]
       input_feature_list, input_cache_op = _cache_transformed_features(
-          features, sorted_feature_columns, batch_size, bucket_boundaries_dict)
+          features, sorted_feature_columns, batch_size, bucket_boundaries_dict,
+          are_boundaries_ready)
+
       training_state_cache = _CacheTrainingStatesUsingVariables(
           batch_size, head.logits_dimension)
     else:
@@ -984,6 +999,7 @@ def _bt_model_fn(
         example_ids = features[example_id_column_name]
         training_state_cache = _CacheTrainingStatesUsingHashTable(
             example_ids, head.logits_dimension)
+
     if training_state_cache:
       cached_tree_ids, cached_node_ids, cached_logits = (
           training_state_cache.lookup())
@@ -1120,11 +1136,6 @@ def _bt_model_fn(
       if not float_columns:
         return _grow_tree_fn()
       else:
-        are_boundaries_ready = variable_scope.variable(
-            initial_value=False,
-            name='are_boundaries_ready',
-            trainable=False,
-            use_resource=True)
         return control_flow_ops.cond(are_boundaries_ready, _grow_tree_fn,
                                      _update_quantile_fn)
 

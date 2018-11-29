@@ -288,8 +288,15 @@ def boosted_trees_classifier_train_in_memory(
         closed_form_grad_and_hess_fn=closed_form,
         train_in_memory=True)
 
-  in_memory_classifier = estimator.Estimator(
-      model_fn=_model_fn, model_dir=model_dir, config=config)
+  in_memory_classifier = canned_boosted_trees._BoostedTreesBase(
+      model_fn=_model_fn,
+      model_dir=model_dir,
+      config=config,
+      feature_columns=feature_columns,
+      head=head,
+      center_bias=center_bias,
+      is_classification=True,
+      quantile_sketch_epsilon=quantile_sketch_epsilon)
 
   in_memory_classifier.train(
       input_fn=_validate_input_fn_and_repeat_dataset(train_input_fn),
@@ -430,8 +437,15 @@ def boosted_trees_regressor_train_in_memory(
         config=config,
         train_in_memory=True)
 
-  in_memory_regressor = estimator.Estimator(
-      model_fn=_model_fn, model_dir=model_dir, config=config)
+  in_memory_regressor = canned_boosted_trees._BoostedTreesBase(
+      model_fn=_model_fn,
+      model_dir=model_dir,
+      config=config,
+      feature_columns=feature_columns,
+      head=head,
+      center_bias=center_bias,
+      is_classification=False,
+      quantile_sketch_epsilon=quantile_sketch_epsilon)
 
   in_memory_regressor.train(
       input_fn=_validate_input_fn_and_repeat_dataset(train_input_fn),
