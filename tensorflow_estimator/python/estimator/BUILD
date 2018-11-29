@@ -786,8 +786,9 @@ py_library(
 
 py_test(
     name = "multi_head_test",
-    size = "small",
+    size = "medium",
     srcs = ["head/multi_head_test.py"],
+    shard_count = 4,
     srcs_version = "PY2AND3",
     deps = [
         ":base_head_test",
