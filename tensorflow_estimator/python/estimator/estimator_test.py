@@ -3109,64 +3109,71 @@ class EstimatorExportTest(test.TestCase):
 
     gfile.DeleteRecursively(tmpdir)
 
-  def test_export_saved_model_proto_strip_default_attrs(self):
-    tmpdir = tempfile.mkdtemp()
-    est = estimator.Estimator(model_fn=_model_fn_for_export_tests)
+  def _validate_strip_default_attrs(
+      self, estimator_cls, export_fn, attributes_stripped):
+    """Validate estimator export correctly strips/leaves default attributes.
+
+    Args:
+      estimator_cls: `Estimator` or `EstimatorV2`
+      export_fn: a function that takes in an estimator and export arguments, and
+        exports the estimator.
+      attributes_stripped: whether to attributes are expected to be stripped in
+        the MetaGraphDef.
+    """
+    est = estimator_cls(model_fn=_model_fn_for_export_tests)
     est.train(input_fn=dummy_input_fn, steps=1)
     feature_spec = {'x': parsing_ops.VarLenFeature(dtype=dtypes.int64),
                     'y': parsing_ops.VarLenFeature(dtype=dtypes.int64)}
     serving_input_receiver_fn = export.build_parsing_serving_input_receiver_fn(
         feature_spec)
 
-    # Perform the export.
+    # Perform the export, and obtain the MetaGraphDefs
+    tmpdir = tempfile.mkdtemp()
     export_dir_base = os.path.join(
         compat.as_bytes(tmpdir), compat.as_bytes('export'))
-    export_dir_stripped = est.export_savedmodel(
-        export_dir_base, serving_input_receiver_fn, strip_default_attrs=True)
-    export_dir_not_stripped = est.export_savedmodel(
-        export_dir_base, serving_input_receiver_fn, strip_default_attrs=False)
 
-    # Load the SavedModel from disk as-is to verify default attrs
-    # are stripped. Reimporting the SavedModel via the loader causes the
-    # default attrs to be populated in the NodeDefs.
-
-    # pylint: disable=protected-access
-    saved_model_stripped_pb = loader_impl._parse_saved_model(
-        export_dir_stripped)
-    saved_model_not_stripped_pb = loader_impl._parse_saved_model(
-        export_dir_not_stripped)
-    self.assertIsNotNone(saved_model_stripped_pb)
-    self.assertIsNotNone(saved_model_not_stripped_pb)
-    # pylint: enable=protected-access
-
-    meta_graph_def_stripped = [
-        x for x in saved_model_stripped_pb.meta_graphs
-        if x.meta_info_def.tags == [tag_constants.SERVING]][0]
-    meta_graph_def_not_stripped = [
-        x for x in saved_model_not_stripped_pb.meta_graphs
+    export_dir = export_fn(est, export_dir_base, serving_input_receiver_fn)
+    saved_model_pb = loader_impl._parse_saved_model(export_dir)
+    self.assertIsNotNone(saved_model_pb)
+    meta_graph_def = [
+        x for x in saved_model_pb.meta_graphs
         if x.meta_info_def.tags == [tag_constants.SERVING]][0]
 
     # "weight" node in graph is a "Variable" Op with 2 default valued attrs.
     #   o "container"    : "".
     #   o "shared_name"  : "".
 
-    # saved_model_stripped_pb was exported with strip_default_attrs set to True.
-    # "weight" node shouldn't have attributes "container" and "shared_name".
+    # When default attributes are not stripped, the "weight" node should have
+    # attributes "container" and "shared_name". When default attributes are
+    # stripped, the node should not have these attributes.
     node_def = test_util.get_node_def_from_graph(
-        'weight', meta_graph_def_stripped.graph_def)
-    self.assertNotIn('container', node_def.attr)
-    self.assertNotIn('shared_name', node_def.attr)
-
-    # saved_model_not_stripped_pb was exported with strip_default_attrs
-    # disabled. "weight" node should have attributes "container" and
-    # "shared_name".
-    node_def = test_util.get_node_def_from_graph(
-        'weight', meta_graph_def_not_stripped.graph_def)
-    self.assertIn('container', node_def.attr)
-    self.assertIn('shared_name', node_def.attr)
+        'weight', meta_graph_def.graph_def)
+    self.assertEqual(attributes_stripped, 'container' not in node_def.attr)
+    self.assertEqual(attributes_stripped, 'shared_name' not in node_def.attr)
 
     # Clean up.
     gfile.DeleteRecursively(tmpdir)
+
+  def test_export_saved_model_proto_strip_default_attrs(self):
+    # Test deprecated export_savedmodel to ensure that V1 behavior is consistent
+    self._validate_strip_default_attrs(
+        estimator.Estimator,
+        lambda e, *args: e.export_savedmodel(*args, strip_default_attrs=True),
+        True)
+    self._validate_strip_default_attrs(
+        estimator.Estimator,
+        lambda e, *args: e.export_savedmodel(*args, strip_default_attrs=False),
+        False)
+
+    # Make sure that export_saved_model strips the default attributes.
+    self._validate_strip_default_attrs(
+        estimator.Estimator,
+        lambda e, *args: e.export_saved_model(*args),
+        True)
+    self._validate_strip_default_attrs(
+        estimator.EstimatorV2,
+        lambda e, *args: e.export_saved_model(*args),
+        True)
 
   def test_export_saved_model_no_export_outputs(self):
     """Ensure that an EstimatorSpec without outputs defined can be exported."""

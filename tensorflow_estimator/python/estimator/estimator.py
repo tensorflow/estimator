@@ -1217,7 +1217,7 @@ class EstimatorV2(object):
           def step_fn(ctx, inputs):
             """A single step that is passed to run_on_dataset."""
             if isinstance(inputs, tuple):
-               features, labels = inputs
+              features, labels = inputs
             else:
               features = inputs
               labels = None
@@ -1478,7 +1478,7 @@ class EstimatorV2(object):
       def step_fn(ctx, inputs):
         """Runs one step of the eval computation and captures outputs."""
         if isinstance(inputs, tuple):
-           features, labels = inputs
+          features, labels = inputs
         else:
           features = inputs
           labels = None
@@ -1636,13 +1636,28 @@ class Estimator(EstimatorV2):
     """
     # pylint: enable=line-too-long
     self._strip_default_attrs = strip_default_attrs
-    return self.export_saved_model(
+    return super(Estimator, self).export_saved_model(
         export_dir_base,
         serving_input_receiver_fn,
         assets_extra=assets_extra,
         as_text=as_text,
         checkpoint_path=checkpoint_path,
         experimental_mode=model_fn_lib.ModeKeys.PREDICT)
+
+  def export_saved_model(
+      self, export_dir_base, serving_input_receiver_fn,
+      assets_extra=None,
+      as_text=False,
+      checkpoint_path=None,
+      experimental_mode=model_fn_lib.ModeKeys.PREDICT):
+    self._strip_default_attrs = True
+    return super(Estimator, self).export_saved_model(
+        export_dir_base,
+        serving_input_receiver_fn,
+        assets_extra=assets_extra,
+        as_text=as_text,
+        checkpoint_path=checkpoint_path,
+        experimental_mode=experimental_mode)
 
   def _call_add_meta_graph_and_variables(
       self, save_variables, builder, session, kwargs):
@@ -1652,6 +1667,15 @@ class Estimator(EstimatorV2):
 
     super(Estimator, self)._call_add_meta_graph_and_variables(
         save_variables, builder, session, kwargs)
+
+
+if hasattr(Estimator.export_saved_model, '__func__'):
+  # Python 2
+  Estimator.export_saved_model.__func__.__doc__ = (
+      EstimatorV2.export_saved_model.__doc__)
+else:
+  # Python 3
+  Estimator.export_saved_model.__doc__ = EstimatorV2.export_saved_model.__doc__
 
 
 def _assert_members_are_not_overridden(cls, obj):
