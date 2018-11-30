@@ -40,10 +40,10 @@ from tensorflow.python.saved_model import signature_constants
 from tensorflow.python.training import monitored_session
 from tensorflow.python.training import queue_runner_impl
 from tensorflow_estimator.python.estimator import model_fn
-from tensorflow_estimator.python.estimator.canned import dnn_testing_utils
 from tensorflow_estimator.python.estimator.canned import head as head_lib
 from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.canned import prediction_keys
+from tensorflow_estimator.python.estimator.canned.v1 import dnn_testing_utils_v1
 from tensorflow_estimator.python.estimator.inputs import numpy_io
 
 
@@ -2296,7 +2296,7 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
     #      = 1.2484322
     expected_loss = 1.2484322
     def _train_op_fn(loss):
-      with ops.control_dependencies((dnn_testing_utils.assert_close(
+      with ops.control_dependencies((dnn_testing_utils_v1.assert_close(
           math_ops.to_float(expected_loss), math_ops.to_float(loss)),)):
         return constant_op.constant(expected_train_result)
 

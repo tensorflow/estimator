@@ -35,13 +35,14 @@ from tensorflow_estimator.python.estimator.canned import dnn_testing_utils
 from tensorflow_estimator.python.estimator.canned import head as head_lib
 from tensorflow_estimator.python.estimator.canned import prediction_keys
 from tensorflow_estimator.python.estimator.export import export
+from tensorflow_estimator.python.estimator.head import regression_head
 from tensorflow_estimator.python.estimator.inputs import numpy_io
 
 
 def _dnn_estimator_fn(weight_column=None, label_dimension=1, **kwargs):
   """Returns a DNNEstimator that uses regression_head."""
   return dnn.DNNEstimatorV2(
-      head=head_lib._regression_head(
+      head=regression_head.RegressionHead(
           weight_column=weight_column,
           label_dimension=label_dimension,
           # Tests in core (from which this test inherits) test the sum loss.
@@ -108,7 +109,7 @@ class DNNEstimatorIntegrationTest(test.TestCase):
         feature_column.numeric_column('x', shape=(input_dimension,))
     ]
     est = dnn.DNNEstimatorV2(
-        head=head_lib._regression_head(label_dimension=label_dimension),
+        head=regression_head.RegressionHead(label_dimension=label_dimension),
         hidden_units=(2, 2),
         feature_columns=feature_columns,
         model_dir=self._model_dir)

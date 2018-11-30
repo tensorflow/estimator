@@ -38,6 +38,7 @@ from tensorflow_estimator.python.estimator.canned import dnn
 from tensorflow_estimator.python.estimator.canned import head as head_lib
 from tensorflow_estimator.python.estimator.canned import linear
 from tensorflow_estimator.python.estimator.canned import optimizers
+from tensorflow_estimator.python.estimator.head import regression_head
 
 # The default learning rates are a historical artifact of the initial
 # implementation.
@@ -716,8 +717,8 @@ class DNNLinearCombinedEstimatorV2(estimator.EstimatorV2):
         config=config)
 
 
-@estimator_export(v1=['estimator.DNNLinearCombinedEstimator'])
-class DNNLinearCombinedEstimator(estimator.Estimator):  # pylint: disable=missing-docstring
+@estimator_export(v1=['estimator.DNNLinearCombinedEstimator'])  # pylint: disable=missing-docstring
+class DNNLinearCombinedEstimator(estimator.Estimator):
   __doc__ = DNNLinearCombinedEstimatorV2.__doc__
 
   def __init__(self,
@@ -752,21 +753,8 @@ class DNNLinearCombinedEstimator(estimator.Estimator):  # pylint: disable=missin
         config=config)
 
 
-def _init_dnn_linear_combined_regressor(
-    linear_feature_columns,
-    linear_optimizer,
-    dnn_feature_columns,
-    dnn_optimizer,
-    dnn_hidden_units,
-    dnn_activation_fn,
-    dnn_dropout,
-    label_dimension,
-    weight_column,
-    input_layer_partitioner,
-    loss_reduction,
-    batch_norm,
-    linear_sparse_combiner):
-  """Helper function for the initialization of DNNLinearCombinedRegressor."""
+def _validate_feature_columns(linear_feature_columns, dnn_feature_columns):
+  """Validates feature columns DNNLinearCombinedRegressor."""
   linear_feature_columns = linear_feature_columns or []
   dnn_feature_columns = dnn_feature_columns or []
   feature_columns = (
@@ -774,28 +762,7 @@ def _init_dnn_linear_combined_regressor(
   if not feature_columns:
     raise ValueError('Either linear_feature_columns or dnn_feature_columns '
                      'must be defined.')
-
-  def _model_fn(features, labels, mode, config):
-    """Call the _dnn_linear_combined_model_fn."""
-    return _dnn_linear_combined_model_fn(
-        features=features,
-        labels=labels,
-        mode=mode,
-        head=head_lib._regression_head(  # pylint: disable=protected-access
-            label_dimension=label_dimension, weight_column=weight_column,
-            loss_reduction=loss_reduction),
-        linear_feature_columns=linear_feature_columns,
-        linear_optimizer=linear_optimizer,
-        dnn_feature_columns=dnn_feature_columns,
-        dnn_optimizer=dnn_optimizer,
-        dnn_hidden_units=dnn_hidden_units,
-        dnn_activation_fn=dnn_activation_fn,
-        dnn_dropout=dnn_dropout,
-        input_layer_partitioner=input_layer_partitioner,
-        config=config,
-        batch_norm=batch_norm,
-        linear_sparse_combiner=linear_sparse_combiner)
-  return feature_columns, _model_fn
+  return feature_columns
 
 
 @estimator_export('estimator.DNNLinearCombinedRegressor', v1=[])
@@ -957,24 +924,36 @@ class DNNLinearCombinedRegressorV2(estimator.EstimatorV2):
       ValueError: If both linear_feature_columns and dnn_features_columns are
         empty at the same time.
     """
-    self._feature_columns, dnn_linear_combined_regressor_model_fn = (
-        _init_dnn_linear_combined_regressor(
-            linear_feature_columns=linear_feature_columns,
-            linear_optimizer=linear_optimizer,
-            dnn_feature_columns=dnn_feature_columns,
-            dnn_optimizer=dnn_optimizer,
-            dnn_hidden_units=dnn_hidden_units,
-            dnn_activation_fn=dnn_activation_fn,
-            dnn_dropout=dnn_dropout,
-            label_dimension=label_dimension,
-            weight_column=weight_column,
-            input_layer_partitioner=input_layer_partitioner,
-            loss_reduction=loss_reduction,
-            batch_norm=batch_norm,
-            linear_sparse_combiner=linear_sparse_combiner))
+    self._feature_columns = _validate_feature_columns(
+        linear_feature_columns=linear_feature_columns,
+        dnn_feature_columns=dnn_feature_columns)
+
+    head = regression_head.RegressionHead(
+        label_dimension=label_dimension,
+        weight_column=weight_column,
+        loss_reduction=loss_reduction)
+
+    def _model_fn(features, labels, mode, config):
+      """Call the _dnn_linear_combined_model_fn."""
+      return _dnn_linear_combined_model_fn(
+          features=features,
+          labels=labels,
+          mode=mode,
+          head=head,
+          linear_feature_columns=linear_feature_columns,
+          linear_optimizer=linear_optimizer,
+          dnn_feature_columns=dnn_feature_columns,
+          dnn_optimizer=dnn_optimizer,
+          dnn_hidden_units=dnn_hidden_units,
+          dnn_activation_fn=dnn_activation_fn,
+          dnn_dropout=dnn_dropout,
+          input_layer_partitioner=input_layer_partitioner,
+          config=config,
+          batch_norm=batch_norm,
+          linear_sparse_combiner=linear_sparse_combiner)
 
     super(DNNLinearCombinedRegressorV2, self).__init__(
-        model_fn=dnn_linear_combined_regressor_model_fn,
+        model_fn=_model_fn,
         model_dir=model_dir,
         config=config,
         warm_start_from=warm_start_from)
@@ -1002,24 +981,36 @@ class DNNLinearCombinedRegressor(estimator.Estimator):
                loss_reduction=losses.Reduction.SUM,
                batch_norm=False,
                linear_sparse_combiner='sum'):
-    self._feature_columns, dnn_linear_combined_regressor_model_fn = (
-        _init_dnn_linear_combined_regressor(
-            linear_feature_columns=linear_feature_columns,
-            linear_optimizer=linear_optimizer,
-            dnn_feature_columns=dnn_feature_columns,
-            dnn_optimizer=dnn_optimizer,
-            dnn_hidden_units=dnn_hidden_units,
-            dnn_activation_fn=dnn_activation_fn,
-            dnn_dropout=dnn_dropout,
-            label_dimension=label_dimension,
-            weight_column=weight_column,
-            input_layer_partitioner=input_layer_partitioner,
-            loss_reduction=loss_reduction,
-            batch_norm=batch_norm,
-            linear_sparse_combiner=linear_sparse_combiner))
+    self._feature_columns = _validate_feature_columns(
+        linear_feature_columns=linear_feature_columns,
+        dnn_feature_columns=dnn_feature_columns)
+
+    head = head_lib._regression_head(  # pylint: disable=protected-access
+        label_dimension=label_dimension,
+        weight_column=weight_column,
+        loss_reduction=loss_reduction)
+
+    def _model_fn(features, labels, mode, config):
+      """Call the _dnn_linear_combined_model_fn."""
+      return _dnn_linear_combined_model_fn(
+          features=features,
+          labels=labels,
+          mode=mode,
+          head=head,
+          linear_feature_columns=linear_feature_columns,
+          linear_optimizer=linear_optimizer,
+          dnn_feature_columns=dnn_feature_columns,
+          dnn_optimizer=dnn_optimizer,
+          dnn_hidden_units=dnn_hidden_units,
+          dnn_activation_fn=dnn_activation_fn,
+          dnn_dropout=dnn_dropout,
+          input_layer_partitioner=input_layer_partitioner,
+          config=config,
+          batch_norm=batch_norm,
+          linear_sparse_combiner=linear_sparse_combiner)
 
     super(DNNLinearCombinedRegressor, self).__init__(
-        model_fn=dnn_linear_combined_regressor_model_fn,
+        model_fn=_model_fn,
         model_dir=model_dir,
         config=config,
         warm_start_from=warm_start_from)

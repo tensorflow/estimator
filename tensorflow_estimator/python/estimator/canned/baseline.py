@@ -64,6 +64,7 @@ from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator import estimator
 from tensorflow_estimator.python.estimator.canned import head as head_lib
 from tensorflow_estimator.python.estimator.canned import optimizers
+from tensorflow_estimator.python.estimator.head import regression_head
 
 # The default learning rate of 0.3 is a historical artifact of the initial
 # implementation, but seems a reasonable choice.
@@ -434,28 +435,6 @@ class BaselineEstimator(estimator.Estimator):
         config=config)
 
 
-def _init_baseline_regressor(
-    label_dimension,
-    weight_column,
-    optimizer,
-    loss_reduction):
-  """Helper function for the initialization of BaselineRegressor."""
-  # TODO(b/117517419): Update this reference once head moves to core.
-  head = head_lib._regression_head(  # pylint: disable=protected-access
-      label_dimension=label_dimension,
-      weight_column=weight_column,
-      loss_reduction=loss_reduction)
-  def _model_fn(features, labels, mode, config):
-    return _baseline_model_fn(
-        features=features,
-        labels=labels,
-        mode=mode,
-        head=head,
-        optimizer=optimizer,
-        config=config)
-  return _model_fn
-
-
 @estimator_export('estimator.BaselineRegressor', v1=[])
 class BaselineRegressorV2(estimator.EstimatorV2):
   """A regressor that can establish a simple baseline.
@@ -533,16 +512,22 @@ class BaselineRegressorV2(estimator.EstimatorV2):
     Returns:
       A `BaselineRegressor` estimator.
     """
-    baseline_regressor_model_fn = _init_baseline_regressor(
+    head = regression_head.RegressionHead(
         label_dimension=label_dimension,
         weight_column=weight_column,
-        optimizer=optimizer,
         loss_reduction=loss_reduction)
 
+    def _model_fn(features, labels, mode, config):
+      return _baseline_model_fn(
+          features=features,
+          labels=labels,
+          mode=mode,
+          head=head,
+          optimizer=optimizer,
+          config=config)
+
     super(BaselineRegressorV2, self).__init__(
-        model_fn=baseline_regressor_model_fn,
-        model_dir=model_dir,
-        config=config)
+        model_fn=_model_fn, model_dir=model_dir, config=config)
 
 
 @estimator_export(v1=['estimator.BaselineRegressor'])  # pylint: disable=missing-docstring
@@ -556,13 +541,19 @@ class BaselineRegressor(estimator.Estimator):
                optimizer='Ftrl',
                config=None,
                loss_reduction=losses.Reduction.SUM):
-    baseline_regressor_model_fn = _init_baseline_regressor(
+    head = head_lib._regression_head(  # pylint: disable=protected-access
         label_dimension=label_dimension,
         weight_column=weight_column,
-        optimizer=optimizer,
         loss_reduction=loss_reduction)
 
+    def _model_fn(features, labels, mode, config):
+      return _baseline_model_fn(
+          features=features,
+          labels=labels,
+          mode=mode,
+          head=head,
+          optimizer=optimizer,
+          config=config)
+
     super(BaselineRegressor, self).__init__(
-        model_fn=baseline_regressor_model_fn,
-        model_dir=model_dir,
-        config=config)
+        model_fn=_model_fn, model_dir=model_dir, config=config)

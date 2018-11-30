@@ -33,10 +33,10 @@ from tensorflow.python.platform import test
 from tensorflow.python.summary.writer import writer_cache
 from tensorflow_estimator.python.estimator.canned import dnn_linear_combined
 from tensorflow_estimator.python.estimator.canned import dnn_testing_utils
-from tensorflow_estimator.python.estimator.canned import head as head_lib
 from tensorflow_estimator.python.estimator.canned import linear_testing_utils
 from tensorflow_estimator.python.estimator.canned import prediction_keys
 from tensorflow_estimator.python.estimator.export import export
+from tensorflow_estimator.python.estimator.head import regression_head
 from tensorflow_estimator.python.estimator.inputs import numpy_io
 
 
@@ -52,7 +52,7 @@ def _dnn_only_estimator_fn(
     input_layer_partitioner=None,
     config=None):
   return dnn_linear_combined.DNNLinearCombinedEstimatorV2(
-      head=head_lib._regression_head(
+      head=regression_head.RegressionHead(
           weight_column=weight_column,
           label_dimension=label_dimension,
           # Tests in core (from which this test inherits) test the sum loss.
@@ -103,8 +103,8 @@ def _linear_only_estimator_fn(
     config=None,
     partitioner=None,
     sparse_combiner='sum'):
-  return dnn_linear_combined.DNNLinearCombinedEstimator(
-      head=head_lib._regression_head(
+  return dnn_linear_combined.DNNLinearCombinedEstimatorV2(
+      head=regression_head.RegressionHead(
           weight_column=weight_column,
           label_dimension=label_dimension,
           # Tests in core (from which this test inherits) test the sum loss.
@@ -163,7 +163,7 @@ class DNNLinearCombinedEstimatorIntegrationTest(test.TestCase):
         feature_column.numeric_column('x', shape=(input_dimension,))]
     feature_columns = linear_feature_columns + dnn_feature_columns
     est = dnn_linear_combined.DNNLinearCombinedEstimatorV2(
-        head=head_lib._regression_head(label_dimension=label_dimension),
+        head=regression_head.RegressionHead(label_dimension=label_dimension),
         linear_feature_columns=linear_feature_columns,
         dnn_feature_columns=dnn_feature_columns,
         dnn_hidden_units=(2, 2),

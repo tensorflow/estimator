@@ -47,6 +47,7 @@ from tensorflow_estimator.python.estimator import model_fn
 from tensorflow_estimator.python.estimator.canned import head as head_lib
 from tensorflow_estimator.python.estimator.canned import optimizers
 from tensorflow_estimator.python.estimator.canned.linear_optimizer.python.utils import sdca_ops
+from tensorflow_estimator.python.estimator.head import regression_head
 
 # The default learning rate of 0.2 is a historical artifact of the initial
 # implementation, but seems a reasonable choice.
@@ -399,7 +400,7 @@ def _sdca_model_fn(features, labels, mode, head, feature_columns, optimizer):
   assert feature_column_lib.is_feature_column_v2(feature_columns)
   if isinstance(head, head_lib._BinaryLogisticHeadWithSigmoidCrossEntropyLoss):  # pylint: disable=protected-access
     loss_type = 'logistic_loss'
-  elif isinstance(head, head_lib._RegressionHeadWithMeanSquaredErrorLoss):  # pylint: disable=protected-access
+  elif isinstance(head, regression_head.RegressionHead):  # pylint: disable=protected-access
     assert head.logits_dimension == 1
     loss_type = 'squared_loss'
   else:
@@ -961,13 +962,10 @@ class LinearEstimator(estimator.Estimator):
         model_fn=_model_fn, model_dir=model_dir, config=config)
 
 
-def _init_linear_regressor(
+def _validate_linear_sdca_optimizer(
     feature_columns,
     label_dimension,
-    weight_column,
     optimizer,
-    partitioner,
-    loss_reduction,
     sparse_combiner):
   """Helper function for the initialization of LinearRegressor."""
   if isinstance(optimizer, LinearSDCA):
@@ -980,25 +978,6 @@ def _init_linear_regressor(
     if label_dimension > 1:
       raise ValueError('LinearSDCA can only be used with one-dimensional '
                        'label.')
-
-  head = head_lib._regression_head(  # pylint: disable=protected-access
-      label_dimension=label_dimension,
-      weight_column=weight_column,
-      loss_reduction=loss_reduction)
-
-  def _model_fn(features, labels, mode, config):
-    """Call the defined shared _linear_model_fn."""
-    return _linear_model_fn(
-        features=features,
-        labels=labels,
-        mode=mode,
-        head=head,
-        feature_columns=tuple(feature_columns or []),
-        optimizer=optimizer,
-        partitioner=partitioner,
-        config=config,
-        sparse_combiner=sparse_combiner)
-  return _model_fn
 
 
 @estimator_export('estimator.LinearRegressor', v1=[])
@@ -1138,17 +1117,32 @@ class LinearRegressorV2(estimator.EstimatorV2):
         be useful for bag-of-words features. for more details, see
         `tf.feature_column.linear_model`.
     """
-    linear_regressor_model_fn = _init_linear_regressor(
+    _validate_linear_sdca_optimizer(
         feature_columns=feature_columns,
         label_dimension=label_dimension,
-        weight_column=weight_column,
         optimizer=optimizer,
-        partitioner=partitioner,
-        loss_reduction=loss_reduction,
         sparse_combiner=sparse_combiner)
 
+    head = regression_head.RegressionHead(
+        label_dimension=label_dimension,
+        weight_column=weight_column,
+        loss_reduction=loss_reduction)
+
+    def _model_fn(features, labels, mode, config):
+      """Call the defined shared _linear_model_fn."""
+      return _linear_model_fn(
+          features=features,
+          labels=labels,
+          mode=mode,
+          head=head,
+          feature_columns=tuple(feature_columns or []),
+          optimizer=optimizer,
+          partitioner=partitioner,
+          config=config,
+          sparse_combiner=sparse_combiner)
+
     super(LinearRegressorV2, self).__init__(
-        model_fn=linear_regressor_model_fn,
+        model_fn=_model_fn,
         model_dir=model_dir,
         config=config,
         warm_start_from=warm_start_from)
@@ -1169,17 +1163,32 @@ class LinearRegressor(estimator.Estimator):
                warm_start_from=None,
                loss_reduction=losses.Reduction.SUM,
                sparse_combiner='sum'):
-    linear_regressor_model_fn = _init_linear_regressor(
+    _validate_linear_sdca_optimizer(
         feature_columns=feature_columns,
         label_dimension=label_dimension,
-        weight_column=weight_column,
         optimizer=optimizer,
-        partitioner=partitioner,
-        loss_reduction=loss_reduction,
         sparse_combiner=sparse_combiner)
 
+    head = head_lib._regression_head(  # pylint: disable=protected-access
+        label_dimension=label_dimension,
+        weight_column=weight_column,
+        loss_reduction=loss_reduction)
+
+    def _model_fn(features, labels, mode, config):
+      """Call the defined shared _linear_model_fn."""
+      return _linear_model_fn(
+          features=features,
+          labels=labels,
+          mode=mode,
+          head=head,
+          feature_columns=tuple(feature_columns or []),
+          optimizer=optimizer,
+          partitioner=partitioner,
+          config=config,
+          sparse_combiner=sparse_combiner)
+
     super(LinearRegressor, self).__init__(
-        model_fn=linear_regressor_model_fn,
+        model_fn=_model_fn,
         model_dir=model_dir,
         config=config,
         warm_start_from=warm_start_from)

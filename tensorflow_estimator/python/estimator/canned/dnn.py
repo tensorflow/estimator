@@ -37,6 +37,7 @@ from tensorflow_estimator.python.estimator import estimator
 from tensorflow_estimator.python.estimator import model_fn
 from tensorflow_estimator.python.estimator.canned import head as head_lib
 from tensorflow_estimator.python.estimator.canned import optimizers
+from tensorflow_estimator.python.estimator.head import regression_head
 
 # The default learning rate of 0.05 is a historical artifact of the initial
 # implementation, but seems a reasonable choice.
@@ -737,41 +738,6 @@ class DNNEstimator(estimator.Estimator):
         warm_start_from=warm_start_from)
 
 
-def _init_dnn_regressor(
-    hidden_units,
-    feature_columns,
-    label_dimension,
-    weight_column,
-    optimizer,
-    activation_fn,
-    dropout,
-    input_layer_partitioner,
-    loss_reduction,
-    batch_norm):
-  """Helper function for the initialization of DNNRegressor."""
-  head = head_lib._regression_head(  # pylint: disable=protected-access
-      label_dimension=label_dimension,
-      weight_column=weight_column,
-      loss_reduction=loss_reduction)
-
-  def _model_fn(features, labels, mode, config):
-    """Call the defined shared _dnn_model_fn."""
-    return _dnn_model_fn(
-        features=features,
-        labels=labels,
-        mode=mode,
-        head=head,
-        hidden_units=hidden_units,
-        feature_columns=tuple(feature_columns or []),
-        optimizer=optimizer,
-        activation_fn=activation_fn,
-        dropout=dropout,
-        input_layer_partitioner=input_layer_partitioner,
-        config=config,
-        batch_norm=batch_norm)
-  return _model_fn
-
-
 @estimator_export('estimator.DNNRegressor', v1=[])
 class DNNRegressorV2(estimator.EstimatorV2):
   """A regressor for TensorFlow DNN models.
@@ -916,20 +882,28 @@ class DNNRegressorV2(estimator.EstimatorV2):
         to reduce training loss over batch. Defaults to `SUM_OVER_BATCH_SIZE`.
       batch_norm: Whether to use batch normalization after each hidden layer.
     """
-    dnn_regressor_model_fn = _init_dnn_regressor(
-        hidden_units=hidden_units,
-        feature_columns=feature_columns,
+    head = regression_head.RegressionHead(
         label_dimension=label_dimension,
         weight_column=weight_column,
-        optimizer=optimizer,
-        activation_fn=activation_fn,
-        dropout=dropout,
-        input_layer_partitioner=input_layer_partitioner,
-        loss_reduction=loss_reduction,
-        batch_norm=batch_norm)
+        loss_reduction=loss_reduction)
+    def _model_fn(features, labels, mode, config):
+      """Call the defined shared _dnn_model_fn."""
+      return _dnn_model_fn(
+          features=features,
+          labels=labels,
+          mode=mode,
+          head=head,
+          hidden_units=hidden_units,
+          feature_columns=tuple(feature_columns or []),
+          optimizer=optimizer,
+          activation_fn=activation_fn,
+          dropout=dropout,
+          input_layer_partitioner=input_layer_partitioner,
+          config=config,
+          batch_norm=batch_norm)
 
     super(DNNRegressorV2, self).__init__(
-        model_fn=dnn_regressor_model_fn,
+        model_fn=_model_fn,
         model_dir=model_dir,
         config=config,
         warm_start_from=warm_start_from)
@@ -955,20 +929,29 @@ class DNNRegressor(estimator.Estimator):
       loss_reduction=losses.Reduction.SUM,
       batch_norm=False,
   ):
-    dnn_regressor_model_fn = _init_dnn_regressor(
-        hidden_units=hidden_units,
-        feature_columns=feature_columns,
+    head = head_lib._regression_head(  # pylint: disable=protected-access
         label_dimension=label_dimension,
         weight_column=weight_column,
-        optimizer=optimizer,
-        activation_fn=activation_fn,
-        dropout=dropout,
-        input_layer_partitioner=input_layer_partitioner,
-        loss_reduction=loss_reduction,
-        batch_norm=batch_norm)
+        loss_reduction=loss_reduction)
+
+    def _model_fn(features, labels, mode, config):
+      """Call the defined shared _dnn_model_fn."""
+      return _dnn_model_fn(
+          features=features,
+          labels=labels,
+          mode=mode,
+          head=head,
+          hidden_units=hidden_units,
+          feature_columns=tuple(feature_columns or []),
+          optimizer=optimizer,
+          activation_fn=activation_fn,
+          dropout=dropout,
+          input_layer_partitioner=input_layer_partitioner,
+          config=config,
+          batch_norm=batch_norm)
 
     super(DNNRegressor, self).__init__(
-        model_fn=dnn_regressor_model_fn,
+        model_fn=_model_fn,
         model_dir=model_dir,
         config=config,
         warm_start_from=warm_start_from)

@@ -54,9 +54,9 @@ from tensorflow.python.training import session_run_hook
 from tensorflow.python.training import training_util
 from tensorflow_estimator.python.estimator import estimator
 from tensorflow_estimator.python.estimator import model_fn
-from tensorflow_estimator.python.estimator.canned import head as head_lib
 from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.canned import prediction_keys
+from tensorflow_estimator.python.estimator.head import base_head
 from tensorflow_estimator.python.estimator.inputs import numpy_io
 
 # pylint rules which are disabled by default for test files.
@@ -193,7 +193,7 @@ def mock_head(testcase, hidden_units, logits_dimension, expected_logits):
         features, mode, logits, labels, train_op_fn, optimizer)
     return tpu_spec.as_estimator_spec()
 
-  head = test.mock.NonCallableMagicMock(spec=head_lib._Head)
+  head = test.mock.NonCallableMagicMock(spec=base_head.Head)
   head.logits_dimension = logits_dimension
   head._create_tpu_estimator_spec = test.mock.MagicMock(
       wraps=_create_tpu_estimator_spec)

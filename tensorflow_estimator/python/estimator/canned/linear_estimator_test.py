@@ -30,11 +30,11 @@ from tensorflow.python.ops.losses import losses
 from tensorflow.python.platform import gfile
 from tensorflow.python.platform import test
 from tensorflow.python.summary.writer import writer_cache
-from tensorflow_estimator.python.estimator.canned import head as head_lib
 from tensorflow_estimator.python.estimator.canned import linear
 from tensorflow_estimator.python.estimator.canned import linear_testing_utils
 from tensorflow_estimator.python.estimator.canned import prediction_keys
 from tensorflow_estimator.python.estimator.export import export
+from tensorflow_estimator.python.estimator.head import regression_head
 from tensorflow_estimator.python.estimator.inputs import numpy_io
 
 
@@ -42,7 +42,7 @@ def _linear_estimator_fn(
     weight_column=None, label_dimension=1, **kwargs):
   """Returns a LinearEstimator that uses regression_head."""
   return linear.LinearEstimatorV2(
-      head=head_lib._regression_head(
+      head=regression_head.RegressionHead(
           weight_column=weight_column,
           label_dimension=label_dimension,
           # Tests in core (from which this test inherits) test the sum loss.
@@ -93,7 +93,7 @@ class LinearEstimatorIntegrationTest(test.TestCase):
     feature_columns = [
         feature_column.numeric_column('x', shape=(input_dimension,))]
     est = linear.LinearEstimatorV2(
-        head=head_lib._regression_head(label_dimension=label_dimension),
+        head=regression_head.RegressionHead(label_dimension=label_dimension),
         feature_columns=feature_columns,
         model_dir=self._model_dir)
 

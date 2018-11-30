@@ -42,9 +42,9 @@ from tensorflow.python.training import checkpoint_utils
 from tensorflow.python.training import optimizer
 from tensorflow.python.training import saver
 from tensorflow_estimator.python.estimator.canned import baseline
-from tensorflow_estimator.python.estimator.canned import head as head_lib
 from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.export import export
+from tensorflow_estimator.python.estimator.head import regression_head
 from tensorflow_estimator.python.estimator.inputs import numpy_io
 
 # Names of variables created by model.
@@ -77,7 +77,7 @@ def _baseline_estimator_fn(weight_column=None,
                            label_dimension=1,
                            **kwargs):
   return baseline.BaselineEstimatorV2(
-      head=head_lib._regression_head(
+      head=regression_head.RegressionHead(
           weight_column=weight_column,
           label_dimension=label_dimension,
           loss_reduction=losses.Reduction.SUM_OVER_BATCH_SIZE),
