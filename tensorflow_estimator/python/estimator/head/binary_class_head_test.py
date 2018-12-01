@@ -410,8 +410,8 @@ class BinaryClassHeadTest(test.TestCase):
         keys.RECALL: 1./2,
         keys.PREDICTION_MEAN: 1./2,
         keys.LABEL_MEAN: 2./2,
+        keys.ACCURACY_BASELINE: 2./2,
         # TODO(b/118843532): update metrics
-        # keys.ACCURACY_BASELINE: 2./2,
         # keys.AUC: 0.,
         # keys.AUC_PR: 1.,
     }
@@ -468,8 +468,8 @@ class BinaryClassHeadTest(test.TestCase):
         '{}/some_binary_head'.format(keys.RECALL),
         '{}/some_binary_head'.format(keys.PREDICTION_MEAN),
         '{}/some_binary_head'.format(keys.LABEL_MEAN),
+        '{}/some_binary_head'.format(keys.ACCURACY_BASELINE),
         # TODO(b/118843532): update metrics
-        # '{}/some_binary_head'.format(keys.ACCURACY_BASELINE),
         # '{}/some_binary_head'.format(keys.AUC),
         # '{}/some_binary_head'.format(keys.AUC_PR),
     ]
@@ -501,8 +501,8 @@ class BinaryClassHeadTest(test.TestCase):
         keys.RECALL: 1./2,
         keys.PREDICTION_MEAN: 1./2,
         keys.LABEL_MEAN: 2./2,
+        keys.ACCURACY_BASELINE: 2./2,
         # TODO(b/118843532): update metrics
-        # keys.ACCURACY_BASELINE: 2./2,
         # keys.AUC: 0.,
         # keys.AUC_PR: 1.,
     }
@@ -638,8 +638,8 @@ class BinaryClassHeadTest(test.TestCase):
         keys.RECALL: .5,
         keys.PREDICTION_MEAN: 1./2,
         keys.LABEL_MEAN: 2./2,
+        keys.ACCURACY_BASELINE: 2./2,
         # TODO(b/118843532): update metrics
-        # keys.ACCURACY_BASELINE: 2./2,
         # keys.AUC: 0.,
         # keys.AUC_PR: 1.,
         keys.ACCURACY_AT_THRESHOLD % thresholds[0]: 1.,
@@ -1148,8 +1148,8 @@ class BinaryClassHeadTest(test.TestCase):
         #                 = .96153846153
         keys.PREDICTION_MEAN: .96153846153,
         keys.LABEL_MEAN: expected_label_mean,
+        keys.ACCURACY_BASELINE: 1 - expected_label_mean,
         # TODO(b/118843532): update metrics
-        # keys.ACCURACY_BASELINE: 1 - expected_label_mean,
         # keys.AUC: .45454565,
         # keys.AUC_PR: .6737757325172424,
     }
@@ -1395,9 +1395,9 @@ class BinaryClassHeadTest(test.TestCase):
         keys.RECALL: 2.0/4.5,
         keys.PREDICTION_MEAN: (1.*1 + 1.5*0 + 2.*1 + 2.5*0) / np.sum(weights),
         keys.LABEL_MEAN: (1.*0 + 1.5*0 + 2.*1 + 2.5*1) / np.sum(weights),
+        keys.ACCURACY_BASELINE:
+            (1.*0 + 1.5*0 + 2.*1 + 2.5*1) / np.sum(weights),
         # TODO(b/118843532): update metrics
-        # keys.ACCURACY_BASELINE:
-        #     (1.*0 + 1.5*0 + 2.*1 + 2.5*1) / np.sum(weights),
         # keys.AUC: 0.5222,
         # keys.AUC_PR: 0.7341,
     }

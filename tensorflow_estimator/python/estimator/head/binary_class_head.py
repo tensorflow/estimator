@@ -22,6 +22,7 @@ from tensorflow.python.eager import context
 from tensorflow.python.framework import ops
 from tensorflow.python.keras import metrics
 from tensorflow.python.ops import array_ops
+from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import lookup_ops
 from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import nn
@@ -32,6 +33,7 @@ from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.canned import prediction_keys
 from tensorflow_estimator.python.estimator.export import export_output
 from tensorflow_estimator.python.estimator.head import base_head
+from tensorflow.python.platform import tf_logging as logging
 
 
 class BinaryClassHead(base_head.Head):
@@ -301,10 +303,10 @@ class BinaryClassHead(base_head.Head):
       eval_metrics[self._prediction_mean_key] = metrics.Mean(
           name=keys.PREDICTION_MEAN)
       eval_metrics[self._label_mean_key] = metrics.Mean(name=keys.LABEL_MEAN)
+      eval_metrics[self._accuracy_baseline_key] = (
+          metrics.Mean(name=keys.ACCURACY_BASELINE))
       # TODO(b/118843532): create Keras metrics
-      # eval_metrics[self._accuracy_baseline_key] = (
-      #     metrics.Mean(name=keys.ACCURACY_BASELINE))
-      # eval_metrics[self._auc_key] = metrics.Precision(name=keys.PRECISION)
+      # eval_metrics[self._auc_key] = metrics.Precision(name=keys.AUC)
       # eval_metrics[self._auc_pr_key] = metrics.Precision(name=keys.AUC_PR)
       if regularization_losses is not None:
         eval_metrics[self._loss_regularization_key] = metrics.Mean(
@@ -317,6 +319,42 @@ class BinaryClassHead(base_head.Head):
         eval_metrics[self._recall_keys[i]] = metrics.Recall(
             name=self._recall_keys[i], thresholds=threshold)
     return eval_metrics
+
+  def _update_accuracy_baseline(self, eval_metrics):
+    """Update accuracy baseline metric based on labels mean metric.
+
+    This is the best the model could do by always predicting one class.
+
+    For example, suppose the labels = [0, 1, 0, 1, 1]. So the
+    label_mean.total = 3, label_mean.count = 5, and
+    label_mean = label_mean.total / label_mean.count = 3 / 5 = 0.6
+    By always predicting one class, there are two cases:
+    (1) predicted_labels_0 = [0, 0, 0, 0, 0], accuracy_0 = 2 / 5 = 0.4
+    (2) predicted_labels_1 = [1, 1, 1, 1, 1], accuracy_1 = 3 / 5 = 0.6
+    So the accuracy_baseline = max(accuracy_0, accuracy_1) = 0.6,
+                             = max(label_mean, 1 - label_mean)
+
+    To update the total and count of accuracy_baseline,
+    accuracy_baseline = max(label_mean, 1 - label_mean)
+                      = max(label_mean.total / label_mean.count,
+                            1 - label_mean.total / label_mean.count)
+                      = max(label_mean.total / label_mean.count,
+                      (label_mean.count - label_mean.total) / label_mean.count)
+    So accuracy_baseline.total = max(label_mean.total,
+                                    (label_mean.count - label_mean.total))
+    accuracy_baseline.count = label_mean.count
+
+    Args:
+      eval_metrics: A `dict` of metrics to be updated.
+    """
+    label_mean_metric = eval_metrics[self._label_mean_key]
+    accuracy_baseline_metric = eval_metrics[self._accuracy_baseline_key]
+    # Mimic the call of accuracy_baseline_metric.update_state()
+    accuracy_baseline_metric._updates = [control_flow_ops.no_op()]  # pylint: disable=protected-access
+    accuracy_baseline_metric.total = math_ops.maximum(
+        label_mean_metric.total,
+        label_mean_metric.count - label_mean_metric.total)
+    accuracy_baseline_metric.count = label_mean_metric.count
 
   def update_metrics(self, eval_metrics, features, logits, labels,
                      regularization_losses=None):
@@ -343,8 +381,8 @@ class BinaryClassHead(base_head.Head):
         eval_metrics[self._prediction_mean_key], logistic, weights)
     base_head.update_metric_with_broadcast_weights(
         eval_metrics[self._label_mean_key], labels, weights)
+    self._update_accuracy_baseline(eval_metrics)
     # TODO(b/118843532): update Keras metrics
-    # eval_metrics[self._accuracy_baseline_key].update_state(...)
     # eval_metrics[self._auc_key].update_state(...)
     # eval_metrics[self._auc_pr_key].update_state(...)
     if regularization_losses is not None:
