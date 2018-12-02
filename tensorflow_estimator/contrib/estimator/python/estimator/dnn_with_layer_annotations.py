@@ -205,7 +205,7 @@ def DNNClassifierWithLayerAnnotations(  # pylint: disable=invalid-name
     loss_reduction=losses.Reduction.SUM):
   """A classifier for TensorFlow DNN models with layer annotations.
 
-  This classifier is fuctionally identical to estimator.DNNClassifier as far as
+  This classifier is functionally identical to estimator.DNNClassifier as far as
   training and evaluating models is concerned. The key difference is that this
   classifier adds additional layer annotations, which can be used for computing
   Integrated Gradients.
@@ -331,7 +331,7 @@ def DNNRegressorWithLayerAnnotations(  # pylint: disable=invalid-name
 ):
   """A regressor for TensorFlow DNN models with layer annotations.
 
-  This regressor is fuctionally identical to estimator.DNNRegressor as far as
+  This regressor is functionally identical to estimator.DNNRegressor as far as
   training and evaluating models is concerned. The key difference is that this
   classifier adds additional layer annotations, which can be used for computing
   Integrated Gradients.

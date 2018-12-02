@@ -250,7 +250,7 @@ class MultiLabelHead(base_head.Head):
   # An attribute for lookup table. Note that for Graph execution, the lookup
   # table is created on demand to make sure the lookup table is in the same
   # graph as its input tensors for `train` and `eval` of Estimator (as Estimator
-  # re-creates graphes for `train`, `eval` and `predict`).
+  # re-creates graphs for `train`, `eval` and `predict`).
   _cached_class_id_table = None
 
   @property

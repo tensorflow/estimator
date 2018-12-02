@@ -75,7 +75,7 @@ _GRPC_SCHEME = 'grpc://'
 def _get_session_master(cluster_spec, task_type, task_id, tf_config):
   """Returns the appropriate address for TensorFlow master.
 
-  The order of precedence to deteremine the TF session master is as follows:
+  The order of precedence to determine the TF session master is as follows:
   1. If `tf_session_master` is set in TF_CONFIG environment variable, takes it.
   2. If the cluster has only one node, returns empty string ''.
   3. Returns the grpc address according to the task type and id in the cluster.

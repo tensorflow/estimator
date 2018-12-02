@@ -124,7 +124,7 @@ class LinearSDCA(object):
     """Construct a new SDCA optimizer for linear estimators.
 
     Args:
-      example_id_column: The column name contraining the example ids.
+      example_id_column: The column name containing the example ids.
       num_loss_partitions: Number of workers.
       num_table_shards: Number of shards of the internal state table, typically
         set to match the number of parameter servers.

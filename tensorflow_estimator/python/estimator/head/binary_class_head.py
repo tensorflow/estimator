@@ -163,7 +163,7 @@ class BinaryClassHead(base_head.Head):
   # Attributes for lookup tables in Eager execution. Note that for Graph
   # execution, the lookup tables are created on demand to make sure the lookup
   # table is in the same graph as its input tensors for `train` and `eval` of
-  # Estimator (as Estimator recreates graphes for `train`, `eval` and
+  # Estimator (as Estimator recreates graphs for `train`, `eval` and
   # `predict`).
   _cached_class_id_table = None
   _cached_class_string_table = None
