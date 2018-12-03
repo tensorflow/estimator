@@ -18,9 +18,12 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+from tensorflow.python.util.deprecation import deprecated
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
 
 
+@deprecated('2018-12-03',
+            'Use estimator.export_saved_model(*args, experimental_mode=...)')
 def export_saved_model_for_mode(
     estimator, export_dir_base, input_receiver_fn,
     assets_extra=None,
@@ -98,6 +101,7 @@ def export_saved_model_for_mode(
       experimental_mode=mode)
 
 
+@deprecated('2018-12-03', 'Use estimator.experimental_export_all_saved_models')
 def export_all_saved_models(
     estimator, export_dir_base, input_receiver_fn_map,
     assets_extra=None,
