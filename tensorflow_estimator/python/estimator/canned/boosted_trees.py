@@ -317,11 +317,8 @@ def _generate_feature_name_mapping(sorted_feature_columns):
   return names
 
 
-def _cache_transformed_features(features,
-                                sorted_feature_columns,
-                                batch_size,
-                                bucket_boundaries,
-                                are_boundaries_ready):
+def _cache_transformed_features(features, sorted_feature_columns, batch_size,
+                                bucket_boundaries_dict, are_boundaries_ready):
   """Transform features and cache, then returns (cached_features, cache_op)."""
   num_features = _calculate_num_features(sorted_feature_columns)
   cached_features = [
@@ -345,7 +342,7 @@ def _cache_transformed_features(features,
     """
 
     transformed_features = _get_transformed_features(
-        features, sorted_feature_columns, bucket_boundaries)
+        features, sorted_feature_columns, bucket_boundaries_dict)
     cached = [
         state_ops.assign(cached_features[i], transformed_features[i])
         for i in range(num_features)
@@ -932,13 +929,8 @@ def _bt_model_fn(
       quantile_accumulator = boosted_trees_ops.QuantileAccumulator(
           eps, num_float_features, num_quantiles)
       bucket_boundaries = quantile_accumulator.get_bucket_boundaries()
-      feature_idx = 0
-      for column in float_columns:
-        num_column_dimensions = column.shape[0] if column.shape else 1
-        bucket_boundaries_dict[
-            column.name] = bucket_boundaries[feature_idx:feature_idx +
-                                             num_column_dimensions]
-        feature_idx += num_column_dimensions
+      bucket_boundaries_dict = _get_float_boundaries_dict(
+          float_columns, bucket_boundaries)
     bucket_size_list, feature_ids_list = _group_features_by_num_buckets(
         sorted_feature_columns, num_quantiles)
 
@@ -977,11 +969,10 @@ def _bt_model_fn(
     training_state_cache = None
 
     are_boundaries_ready = variable_scope.variable(
-            initial_value=False,
-            name='are_boundaries_ready',
-            trainable=False,
-            use_resource=True)
-
+        initial_value=False,
+        name='are_boundaries_ready',
+        trainable=False,
+        use_resource=True)
 
     if train_in_memory:
       # cache transformed features as well for in-memory training.
@@ -1232,7 +1223,7 @@ def _compute_feature_importances_per_tree(tree, num_features):
     elif node_type == 'leaf':
       assert node.metadata.gain == 0
     else:
-      raise ValueError('Unexpected split type %s', node_type)
+      raise ValueError('Unexpected split type %s' % node_type)
 
   return importances
 
@@ -1315,9 +1306,10 @@ def _bt_explanations_fn(features,
       quantile_accumulator = boosted_trees_ops.QuantileAccumulator(
           quantile_sketch_epsilon, num_float_features, num_quantiles)
       bucket_boundaries = quantile_accumulator.get_bucket_boundaries()
+      bucket_boundaries_dict = _get_float_boundaries_dict(
+          float_columns, bucket_boundaries)
       input_feature_list = _get_transformed_features(
-          features, sorted_feature_columns, bucket_boundaries)
-
+          features, sorted_feature_columns, bucket_boundaries_dict)
     logits = boosted_trees_ops.predict(
         # For non-TRAIN mode, ensemble doesn't change after initialization,
         # so no local copy is needed; using tree_ensemble directly.
@@ -1338,6 +1330,19 @@ def _bt_explanations_fn(features,
         logits_dimension=head.logits_dimension)
     estimator_spec.predictions[boosted_trees_utils._DEBUG_PROTO_KEY] = debug_op  # pylint: disable=protected-access
     return estimator_spec
+
+
+def _get_float_boundaries_dict(float_columns, bucket_boundaries):
+  """Create a dict where key is column name, value is bucket boundaries."""
+  bucket_boundaries_dict = {}
+  feature_idx = 0
+  for column in float_columns:
+    num_column_dimensions = column.shape[0] if column.shape else 1
+    bucket_boundaries_dict[
+        column.name] = bucket_boundaries[feature_idx:feature_idx +
+                                         num_column_dimensions]
+    feature_idx += num_column_dimensions
+  return bucket_boundaries_dict
 
 
 class _BoostedTreesBase(estimator.Estimator):

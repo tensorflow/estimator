@@ -1168,7 +1168,7 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
     self._create_fake_checkpoint_with_tree_ensemble_proto(
         est, tree_ensemble_text)
 
-    # Reverse order because feature importances are sorted by np.argsort(f)[::-1]
+    # Reverse order because importances are sorted by np.argsort(f)[::-1].
     feature_names_expected = ['f_2_bucketized',
                               'f_1_bucketized',
                               'f_0_bucketized']
@@ -1536,6 +1536,66 @@ class BoostedTreesDebugOutputsTest(test_util.TensorFlowTestCase):
       self.assertTrue('dfc' in prediction_dict)
       self.assertTrue('predictions' in prediction_dict)
       self.assertEqual(len(prediction_dict), 3)
+
+  def testThatBucketsAreUsedInPredictWithExplanations(self):
+    feature_columns = {
+        feature_column.numeric_column('f_%d' % i, dtype=dtypes.float32)
+        for i in range(NUM_FEATURES)
+    }
+    input_fn = _make_train_input_fn(is_classification=True)
+    predict_input_fn = numpy_io.numpy_input_fn(
+        x=FEATURES_DICT, y=None, batch_size=1, num_epochs=1, shuffle=False)
+    est = boosted_trees.BoostedTreesClassifier(
+        feature_columns=feature_columns,
+        n_batches_per_layer=1,
+        n_trees=1,
+        max_depth=5,
+        center_bias=True,
+        quantile_sketch_epsilon=0.33)
+
+    # It will stop after 5 steps because of the max depth and num trees.
+    num_steps = 100
+    est.train(input_fn, steps=num_steps)
+    predictions = list(est.predict(predict_input_fn))
+    debug_predictions = list(
+        est.experimental_predict_with_explanations(predict_input_fn))
+    for pred, debug_pred in zip(predictions, debug_predictions):
+      self.assertTrue('bias' in debug_pred)
+      self.assertTrue('dfc' in debug_pred)
+      self.assertTrue('probabilities' in debug_pred)
+      # Predictions using vanilla est.predict are equal to the sum of DFCs.
+      self.assertAlmostEqual(
+          sum(debug_pred['dfc'].values()) + debug_pred['bias'],
+          pred['probabilities'][1])
+
+  def testRegressorThatDFCIsInPredictionsWithOnlyFloatColumn(self):
+    feature_columns = {
+        feature_column.numeric_column('f_%d' % i, dtype=dtypes.float32)
+        for i in range(NUM_FEATURES)
+    }
+    input_fn = _make_train_input_fn(is_classification=False)
+    predict_input_fn = numpy_io.numpy_input_fn(
+        x=FEATURES_DICT, y=None, batch_size=1, num_epochs=1, shuffle=False)
+    est = boosted_trees.BoostedTreesRegressor(
+        feature_columns=feature_columns,
+        n_batches_per_layer=1,
+        n_trees=1,
+        max_depth=5,
+        center_bias=True,
+        quantile_sketch_epsilon=0.33)
+
+    # It will stop after 5 steps because of the max depth and num trees.
+    num_steps = 100
+    est.train(input_fn, steps=num_steps)
+    debug_predictions = est.experimental_predict_with_explanations(
+        predict_input_fn)
+    for prediction_dict in debug_predictions:
+      self.assertTrue('bias' in prediction_dict)
+      self.assertTrue('dfc' in prediction_dict)
+      self.assertTrue('predictions' in prediction_dict)
+      self.assertAlmostEqual(
+          sum(prediction_dict['dfc'].values()) + prediction_dict['bias'],
+          prediction_dict['predictions'][0])
 
 
 class ModelFnTests(test_util.TensorFlowTestCase):
@@ -1992,7 +2052,7 @@ class ModelFnTests(test_util.TensorFlowTestCase):
           }
           nodes {
             leaf {
-              scalar: 0.083838            
+              scalar: 0.083838
             }
           }
         }
