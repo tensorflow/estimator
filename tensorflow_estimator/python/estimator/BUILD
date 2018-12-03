@@ -1398,7 +1398,7 @@ py_test(
     name = "keras_test",
     size = "large",
     srcs = ["keras_test.py"],
-    shard_count = 4,
+    shard_count = 5,
     srcs_version = "PY2AND3",
     tags = [
         "no_windows",
