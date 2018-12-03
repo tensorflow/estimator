@@ -64,6 +64,7 @@ from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator import estimator
 from tensorflow_estimator.python.estimator.canned import head as head_lib
 from tensorflow_estimator.python.estimator.canned import optimizers
+from tensorflow_estimator.python.estimator.head import head_utils
 from tensorflow_estimator.python.estimator.head import regression_head
 
 # The default learning rate of 0.3 is a historical artifact of the initial
@@ -179,27 +180,6 @@ def _baseline_model_fn(features, labels, mode, head, optimizer,
       train_op_fn=train_op_fn)
 
 
-def _init_baseline_classifier(
-    n_classes,
-    weight_column,
-    label_vocabulary,
-    optimizer,
-    loss_reduction):
-  """Helper function for the initialization of BaselineClassifier."""
-  head = head_lib._binary_logistic_or_multi_class_head(  # pylint: disable=protected-access
-      n_classes, weight_column, label_vocabulary, loss_reduction)
-  def _model_fn(features, labels, mode, config):
-    return _baseline_model_fn(
-        features=features,
-        labels=labels,
-        mode=mode,
-        head=head,
-        optimizer=optimizer,
-        weight_column=weight_column,
-        config=config)
-  return _model_fn
-
-
 @estimator_export('estimator.BaselineClassifier', v1=[])
 class BaselineClassifierV2(estimator.EstimatorV2):
   """A classifier that can establish a simple baseline.
@@ -289,15 +269,23 @@ class BaselineClassifierV2(estimator.EstimatorV2):
     Raises:
       ValueError: If `n_classes` < 2.
     """
-    baseline_classifier_model_fn = _init_baseline_classifier(
-        n_classes=n_classes,
-        weight_column=weight_column,
+    head = head_utils.binary_or_multi_class_head(
+        n_classes, weight_column=weight_column,
         label_vocabulary=label_vocabulary,
-        optimizer=optimizer,
         loss_reduction=loss_reduction)
 
+    def _model_fn(features, labels, mode, config):
+      return _baseline_model_fn(
+          features=features,
+          labels=labels,
+          mode=mode,
+          head=head,
+          optimizer=optimizer,
+          weight_column=weight_column,
+          config=config)
+
     super(BaselineClassifierV2, self).__init__(
-        model_fn=baseline_classifier_model_fn,
+        model_fn=_model_fn,
         model_dir=model_dir,
         config=config)
 
@@ -314,15 +302,21 @@ class BaselineClassifier(estimator.Estimator):
                optimizer='Ftrl',
                config=None,
                loss_reduction=losses.Reduction.SUM):
-    baseline_classifier_model_fn = _init_baseline_classifier(
-        n_classes=n_classes,
-        weight_column=weight_column,
-        label_vocabulary=label_vocabulary,
-        optimizer=optimizer,
-        loss_reduction=loss_reduction)
+    head = head_lib._binary_logistic_or_multi_class_head(  # pylint: disable=protected-access
+        n_classes, weight_column, label_vocabulary, loss_reduction)
+
+    def _model_fn(features, labels, mode, config):
+      return _baseline_model_fn(
+          features=features,
+          labels=labels,
+          mode=mode,
+          head=head,
+          optimizer=optimizer,
+          weight_column=weight_column,
+          config=config)
 
     super(BaselineClassifier, self).__init__(
-        model_fn=baseline_classifier_model_fn,
+        model_fn=_model_fn,
         model_dir=model_dir,
         config=config)
 

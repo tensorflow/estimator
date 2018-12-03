@@ -33,7 +33,6 @@ from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.canned import prediction_keys
 from tensorflow_estimator.python.estimator.export import export_output
 from tensorflow_estimator.python.estimator.head import base_head
-from tensorflow.python.platform import tf_logging as logging
 
 
 class BinaryClassHead(base_head.Head):

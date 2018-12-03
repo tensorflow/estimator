@@ -47,6 +47,7 @@ from tensorflow_estimator.python.estimator import model_fn
 from tensorflow_estimator.python.estimator.canned import head as head_lib
 from tensorflow_estimator.python.estimator.canned import optimizers
 from tensorflow_estimator.python.estimator.canned.linear_optimizer.python.utils import sdca_ops
+from tensorflow_estimator.python.estimator.head import head_utils
 from tensorflow_estimator.python.estimator.head import regression_head
 
 # The default learning rate of 0.2 is a historical artifact of the initial
@@ -539,14 +540,10 @@ def _linear_model_fn(features, labels, mode, head, feature_columns, optimizer,
           logits=logits)
 
 
-def _init_linear_classifier(
+def _validate_linear_sdca_optimizer_for_linear_classifier(
     feature_columns,
     n_classes,
-    weight_column,
-    label_vocabulary,
     optimizer,
-    partitioner,
-    loss_reduction,
     sparse_combiner):
   """Helper function for the initialization of LinearClassifier."""
   if isinstance(optimizer, LinearSDCA):
@@ -558,31 +555,6 @@ def _init_linear_classifier(
                        'is a LinearSDCA object.')
     if n_classes > 2:
       raise ValueError('LinearSDCA cannot be used in a multi-class setting.')
-
-  if n_classes == 2:
-    head = head_lib._binary_logistic_head_with_sigmoid_cross_entropy_loss(  # pylint: disable=protected-access
-        weight_column=weight_column,
-        label_vocabulary=label_vocabulary,
-        loss_reduction=loss_reduction)
-  else:
-    head = head_lib._multi_class_head_with_softmax_cross_entropy_loss(  # pylint: disable=protected-access
-        n_classes, weight_column=weight_column,
-        label_vocabulary=label_vocabulary,
-        loss_reduction=loss_reduction)
-
-  def _model_fn(features, labels, mode, config):
-    """Call the defined shared _linear_model_fn."""
-    return _linear_model_fn(
-        features=features,
-        labels=labels,
-        mode=mode,
-        head=head,
-        feature_columns=tuple(feature_columns or []),
-        optimizer=optimizer,
-        partitioner=partitioner,
-        config=config,
-        sparse_combiner=sparse_combiner)
-  return _model_fn
 
 
 @estimator_export('estimator.LinearClassifier', v1=[])
@@ -737,17 +709,32 @@ class LinearClassifierV2(estimator.EstimatorV2):
     Raises:
       ValueError: if n_classes < 2.
     """
-    linear_classifier_model_fn = _init_linear_classifier(
+    _validate_linear_sdca_optimizer_for_linear_classifier(
         feature_columns=feature_columns,
         n_classes=n_classes,
-        weight_column=weight_column,
-        label_vocabulary=label_vocabulary,
         optimizer=optimizer,
-        partitioner=partitioner,
-        loss_reduction=loss_reduction,
         sparse_combiner=sparse_combiner)
+
+    head = head_utils.binary_or_multi_class_head(
+        n_classes, weight_column=weight_column,
+        label_vocabulary=label_vocabulary,
+        loss_reduction=loss_reduction)
+
+    def _model_fn(features, labels, mode, config):
+      """Call the defined shared _linear_model_fn."""
+      return _linear_model_fn(
+          features=features,
+          labels=labels,
+          mode=mode,
+          head=head,
+          feature_columns=tuple(feature_columns or []),
+          optimizer=optimizer,
+          partitioner=partitioner,
+          config=config,
+          sparse_combiner=sparse_combiner)
+
     super(LinearClassifierV2, self).__init__(
-        model_fn=linear_classifier_model_fn,
+        model_fn=_model_fn,
         model_dir=model_dir,
         config=config,
         warm_start_from=warm_start_from)
@@ -769,18 +756,30 @@ class LinearClassifier(estimator.Estimator):
                warm_start_from=None,
                loss_reduction=losses.Reduction.SUM,
                sparse_combiner='sum'):
-    linear_classifier_model_fn = _init_linear_classifier(
+    _validate_linear_sdca_optimizer_for_linear_classifier(
         feature_columns=feature_columns,
         n_classes=n_classes,
-        weight_column=weight_column,
-        label_vocabulary=label_vocabulary,
         optimizer=optimizer,
-        partitioner=partitioner,
-        loss_reduction=loss_reduction,
         sparse_combiner=sparse_combiner)
 
+    head = head_lib._binary_logistic_or_multi_class_head(  # pylint: disable=protected-access
+        n_classes, weight_column, label_vocabulary, loss_reduction)
+
+    def _model_fn(features, labels, mode, config):
+      """Call the defined shared _linear_model_fn."""
+      return _linear_model_fn(
+          features=features,
+          labels=labels,
+          mode=mode,
+          head=head,
+          feature_columns=tuple(feature_columns or []),
+          optimizer=optimizer,
+          partitioner=partitioner,
+          config=config,
+          sparse_combiner=sparse_combiner)
+
     super(LinearClassifier, self).__init__(
-        model_fn=linear_classifier_model_fn,
+        model_fn=_model_fn,
         model_dir=model_dir,
         config=config,
         warm_start_from=warm_start_from)
@@ -962,7 +961,7 @@ class LinearEstimator(estimator.Estimator):
         model_fn=_model_fn, model_dir=model_dir, config=config)
 
 
-def _validate_linear_sdca_optimizer(
+def _validate_linear_sdca_optimizer_for_linear_regressor(
     feature_columns,
     label_dimension,
     optimizer,
@@ -1117,7 +1116,7 @@ class LinearRegressorV2(estimator.EstimatorV2):
         be useful for bag-of-words features. for more details, see
         `tf.feature_column.linear_model`.
     """
-    _validate_linear_sdca_optimizer(
+    _validate_linear_sdca_optimizer_for_linear_regressor(
         feature_columns=feature_columns,
         label_dimension=label_dimension,
         optimizer=optimizer,
@@ -1163,7 +1162,7 @@ class LinearRegressor(estimator.Estimator):
                warm_start_from=None,
                loss_reduction=losses.Reduction.SUM,
                sparse_combiner='sum'):
-    _validate_linear_sdca_optimizer(
+    _validate_linear_sdca_optimizer_for_linear_regressor(
         feature_columns=feature_columns,
         label_dimension=label_dimension,
         optimizer=optimizer,

@@ -43,8 +43,8 @@ from tensorflow_estimator.python.estimator.canned import dnn
 from tensorflow_estimator.python.estimator.canned import dnn_testing_utils
 from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.canned import prediction_keys
-from tensorflow_estimator.python.estimator.head import base_head_test as test_lib
 from tensorflow_estimator.python.estimator.head import binary_class_head as head_lib
+from tensorflow_estimator.python.estimator.head import head_utils as test_lib
 
 
 @test_util.run_all_in_graph_and_eager_modes

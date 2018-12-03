@@ -41,7 +41,7 @@ from tensorflow.python.training import queue_runner_impl
 from tensorflow_estimator.python.estimator import model_fn
 from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.canned import prediction_keys
-from tensorflow_estimator.python.estimator.head import base_head_test as test_lib
+from tensorflow_estimator.python.estimator.head import head_utils as test_lib
 from tensorflow_estimator.python.estimator.head import regression_head as head_lib
 from tensorflow_estimator.python.estimator.inputs import numpy_io
 

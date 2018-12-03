@@ -32,9 +32,9 @@ from tensorflow.python.platform import test
 from tensorflow.python.summary.writer import writer_cache
 from tensorflow_estimator.python.estimator.canned import dnn
 from tensorflow_estimator.python.estimator.canned import dnn_testing_utils
-from tensorflow_estimator.python.estimator.canned import head as head_lib
 from tensorflow_estimator.python.estimator.canned import prediction_keys
 from tensorflow_estimator.python.estimator.export import export
+from tensorflow_estimator.python.estimator.head import multi_class_head
 from tensorflow_estimator.python.estimator.head import regression_head
 from tensorflow_estimator.python.estimator.inputs import numpy_io
 
@@ -52,7 +52,7 @@ def _dnn_estimator_fn(weight_column=None, label_dimension=1, **kwargs):
 
 def _dnn_estimator_classifier_fn(n_classes=3, **kwargs):
   return dnn.DNNEstimatorV2(
-      head=head_lib._multi_class_head_with_softmax_cross_entropy_loss(
+      head=multi_class_head.MultiClassHead(
           n_classes=n_classes),
       **kwargs)
 

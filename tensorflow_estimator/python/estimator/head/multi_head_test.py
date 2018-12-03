@@ -30,7 +30,7 @@ from tensorflow.python.platform import test
 from tensorflow_estimator.python.estimator import model_fn
 from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.canned import prediction_keys
-from tensorflow_estimator.python.estimator.head import base_head_test as test_lib
+from tensorflow_estimator.python.estimator.head import head_utils as test_lib
 from tensorflow_estimator.python.estimator.head import multi_head as multi_head_lib
 from tensorflow_estimator.python.estimator.head import multi_label_head
 from tensorflow_estimator.python.estimator.head import regression_head

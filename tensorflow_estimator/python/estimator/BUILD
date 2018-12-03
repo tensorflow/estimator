@@ -211,6 +211,7 @@ py_library(
     deps = [
         ":estimator",
         ":head",
+        ":head_utils",
         ":model_fn",
         ":optimizers",
         ":regression_head",
@@ -393,6 +394,7 @@ py_library(
     deps = [
         ":estimator",
         ":head",
+        ":head_utils",
         ":model_fn",
         ":optimizers",
         ":regression_head",
@@ -554,7 +556,7 @@ py_test(
         ":dnn",
         ":dnn_testing_utils",
         ":export_export",
-        ":head",
+        ":multi_class_head",
         ":numpy_io",
         ":prediction_keys",
         ":regression_head",
@@ -595,6 +597,7 @@ py_library(
         ":dnn",
         ":estimator",
         ":head",
+        ":head_utils",
         ":linear",
         ":model_fn",
         ":optimizers",
@@ -911,6 +914,17 @@ py_test(
 )
 
 py_library(
+    name = "head_utils",
+    srcs = ["head/head_utils.py"],
+    srcs_version = "PY2AND3",
+    deps = [
+        ":head",
+        ":multi_class_head",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
+py_library(
     name = "base_head",
     srcs = ["head/base_head.py"],
     srcs_version = "PY2AND3",
@@ -957,10 +971,10 @@ py_test(
     srcs_version = "PY2AND3",
     tags = ["no_pip"],
     deps = [
-        ":base_head_test",
         ":binary_class_head",
         ":dnn",
         ":dnn_testing_utils",
+        ":head_utils",
         ":metric_keys",
         ":model_fn",
         ":prediction_keys",
@@ -990,7 +1004,7 @@ py_test(
     shard_count = 4,
     srcs_version = "PY2AND3",
     deps = [
-        ":base_head_test",
+        ":head_utils",
         ":metric_keys",
         ":model_fn",
         ":multi_head",
@@ -1024,8 +1038,8 @@ py_test(
     shard_count = 4,
     srcs_version = "PY2AND3",
     deps = [
-        ":base_head_test",
         ":dnn",
+        ":head_utils",
         ":metric_keys",
         ":model_fn",
         ":multi_class_head",
@@ -1057,8 +1071,8 @@ py_test(
     shard_count = 4,
     srcs_version = "PY2AND3",
     deps = [
-        ":base_head_test",
         ":dnn",
+        ":head_utils",
         ":metric_keys",
         ":model_fn",
         ":multi_label_head",
@@ -1090,7 +1104,7 @@ py_test(
     shard_count = 4,
     srcs_version = "PY2AND3",
     deps = [
-        ":base_head_test",
+        ":head_utils",
         ":metric_keys",
         ":model_fn",
         ":numpy_io",
@@ -1128,6 +1142,7 @@ py_library(
     deps = [
         ":estimator",
         ":head",
+        ":head_utils",
         ":optimizers",
         ":regression_head",
         "//tensorflow_estimator/python/estimator:expect_six_installed",
