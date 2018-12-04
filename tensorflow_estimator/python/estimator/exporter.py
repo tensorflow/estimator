@@ -176,8 +176,8 @@ def _verify_compare_fn_args(compare_fn):
 class BestExporter(Exporter):
   """This class exports the serving graph and checkpoints of the best models.
 
-  This class performs a model export everytime when the new model is better
-  than any exsiting model.
+  This class performs a model export everytime the new model is better than any
+  existing model.
   """
 
   def __init__(self,
@@ -190,24 +190,24 @@ class BestExporter(Exporter):
                exports_to_keep=5):
     """Create an `Exporter` to use with `tf.estimator.EvalSpec`.
 
-    Example of creating a BestExporter for training and evluation:
+    Example of creating a BestExporter for training and evaluation:
     ```python
     def make_train_and_eval_fn():
       # Set up feature columns.
-      categorial_feature_a = (
+      categorical_feature_a = (
           tf.feature_column.categorical_column_with_hash_bucket(...))
-      categorial_feature_a_emb = embedding_column(
-          categorical_column=categorial_feature_a, ...)
+      categorical_feature_a_emb = embedding_column(
+          categorical_column=categorical_feature_a, ...)
       ...  # other feature columns
 
       estimator = tf.estimator.DNNClassifier(
           config=tf.estimator.RunConfig(
               model_dir='/my_model', save_summary_steps=100),
-          feature_columns=[categorial_feature_a_emb, ...],
+          feature_columns=[categorical_feature_a_emb, ...],
           hidden_units=[1024, 512, 256])
 
       serving_feature_spec = tf.feature_column.make_parse_example_spec(
-          categorial_feature_a_emb)
+          categorical_feature_a_emb)
       serving_input_receiver_fn = (
           tf.estimator.export.build_parsing_serving_input_receiver_fn(
           serving_feature_spec))
@@ -237,7 +237,7 @@ class BestExporter(Exporter):
         a `ServingInputReceiver`.
       event_file_pattern: event file name pattern relative to model_dir. If
         None, however, the exporter would not be preemption-safe. To be
-        preemption-safe, event_file_pattern should be specified.
+        preemption-safe, event_file_pattern must be specified.
       compare_fn: a function that compares two evaluation results and returns
         true if current evaluation result is better. Follows the signature:
         * Args:
@@ -260,7 +260,7 @@ class BestExporter(Exporter):
         collection.
 
     Raises:
-      ValueError: if any arguments is invalid.
+      ValueError: if any argument is invalid.
     """
     self._compare_fn = compare_fn
     if self._compare_fn is None:
@@ -277,7 +277,8 @@ class BestExporter(Exporter):
     self._exports_to_keep = exports_to_keep
     if exports_to_keep is not None and exports_to_keep <= 0:
       raise ValueError(
-          '`exports_to_keep`, if provided, must be positive number')
+          '`exports_to_keep`, if provided, must be a positive number. Got %s'
+          % exports_to_keep)
 
   @property
   def name(self):
@@ -369,9 +370,9 @@ class BestExporter(Exporter):
 
 @estimator_export('estimator.FinalExporter')
 class FinalExporter(Exporter):
-  """This class exports the serving graph and checkpoints in the end.
+  """This class exports the serving graph and checkpoints at the end.
 
-  This class performs a single export in the end of training.
+  This class performs a single export at the end of training.
   """
 
   def __init__(self,
