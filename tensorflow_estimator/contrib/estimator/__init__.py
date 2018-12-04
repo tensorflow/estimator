@@ -25,7 +25,6 @@ from tensorflow_estimator.contrib.estimator.python.estimator.early_stopping impo
 from tensorflow_estimator.contrib.estimator.python.estimator.export import *
 from tensorflow_estimator.contrib.estimator.python.estimator.extenders import *
 from tensorflow_estimator.contrib.estimator.python.estimator.head import *
-from tensorflow_estimator.contrib.estimator.python.estimator.hooks import *
 from tensorflow_estimator.contrib.estimator.python.estimator.logit_fns import *
 from tensorflow_estimator.contrib.estimator.python.estimator.multi_head import *
 from tensorflow_estimator.contrib.estimator.python.estimator.replicate_model_fn import *

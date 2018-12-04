@@ -21,7 +21,6 @@ py_library(
         ":exporter",
         ":extenders",
         ":head",
-        ":hooks",
         ":logit_fns",
         ":multi_head",
         ":replicate_model_fn",
@@ -210,33 +209,6 @@ py_test(
         "//tensorflow_estimator/python/estimator:metric_keys",
         "//tensorflow_estimator/python/estimator:model_fn",
         "//tensorflow_estimator/python/estimator:prediction_keys",
-    ],
-)
-
-py_library(
-    name = "hooks",
-    srcs = [
-        "python/estimator/hooks.py",
-    ],
-    srcs_version = "PY2AND3",
-    deps = [
-        "//tensorflow_estimator/python/estimator:estimator_py",
-        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
-    ],
-)
-
-py_test(
-    name = "hooks_test",
-    size = "medium",
-    srcs = ["python/estimator/hooks_test.py"],
-    srcs_version = "PY2AND3",
-    tags = ["notsan"],
-    deps = [
-        ":hooks",
-        "//tensorflow_estimator/python/estimator:estimator_py",
-        "//tensorflow_estimator/python/estimator:expect_numpy_installed",
-        "//tensorflow_estimator/python/estimator:expect_six_installed",
-        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
     ],
 )
 

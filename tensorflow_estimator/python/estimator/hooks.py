@@ -271,6 +271,7 @@ class _StopAtCheckpointStepHook(training.SessionRunHook):
         time.sleep(self._wait_after_file_check_secs)
 
 
+@estimator_export('estimator.experimental.make_stop_at_checkpoint_step_hook')
 def make_stop_at_checkpoint_step_hook(estimator,
                                       last_step,
                                       wait_after_file_check_secs=30):
