@@ -538,6 +538,13 @@ class MultiHeadTest(test.TestCase):
     with self.cached_session() as sess:
       _initialize_variables(self, spec.scaffold)
       self.assertIsNotNone(spec.scaffold.summary_op)
+      predictions = sess.run(spec.predictions)
+      self.assertAllClose(
+          logits['head1'],
+          predictions[('head1', prediction_keys.PredictionKeys.LOGITS)])
+      self.assertAllClose(
+          _sigmoid(logits['head1']),
+          predictions[('head1', prediction_keys.PredictionKeys.PROBABILITIES)])
       loss, train_result, summary_str = sess.run((spec.loss, spec.train_op,
                                                   spec.scaffold.summary_op))
       self.assertAllClose(expected_loss, loss, rtol=tol, atol=tol)
@@ -581,6 +588,13 @@ class MultiHeadTest(test.TestCase):
     tol = 1e-3
     with self.cached_session() as sess:
       _initialize_variables(self, spec.scaffold)
+      predictions = sess.run(spec.predictions)
+      self.assertAllClose(
+          logits['head1'],
+          predictions[('head1', prediction_keys.PredictionKeys.LOGITS)])
+      self.assertAllClose(
+          _sigmoid(logits['head1']),
+          predictions[('head1', prediction_keys.PredictionKeys.PROBABILITIES)])
       loss, train_result = sess.run((spec.loss, spec.train_op))
       self.assertAllClose(expected_loss, loss, rtol=tol, atol=tol)
       self.assertEqual(
@@ -637,6 +651,19 @@ class MultiHeadTest(test.TestCase):
     with self.cached_session() as sess:
       _initialize_variables(self, spec.scaffold)
       self.assertIsNotNone(spec.scaffold.summary_op)
+      predictions = sess.run(spec.predictions)
+      self.assertAllClose(
+          logits['head1'],
+          predictions[('head1', prediction_keys.PredictionKeys.LOGITS)])
+      self.assertAllClose(
+          logits['head2'],
+          predictions[('head2', prediction_keys.PredictionKeys.LOGITS)])
+      self.assertAllClose(
+          _sigmoid(logits['head1']),
+          predictions[('head1', prediction_keys.PredictionKeys.PROBABILITIES)])
+      self.assertAllClose(
+          _sigmoid(logits['head2']),
+          predictions[('head2', prediction_keys.PredictionKeys.PROBABILITIES)])
       loss, train_result, summary_str = sess.run((spec.loss, spec.train_op,
                                                   spec.scaffold.summary_op))
       self.assertAllClose(expected_loss, loss, rtol=tol, atol=tol)

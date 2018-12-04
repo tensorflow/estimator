@@ -317,10 +317,18 @@ class _MultiHead(head_lib._Head):  # pylint:disable=protected-access
     else:
       raise ValueError('train_op_fn and optimizer cannot both be None.')
 
+    # predictions can be used to access the logits in `TRAIN` mode
+    predictions = {}
+    for head, spec in zip(self._heads, all_estimator_spec):
+      head_name = head.name
+      for k, v in six.iteritems(spec.predictions):
+        predictions[(head_name, k)] = v
+
     return model_fn.EstimatorSpec(
         mode=model_fn.ModeKeys.TRAIN,
         loss=loss,
         train_op=train_op,
+        predictions=predictions,
         eval_metric_ops=metrics)
 
   def _merge_predict(self, all_estimator_spec):

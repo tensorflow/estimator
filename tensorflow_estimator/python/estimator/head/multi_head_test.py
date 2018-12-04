@@ -501,6 +501,9 @@ class MultiHeadTest(test.TestCase):
     multi_head = multi_head_lib.MultiHead([head1])
 
     logits = {'head1': np.array([[-10., 10.], [-15., 10.]], dtype=np.float32)}
+    expected_probabilities = {
+        'head1': nn.sigmoid(logits['head1']),
+    }
     labels = {'head1': np.array([[1, 0], [1, 1]], dtype=np.int64)}
     features = {'x': np.array(((42,),), dtype=np.int32)}
     # For large logits, sigmoid cross entropy loss is approximated as:
@@ -539,8 +542,15 @@ class MultiHeadTest(test.TestCase):
     with self.cached_session() as sess:
       test_lib._initialize_variables(self, spec.scaffold)
       self.assertIsNotNone(spec.scaffold.summary_op)
-      loss, train_result, summary_str = sess.run((spec.loss, spec.train_op,
-                                                  spec.scaffold.summary_op))
+      loss, train_result, summary_str, predictions = sess.run(
+          (spec.loss, spec.train_op, spec.scaffold.summary_op,
+           spec.predictions))
+      self.assertAllClose(
+          logits['head1'], predictions[('head1',
+                                        prediction_keys.PredictionKeys.LOGITS)])
+      self.assertAllClose(
+          expected_probabilities['head1'],
+          predictions[('head1', prediction_keys.PredictionKeys.PROBABILITIES)])
       self.assertAllClose(expected_loss, loss, rtol=tol, atol=tol)
       self.assertEqual(
           six.b('{0:s}{1:.3f}'.format(expected_train_result, expected_loss)),
@@ -607,6 +617,10 @@ class MultiHeadTest(test.TestCase):
         'head2': np.array([[20., -20., 20.], [-30., 20., -20.]],
                           dtype=np.float32),
     }
+    expected_probabilities = {
+        'head1': nn.sigmoid(logits['head1']),
+        'head2': nn.sigmoid(logits['head2']),
+    }
     labels = {
         'head1': np.array([[1, 0], [1, 1]], dtype=np.int64),
         'head2': np.array([[0, 1, 0], [1, 1, 0]], dtype=np.int64),
@@ -654,8 +668,21 @@ class MultiHeadTest(test.TestCase):
     with self.cached_session() as sess:
       test_lib._initialize_variables(self, spec.scaffold)
       self.assertIsNotNone(spec.scaffold.summary_op)
-      loss, train_result, summary_str = sess.run((spec.loss, spec.train_op,
-                                                  spec.scaffold.summary_op))
+      loss, train_result, summary_str, predictions = sess.run(
+          (spec.loss, spec.train_op, spec.scaffold.summary_op,
+           spec.predictions))
+      self.assertAllClose(
+          logits['head1'], predictions[('head1',
+                                        prediction_keys.PredictionKeys.LOGITS)])
+      self.assertAllClose(
+          expected_probabilities['head1'],
+          predictions[('head1', prediction_keys.PredictionKeys.PROBABILITIES)])
+      self.assertAllClose(
+          logits['head2'], predictions[('head2',
+                                        prediction_keys.PredictionKeys.LOGITS)])
+      self.assertAllClose(
+          expected_probabilities['head2'],
+          predictions[('head2', prediction_keys.PredictionKeys.PROBABILITIES)])
       self.assertAllClose(expected_loss, loss, rtol=tol, atol=tol)
       self.assertEqual(
           six.b('{0:s}{1:.3f}'.format(expected_train_result, expected_loss)),
@@ -676,6 +703,10 @@ class MultiHeadTest(test.TestCase):
         'head1': np.array([[-10., 10.], [-15., 10.]], dtype=np.float32),
         'head2': np.array([[20., -20., 20.], [-30., 20., -20.]],
                           dtype=np.float32),
+    }
+    expected_probabilities = {
+        'head1': nn.sigmoid(logits['head1']),
+        'head2': nn.sigmoid(logits['head2']),
     }
     labels = {
         'head1': np.array([[1, 0], [1, 1]], dtype=np.int64),
@@ -736,8 +767,21 @@ class MultiHeadTest(test.TestCase):
     with self.cached_session() as sess:
       test_lib._initialize_variables(self, spec.scaffold)
       self.assertIsNotNone(spec.scaffold.summary_op)
-      loss, train_result, summary_str = sess.run((spec.loss, spec.train_op,
-                                                  spec.scaffold.summary_op))
+      loss, train_result, summary_str, predictions = sess.run(
+          (spec.loss, spec.train_op, spec.scaffold.summary_op,
+           spec.predictions))
+      self.assertAllClose(
+          logits['head1'], predictions[('head1',
+                                        prediction_keys.PredictionKeys.LOGITS)])
+      self.assertAllClose(
+          expected_probabilities['head1'],
+          predictions[('head1', prediction_keys.PredictionKeys.PROBABILITIES)])
+      self.assertAllClose(
+          logits['head2'], predictions[('head2',
+                                        prediction_keys.PredictionKeys.LOGITS)])
+      self.assertAllClose(
+          expected_probabilities['head2'],
+          predictions[('head2', prediction_keys.PredictionKeys.PROBABILITIES)])
       self.assertAllClose(expected_loss, loss, rtol=tol, atol=tol)
       self.assertEqual(
           six.b('{0:s}{1:.3f}'.format(expected_train_result, expected_loss)),

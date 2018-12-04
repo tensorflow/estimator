@@ -410,10 +410,12 @@ class MultiHead(base_head.Head):
         eval_metrics = {}
         for spec in all_estimator_spec:
           eval_metrics.update(spec.eval_metric_ops or {})
+        # predictions can be used to access the logits in `TRAIN` mode
         return model_fn.EstimatorSpec(
             mode=model_fn.ModeKeys.TRAIN,
             loss=loss,
             train_op=train_op,
+            predictions=predictions,
             eval_metric_ops=eval_metrics)
       raise ValueError('mode={} unrecognized'.format(mode))
 
