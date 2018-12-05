@@ -157,11 +157,13 @@ class StrategyInitFinalizeHook(training.SessionRunHook):
     self._finalize_fn = finalize_fn
 
   def begin(self):
-    # We only create the init ops, but don't run it. We rely on SessionManager
-    # to run it for us.
     self._init_ops = self._initialization_fn()
     self._finalize_ops = self._finalize_fn()
 
+  def after_create_session(self, session, coord):
+    logging.info('Initialize strategy')
+    session.run(self._init_ops)
+
   def end(self, session):
-    logging.info('Finalize system.')
+    logging.info('Finalize strategy.')
     session.run(self._finalize_ops)
