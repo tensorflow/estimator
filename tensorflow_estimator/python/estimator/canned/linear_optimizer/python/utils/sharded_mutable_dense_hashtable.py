@@ -35,7 +35,7 @@ from tensorflow.python.training.saver import BaseSaverBuilder
 
 
 class _MutableDenseHashTable(lookup_ops.LookupInterface):
-  """Copy of tf.contrib.lookup.MutableDenseHashTable"""
+  """Copy of tf.contrib.lookup.MutableDenseHashTable."""
 
   # TODO(b/118148303): Swap this with the core version
   def __init__(self,
@@ -302,10 +302,12 @@ class _ShardedMutableDenseHashTable(object):
       return math_ops.add_n(sizes)
 
   def _shard_indices(self, keys):
-    if keys.get_shape().ndims > 1:
+    key_shape = keys.get_shape()
+    if key_shape.ndims > 1:
       # If keys are a matrix (i.e. a single key is a vector), we use the first
       # element of each key vector to determine the shard.
-      keys = array_ops.reshape(array_ops.slice(keys, [0, 0], [-1, 1]), [-1])
+      keys = array_ops.slice(keys, [0, 0], [key_shape.dims[0].value, 1])
+      keys = array_ops.reshape(keys, [-1])
     indices = math_ops.mod(math_ops.abs(keys), self._num_shards)
     return math_ops.cast(indices, dtypes.int32)
 

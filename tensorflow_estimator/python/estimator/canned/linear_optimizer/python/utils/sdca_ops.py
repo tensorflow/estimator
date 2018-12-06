@@ -21,9 +21,11 @@ import collections
 
 from six.moves import range
 
+from tensorflow.python.compat import compat
 from tensorflow.python.framework import constant_op
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
+from tensorflow.python.framework import tensor_shape
 from tensorflow.python.framework.ops import internal_convert_to_tensor
 from tensorflow.python.framework.ops import name_scope
 from tensorflow.python.ops import array_ops
@@ -517,14 +519,15 @@ class _SDCAModel(object):
           dim_0_size = self._get_first_dimension_size_statically(
               w, num_partitions)
 
-          if dim_0_size.value:
-            num_total_ids = constant_op.constant(dim_0_size.value,
-                                                 flat_ids.dtype)
+          if tensor_shape.dimension_value(dim_0_size):
+            num_total_ids = constant_op.constant(
+                tensor_shape.dimension_value(dim_0_size),
+                flat_ids.dtype)
           else:
             dim_0_sizes = []
             for p in range(num_partitions):
-              if w[p].get_shape()[0].value is not None:
-                dim_0_sizes.append(w[p].get_shape()[0].value)
+              if tensor_shape.dimension_value(w[p].shape[0]) is not None:
+                dim_0_sizes.append(tensor_shape.dimension_value(w[p].shape[0]))
               else:
                 with ops.colocate_with(w[p]):
                   dim_0_sizes.append(array_ops.shape(w[p])[0])
@@ -576,24 +579,44 @@ class _SDCAModel(object):
                 w_as_tensor, sparse_idx)
         sparse_weights.append(batch_gathered_weights)
 
-      esu, sfw, dfw = gen_sdca_ops.sdca_optimizer(
-          sparse_example_indices,
-          sparse_feature_indices,
-          sparse_features_values,
-          self._convert_n_to_tensor(self._examples['dense_features']),
-          internal_convert_to_tensor(self._examples['example_weights']),
-          internal_convert_to_tensor(self._examples['example_labels']),
-          sparse_indices,
-          sparse_weights,
-          self._convert_n_to_tensor(self._slots[
-              'unshrunk_dense_features_weights']),
-          example_state_data,
-          loss_type=self._options['loss_type'],
-          l1=self._symmetric_l1_regularization(),
-          l2=self._symmetric_l2_regularization(),
-          num_loss_partitions=self._num_loss_partitions(),
-          num_inner_iterations=1,
-          adaptative=self._adaptive())
+      if compat.forward_compatible(year=2018, month=10, day=30):
+        esu, sfw, dfw = gen_sdca_ops.sdca_optimizer_v2(
+            sparse_example_indices,
+            sparse_feature_indices,
+            sparse_features_values,
+            self._convert_n_to_tensor(self._examples['dense_features']),
+            internal_convert_to_tensor(self._examples['example_weights']),
+            internal_convert_to_tensor(self._examples['example_labels']),
+            sparse_indices,
+            sparse_weights,
+            self._convert_n_to_tensor(self._slots[
+                'unshrunk_dense_features_weights']),
+            example_state_data,
+            loss_type=self._options['loss_type'],
+            l1=self._symmetric_l1_regularization(),
+            l2=self._symmetric_l2_regularization(),
+            num_loss_partitions=self._num_loss_partitions(),
+            num_inner_iterations=1,
+            adaptive=self._adaptive())
+      else:
+        esu, sfw, dfw = gen_sdca_ops.sdca_optimizer(
+            sparse_example_indices,
+            sparse_feature_indices,
+            sparse_features_values,
+            self._convert_n_to_tensor(self._examples['dense_features']),
+            internal_convert_to_tensor(self._examples['example_weights']),
+            internal_convert_to_tensor(self._examples['example_labels']),
+            sparse_indices,
+            sparse_weights,
+            self._convert_n_to_tensor(self._slots[
+                'unshrunk_dense_features_weights']),
+            example_state_data,
+            loss_type=self._options['loss_type'],
+            l1=self._symmetric_l1_regularization(),
+            l2=self._symmetric_l2_regularization(),
+            num_loss_partitions=self._num_loss_partitions(),
+            num_inner_iterations=1,
+            adaptative=self._adaptive())
 
       with ops.control_dependencies([esu]):
         update_ops = [self._hashtable.insert(example_ids_hashed, esu)]
