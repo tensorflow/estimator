@@ -1430,6 +1430,35 @@ py_test(
 )
 
 py_library(
+    name = "saved_model_estimator",
+    srcs = ["canned/saved_model_estimator.py"],
+    srcs_version = "PY2AND3",
+    deps = [
+        ":estimator",
+        ":export",
+        ":model_fn",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
+py_test(
+    name = "saved_model_estimator_test",
+    size = "medium",
+    srcs = ["canned/saved_model_estimator_test.py"],
+    srcs_version = "PY2AND3",
+    tags = [
+        "notsan",
+    ],
+    deps = [
+        ":estimator",
+        ":export",
+        ":model_fn",
+        ":saved_model_estimator",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
+py_library(
     name = "expect_absl_installed",
     # This is a dummy rule used as a absl dependency in open-source.
     # We expect absl to already be installed on the system, e.g. via
