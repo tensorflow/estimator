@@ -557,9 +557,7 @@ def check_logits_final_dim(logits, expected_logits_dimension):
             'got {}.'.format(logits_shape))
       return logits
     # Graph mode
-    logits_shape = logits.shape
-    if logits_shape.ndims is None:
-      logits_shape = array_ops.shape(logits)
+    logits_shape = array_ops.shape(logits)
     assert_rank = check_ops.assert_rank_at_least(
         logits, 2, data=[logits_shape],
         message='logits shape must be [D0, D1, ... DN, logits_dimension]')
@@ -640,15 +638,11 @@ def call_loss_fn(loss_fn, labels, logits, features, expected_loss_dim=1):
                          'loss_shape: ', loss_shape)
       return unweighted_loss
     # Graph mode.
-    logits_shape = logits.shape
-    if logits_shape.ndims is None:
-      logits_shape = array_ops.shape(logits, name='logits_shape')
+    logits_shape = array_ops.shape(logits, name='logits_shape')
     expected_loss_shape = array_ops.concat(
         [logits_shape[:-1], [expected_loss_dim]], axis=0,
         name='expected_loss_shape')
-    loss_shape = unweighted_loss.shape
-    if loss_shape.ndims is None:
-      loss_shape = array_ops.shape(unweighted_loss, name='loss_shape')
+    loss_shape = array_ops.shape(unweighted_loss, name='loss_shape')
     check_loss_shape_op = control_flow_ops.Assert(
         math_ops.reduce_all(math_ops.equal(loss_shape, expected_loss_shape)),
         data=[

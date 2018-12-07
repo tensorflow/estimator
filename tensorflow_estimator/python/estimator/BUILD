@@ -944,7 +944,7 @@ py_test(
     deps = [
         ":base_head",
         ":model_fn",
-        "//tensorflow_estimator/python/estimator:expect_six_installed",
+        "//tensorflow_estimator/python/estimator:expect_numpy_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
     ],
 )

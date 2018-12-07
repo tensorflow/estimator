@@ -18,9 +18,15 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import numpy as np
+
 from tensorflow.core.framework import summary_pb2
 from tensorflow.python.framework import constant_op
 from tensorflow.python.framework import dtypes
+from tensorflow.python.framework import ops
+from tensorflow.python.ops import array_ops
+from tensorflow.python.ops import control_flow_ops
+from tensorflow.python.ops import math_ops
 from tensorflow.python.platform import test
 from tensorflow.python.saved_model import signature_constants
 from tensorflow_estimator.python.estimator import model_fn
@@ -165,7 +171,7 @@ class CreateEstimatorSpecTest(test.TestCase):
     self.assertTrue(isinstance(est_spec, model_fn.EstimatorSpec))
 
   def test_head_override_estimator_spec(self):
-    """Test for `_Head` that overrides create_estimator_spec."""
+    """Test for `Head` that overrides create_estimator_spec."""
     head = self._HeadWithOutTPUSupport()
 
     with self.assertRaisesRegexp(
@@ -192,6 +198,38 @@ class CreateEstimatorSpecTest(test.TestCase):
       _ = head.create_estimator_spec(
           features=None, mode=None, logits=None)
 
+  def test_tensor_shape_checking_in_graph_mode(self):
+    """Test for shape checking of tensor with partially defined shape."""
+    labels_placeholder = array_ops.placeholder(
+        dtype=dtypes.float32, shape=(None, 1))
+    logits_placeholder = array_ops.placeholder(
+        dtype=dtypes.float32, shape=(None, 1))
+    labels_input = np.array([[-10.], [10.]], dtype=np.float32)
+    logits_input = np.array([[1.], [0.]], dtype=np.float32)
+
+    loss = np.array([[1.], [2.]], dtype=np.float32)
+    def _loss_fn(labels, logits):
+      check_labels = control_flow_ops.Assert(
+          math_ops.reduce_all(math_ops.equal(labels, labels_input)),
+          data=[labels])
+      check_logits = control_flow_ops.Assert(
+          math_ops.reduce_all(math_ops.equal(logits, logits_input)),
+          data=[logits])
+      with ops.control_dependencies([check_labels, check_logits]):
+        return constant_op.constant(loss)
+
+    unweighted_loss = base_head.call_loss_fn(
+        loss_fn=_loss_fn,
+        labels=labels_placeholder,
+        logits=logits_placeholder,
+        features={'x': np.array(((42,),), dtype=np.int32)})
+    with self.cached_session():
+      self.assertAllClose(
+          unweighted_loss.eval({
+              labels_placeholder: labels_input,
+              logits_placeholder: logits_input
+          }),
+          loss)
 
 if __name__ == '__main__':
   test.main()
