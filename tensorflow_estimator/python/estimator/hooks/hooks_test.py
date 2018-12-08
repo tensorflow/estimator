@@ -41,8 +41,8 @@ from tensorflow.python.summary import summary_iterator
 from tensorflow.python.summary.writer import writer_cache
 from tensorflow.python.training import training
 from tensorflow_estimator.python.estimator import estimator_lib
-from tensorflow_estimator.python.estimator import hooks as hooks_lib
 from tensorflow_estimator.python.estimator import run_config as run_config_lib
+from tensorflow_estimator.python.estimator.hooks import hooks as hooks_lib
 
 
 def summary_step_keyword_to_value_mapping(dir_):

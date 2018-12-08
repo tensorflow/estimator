@@ -13,6 +13,7 @@ py_library(
     deps = [
         ":base_head",
         ":baseline",
+        ":basic_session_run_hooks",
         ":binary_class_head",
         ":boosted_trees",
         ":dnn",
@@ -110,7 +111,7 @@ py_test(
 
 py_library(
     name = "hooks",
-    srcs = ["hooks.py"],
+    srcs = ["hooks/hooks.py"],
     srcs_version = "PY2AND3",
     deps = [
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
@@ -119,7 +120,7 @@ py_library(
 
 py_test(
     name = "hooks_test",
-    srcs = ["hooks_test.py"],
+    srcs = ["hooks/hooks_test.py"],
     srcs_version = "PY2AND3",
     deps = [
         ":estimator_py",
@@ -1454,6 +1455,39 @@ py_test(
         ":export",
         ":model_fn",
         ":saved_model_estimator",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
+py_library(
+    name = "basic_session_run_hooks",
+    srcs = ["hooks/basic_session_run_hooks.py"],
+    srcs_version = "PY2AND3",
+    deps = [
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
+py_test(
+    name = "basic_session_run_hooks_test",
+    size = "medium",
+    srcs = ["hooks/basic_session_run_hooks_test.py"],
+    srcs_version = "PY2AND3",
+    deps = [
+        ":estimator_py",
+        ":fake_summary_writer",
+        "//tensorflow_estimator/contrib/estimator:estimator_py",
+    ],
+)
+
+py_library(
+    name = "fake_summary_writer",
+    srcs = [
+        "hooks/fake_summary_writer.py",
+    ],
+    srcs_version = "PY2AND3",
+    deps = [
+        "//tensorflow_estimator/python/estimator:expect_numpy_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
     ],
 )

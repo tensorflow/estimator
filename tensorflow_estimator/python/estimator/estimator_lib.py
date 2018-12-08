@@ -47,8 +47,8 @@ from tensorflow_estimator.python.estimator.exporter import Exporter
 from tensorflow_estimator.python.estimator.exporter import FinalExporter
 from tensorflow_estimator.python.estimator.exporter import LatestExporter
 from tensorflow_estimator.python.estimator.extenders import add_metrics
-from tensorflow_estimator.python.estimator.hooks import InMemoryEvaluatorHook
-from tensorflow_estimator.python.estimator.hooks import make_stop_at_checkpoint_step_hook
+from tensorflow_estimator.python.estimator.hooks import basic_session_run_hooks
+from tensorflow_estimator.python.estimator.hooks import hooks
 from tensorflow_estimator.python.estimator.inputs import inputs
 from tensorflow_estimator.python.estimator.keras import model_to_estimator
 from tensorflow_estimator.python.estimator.model_fn import call_logit_fn
