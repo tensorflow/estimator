@@ -288,7 +288,8 @@ class BestExporter(Exporter):
              is_the_final_export):
     export_result = None
 
-    if self._model_dir != estimator.model_dir and self._event_file_pattern:
+    if self._model_dir is not None and self._model_dir != estimator.model_dir \
+        and self._event_file_pattern:
       # Loads best metric from event files.
       tf_logging.info('Loading best metric from event files.')
 
