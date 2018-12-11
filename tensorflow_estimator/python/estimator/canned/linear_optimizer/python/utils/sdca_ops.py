@@ -297,7 +297,7 @@ class _SDCAModel(object):
           var_list = []
           for v in var:
             with ops.colocate_with(v):
-              slot_var = var_ops.VariableV1(
+              slot_var = var_ops.Variable(
                   initial_value=array_ops.zeros_like(v.initialized_value(),
                                                      dtypes.float32),
                   name=v.op.name + '_unshrunk')
@@ -306,7 +306,7 @@ class _SDCAModel(object):
         else:
           with ops.device(var.device):
             self._slots['unshrunk_' + name].append(
-                var_ops.VariableV1(
+                var_ops.Variable(
                     array_ops.zeros_like(var.initialized_value(),
                                          dtypes.float32),
                     name=var.op.name + '_unshrunk'))
