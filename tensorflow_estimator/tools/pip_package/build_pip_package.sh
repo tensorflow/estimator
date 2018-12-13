@@ -40,6 +40,9 @@ function build_wheel() {
 
   # Make sure init files exist.
   touch "${TMPDIR}/tensorflow_estimator/__init__.py"
+  touch "${TMPDIR}/tensorflow_estimator/_api/__init__.py"
+  touch "${TMPDIR}/tensorflow_estimator/_api/v1/__init__.py"
+  touch "${TMPDIR}/tensorflow_estimator/_api/v2/__init__.py"
   touch "${TMPDIR}/tensorflow_estimator/python/__init__.py"
   touch "${TMPDIR}/tensorflow_estimator/python/estimator/__init__.py"
   touch "${TMPDIR}/tensorflow_estimator/python/estimator/api/__init__.py"
@@ -49,6 +52,7 @@ function build_wheel() {
   touch "${TMPDIR}/tensorflow_estimator/python/estimator/canned/linear_optimizer/python/utils/__init__.py"
   touch "${TMPDIR}/tensorflow_estimator/python/estimator/export/__init__.py"
   touch "${TMPDIR}/tensorflow_estimator/python/estimator/head/__init__.py"
+  touch "${TMPDIR}/tensorflow_estimator/python/estimator/hooks/__init__.py"
   touch "${TMPDIR}/tensorflow_estimator/python/estimator/inputs/__init__.py"
   touch "${TMPDIR}/tensorflow_estimator/python/estimator/inputs/queues/__init__.py"
 
