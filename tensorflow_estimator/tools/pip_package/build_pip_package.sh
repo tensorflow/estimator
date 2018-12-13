@@ -40,10 +40,6 @@ function build_wheel() {
 
   # Make sure init files exist.
   touch "${TMPDIR}/tensorflow_estimator/__init__.py"
-  touch "${TMPDIR}/tensorflow_estimator/contrib/__init__.py"
-  touch "${TMPDIR}/tensorflow_estimator/contrib/estimator/__init__.py"
-  touch "${TMPDIR}/tensorflow_estimator/contrib/estimator/python/__init__.py"
-  touch "${TMPDIR}/tensorflow_estimator/contrib/estimator/python/estimator/__init__.py"
   touch "${TMPDIR}/tensorflow_estimator/python/__init__.py"
   touch "${TMPDIR}/tensorflow_estimator/python/estimator/__init__.py"
   touch "${TMPDIR}/tensorflow_estimator/python/estimator/api/__init__.py"
@@ -55,6 +51,15 @@ function build_wheel() {
   touch "${TMPDIR}/tensorflow_estimator/python/estimator/head/__init__.py"
   touch "${TMPDIR}/tensorflow_estimator/python/estimator/inputs/__init__.py"
   touch "${TMPDIR}/tensorflow_estimator/python/estimator/inputs/queues/__init__.py"
+
+  # We should not have contrib/ directory in Estimator 2.*. If we don't have
+  # contrib directory, then we shouldn't create __init__.py files under contrib.
+  if [ -d "${TMPDIR}/tensorflow_estimator/contrib/" ]; then
+    touch "${TMPDIR}/tensorflow_estimator/contrib/__init__.py"
+    touch "${TMPDIR}/tensorflow_estimator/contrib/estimator/__init__.py"
+    touch "${TMPDIR}/tensorflow_estimator/contrib/estimator/python/__init__.py"
+    touch "${TMPDIR}/tensorflow_estimator/contrib/estimator/python/estimator/__init__.py"
+  fi
 
   pushd ${TMPDIR} > /dev/null
   echo $(date) : "=== Building wheel"
@@ -74,15 +79,23 @@ function main() {
       break
     elif [[ "$1" == "--nightly" ]]; then
       NIGHTLY_BUILD=1
+    elif [[ "$1" == "--project_name" ]]; then
+      shift
+      if [[ -z "$1" ]]; then
+        break
+      fi
+      PROJECT_NAME="$1"
     else
       DSTDIR="$(real_path $1)"
     fi
     shift
   done
 
-  PROJECT_NAME="tensorflow_estimator"
-  if [[ ${NIGHTLY_BUILD} == "1" ]]; then
-    PROJECT_NAME="tf_estimator_nightly"
+  if [[ -z ${PROJECT_NAME} ]]; then
+    PROJECT_NAME="tensorflow_estimator"
+    if [[ ${NIGHTLY_BUILD} == "1" ]]; then
+      PROJECT_NAME="tf_estimator_nightly"
+    fi
   fi
 
   SRCDIR="$(mktemp -d -t tmp.XXXXXXXXXX)"
