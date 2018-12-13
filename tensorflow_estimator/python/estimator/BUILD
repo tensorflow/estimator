@@ -34,6 +34,7 @@ py_library(
         ":parsing_utils",
         ":regression_head",
         ":run_config",
+        ":session_run_hook",
         ":training",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
     ],
@@ -1477,6 +1478,15 @@ py_test(
         ":estimator_py",
         ":fake_summary_writer",
         "//tensorflow_estimator/contrib/estimator:estimator_py",
+    ],
+)
+
+py_library(
+    name = "session_run_hook",
+    srcs = ["hooks/session_run_hook.py"],
+    srcs_version = "PY2AND3",
+    deps = [
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
     ],
 )
 
