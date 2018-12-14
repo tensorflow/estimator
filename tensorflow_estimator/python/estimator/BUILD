@@ -54,7 +54,7 @@ py_library(
 
 py_test(
     name = "exporter_test",
-    size = "small",
+    size = "medium",
     srcs = ["exporter_test.py"],
     srcs_version = "PY2AND3",
     deps = [
@@ -661,7 +661,7 @@ py_test(
     name = "dnn_linear_combined_test",
     size = "medium",
     srcs = ["canned/dnn_linear_combined_test.py"],
-    shard_count = 16,
+    shard_count = 32,
     srcs_version = "PY2AND3",
     tags = [
         "no_pip",

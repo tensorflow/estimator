@@ -97,6 +97,7 @@ def _make_train_input_fn_dataset(is_classification, batch=None, repeat=None):
   return _input_fn
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
 
   def setUp(self):
@@ -1404,6 +1405,7 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
     est.train(input_fn, steps=num_steps)
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class BoostedTreesDebugOutputsTest(test_util.TensorFlowTestCase):
   """Test debug/model explainability outputs for individual predictions.
 
@@ -1598,6 +1600,7 @@ class BoostedTreesDebugOutputsTest(test_util.TensorFlowTestCase):
           prediction_dict['predictions'][0])
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class ModelFnTests(test_util.TensorFlowTestCase):
   """Tests bt_model_fn including unexposed internal functionalities."""
 

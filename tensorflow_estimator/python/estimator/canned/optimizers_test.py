@@ -18,7 +18,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from tensorflow_estimator.python.estimator.canned import optimizers
+from tensorflow.python.framework import test_util
 from tensorflow.python.platform import test
 from tensorflow.python.training import adagrad
 from tensorflow.python.training import adam
@@ -26,6 +26,7 @@ from tensorflow.python.training import ftrl
 from tensorflow.python.training import gradient_descent
 from tensorflow.python.training import optimizer as optimizer_lib
 from tensorflow.python.training import rmsprop
+from tensorflow_estimator.python.estimator.canned import optimizers
 
 
 class _TestOptimizer(optimizer_lib.Optimizer):
@@ -35,6 +36,7 @@ class _TestOptimizer(optimizer_lib.Optimizer):
         use_locking=False, name='TestOptimizer')
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class GetOptimizerInstance(test.TestCase):
 
   def test_unsupported_name(self):

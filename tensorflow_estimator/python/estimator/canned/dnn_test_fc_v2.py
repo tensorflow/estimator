@@ -30,6 +30,7 @@ from tensorflow.core.example import feature_pb2
 from tensorflow.python.feature_column import feature_column_v2
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
+from tensorflow.python.framework import test_util
 from tensorflow.python.ops import data_flow_ops
 from tensorflow.python.ops import parsing_ops
 from tensorflow.python.platform import gfile
@@ -59,6 +60,7 @@ def _dnn_classifier_fn(*args, **kwargs):
   return dnn.DNNClassifierV2(*args, **kwargs)
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class DNNModelFnV2Test(dnn_testing_utils.BaseDNNModelFnTest, test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
@@ -67,6 +69,7 @@ class DNNModelFnV2Test(dnn_testing_utils.BaseDNNModelFnTest, test.TestCase):
         self, dnn._dnn_model_fn, fc_impl=feature_column_v2)
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class DNNLogitFnV2Test(dnn_testing_utils.BaseDNNLogitFnTest, test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
@@ -75,6 +78,7 @@ class DNNLogitFnV2Test(dnn_testing_utils.BaseDNNLogitFnTest, test.TestCase):
         self, dnn.dnn_logit_fn_builder, fc_impl=feature_column_v2)
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class DNNWarmStartingV2Test(dnn_testing_utils.BaseDNNWarmStartingTest,
                             test.TestCase):
 
@@ -84,6 +88,7 @@ class DNNWarmStartingV2Test(dnn_testing_utils.BaseDNNWarmStartingTest,
         self, _dnn_classifier_fn, _dnn_regressor_fn, fc_impl=feature_column_v2)
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class DNNClassifierEvaluateV2Test(
     dnn_testing_utils.BaseDNNClassifierEvaluateTest, test.TestCase):
 
@@ -93,6 +98,7 @@ class DNNClassifierEvaluateV2Test(
         self, _dnn_classifier_fn, fc_impl=feature_column_v2)
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class DNNClassifierPredictV2Test(dnn_testing_utils.BaseDNNClassifierPredictTest,
                                  test.TestCase):
 
@@ -102,6 +108,7 @@ class DNNClassifierPredictV2Test(dnn_testing_utils.BaseDNNClassifierPredictTest,
         self, _dnn_classifier_fn, fc_impl=feature_column_v2)
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class DNNClassifierTrainV2Test(dnn_testing_utils.BaseDNNClassifierTrainTest,
                                test.TestCase):
 
@@ -115,6 +122,7 @@ def _dnn_regressor_fn(*args, **kwargs):
   return dnn.DNNRegressorV2(*args, **kwargs)
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class DNNRegressorEvaluateV2Test(dnn_testing_utils.BaseDNNRegressorEvaluateTest,
                                  test.TestCase):
 
@@ -124,6 +132,7 @@ class DNNRegressorEvaluateV2Test(dnn_testing_utils.BaseDNNRegressorEvaluateTest,
         self, _dnn_regressor_fn, fc_impl=feature_column_v2)
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class DNNRegressorPredictV2Test(dnn_testing_utils.BaseDNNRegressorPredictTest,
                                 test.TestCase):
 
@@ -133,6 +142,7 @@ class DNNRegressorPredictV2Test(dnn_testing_utils.BaseDNNRegressorPredictTest,
         self, _dnn_regressor_fn, fc_impl=feature_column_v2)
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class DNNRegressorTrainV2Test(dnn_testing_utils.BaseDNNRegressorTrainTest,
                               test.TestCase):
 
@@ -158,6 +168,7 @@ def _queue_parsed_features(feature_map):
   return {keys[i]: dequeued_tensors[i] for i in range(len(dequeued_tensors))}
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class DNNRegressorIntegrationTest(test.TestCase, parameterized.TestCase):
 
   def setUp(self):
@@ -317,6 +328,7 @@ class DNNRegressorIntegrationTest(test.TestCase, parameterized.TestCase):
         batch_size=batch_size)
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class DNNClassifierIntegrationTest(test.TestCase):
 
   def setUp(self):

@@ -31,6 +31,7 @@ from tensorflow.python.feature_column import feature_column
 from tensorflow.python.feature_column import feature_column_v2
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
+from tensorflow.python.framework import test_util
 from tensorflow.python.ops import nn
 from tensorflow.python.ops import parsing_ops
 from tensorflow.python.ops import variables as variables_lib
@@ -71,6 +72,7 @@ feature_column.categorical_column_with_vocabulary_file = feature_column._categor
 feature_column.embedding_column = feature_column._embedding_column
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class DNNOnlyModelFnTest(dnn_testing_utils.BaseDNNModelFnTest, test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
@@ -124,6 +126,7 @@ def _linear_regressor_fn(feature_columns,
       linear_sparse_combiner=sparse_combiner)
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class LinearOnlyRegressorPartitionerTest(
     linear_testing_utils.BaseLinearRegressorPartitionerTest, test.TestCase):
 
@@ -133,6 +136,7 @@ class LinearOnlyRegressorPartitionerTest(
         self, _linear_regressor_fn, fc_lib=feature_column)
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class LinearOnlyRegressorPartitionerV2Test(
     linear_testing_utils.BaseLinearRegressorPartitionerTest, test.TestCase):
 
@@ -142,6 +146,7 @@ class LinearOnlyRegressorPartitionerV2Test(
         self, _linear_regressor_fn, fc_lib=feature_column_v2)
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class LinearOnlyRegressorEvaluationTest(
     linear_testing_utils.BaseLinearRegressorEvaluationTest, test.TestCase):
 
@@ -151,6 +156,7 @@ class LinearOnlyRegressorEvaluationTest(
         self, _linear_regressor_fn, fc_lib=feature_column)
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class LinearOnlyRegressorEvaluationV2Test(
     linear_testing_utils.BaseLinearRegressorEvaluationTest, test.TestCase):
 
@@ -160,6 +166,7 @@ class LinearOnlyRegressorEvaluationV2Test(
         self, _linear_regressor_fn, fc_lib=feature_column_v2)
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class LinearOnlyRegressorPredictTest(
     linear_testing_utils.BaseLinearRegressorPredictTest, test.TestCase):
 
@@ -169,6 +176,7 @@ class LinearOnlyRegressorPredictTest(
         self, _linear_regressor_fn, fc_lib=feature_column)
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class LinearOnlyRegressorPredictV2Test(
     linear_testing_utils.BaseLinearRegressorPredictTest, test.TestCase):
 
@@ -178,6 +186,7 @@ class LinearOnlyRegressorPredictV2Test(
         self, _linear_regressor_fn, fc_lib=feature_column_v2)
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class LinearOnlyRegressorIntegrationTest(
     linear_testing_utils.BaseLinearRegressorIntegrationTest, test.TestCase):
 
@@ -187,6 +196,7 @@ class LinearOnlyRegressorIntegrationTest(
         self, _linear_regressor_fn, fc_lib=feature_column)
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class LinearOnlyRegressorIntegrationV2Test(
     linear_testing_utils.BaseLinearRegressorIntegrationTest, test.TestCase):
 
@@ -196,6 +206,7 @@ class LinearOnlyRegressorIntegrationV2Test(
         self, _linear_regressor_fn, fc_lib=feature_column_v2)
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class LinearOnlyRegressorTrainingTest(
     linear_testing_utils.BaseLinearRegressorTrainingTest, test.TestCase):
 
@@ -205,6 +216,7 @@ class LinearOnlyRegressorTrainingTest(
         self, _linear_regressor_fn, fc_lib=feature_column)
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class LinearOnlyRegressorTrainingV2Test(
     linear_testing_utils.BaseLinearRegressorTrainingTest, test.TestCase):
 
@@ -235,6 +247,7 @@ def _linear_classifier_fn(feature_columns,
       linear_sparse_combiner=sparse_combiner)
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class LinearOnlyClassifierTrainingTest(
     linear_testing_utils.BaseLinearClassifierTrainingTest, test.TestCase):
 
@@ -244,6 +257,7 @@ class LinearOnlyClassifierTrainingTest(
         self, linear_classifier_fn=_linear_classifier_fn, fc_lib=feature_column)
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class LinearOnlyClassifierTrainingV2Test(
     linear_testing_utils.BaseLinearClassifierTrainingTest, test.TestCase):
 
@@ -255,6 +269,7 @@ class LinearOnlyClassifierTrainingV2Test(
         fc_lib=feature_column_v2)
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class LinearOnlyClassifierClassesEvaluationTest(
     linear_testing_utils.BaseLinearClassifierEvaluationTest, test.TestCase):
 
@@ -264,6 +279,7 @@ class LinearOnlyClassifierClassesEvaluationTest(
         self, linear_classifier_fn=_linear_classifier_fn, fc_lib=feature_column)
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class LinearOnlyClassifierClassesEvaluationV2Test(
     linear_testing_utils.BaseLinearClassifierEvaluationTest, test.TestCase):
 
@@ -275,6 +291,7 @@ class LinearOnlyClassifierClassesEvaluationV2Test(
         fc_lib=feature_column_v2)
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class LinearOnlyClassifierPredictTest(
     linear_testing_utils.BaseLinearClassifierPredictTest, test.TestCase):
 
@@ -284,6 +301,7 @@ class LinearOnlyClassifierPredictTest(
         self, linear_classifier_fn=_linear_classifier_fn, fc_lib=feature_column)
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class LinearOnlyClassifierPredictV2Test(
     linear_testing_utils.BaseLinearClassifierPredictTest, test.TestCase):
 
@@ -295,6 +313,7 @@ class LinearOnlyClassifierPredictV2Test(
         fc_lib=feature_column_v2)
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class LinearOnlyClassifierIntegrationTest(
     linear_testing_utils.BaseLinearClassifierIntegrationTest, test.TestCase):
 
@@ -304,6 +323,7 @@ class LinearOnlyClassifierIntegrationTest(
         self, linear_classifier_fn=_linear_classifier_fn, fc_lib=feature_column)
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class LinearOnlyClassifierIntegrationV2Test(
     linear_testing_utils.BaseLinearClassifierIntegrationTest, test.TestCase):
 
@@ -315,6 +335,7 @@ class LinearOnlyClassifierIntegrationV2Test(
         fc_lib=feature_column_v2)
 
 
+@test_util.run_all_in_graph_and_eager_modes
 @parameterized.parameters((feature_column,), (feature_column_v2,))
 class DNNLinearCombinedRegressorIntegrationTest(test.TestCase):
 
@@ -580,6 +601,7 @@ def _dnn_classifier_fn(hidden_units,
       config=config)
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class DNNOnlyClassifierEvaluateTest(
     dnn_testing_utils.BaseDNNClassifierEvaluateTest, test.TestCase):
 
@@ -589,6 +611,7 @@ class DNNOnlyClassifierEvaluateTest(
         self, _dnn_classifier_fn, fc_impl=feature_column)
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class DNNOnlyClassifierEvaluateV2Test(
     dnn_testing_utils.BaseDNNClassifierEvaluateTest, test.TestCase):
 
@@ -598,6 +621,7 @@ class DNNOnlyClassifierEvaluateV2Test(
         self, _dnn_classifier_fn, fc_impl=feature_column_v2)
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class DNNOnlyClassifierPredictTest(
     dnn_testing_utils.BaseDNNClassifierPredictTest, test.TestCase):
 
@@ -607,6 +631,7 @@ class DNNOnlyClassifierPredictTest(
         self, _dnn_classifier_fn, fc_impl=feature_column)
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class DNNOnlyClassifierPredictV2Test(
     dnn_testing_utils.BaseDNNClassifierPredictTest, test.TestCase):
 
@@ -616,6 +641,7 @@ class DNNOnlyClassifierPredictV2Test(
         self, _dnn_classifier_fn, fc_impl=feature_column_v2)
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class DNNOnlyClassifierTrainTest(
     dnn_testing_utils.BaseDNNClassifierTrainTest, test.TestCase):
 
@@ -625,6 +651,7 @@ class DNNOnlyClassifierTrainTest(
         self, _dnn_classifier_fn, fc_impl=feature_column)
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class DNNOnlyClassifierTrainV2Test(dnn_testing_utils.BaseDNNClassifierTrainTest,
                                    test.TestCase):
 
@@ -654,6 +681,7 @@ def _dnn_regressor_fn(hidden_units,
       config=config)
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class DNNOnlyRegressorEvaluateTest(
     dnn_testing_utils.BaseDNNRegressorEvaluateTest, test.TestCase):
 
@@ -663,6 +691,7 @@ class DNNOnlyRegressorEvaluateTest(
         self, _dnn_regressor_fn, fc_impl=feature_column)
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class DNNOnlyRegressorEvaluateV2Test(
     dnn_testing_utils.BaseDNNRegressorEvaluateTest, test.TestCase):
 
@@ -672,6 +701,7 @@ class DNNOnlyRegressorEvaluateV2Test(
         self, _dnn_regressor_fn, fc_impl=feature_column_v2)
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class DNNOnlyRegressorPredictTest(
     dnn_testing_utils.BaseDNNRegressorPredictTest, test.TestCase):
 
@@ -681,6 +711,7 @@ class DNNOnlyRegressorPredictTest(
         self, _dnn_regressor_fn, fc_impl=feature_column)
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class DNNOnlyRegressorPredictV2Test(
     dnn_testing_utils.BaseDNNRegressorPredictTest, test.TestCase):
 
@@ -690,6 +721,7 @@ class DNNOnlyRegressorPredictV2Test(
         self, _dnn_regressor_fn, fc_impl=feature_column_v2)
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class DNNOnlyRegressorTrainTest(
     dnn_testing_utils.BaseDNNRegressorTrainTest, test.TestCase):
 
@@ -699,6 +731,7 @@ class DNNOnlyRegressorTrainTest(
         self, _dnn_regressor_fn, fc_impl=feature_column)
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class DNNOnlyRegressorTrainV2Test(dnn_testing_utils.BaseDNNRegressorTrainTest,
                                   test.TestCase):
 
@@ -708,6 +741,7 @@ class DNNOnlyRegressorTrainV2Test(dnn_testing_utils.BaseDNNRegressorTrainTest,
         self, _dnn_regressor_fn, fc_impl=feature_column_v2)
 
 
+@test_util.run_all_in_graph_and_eager_modes
 @parameterized.parameters((feature_column,), (feature_column_v2,))
 class DNNLinearCombinedClassifierIntegrationTest(test.TestCase):
 
@@ -888,6 +922,7 @@ class DNNLinearCombinedClassifierIntegrationTest(test.TestCase):
         fc_impl=fc_impl)
 
 
+@test_util.run_all_in_graph_and_eager_modes
 @parameterized.parameters((feature_column,), (feature_column_v2,))
 class DNNLinearCombinedTests(test.TestCase):
 
@@ -976,6 +1011,7 @@ class DNNLinearCombinedTests(test.TestCase):
         next(est.predict(input_fn=input_fn)))
 
 
+@test_util.run_all_in_graph_and_eager_modes
 @parameterized.parameters((feature_column,), (feature_column_v2,))
 class DNNLinearCombinedWarmStartingTest(test.TestCase):
 

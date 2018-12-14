@@ -23,12 +23,14 @@ import numpy as np
 from tensorflow.python.feature_column import feature_column_lib
 from tensorflow.python.framework import constant_op
 from tensorflow.python.framework import sparse_tensor
+from tensorflow.python.framework import test_util
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import partitioned_variables
 from tensorflow.python.platform import test
 from tensorflow_estimator.python.estimator.canned import linear
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class SDCAClassifierTest(test.TestCase):
 
   def testRealValuedFeatures(self):
@@ -299,6 +301,7 @@ class SDCAClassifierTest(test.TestCase):
     self.assertLess(loss, 0.2)
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class SDCARegressorTest(test.TestCase):
 
   def testRealValuedLinearFeatures(self):
