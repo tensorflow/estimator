@@ -23,11 +23,11 @@ import re
 
 from six.moves import xrange  # pylint: disable=redefined-builtin
 
-from tensorflow_estimator.python.estimator import gc
 from tensorflow.python.framework import test_util
 from tensorflow.python.platform import gfile
 from tensorflow.python.platform import test
 from tensorflow.python.util import compat
+from tensorflow_estimator.python.estimator import gc
 
 
 def _create_parser(base_dir):
@@ -48,6 +48,7 @@ def _create_parser(base_dir):
   return parser
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class GcTest(test_util.TensorFlowTestCase):
 
   def testLargestExportVersions(self):
@@ -128,6 +129,7 @@ class GcTest(test_util.TensorFlowTestCase):
             gc.Path(os.path.join(base_dir, "1"), 1),
             gc.Path(os.path.join(base_dir, "2"), 2)
         ])
+    gfile.DeleteRecursively(base_dir)
 
   def testMixedStrTypes(self):
     temp_dir = compat.as_bytes(test.get_temp_dir())
@@ -139,6 +141,7 @@ class GcTest(test_util.TensorFlowTestCase):
       self.assertFalse(gfile.Exists(base_dir))
       gfile.MakeDirs(os.path.join(compat.as_str_any(base_dir), "42"))
       gc._get_paths(base_dir, _create_parser(base_dir))
+      gfile.DeleteRecursively(base_dir)
 
   def testGcsDirWithSeparator(self):
     base_dir = "gs://bucket/foo"
