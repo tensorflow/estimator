@@ -22,8 +22,9 @@ import json
 
 from tensorflow.core.protobuf import config_pb2
 from tensorflow.core.protobuf import rewriter_config_pb2
-from tensorflow_estimator.python.estimator import run_config as run_config_lib
+from tensorflow.python.framework import test_util
 from tensorflow.python.platform import test
+from tensorflow_estimator.python.estimator import run_config as run_config_lib
 
 _TEST_DIR = 'test_dir'
 _MASTER = 'master_'
@@ -72,6 +73,7 @@ def _create_run_config_with_cluster_spec(tf_config, **kwargs):
     return run_config_lib.RunConfig(**kwargs)
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class RunConfigTest(test.TestCase):
 
   def test_default_property_values(self):
@@ -96,7 +98,7 @@ class RunConfigTest(test.TestCase):
 
   def test_replace_with_allowed_properties(self):
     session_config = config_pb2.ConfigProto(allow_soft_placement=True)
-    device_fn = lambda op: "/cpu:0"
+    device_fn = lambda op: '/cpu:0'
 
     config = run_config_lib.RunConfig().replace(
         tf_random_seed=11,
@@ -236,9 +238,10 @@ class RunConfigTest(test.TestCase):
     with self.assertRaisesRegexp(ValueError, _TF_RANDOM_SEED_ERR):
       run_config_lib.RunConfig(tf_random_seed=1.0)
     with self.assertRaisesRegexp(ValueError, _DEVICE_FN_ERR):
-      run_config_lib.RunConfig(device_fn=lambda x: "/cpu:0")
+      run_config_lib.RunConfig(device_fn=lambda x: '/cpu:0')
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class RunConfigDistributedSettingTest(test.TestCase):
 
   def _assert_distributed_properties(self, run_config,
@@ -672,6 +675,7 @@ class RunConfigDistributedSettingTest(test.TestCase):
     self.assertEqual(2, run_config.global_id_in_cluster)
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class RunConfigDistributedSettingWithMasterTest(test.TestCase):
 
   def _assert_distributed_properties(self, run_config,
@@ -1005,6 +1009,7 @@ class RunConfigDistributedSettingWithMasterTest(test.TestCase):
     self.assertEqual(2, run_config.global_id_in_cluster)
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class RunConfigSaveCheckpointsTest(test.TestCase):
 
   def test_save_checkpoint(self):
@@ -1053,6 +1058,7 @@ class RunConfigSaveCheckpointsTest(test.TestCase):
     self.assertIsNone(config_without_ckpt.save_checkpoints_secs)
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class RunConfigServiceKeyTest(test.TestCase):
 
   def test_arbitrary_key_value_pairs(self):
@@ -1081,6 +1087,7 @@ class RunConfigServiceKeyTest(test.TestCase):
       _create_run_config_with_cluster_spec(tf_config)
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class RunConfigModelDirTest(test.TestCase):
 
   def test_default(self):
@@ -1121,6 +1128,7 @@ class RunConfigModelDirTest(test.TestCase):
       _create_run_config_with_cluster_spec(tf_config)
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class RunConfigSessionConfigTest(test.TestCase):
 
   def _assert_equal_session_config(self, session_config,
