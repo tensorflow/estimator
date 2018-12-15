@@ -21,11 +21,11 @@ from __future__ import print_function
 import numpy as np
 
 from tensorflow.python.client import session
-from tensorflow_estimator.python.estimator.inputs.queues import feeding_functions as ff
 from tensorflow.python.framework import ops
 from tensorflow.python.platform import test
 from tensorflow.python.training import coordinator
 from tensorflow.python.training import queue_runner_impl
+from tensorflow_estimator.python.estimator.inputs.queues import feeding_functions as ff
 
 try:
   # pylint: disable=g-import-not-at-top

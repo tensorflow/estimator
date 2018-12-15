@@ -22,8 +22,9 @@ import collections
 
 import numpy as np
 
-from tensorflow_estimator.python.estimator.inputs.queues import feeding_functions as ff
+from tensorflow.python.framework import test_util
 from tensorflow.python.platform import test
+from tensorflow_estimator.python.estimator.inputs.queues import feeding_functions as ff
 
 try:
   # pylint: disable=g-import-not-at-top
@@ -43,6 +44,7 @@ def vals_to_list(a):
   }
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class _FeedingFunctionsTestCase(test.TestCase):
   """Tests for feeding functions."""
 
