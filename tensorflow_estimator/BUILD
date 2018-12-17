@@ -1,14 +1,16 @@
 # Description: Tensorflow Estimator.
+load("//tensorflow_estimator/python/estimator/api:api_gen.bzl", "gen_api_init_files")
+load(
+    "//tensorflow_estimator/python/estimator/api:api_gen.bzl",
+    "ESTIMATOR_API_INIT_FILES_V2",
+    "ESTIMATOR_API_INIT_FILES_V1",
+)
 
 licenses(["notice"])  # Apache 2.0
 
 package(default_visibility = ["//tensorflow_estimator:internal"])
 
 exports_files(["LICENSE"])
-
-load("//tensorflow_estimator/python/estimator/api:api_gen.bzl", "gen_api_init_files")
-load("//tensorflow_estimator/python/estimator/api:api_gen.bzl", "ESTIMATOR_API_INIT_FILES_V1")
-load("//tensorflow_estimator/python/estimator/api:api_gen.bzl", "ESTIMATOR_API_INIT_FILES_V2")
 
 # TODO(mikecase): Clean up. Remove all non estimator packages.
 package_group(
@@ -26,6 +28,12 @@ package_group(
 config_setting(
     name = "api_version_2",
     define_values = {"estimator_api_version": "2"},
+)
+
+config_setting(
+    name = "no_estimator_py_deps",
+    define_values = {"no_estimator_py_deps": "true"},
+    visibility = ["//visibility:public"],
 )
 
 py_library(
