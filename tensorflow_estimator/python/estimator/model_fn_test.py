@@ -645,11 +645,6 @@ class EstimatorSpecInferTest(test.TestCase):
 @test_util.run_all_in_graph_and_eager_modes
 class LogitFnTest(test.TestCase):
 
-  def _get_result(self, logit_fn_result):
-    if context.executing_eagerly():
-      return logit_fn_result.numpy()
-    return logit_fn_result.eval()
-
   def test_simple_call_logit_fn(self):
 
     def dummy_logit_fn(features, mode):
@@ -666,7 +661,7 @@ class LogitFnTest(test.TestCase):
                                              model_fn.ModeKeys.EVAL,
                                              'fake_params', 'fake_config')
     with self.cached_session():
-      self.assertAllClose([[4., 5.]], self._get_result(logit_fn_result))
+      self.assertAllClose([[4., 5.]], self.evaluate(logit_fn_result))
 
   def test_simple_call_multi_logit_fn(self):
 
@@ -682,9 +677,9 @@ class LogitFnTest(test.TestCase):
                                              'fake_params', 'fake_config')
     with self.cached_session():
       self.assertAllClose([[2., 3.]],
-                          self._get_result(logit_fn_result['head1']))
+                          self.evaluate(logit_fn_result['head1']))
       self.assertAllClose([[4., 5.]],
-                          self._get_result(logit_fn_result['head2']))
+                          self.evaluate(logit_fn_result['head2']))
 
   def test_invalid_logit_fn_results(self):
 
