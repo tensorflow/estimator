@@ -20,14 +20,11 @@ from __future__ import print_function
 
 import numpy as np
 
-from tensorflow.python.eager import context
 from tensorflow.python.feature_column import feature_column
 from tensorflow.python.feature_column import feature_column_v2
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
-from tensorflow.python.framework import test_util
 from tensorflow.python.ops import array_ops
-from tensorflow.python.ops import gen_math_ops
 from tensorflow.python.platform import test
 from tensorflow_estimator.python.estimator.canned import linear
 from tensorflow_estimator.python.estimator.canned import linear_testing_utils
@@ -44,7 +41,6 @@ def _linear_classifier_fn(*args, **kwargs):
 # Tests for Linear Regressor.
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class LinearRegressorPartitionerTest(
     linear_testing_utils.BaseLinearRegressorPartitionerTest, test.TestCase):
 
@@ -54,7 +50,6 @@ class LinearRegressorPartitionerTest(
         self, _linear_regressor_fn, fc_lib=feature_column)
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class LinearRegressorPartitionerV2Test(
     linear_testing_utils.BaseLinearRegressorPartitionerTest, test.TestCase):
 
@@ -64,7 +59,6 @@ class LinearRegressorPartitionerV2Test(
         self, _linear_regressor_fn, fc_lib=feature_column_v2)
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class LinearRegressorEvaluationTest(
     linear_testing_utils.BaseLinearRegressorEvaluationTest, test.TestCase):
 
@@ -74,7 +68,6 @@ class LinearRegressorEvaluationTest(
         self, _linear_regressor_fn, fc_lib=feature_column)
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class LinearRegressorEvaluationV2Test(
     linear_testing_utils.BaseLinearRegressorEvaluationTest, test.TestCase):
 
@@ -84,7 +77,6 @@ class LinearRegressorEvaluationV2Test(
         self, _linear_regressor_fn, fc_lib=feature_column_v2)
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class LinearRegressorPredictTest(
     linear_testing_utils.BaseLinearRegressorPredictTest, test.TestCase):
 
@@ -94,7 +86,6 @@ class LinearRegressorPredictTest(
         self, _linear_regressor_fn, fc_lib=feature_column)
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class LinearRegressorPredictV2Test(
     linear_testing_utils.BaseLinearRegressorPredictTest, test.TestCase):
 
@@ -104,7 +95,6 @@ class LinearRegressorPredictV2Test(
         self, _linear_regressor_fn, fc_lib=feature_column_v2)
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class LinearRegressorIntegrationTest(
     linear_testing_utils.BaseLinearRegressorIntegrationTest, test.TestCase):
 
@@ -114,7 +104,6 @@ class LinearRegressorIntegrationTest(
         self, _linear_regressor_fn, fc_lib=feature_column)
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class LinearRegressorIntegrationV2Test(
     linear_testing_utils.BaseLinearRegressorIntegrationTest, test.TestCase):
 
@@ -124,7 +113,6 @@ class LinearRegressorIntegrationV2Test(
         self, _linear_regressor_fn, fc_lib=feature_column_v2)
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class LinearRegressorTrainingTest(
     linear_testing_utils.BaseLinearRegressorTrainingTest, test.TestCase):
 
@@ -134,7 +122,6 @@ class LinearRegressorTrainingTest(
         self, _linear_regressor_fn, fc_lib=feature_column)
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class LinearRegressorTrainingV2Test(
     linear_testing_utils.BaseLinearRegressorTrainingTest, test.TestCase):
 
@@ -145,7 +132,6 @@ class LinearRegressorTrainingV2Test(
 
 
 # Tests for Linear Classifier.
-@test_util.run_all_in_graph_and_eager_modes
 class LinearClassifierTrainingTest(
     linear_testing_utils.BaseLinearClassifierTrainingTest, test.TestCase):
 
@@ -155,7 +141,6 @@ class LinearClassifierTrainingTest(
         self, linear_classifier_fn=_linear_classifier_fn, fc_lib=feature_column)
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class LinearClassifierTrainingV2Test(
     linear_testing_utils.BaseLinearClassifierTrainingTest, test.TestCase):
 
@@ -167,7 +152,6 @@ class LinearClassifierTrainingV2Test(
         fc_lib=feature_column_v2)
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class LinearClassifierEvaluationTest(
     linear_testing_utils.BaseLinearClassifierEvaluationTest, test.TestCase):
 
@@ -177,7 +161,6 @@ class LinearClassifierEvaluationTest(
         self, linear_classifier_fn=_linear_classifier_fn, fc_lib=feature_column)
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class LinearClassifierEvaluationV2Test(
     linear_testing_utils.BaseLinearClassifierEvaluationTest, test.TestCase):
 
@@ -189,7 +172,6 @@ class LinearClassifierEvaluationV2Test(
         fc_lib=feature_column_v2)
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class LinearClassifierPredictTest(
     linear_testing_utils.BaseLinearClassifierPredictTest, test.TestCase):
 
@@ -199,7 +181,6 @@ class LinearClassifierPredictTest(
         self, linear_classifier_fn=_linear_classifier_fn, fc_lib=feature_column)
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class LinearClassifierPredictV2Test(
     linear_testing_utils.BaseLinearClassifierPredictTest, test.TestCase):
 
@@ -211,7 +192,6 @@ class LinearClassifierPredictV2Test(
         fc_lib=feature_column_v2)
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class LinearClassifierIntegrationTest(
     linear_testing_utils.BaseLinearClassifierIntegrationTest, test.TestCase):
 
@@ -221,7 +201,6 @@ class LinearClassifierIntegrationTest(
         self, linear_classifier_fn=_linear_classifier_fn, fc_lib=feature_column)
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class LinearClassifierIntegrationV2Test(
     linear_testing_utils.BaseLinearClassifierIntegrationTest, test.TestCase):
 
@@ -234,7 +213,6 @@ class LinearClassifierIntegrationV2Test(
 
 
 # Tests for Linear logit_fn.
-@test_util.run_all_in_graph_and_eager_modes
 class LinearLogitFnTest(linear_testing_utils.BaseLinearLogitFnTest,
                         test.TestCase):
 
@@ -244,7 +222,6 @@ class LinearLogitFnTest(linear_testing_utils.BaseLinearLogitFnTest,
         self, fc_lib=feature_column)
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class LinearLogitFnV2Test(linear_testing_utils.BaseLinearLogitFnTest,
                           test.TestCase):
 
@@ -255,7 +232,6 @@ class LinearLogitFnV2Test(linear_testing_utils.BaseLinearLogitFnTest,
 
 
 # Tests for warm-starting with Linear logit_fn.
-@test_util.run_all_in_graph_and_eager_modes
 class LinearWarmStartingTest(linear_testing_utils.BaseLinearWarmStartingTest,
                              test.TestCase):
 
@@ -268,7 +244,6 @@ class LinearWarmStartingTest(linear_testing_utils.BaseLinearWarmStartingTest,
         fc_lib=feature_column)
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class LinearWarmStartingV2Test(linear_testing_utils.BaseLinearWarmStartingTest,
                                test.TestCase):
 
@@ -281,12 +256,12 @@ class LinearWarmStartingV2Test(linear_testing_utils.BaseLinearWarmStartingTest,
         fc_lib=feature_column_v2)
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class ComputeFractionOfZeroTest(test.TestCase):
 
   def _assertSparsity(self, expected_sparsity, tensor):
     sparsity = linear._compute_fraction_of_zero([tensor])
-    self.assertAllClose(expected_sparsity, sparsity)
+    with self.test_session() as sess:
+      self.assertAllClose(expected_sparsity, sess.run(sparsity))
 
   def test_small_float32(self):
     self._assertSparsity(
@@ -323,18 +298,22 @@ class ComputeFractionOfZeroTest(test.TestCase):
 
   def test_empty(self):
     sparsity = linear._compute_fraction_of_zero([ops.convert_to_tensor([])])
-    self.assertTrue(
-        self.evaluate(gen_math_ops.is_nan(sparsity)),
-        'Expected sparsity=nan, got %s' % sparsity)
+    with self.test_session() as sess:
+      sparsity_np = sess.run(sparsity)
+      self.assertTrue(
+          np.isnan(sparsity_np),
+          'Expected sparsity=nan, got %s' % sparsity_np)
 
   def test_multiple_empty(self):
     sparsity = linear._compute_fraction_of_zero([
         ops.convert_to_tensor([]),
         ops.convert_to_tensor([]),
     ])
-    self.assertTrue(
-        self.evaluate(gen_math_ops.is_nan(sparsity)),
-        'Expected sparsity=nan, got %s' % sparsity)
+    with self.test_session() as sess:
+      sparsity_np = sess.run(sparsity)
+      self.assertTrue(
+          np.isnan(sparsity_np),
+          'Expected sparsity=nan, got %s' % sparsity_np)
 
   def test_some_empty(self):
     with self.test_session():
