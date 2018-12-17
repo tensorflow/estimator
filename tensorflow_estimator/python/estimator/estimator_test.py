@@ -32,12 +32,6 @@ from google.protobuf import text_format
 from tensorflow.core.protobuf import rewriter_config_pb2
 from tensorflow.python.client import session
 from tensorflow.python.data.ops import dataset_ops
-from tensorflow_estimator.python.estimator import estimator
-from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
-from tensorflow_estimator.python.estimator import run_config
-from tensorflow_estimator.python.estimator.export import export
-from tensorflow_estimator.python.estimator.export import export_output
-from tensorflow_estimator.python.estimator.inputs import numpy_io
 from tensorflow.python.framework import constant_op
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import errors
@@ -81,6 +75,12 @@ from tensorflow.python.training import session_run_hook
 from tensorflow.python.training import training
 from tensorflow.python.util import compat
 from tensorflow.python.util import function_utils
+from tensorflow_estimator.python.estimator import estimator
+from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
+from tensorflow_estimator.python.estimator import run_config
+from tensorflow_estimator.python.estimator.export import export
+from tensorflow_estimator.python.estimator.export import export_output
+from tensorflow_estimator.python.estimator.inputs import numpy_io
 
 
 _TMP_DIR = '/tmp'
@@ -114,6 +114,7 @@ def get_mock_saver():
   return test.mock.Mock(wraps=real_saver, saver_def=real_saver.saver_def)
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class EstimatorInheritanceConstraintTest(test.TestCase):
   """Tests that sub classes cannot override methods of Estimator."""
 
@@ -158,6 +159,7 @@ class EstimatorInheritanceConstraintTest(test.TestCase):
     _Estimator()
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class EstimatorConstructorTest(test.TestCase):
 
   def test_config_must_be_a_run_config(self):
@@ -403,6 +405,7 @@ def _make_input_fn(features, labels):
   return _input_fn
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class EstimatorTrainTest(test.TestCase):
 
   def test_callable_model_fn(self):
@@ -1149,6 +1152,7 @@ class _StepCounterHook(session_run_hook.SessionRunHook):
     return self._steps
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class EstimatorGetVariablesTest(test.TestCase):
 
   def test_model_should_be_trained(self):
@@ -1186,6 +1190,7 @@ class EstimatorGetVariablesTest(test.TestCase):
     self.assertEqual(3., est.get_variable_value('three'))
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class EstimatorDatasetIntegrationTest(test.TestCase):
   """Tests dataset integration."""
 
@@ -1260,6 +1265,7 @@ class EstimatorDatasetIntegrationTest(test.TestCase):
     self.assertEqual([1., 2.], list(est.predict(_input_fn)))
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class EstimatorEvaluateTest(test.TestCase):
 
   def test_eval_dir(self):
@@ -1703,6 +1709,7 @@ class EstimatorEvaluateTest(test.TestCase):
         self.assertTrue(value.HasField('tensor'))
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class EstimatorPredictTest(test.TestCase):
 
   def test_input_fn_args(self):
@@ -2179,9 +2186,9 @@ def _model_fn_for_export_tests(features, labels, mode):
 
 
 def _x_y_input_fn():
-  return ({'x': constant_op.constant([[1], [1]]),
-           'y': constant_op.constant([[2], [2]])},
-          constant_op.constant([[1], [1]]))
+  return ({'x': constant_op.constant([[1], [1]], name='feature_x'),
+           'y': constant_op.constant([[2], [2]], name='feature_y')},
+          constant_op.constant([[1], [1]], name='truth'))
 
 
 def _model_fn_with_x_y(features, labels, mode):
@@ -2243,30 +2250,17 @@ def _get_serving_input_receiver_fn():
 
 
 def _get_supervised_input_receiver_fn():
-  feature_spec = {
-      'x': array_ops.placeholder(
-          dtype=dtypes.int64, shape=(2, 1), name='feature_x'),
-      'y': array_ops.placeholder(
-          dtype=dtypes.int64, shape=(2, 1), name='feature_y')
-      }
-  label_spec = array_ops.placeholder(
-      dtype=dtypes.float32, shape=[1], name='truth')
-
-  return export.build_raw_supervised_input_receiver_fn(feature_spec, label_spec)
+  return export.build_supervised_input_receiver_fn_from_input_fn(_x_y_input_fn)
 
 
 _VOCAB_FILE_CONTENT = 'emerson\nlake\npalmer\n'
 _EXTRA_FILE_CONTENT = 'kermit\npiggy\nralph\n'
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class EstimatorExportTest(test.TestCase):
 
   def test_export_saved_model_proto_roundtrip_raw_receiver(self):
-    feature_spec = {'x': parsing_ops.VarLenFeature(dtype=dtypes.int64),
-                    'y': parsing_ops.VarLenFeature(dtype=dtypes.int64)}
-    serving_input_receiver_fn = export.build_parsing_serving_input_receiver_fn(
-        feature_spec)
-
     tmpdir = tempfile.mkdtemp()
     est = estimator.EstimatorV2(model_fn=_model_fn_for_export_tests)
     est.train(input_fn=dummy_input_fn, steps=1)
@@ -2274,6 +2268,7 @@ class EstimatorExportTest(test.TestCase):
     # Perform the export.
     export_dir_base = os.path.join(
         compat.as_bytes(tmpdir), compat.as_bytes('export'))
+    serving_input_receiver_fn = _get_serving_input_receiver_fn()
     export_dir = est.export_saved_model(
         export_dir_base, serving_input_receiver_fn)
 
@@ -2411,9 +2406,8 @@ class EstimatorExportTest(test.TestCase):
         graph_ops = [x.name for x in graph.get_operations()]
         self.assertTrue('eval_multiplied' in graph_ops)
         self.assertFalse('multiplied' in graph_ops)
-        # TODO(karmel): is this the desired behavior when names are shared?
-        self.assertTrue('feature_x_1' in graph_ops)
-        self.assertTrue('feature_y_1' in graph_ops)
+        self.assertTrue('feature_x' in graph_ops)
+        self.assertTrue('feature_y' in graph_ops)
         self.assertTrue('weight' in graph_ops)
 
     # Clean up.
@@ -3215,6 +3209,7 @@ class EstimatorExportTest(test.TestCase):
         self.assertEqual(sig_outputs['output'].name, 'Const:0')
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class EstimatorHookOrderingTest(test.TestCase):
 
   def testCustomHooksAreCalledBeforeNanTensorHook(self):
@@ -3256,9 +3251,9 @@ class EstimatorHookOrderingTest(test.TestCase):
     self.assertEqual(2, test_hook.after_run_count)
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class EstimatorIntegrationTest(test.TestCase):
 
-  @test_util.run_in_graph_and_eager_modes
   def test_complete_flow_with_a_simple_linear_model(self):
 
     def _model_fn(features, labels, mode):
