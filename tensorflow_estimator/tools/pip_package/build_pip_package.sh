@@ -46,6 +46,8 @@ function build_wheel() {
   touch "${TMPDIR}/tensorflow_estimator/python/__init__.py"
   touch "${TMPDIR}/tensorflow_estimator/python/estimator/__init__.py"
   touch "${TMPDIR}/tensorflow_estimator/python/estimator/api/__init__.py"
+  touch "${TMPDIR}/tensorflow_estimator/python/estimator/api/_v1/__init__.py"
+  touch "${TMPDIR}/tensorflow_estimator/python/estimator/api/_v2/__init__.py"
   touch "${TMPDIR}/tensorflow_estimator/python/estimator/canned/__init__.py"
   touch "${TMPDIR}/tensorflow_estimator/python/estimator/canned/linear_optimizer/__init__.py"
   touch "${TMPDIR}/tensorflow_estimator/python/estimator/canned/linear_optimizer/python/__init__.py"
