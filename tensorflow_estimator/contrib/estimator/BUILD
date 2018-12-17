@@ -1,3 +1,6 @@
+# INTERNAL TEST RULE PLACEHOLDER
+load("//tensorflow_estimator:estimator.bzl", "py_test")
+
 package(
     default_visibility = [
         "//tensorflow_estimator:internal",
@@ -5,8 +8,6 @@ package(
 )
 
 licenses(["notice"])  # Apache 2.0
-
-# INTERNAL TEST RULE PLACEHOLDER
 
 py_library(
     name = "estimator_py",
