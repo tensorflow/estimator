@@ -29,6 +29,7 @@ from tensorflow.python.client import session as tf_session
 from tensorflow.python.feature_column import feature_column_lib
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
+from tensorflow.python.framework import test_util
 from tensorflow.python.ops import check_ops
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import math_ops
@@ -84,6 +85,7 @@ def _baseline_estimator_fn(weight_column=None,
       **kwargs)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class BaselineEstimatorEvaluationTest(test.TestCase):
 
   def setUp(self):
@@ -178,6 +180,7 @@ class BaselineEstimatorEvaluationTest(test.TestCase):
     self.assertAlmostEqual(0, eval_metrics[metric_keys.MetricKeys.LOSS])
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class BaselineEstimatorPredictTest(test.TestCase):
 
   def setUp(self):
@@ -236,6 +239,7 @@ class BaselineEstimatorPredictTest(test.TestCase):
                         predicted_scores)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class BaselineEstimatorIntegrationTest(test.TestCase):
 
   def setUp(self):
@@ -314,6 +318,7 @@ class BaselineEstimatorIntegrationTest(test.TestCase):
         prediction_length=prediction_length)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class BaselineEstimatorTrainingTest(test.TestCase):
 
   def setUp(self):

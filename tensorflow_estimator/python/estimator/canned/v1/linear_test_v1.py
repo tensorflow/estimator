@@ -24,6 +24,7 @@ from tensorflow.python.feature_column import feature_column
 from tensorflow.python.feature_column import feature_column_v2
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
+from tensorflow.python.framework import test_util
 from tensorflow.python.ops import array_ops
 from tensorflow.python.platform import test
 from tensorflow_estimator.python.estimator.canned import linear
@@ -41,6 +42,7 @@ def _linear_classifier_fn(*args, **kwargs):
 # Tests for Linear Regressor.
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class LinearRegressorPartitionerTest(
     linear_testing_utils_v1.BaseLinearRegressorPartitionerTest, test.TestCase):
 
@@ -50,6 +52,7 @@ class LinearRegressorPartitionerTest(
         self, _linear_regressor_fn, fc_lib=feature_column)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class LinearRegressorPartitionerV2Test(
     linear_testing_utils_v1.BaseLinearRegressorPartitionerTest, test.TestCase):
 
@@ -59,6 +62,7 @@ class LinearRegressorPartitionerV2Test(
         self, _linear_regressor_fn, fc_lib=feature_column_v2)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class LinearRegressorEvaluationTest(
     linear_testing_utils_v1.BaseLinearRegressorEvaluationTest, test.TestCase):
 
@@ -68,6 +72,7 @@ class LinearRegressorEvaluationTest(
         self, _linear_regressor_fn, fc_lib=feature_column)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class LinearRegressorEvaluationV2Test(
     linear_testing_utils_v1.BaseLinearRegressorEvaluationTest, test.TestCase):
 
@@ -77,6 +82,7 @@ class LinearRegressorEvaluationV2Test(
         self, _linear_regressor_fn, fc_lib=feature_column_v2)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class LinearRegressorPredictTest(
     linear_testing_utils_v1.BaseLinearRegressorPredictTest, test.TestCase):
 
@@ -86,6 +92,7 @@ class LinearRegressorPredictTest(
         self, _linear_regressor_fn, fc_lib=feature_column)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class LinearRegressorPredictV2Test(
     linear_testing_utils_v1.BaseLinearRegressorPredictTest, test.TestCase):
 
@@ -95,6 +102,7 @@ class LinearRegressorPredictV2Test(
         self, _linear_regressor_fn, fc_lib=feature_column_v2)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class LinearRegressorIntegrationTest(
     linear_testing_utils_v1.BaseLinearRegressorIntegrationTest, test.TestCase):
 
@@ -104,6 +112,7 @@ class LinearRegressorIntegrationTest(
         self, _linear_regressor_fn, fc_lib=feature_column)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class LinearRegressorIntegrationV2Test(
     linear_testing_utils_v1.BaseLinearRegressorIntegrationTest, test.TestCase):
 
@@ -113,6 +122,7 @@ class LinearRegressorIntegrationV2Test(
         self, _linear_regressor_fn, fc_lib=feature_column_v2)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class LinearRegressorTrainingTest(
     linear_testing_utils_v1.BaseLinearRegressorTrainingTest, test.TestCase):
 
@@ -122,6 +132,7 @@ class LinearRegressorTrainingTest(
         self, _linear_regressor_fn, fc_lib=feature_column)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class LinearRegressorTrainingV2Test(
     linear_testing_utils_v1.BaseLinearRegressorTrainingTest, test.TestCase):
 
@@ -132,6 +143,7 @@ class LinearRegressorTrainingV2Test(
 
 
 # Tests for Linear Classifier.
+@test_util.run_v1_only("Tests v1 only symbols")
 class LinearClassifierTrainingTest(
     linear_testing_utils_v1.BaseLinearClassifierTrainingTest, test.TestCase):
 
@@ -141,6 +153,7 @@ class LinearClassifierTrainingTest(
         self, linear_classifier_fn=_linear_classifier_fn, fc_lib=feature_column)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class LinearClassifierTrainingV2Test(
     linear_testing_utils_v1.BaseLinearClassifierTrainingTest, test.TestCase):
 
@@ -152,6 +165,7 @@ class LinearClassifierTrainingV2Test(
         fc_lib=feature_column_v2)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class LinearClassifierEvaluationTest(
     linear_testing_utils_v1.BaseLinearClassifierEvaluationTest, test.TestCase):
 
@@ -161,6 +175,7 @@ class LinearClassifierEvaluationTest(
         self, linear_classifier_fn=_linear_classifier_fn, fc_lib=feature_column)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class LinearClassifierEvaluationV2Test(
     linear_testing_utils_v1.BaseLinearClassifierEvaluationTest, test.TestCase):
 
@@ -172,6 +187,7 @@ class LinearClassifierEvaluationV2Test(
         fc_lib=feature_column_v2)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class LinearClassifierPredictTest(
     linear_testing_utils_v1.BaseLinearClassifierPredictTest, test.TestCase):
 
@@ -181,6 +197,7 @@ class LinearClassifierPredictTest(
         self, linear_classifier_fn=_linear_classifier_fn, fc_lib=feature_column)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class LinearClassifierPredictV2Test(
     linear_testing_utils_v1.BaseLinearClassifierPredictTest, test.TestCase):
 
@@ -192,6 +209,7 @@ class LinearClassifierPredictV2Test(
         fc_lib=feature_column_v2)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class LinearClassifierIntegrationTest(
     linear_testing_utils_v1.BaseLinearClassifierIntegrationTest, test.TestCase):
 
@@ -201,6 +219,7 @@ class LinearClassifierIntegrationTest(
         self, linear_classifier_fn=_linear_classifier_fn, fc_lib=feature_column)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class LinearClassifierIntegrationV2Test(
     linear_testing_utils_v1.BaseLinearClassifierIntegrationTest, test.TestCase):
 
@@ -213,6 +232,7 @@ class LinearClassifierIntegrationV2Test(
 
 
 # Tests for Linear logit_fn.
+@test_util.run_v1_only("Tests v1 only symbols")
 class LinearLogitFnTest(linear_testing_utils_v1.BaseLinearLogitFnTest,
                         test.TestCase):
 
@@ -222,6 +242,7 @@ class LinearLogitFnTest(linear_testing_utils_v1.BaseLinearLogitFnTest,
         self, fc_lib=feature_column)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class LinearLogitFnV2Test(linear_testing_utils_v1.BaseLinearLogitFnTest,
                           test.TestCase):
 
@@ -232,6 +253,7 @@ class LinearLogitFnV2Test(linear_testing_utils_v1.BaseLinearLogitFnTest,
 
 
 # Tests for warm-starting with Linear logit_fn.
+@test_util.run_v1_only("Tests v1 only symbols")
 class LinearWarmStartingTest(linear_testing_utils_v1.BaseLinearWarmStartingTest,
                              test.TestCase):
 
@@ -244,6 +266,7 @@ class LinearWarmStartingTest(linear_testing_utils_v1.BaseLinearWarmStartingTest,
         fc_lib=feature_column)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class LinearWarmStartingV2Test(
     linear_testing_utils_v1.BaseLinearWarmStartingTest, test.TestCase):
 
@@ -256,6 +279,7 @@ class LinearWarmStartingV2Test(
         fc_lib=feature_column_v2)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class ComputeFractionOfZeroTest(test.TestCase):
 
   def _assertSparsity(self, expected_sparsity, tensor):

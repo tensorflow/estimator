@@ -32,6 +32,7 @@ from tensorflow.python.client import session as tf_session
 from tensorflow.python.feature_column import feature_column_lib
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
+from tensorflow.python.framework import test_util
 from tensorflow.python.ops import check_ops
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import data_flow_ops
@@ -129,6 +130,7 @@ def _baseline_classifier_fn(*args, **kwargs):
 
 
 # TODO(b/36813849): Add tests with dynamic shape inputs using placeholders.
+@test_util.run_v1_only("Tests v1 only symbols")
 class BaselineRegressorEvaluationTest(test.TestCase):
 
   def setUp(self):
@@ -243,6 +245,7 @@ class BaselineRegressorEvaluationTest(test.TestCase):
     self.assertAlmostEqual(0, eval_metrics[metric_keys.MetricKeys.LOSS])
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class BaselineRegressorPredictTest(test.TestCase):
 
   def setUp(self):
@@ -301,6 +304,7 @@ class BaselineRegressorPredictTest(test.TestCase):
                         predicted_scores)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class BaselineRegressorIntegrationTest(test.TestCase):
 
   def setUp(self):
@@ -465,6 +469,7 @@ class BaselineRegressorIntegrationTest(test.TestCase):
         prediction_length=prediction_length)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class BaselineRegressorTrainingTest(test.TestCase):
 
   def setUp(self):
@@ -670,6 +675,7 @@ class BaselineRegressorTrainingTest(test.TestCase):
 # Tests for Baseline Classifier.
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class BaselineClassifierTrainingTest(test.TestCase):
 
   def setUp(self):
@@ -1044,6 +1050,7 @@ class BaselineClassifierTrainingTest(test.TestCase):
     self._testFromCheckpointMultiBatch(n_classes=4)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class BaselineClassifierEvaluationTest(test.TestCase):
 
   def setUp(self):
@@ -1258,6 +1265,7 @@ class BaselineClassifierEvaluationTest(test.TestCase):
     self._test_evaluation_weights(n_classes=4)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class BaselineClassifierPredictTest(test.TestCase):
 
   def setUp(self):
@@ -1354,6 +1362,7 @@ class BaselineClassifierPredictTest(test.TestCase):
         label_output_fn=lambda x: ('class_vocab_%s' % x).encode())
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class BaselineClassifierIntegrationTest(test.TestCase):
 
   def setUp(self):
@@ -1538,6 +1547,7 @@ class BaselineClassifierIntegrationTest(test.TestCase):
 # Tests for Baseline logit_fn.
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class BaselineLogitFnTest(test.TestCase):
 
   def test_basic_logit_correctness(self):

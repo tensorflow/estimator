@@ -26,6 +26,7 @@ import six
 
 from tensorflow.python.feature_column import feature_column_lib as feature_column
 from tensorflow.python.framework import ops
+from tensorflow.python.framework import test_util
 from tensorflow.python.ops.losses import losses
 from tensorflow.python.platform import gfile
 from tensorflow.python.platform import test
@@ -56,6 +57,7 @@ def _dnn_estimator_classifier_fn(n_classes=3, **kwargs):
       **kwargs)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class DNNEstimatorEvaluateTest(
     dnn_testing_utils_v1.BaseDNNRegressorEvaluateTest, test.TestCase):
 
@@ -65,6 +67,7 @@ class DNNEstimatorEvaluateTest(
         self, _dnn_estimator_fn)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class DNNEstimatorPredictTest(dnn_testing_utils_v1.BaseDNNRegressorPredictTest,
                               test.TestCase):
 
@@ -74,6 +77,7 @@ class DNNEstimatorPredictTest(dnn_testing_utils_v1.BaseDNNRegressorPredictTest,
         self, _dnn_estimator_fn)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class DNNEstimatorTrainTest(dnn_testing_utils_v1.BaseDNNRegressorTrainTest,
                             test.TestCase):
 
@@ -83,6 +87,7 @@ class DNNEstimatorTrainTest(dnn_testing_utils_v1.BaseDNNRegressorTrainTest,
         self, _dnn_estimator_fn)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class DNNEstimatorWarmStartingTest(dnn_testing_utils_v1.BaseDNNWarmStartingTest,
                                    test.TestCase):
 
@@ -92,6 +97,7 @@ class DNNEstimatorWarmStartingTest(dnn_testing_utils_v1.BaseDNNWarmStartingTest,
         self, _dnn_estimator_classifier_fn, _dnn_estimator_fn)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class DNNEstimatorIntegrationTest(test.TestCase):
 
   def setUp(self):

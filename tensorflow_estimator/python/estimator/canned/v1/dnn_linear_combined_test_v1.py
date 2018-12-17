@@ -31,6 +31,7 @@ from tensorflow.python.feature_column import feature_column
 from tensorflow.python.feature_column import feature_column_v2
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
+from tensorflow.python.framework import test_util
 from tensorflow.python.ops import nn
 from tensorflow.python.ops import parsing_ops
 from tensorflow.python.ops import variables as variables_lib
@@ -73,6 +74,7 @@ feature_column.categorical_column_with_vocabulary_file = feature_column._categor
 feature_column.embedding_column = feature_column._embedding_column
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class DNNOnlyModelFnTest(dnn_testing_utils_v1.BaseDNNModelFnTest,
                          test.TestCase):
 
@@ -128,6 +130,7 @@ def _linear_regressor_fn(feature_columns,
       linear_sparse_combiner=sparse_combiner)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class LinearOnlyRegressorPartitionerTest(
     linear_testing_utils_v1.BaseLinearRegressorPartitionerTest, test.TestCase):
 
@@ -137,6 +140,7 @@ class LinearOnlyRegressorPartitionerTest(
         self, _linear_regressor_fn, fc_lib=feature_column)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class LinearOnlyRegressorPartitionerV2Test(
     linear_testing_utils_v1.BaseLinearRegressorPartitionerTest, test.TestCase):
 
@@ -146,6 +150,7 @@ class LinearOnlyRegressorPartitionerV2Test(
         self, _linear_regressor_fn, fc_lib=feature_column_v2)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class LinearOnlyRegressorEvaluationTest(
     linear_testing_utils_v1.BaseLinearRegressorEvaluationTest, test.TestCase):
 
@@ -155,6 +160,7 @@ class LinearOnlyRegressorEvaluationTest(
         self, _linear_regressor_fn, fc_lib=feature_column)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class LinearOnlyRegressorEvaluationV2Test(
     linear_testing_utils_v1.BaseLinearRegressorEvaluationTest, test.TestCase):
 
@@ -164,6 +170,7 @@ class LinearOnlyRegressorEvaluationV2Test(
         self, _linear_regressor_fn, fc_lib=feature_column_v2)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class LinearOnlyRegressorPredictTest(
     linear_testing_utils_v1.BaseLinearRegressorPredictTest, test.TestCase):
 
@@ -173,6 +180,7 @@ class LinearOnlyRegressorPredictTest(
         self, _linear_regressor_fn, fc_lib=feature_column)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class LinearOnlyRegressorPredictV2Test(
     linear_testing_utils_v1.BaseLinearRegressorPredictTest, test.TestCase):
 
@@ -182,6 +190,7 @@ class LinearOnlyRegressorPredictV2Test(
         self, _linear_regressor_fn, fc_lib=feature_column_v2)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class LinearOnlyRegressorIntegrationTest(
     linear_testing_utils_v1.BaseLinearRegressorIntegrationTest, test.TestCase):
 
@@ -191,6 +200,7 @@ class LinearOnlyRegressorIntegrationTest(
         self, _linear_regressor_fn, fc_lib=feature_column)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class LinearOnlyRegressorIntegrationV2Test(
     linear_testing_utils_v1.BaseLinearRegressorIntegrationTest, test.TestCase):
 
@@ -200,6 +210,7 @@ class LinearOnlyRegressorIntegrationV2Test(
         self, _linear_regressor_fn, fc_lib=feature_column_v2)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class LinearOnlyRegressorTrainingTest(
     linear_testing_utils_v1.BaseLinearRegressorTrainingTest, test.TestCase):
 
@@ -209,6 +220,7 @@ class LinearOnlyRegressorTrainingTest(
         self, _linear_regressor_fn, fc_lib=feature_column)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class LinearOnlyRegressorTrainingV2Test(
     linear_testing_utils_v1.BaseLinearRegressorTrainingTest, test.TestCase):
 
@@ -239,6 +251,7 @@ def _linear_classifier_fn(feature_columns,
       linear_sparse_combiner=sparse_combiner)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class LinearOnlyClassifierTrainingTest(
     linear_testing_utils_v1.BaseLinearClassifierTrainingTest, test.TestCase):
 
@@ -248,6 +261,7 @@ class LinearOnlyClassifierTrainingTest(
         self, linear_classifier_fn=_linear_classifier_fn, fc_lib=feature_column)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class LinearOnlyClassifierTrainingV2Test(
     linear_testing_utils_v1.BaseLinearClassifierTrainingTest, test.TestCase):
 
@@ -259,6 +273,7 @@ class LinearOnlyClassifierTrainingV2Test(
         fc_lib=feature_column_v2)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class LinearOnlyClassifierClassesEvaluationTest(
     linear_testing_utils_v1.BaseLinearClassifierEvaluationTest, test.TestCase):
 
@@ -268,6 +283,7 @@ class LinearOnlyClassifierClassesEvaluationTest(
         self, linear_classifier_fn=_linear_classifier_fn, fc_lib=feature_column)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class LinearOnlyClassifierClassesEvaluationV2Test(
     linear_testing_utils_v1.BaseLinearClassifierEvaluationTest, test.TestCase):
 
@@ -279,6 +295,7 @@ class LinearOnlyClassifierClassesEvaluationV2Test(
         fc_lib=feature_column_v2)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class LinearOnlyClassifierPredictTest(
     linear_testing_utils_v1.BaseLinearClassifierPredictTest, test.TestCase):
 
@@ -288,6 +305,7 @@ class LinearOnlyClassifierPredictTest(
         self, linear_classifier_fn=_linear_classifier_fn, fc_lib=feature_column)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class LinearOnlyClassifierPredictV2Test(
     linear_testing_utils_v1.BaseLinearClassifierPredictTest, test.TestCase):
 
@@ -299,6 +317,7 @@ class LinearOnlyClassifierPredictV2Test(
         fc_lib=feature_column_v2)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class LinearOnlyClassifierIntegrationTest(
     linear_testing_utils_v1.BaseLinearClassifierIntegrationTest, test.TestCase):
 
@@ -308,6 +327,7 @@ class LinearOnlyClassifierIntegrationTest(
         self, linear_classifier_fn=_linear_classifier_fn, fc_lib=feature_column)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class LinearOnlyClassifierIntegrationV2Test(
     linear_testing_utils_v1.BaseLinearClassifierIntegrationTest, test.TestCase):
 
@@ -319,6 +339,7 @@ class LinearOnlyClassifierIntegrationV2Test(
         fc_lib=feature_column_v2)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 @parameterized.parameters((feature_column,), (feature_column_v2,))
 class DNNLinearCombinedRegressorIntegrationTest(test.TestCase):
 
@@ -584,6 +605,7 @@ def _dnn_classifier_fn(hidden_units,
       config=config)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class DNNOnlyClassifierEvaluateTest(
     dnn_testing_utils_v1.BaseDNNClassifierEvaluateTest, test.TestCase):
 
@@ -593,6 +615,7 @@ class DNNOnlyClassifierEvaluateTest(
         self, _dnn_classifier_fn, fc_impl=feature_column)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class DNNOnlyClassifierEvaluateV2Test(
     dnn_testing_utils_v1.BaseDNNClassifierEvaluateTest, test.TestCase):
 
@@ -602,6 +625,7 @@ class DNNOnlyClassifierEvaluateV2Test(
         self, _dnn_classifier_fn, fc_impl=feature_column_v2)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class DNNOnlyClassifierPredictTest(
     dnn_testing_utils_v1.BaseDNNClassifierPredictTest, test.TestCase):
 
@@ -611,6 +635,7 @@ class DNNOnlyClassifierPredictTest(
         self, _dnn_classifier_fn, fc_impl=feature_column)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class DNNOnlyClassifierPredictV2Test(
     dnn_testing_utils_v1.BaseDNNClassifierPredictTest, test.TestCase):
 
@@ -620,6 +645,7 @@ class DNNOnlyClassifierPredictV2Test(
         self, _dnn_classifier_fn, fc_impl=feature_column_v2)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class DNNOnlyClassifierTrainTest(
     dnn_testing_utils_v1.BaseDNNClassifierTrainTest, test.TestCase):
 
@@ -629,6 +655,7 @@ class DNNOnlyClassifierTrainTest(
         self, _dnn_classifier_fn, fc_impl=feature_column)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class DNNOnlyClassifierTrainV2Test(
     dnn_testing_utils_v1.BaseDNNClassifierTrainTest, test.TestCase):
 
@@ -658,6 +685,7 @@ def _dnn_regressor_fn(hidden_units,
       config=config)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class DNNOnlyRegressorEvaluateTest(
     dnn_testing_utils_v1.BaseDNNRegressorEvaluateTest, test.TestCase):
 
@@ -667,6 +695,7 @@ class DNNOnlyRegressorEvaluateTest(
         self, _dnn_regressor_fn, fc_impl=feature_column)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class DNNOnlyRegressorEvaluateV2Test(
     dnn_testing_utils_v1.BaseDNNRegressorEvaluateTest, test.TestCase):
 
@@ -676,6 +705,7 @@ class DNNOnlyRegressorEvaluateV2Test(
         self, _dnn_regressor_fn, fc_impl=feature_column_v2)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class DNNOnlyRegressorPredictTest(
     dnn_testing_utils_v1.BaseDNNRegressorPredictTest, test.TestCase):
 
@@ -685,6 +715,7 @@ class DNNOnlyRegressorPredictTest(
         self, _dnn_regressor_fn, fc_impl=feature_column)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class DNNOnlyRegressorPredictV2Test(
     dnn_testing_utils_v1.BaseDNNRegressorPredictTest, test.TestCase):
 
@@ -694,6 +725,7 @@ class DNNOnlyRegressorPredictV2Test(
         self, _dnn_regressor_fn, fc_impl=feature_column_v2)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class DNNOnlyRegressorTrainTest(
     dnn_testing_utils_v1.BaseDNNRegressorTrainTest, test.TestCase):
 
@@ -703,6 +735,7 @@ class DNNOnlyRegressorTrainTest(
         self, _dnn_regressor_fn, fc_impl=feature_column)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class DNNOnlyRegressorTrainV2Test(
     dnn_testing_utils_v1.BaseDNNRegressorTrainTest, test.TestCase):
 
@@ -712,6 +745,7 @@ class DNNOnlyRegressorTrainV2Test(
         self, _dnn_regressor_fn, fc_impl=feature_column_v2)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 @parameterized.parameters((feature_column,), (feature_column_v2,))
 class DNNLinearCombinedClassifierIntegrationTest(test.TestCase):
 
@@ -892,6 +926,7 @@ class DNNLinearCombinedClassifierIntegrationTest(test.TestCase):
         fc_impl=fc_impl)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 @parameterized.parameters((feature_column,), (feature_column_v2,))
 class DNNLinearCombinedTests(test.TestCase):
 
@@ -980,6 +1015,7 @@ class DNNLinearCombinedTests(test.TestCase):
         next(est.predict(input_fn=input_fn)))
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 @parameterized.parameters((feature_column,), (feature_column_v2,))
 class DNNLinearCombinedWarmStartingTest(test.TestCase):
 

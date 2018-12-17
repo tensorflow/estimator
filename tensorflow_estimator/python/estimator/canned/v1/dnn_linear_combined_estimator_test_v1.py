@@ -26,6 +26,7 @@ import six
 
 from tensorflow.python.feature_column import feature_column
 from tensorflow.python.framework import ops
+from tensorflow.python.framework import test_util
 from tensorflow.python.ops import nn
 from tensorflow.python.ops.losses import losses
 from tensorflow.python.platform import gfile
@@ -67,6 +68,7 @@ def _dnn_only_estimator_fn(
       config=config)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class DNNOnlyEstimatorEvaluateTest(
     dnn_testing_utils_v1.BaseDNNRegressorEvaluateTest, test.TestCase):
 
@@ -76,6 +78,7 @@ class DNNOnlyEstimatorEvaluateTest(
         self, _dnn_only_estimator_fn)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class DNNOnlyEstimatorPredictTest(
     dnn_testing_utils_v1.BaseDNNRegressorPredictTest, test.TestCase):
 
@@ -85,6 +88,7 @@ class DNNOnlyEstimatorPredictTest(
         self, _dnn_only_estimator_fn)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class DNNOnlyEstimatorTrainTest(
     dnn_testing_utils_v1.BaseDNNRegressorTrainTest, test.TestCase):
 
@@ -117,6 +121,7 @@ def _linear_only_estimator_fn(
       linear_sparse_combiner=sparse_combiner)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class LinearOnlyEstimatorEvaluateTest(
     linear_testing_utils_v1.BaseLinearRegressorEvaluationTest, test.TestCase):
 
@@ -126,6 +131,7 @@ class LinearOnlyEstimatorEvaluateTest(
         self, _linear_only_estimator_fn)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class LinearOnlyEstimatorPredictTest(
     linear_testing_utils_v1.BaseLinearRegressorPredictTest, test.TestCase):
 
@@ -135,6 +141,7 @@ class LinearOnlyEstimatorPredictTest(
         self, _linear_only_estimator_fn)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class LinearOnlyEstimatorTrainTest(
     linear_testing_utils_v1.BaseLinearRegressorTrainingTest, test.TestCase):
 
@@ -144,6 +151,7 @@ class LinearOnlyEstimatorTrainTest(
         self, _linear_only_estimator_fn)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class DNNLinearCombinedEstimatorIntegrationTest(test.TestCase):
 
   def setUp(self):

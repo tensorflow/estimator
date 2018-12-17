@@ -26,6 +26,7 @@ import six
 
 from tensorflow.python.feature_column import feature_column_lib as feature_column
 from tensorflow.python.framework import ops
+from tensorflow.python.framework import test_util
 from tensorflow.python.ops.losses import losses
 from tensorflow.python.platform import gfile
 from tensorflow.python.platform import test
@@ -50,6 +51,7 @@ def _linear_estimator_fn(
       **kwargs)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class LinearEstimatorEvaluateTest(
     linear_testing_utils_v1.BaseLinearRegressorEvaluationTest, test.TestCase):
 
@@ -59,6 +61,7 @@ class LinearEstimatorEvaluateTest(
         self, _linear_estimator_fn)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class LinearEstimatorPredictTest(
     linear_testing_utils_v1.BaseLinearRegressorPredictTest, test.TestCase):
 
@@ -68,6 +71,7 @@ class LinearEstimatorPredictTest(
         self, _linear_estimator_fn)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class LinearEstimatorTrainTest(
     linear_testing_utils_v1.BaseLinearRegressorTrainingTest, test.TestCase):
 
@@ -77,6 +81,7 @@ class LinearEstimatorTrainTest(
         self, _linear_estimator_fn)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class LinearEstimatorIntegrationTest(test.TestCase):
 
   def setUp(self):

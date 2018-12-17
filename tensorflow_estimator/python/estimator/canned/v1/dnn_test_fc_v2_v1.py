@@ -30,6 +30,7 @@ from tensorflow.core.example import feature_pb2
 from tensorflow.python.feature_column import feature_column_v2
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
+from tensorflow.python.framework import test_util
 from tensorflow.python.ops import data_flow_ops
 from tensorflow.python.ops import parsing_ops
 from tensorflow.python.platform import gfile
@@ -59,6 +60,7 @@ def _dnn_classifier_fn(*args, **kwargs):
   return dnn.DNNClassifier(*args, **kwargs)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class DNNModelFnV2Test(dnn_testing_utils_v1.BaseDNNModelFnTest, test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
@@ -67,6 +69,7 @@ class DNNModelFnV2Test(dnn_testing_utils_v1.BaseDNNModelFnTest, test.TestCase):
         self, dnn._dnn_model_fn, fc_impl=feature_column_v2)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class DNNLogitFnV2Test(dnn_testing_utils_v1.BaseDNNLogitFnTest, test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
@@ -75,6 +78,7 @@ class DNNLogitFnV2Test(dnn_testing_utils_v1.BaseDNNLogitFnTest, test.TestCase):
         self, dnn.dnn_logit_fn_builder, fc_impl=feature_column_v2)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class DNNWarmStartingV2Test(dnn_testing_utils_v1.BaseDNNWarmStartingTest,
                             test.TestCase):
 
@@ -84,6 +88,7 @@ class DNNWarmStartingV2Test(dnn_testing_utils_v1.BaseDNNWarmStartingTest,
         self, _dnn_classifier_fn, _dnn_regressor_fn, fc_impl=feature_column_v2)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class DNNClassifierEvaluateV2Test(
     dnn_testing_utils_v1.BaseDNNClassifierEvaluateTest, test.TestCase):
 
@@ -93,6 +98,7 @@ class DNNClassifierEvaluateV2Test(
         self, _dnn_classifier_fn, fc_impl=feature_column_v2)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class DNNClassifierPredictV2Test(
     dnn_testing_utils_v1.BaseDNNClassifierPredictTest, test.TestCase):
 
@@ -102,6 +108,7 @@ class DNNClassifierPredictV2Test(
         self, _dnn_classifier_fn, fc_impl=feature_column_v2)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class DNNClassifierTrainV2Test(dnn_testing_utils_v1.BaseDNNClassifierTrainTest,
                                test.TestCase):
 
@@ -115,6 +122,7 @@ def _dnn_regressor_fn(*args, **kwargs):
   return dnn.DNNRegressor(*args, **kwargs)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class DNNRegressorEvaluateV2Test(
     dnn_testing_utils_v1.BaseDNNRegressorEvaluateTest, test.TestCase):
 
@@ -124,6 +132,7 @@ class DNNRegressorEvaluateV2Test(
         self, _dnn_regressor_fn, fc_impl=feature_column_v2)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class DNNRegressorPredictV2Test(
     dnn_testing_utils_v1.BaseDNNRegressorPredictTest, test.TestCase):
 
@@ -133,6 +142,7 @@ class DNNRegressorPredictV2Test(
         self, _dnn_regressor_fn, fc_impl=feature_column_v2)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class DNNRegressorTrainV2Test(dnn_testing_utils_v1.BaseDNNRegressorTrainTest,
                               test.TestCase):
 
@@ -158,6 +168,7 @@ def _queue_parsed_features(feature_map):
   return {keys[i]: dequeued_tensors[i] for i in range(len(dequeued_tensors))}
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class DNNRegressorIntegrationTest(test.TestCase, parameterized.TestCase):
 
   def setUp(self):
@@ -317,6 +328,7 @@ class DNNRegressorIntegrationTest(test.TestCase, parameterized.TestCase):
         batch_size=batch_size)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class DNNClassifierIntegrationTest(test.TestCase):
 
   def setUp(self):
