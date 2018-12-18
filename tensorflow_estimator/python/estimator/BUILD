@@ -29,6 +29,7 @@ py_library(
         ":inputs",
         ":keras",
         ":linear",
+        ":mode_keys",
         ":model_fn",
         ":multi_class_head",
         ":multi_head",
@@ -152,6 +153,26 @@ py_test(
     deps = [
         ":export_output",
         ":model_fn",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
+py_library(
+    name = "mode_keys",
+    srcs = ["mode_keys.py"],
+    srcs_version = "PY2AND3",
+    deps = [
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
+py_test(
+    name = "mode_keys_test",
+    size = "small",
+    srcs = ["mode_keys_test.py"],
+    srcs_version = "PY2AND3",
+    deps = [
+        ":mode_keys",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
     ],
 )

@@ -37,9 +37,11 @@ from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator.export import export_output as export_output_lib
 
 
-@estimator_export('estimator.ModeKeys')
+@estimator_export(v1=['estimator.ModeKeys'])
 class ModeKeys(object):
-  """Standard names for model modes.
+  """Use mode_keys.ModeKeysV2 instead.
+
+  Standard names for model modes.
 
   The following standard keys are defined:
 
