@@ -24,6 +24,7 @@ from tensorflow.core.framework import summary_pb2
 from tensorflow.python.framework import constant_op
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
+from tensorflow.python.framework import test_util
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import math_ops
@@ -159,6 +160,7 @@ class CreateEstimatorSpecTest(test.TestCase):
                        mode=None, regularization_losses=None):
       return None
 
+  @test_util.run_in_graph_and_eager_modes
   def test_head_override_tpu_estimator_spec(self):
     """Test for `_Head` that overrides _create_tpu_estimator_spec."""
     head = self._HeadWithTPUSupport()
@@ -170,6 +172,7 @@ class CreateEstimatorSpecTest(test.TestCase):
         features=None, mode=None, logits=None)
     self.assertTrue(isinstance(est_spec, model_fn.EstimatorSpec))
 
+  @test_util.run_in_graph_and_eager_modes
   def test_head_override_estimator_spec(self):
     """Test for `Head` that overrides create_estimator_spec."""
     head = self._HeadWithOutTPUSupport()
@@ -183,6 +186,7 @@ class CreateEstimatorSpecTest(test.TestCase):
         features=None, mode=None, logits=None)
     self.assertTrue(isinstance(est_spec, model_fn.EstimatorSpec))
 
+  @test_util.run_in_graph_and_eager_modes
   def test_invalid_head_class(self):
     head = self._InvalidHead()
 
@@ -198,6 +202,7 @@ class CreateEstimatorSpecTest(test.TestCase):
       _ = head.create_estimator_spec(
           features=None, mode=None, logits=None)
 
+  @test_util.run_v1_only('Only checks graph mode')
   def test_tensor_shape_checking_in_graph_mode(self):
     """Test for shape checking of tensor with partially defined shape."""
     labels_placeholder = array_ops.placeholder(

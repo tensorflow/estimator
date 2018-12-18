@@ -23,6 +23,7 @@ import collections
 
 import six
 
+from tensorflow.python.eager import context
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import tensor_shape
 from tensorflow.python.keras.metrics import Metric
@@ -384,7 +385,7 @@ def _validate_estimator_spec_train_op(train_op, mode):
   else:
     default_graph = ops.get_default_graph()
     _check_is_tensor_or_operation(train_op, 'train_op')
-    if train_op.graph is not default_graph:
+    if not (context.executing_eagerly() or train_op.graph is default_graph):
       raise ValueError(
           _default_graph_error_message_template.format('train_op',
                                                        train_op.name))
@@ -421,7 +422,7 @@ def _validate_estimator_spec_loss(loss, mode):
       raise ValueError('Loss must be scalar, given: {}'.format(loss))
     if not loss_shape.is_compatible_with(tensor_shape.scalar()):
       loss = array_ops.reshape(loss, [])
-    if loss.graph is not default_graph:
+    if not (context.executing_eagerly() or loss.graph is default_graph):
       raise ValueError(
           _default_graph_error_message_template.format('loss', loss.name))
   return loss
@@ -457,15 +458,17 @@ def _validate_estimator_spec_predictions(predictions, mode):
           k: _check_is_tensor(v, 'predictions[{}]'.format(k))
           for k, v in six.iteritems(predictions)
       }
-      for key, value in six.iteritems(predictions):
-        if value.graph is not default_graph:
-          raise ValueError(
-              _default_graph_error_message_template.format(
-                  'prediction values', '{0}: {1}'.format(key, value.name)))
+      if not context.executing_eagerly():
+        for key, value in six.iteritems(predictions):
+          if value.graph is not default_graph:
+            raise ValueError(
+                _default_graph_error_message_template.format(
+                    'prediction values', '{0}: {1}'.format(key, value.name)))
     else:
       # Predictions should be a tensor.
       predictions = _check_is_tensor(predictions, 'predictions')
-      if predictions.graph is not default_graph:
+      if not (context.executing_eagerly() or
+              predictions.graph is default_graph):
         raise ValueError(
             _default_graph_error_message_template.format('prediction values',
                                                          predictions.name))
@@ -581,7 +584,7 @@ def _validate_eval_metric_ops(eval_metric_ops):
     else:
       values_to_check = nest.flatten(value)
     for val in values_to_check:
-      if val.graph is not default_graph:
+      if not (context.executing_eagerly() or val.graph is default_graph):
         raise ValueError(
             _default_graph_error_message_template.format(
                 'eval_metric_ops', '{0}: {1}'.format(key, val.name)))
