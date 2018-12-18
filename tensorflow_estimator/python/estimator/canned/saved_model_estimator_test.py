@@ -25,6 +25,7 @@ from tensorflow.python.data.ops import dataset_ops
 from tensorflow.python.framework import constant_op
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
+from tensorflow.python.framework import test_util
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import metrics as metrics_lib
@@ -41,31 +42,25 @@ from tensorflow_estimator.python.estimator.export import export_output
 
 
 def dummy_input_fn():
-  return dataset_ops.Dataset.from_tensors((
-      {'x': constant_op.constant([[1], [-2]], dtype=dtypes.int64)},
-      constant_op.constant([[4], [-3]], dtype=dtypes.float32))).repeat()
+  return dataset_ops.Dataset.from_tensors(({
+      'x': constant_op.constant([[1], [-2]], name='feature_x')
+  }, constant_op.constant([[4], [-3]], name='truth'))).repeat()
+
+
+def _serving_feature_dict():
+  return {'x': constant_op.constant([[5], [6]], name='feature_x')}
 
 
 def dummy_input_fn_features_only():
-  return dataset_ops.Dataset.from_tensors(
-      {'x': constant_op.constant([[5], [6]], dtype=dtypes.int64)}).repeat()
+  return dataset_ops.Dataset.from_tensors(_serving_feature_dict()).repeat()
 
 
 def dummy_supervised_receiver_fn():
-  feature_spec = {
-      'x': array_ops.placeholder(
-          dtype=dtypes.int64, shape=(2, 1), name='feature_x'),
-      }
-  label_spec = array_ops.placeholder(
-      dtype=dtypes.float32, shape=[2, 1], name='truth')
-  return export.build_raw_supervised_input_receiver_fn(
-      feature_spec, label_spec)
+  return export.build_supervised_input_receiver_fn_from_input_fn(dummy_input_fn)
 
 
 def dummy_serving_receiver_fn():
-  feature_spec = {'x': array_ops.placeholder(
-      dtype=dtypes.int64, shape=(2, 1), name='feature_x'),}
-  return export.build_raw_serving_input_receiver_fn(feature_spec)
+  return export.build_raw_serving_input_receiver_fn(_serving_feature_dict())
 
 
 def model_fn_diff_modes(features, labels, mode):
@@ -95,6 +90,7 @@ def model_fn_diff_modes(features, labels, mode):
       predictions=predictions)
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class SavedModelEstimatorTest(test.TestCase):
 
   def setUp(self):
