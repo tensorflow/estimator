@@ -39,6 +39,7 @@ from tensorflow_estimator.python.estimator.canned.parsing_utils import classifie
 from tensorflow_estimator.python.estimator.canned.parsing_utils import regressor_parse_example_spec
 from tensorflow_estimator.python.estimator.early_stopping import make_early_stopping_hook
 from tensorflow_estimator.python.estimator.early_stopping import stop_if_higher_hook
+from tensorflow_estimator.python.estimator.early_stopping import stop_if_lower_hook
 from tensorflow_estimator.python.estimator.estimator import Estimator
 from tensorflow_estimator.python.estimator.estimator import VocabInfo
 from tensorflow_estimator.python.estimator.estimator import WarmStartSettings

@@ -98,6 +98,15 @@ class EarlyStoppingHooksTest(test.TestCase, parameterized.TestCase):
             threshold=threshold,
             min_steps=min_steps), should_stop)
 
+  @parameterized.parameters((0.3, 0, False), (0.5, 4000, False), (0.5, 0, True))
+  def test_stop_if_lower_hook(self, threshold, min_steps, should_stop):
+    self.run_session(
+        early_stopping.stop_if_lower_hook(
+            self._estimator,
+            metric_name='loss',
+            threshold=threshold,
+            min_steps=min_steps), should_stop)
+
   @parameterized.parameters(False, True)
   def test_make_early_stopping_hook(self, should_stop):
     self.run_session([
