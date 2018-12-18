@@ -87,7 +87,7 @@ def _validate_and_convert_features(x):
   return ordered_dict_data
 
 
-@estimator_export('estimator.inputs.numpy_input_fn')
+@estimator_export(v1=['estimator.inputs.numpy_input_fn'])
 def numpy_input_fn(x,
                    y=None,
                    batch_size=128,

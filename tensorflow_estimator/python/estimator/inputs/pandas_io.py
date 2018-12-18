@@ -53,7 +53,7 @@ def _get_unique_target_key(features, target_column_name):
   return target_column_name
 
 
-@estimator_export('estimator.inputs.pandas_input_fn')
+@estimator_export(v1=['estimator.inputs.pandas_input_fn'])
 def pandas_input_fn(x,
                     y=None,
                     batch_size=128,
