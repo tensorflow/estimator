@@ -266,8 +266,9 @@ def _get_expanded_variable_list(var_list):
   returned_list = []
   for variable in var_list:
     if (isinstance(variable, variable_ops.Variable) or
-        resource_variable_ops.is_resource_variable(variable)):
-      returned_list.append(variable)  # Single variable case.
+        resource_variable_ops.is_resource_variable(variable) or
+        isinstance(variable, ops.Tensor)):
+      returned_list.append(variable)  # Single variable/tensor case.
     else:  # Must be a PartitionedVariable, so convert into a list.
       returned_list.extend(list(variable))
   return returned_list
