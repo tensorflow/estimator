@@ -19,10 +19,12 @@ from __future__ import division
 from __future__ import print_function
 
 import os
+import tempfile
 
 from absl.testing import parameterized
 from tensorflow.python.framework import ops
 from tensorflow.python.ops import control_flow_ops
+from tensorflow.python.ops import state_ops
 from tensorflow.python.platform import test
 from tensorflow.python.training import monitored_session
 from tensorflow.python.training import training_util
@@ -61,6 +63,47 @@ def _write_events(eval_dir, params):
         'loss': loss,
         'accuracy': accuracy,
     }, steps)
+
+
+class ReadEvalMetricsTest(test.TestCase):
+
+  def test_read_eval_metrics(self):
+    eval_dir = tempfile.mkdtemp()
+    _write_events(
+        eval_dir,
+        [
+            # steps, loss, accuracy
+            (1000, 1, 2),
+            (2000, 3, 4),
+            (3000, 5, 6),
+        ])
+    self.assertEqual({
+        1000: {
+            'loss': 1,
+            'accuracy': 2
+        },
+        2000: {
+            'loss': 3,
+            'accuracy': 4
+        },
+        3000: {
+            'loss': 5,
+            'accuracy': 6
+        },
+    }, early_stopping.read_eval_metrics(eval_dir))
+
+  def test_read_eval_metrics_when_no_events(self):
+    eval_dir = tempfile.mkdtemp()
+    self.assertTrue(os.path.exists(eval_dir))
+
+    # No error should be raised when eval directory exists with no event files.
+    self.assertEqual({}, early_stopping.read_eval_metrics(eval_dir))
+
+    os.rmdir(eval_dir)
+    self.assertFalse(os.path.exists(eval_dir))
+
+    # No error should be raised when eval directory does not exist.
+    self.assertEqual({}, early_stopping.read_eval_metrics(eval_dir))
 
 
 class EarlyStoppingHooksTest(test.TestCase, parameterized.TestCase):
@@ -107,6 +150,38 @@ class EarlyStoppingHooksTest(test.TestCase, parameterized.TestCase):
             threshold=threshold,
             min_steps=min_steps), should_stop)
 
+  @parameterized.parameters((1500, 0, False), (500, 4000, False),
+                            (500, 0, True))
+  def test_stop_if_no_increase_hook(self, max_steps, min_steps, should_stop):
+    self.run_session(
+        early_stopping.stop_if_no_increase_hook(
+            self._estimator,
+            metric_name='accuracy',
+            max_steps_without_increase=max_steps,
+            min_steps=min_steps), should_stop)
+
+  @parameterized.parameters((1500, 0, False), (500, 4000, False),
+                            (500, 0, True))
+  def test_stop_if_no_decrease_hook(self, max_steps, min_steps, should_stop):
+    self.run_session(
+        early_stopping.stop_if_no_decrease_hook(
+            self._estimator,
+            metric_name='loss',
+            max_steps_without_decrease=max_steps,
+            min_steps=min_steps), should_stop)
+
+  @parameterized.parameters((1500, 0.3, False), (1500, 0.5, True),
+                            (500, 0.3, True))
+  def test_multiple_hooks(self, max_steps, loss_threshold, should_stop):
+    self.run_session([
+      early_stopping.stop_if_no_decrease_hook(
+          self._estimator,
+          metric_name='loss',
+          max_steps_without_decrease=max_steps),
+      early_stopping.stop_if_lower_hook(
+          self._estimator, metric_name='loss', threshold=loss_threshold)
+    ], should_stop)
+
   @parameterized.parameters(False, True)
   def test_make_early_stopping_hook(self, should_stop):
     self.run_session([
@@ -126,6 +201,45 @@ class EarlyStoppingHooksTest(test.TestCase, parameterized.TestCase):
           should_stop_fn=lambda: True,
           run_every_secs=60,
           run_every_steps=100)
+
+
+class StopOnPredicateHookTest(test.TestCase):
+
+  def test_stop(self):
+    hook = early_stopping._StopOnPredicateHook(
+        should_stop_fn=lambda: False, run_every_secs=0)
+    with ops.Graph().as_default():
+      training_util.create_global_step()
+      no_op = control_flow_ops.no_op()
+      with monitored_session.SingularMonitoredSession(hooks=[hook]) as mon_sess:
+        mon_sess.run(no_op)
+        self.assertFalse(mon_sess.should_stop())
+        self.assertFalse(mon_sess.raw_session().run(hook._stop_var))
+
+    hook = early_stopping._StopOnPredicateHook(
+        should_stop_fn=lambda: True, run_every_secs=0)
+    with ops.Graph().as_default():
+      training_util.create_global_step()
+      no_op = control_flow_ops.no_op()
+      with monitored_session.SingularMonitoredSession(hooks=[hook]) as mon_sess:
+        mon_sess.run(no_op)
+        self.assertTrue(mon_sess.should_stop())
+        self.assertTrue(mon_sess.raw_session().run(hook._stop_var))
+
+
+class CheckForStoppingHookTest(test.TestCase):
+
+  def test_stop(self):
+    hook = early_stopping._CheckForStoppingHook()
+    with ops.Graph().as_default():
+      no_op = control_flow_ops.no_op()
+      assign_op = state_ops.assign(early_stopping._get_or_create_stop_var(),
+                                   True)
+      with monitored_session.SingularMonitoredSession(hooks=[hook]) as mon_sess:
+        mon_sess.run(no_op)
+        self.assertFalse(mon_sess.should_stop())
+        mon_sess.run(assign_op)
+        self.assertTrue(mon_sess.should_stop())
 
 
 if __name__ == '__main__':
