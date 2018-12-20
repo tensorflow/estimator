@@ -23,10 +23,12 @@ import threading
 
 from tensorflow.core.example import example_pb2
 from tensorflow.core.protobuf import config_pb2
+from tensorflow.python.eager import context
 from tensorflow.python.framework import constant_op
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import errors_impl
 from tensorflow.python.framework import ops
+from tensorflow.python.framework import test_util
 from tensorflow.python.framework.test_util import TensorFlowTestCase
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import control_flow_ops
@@ -214,6 +216,7 @@ def get_binary_predictions_for_hinge(predictions):
 
 
 # TODO(pmol): Refactor tests to avoid repetition of boilerplate code.
+@test_util.run_all_in_graph_and_eager_modes
 class _SDCAModelTest(TensorFlowTestCase):
   """Base SDCA optimizer test class for any loss type."""
 
@@ -223,6 +226,7 @@ class _SDCAModelTest(TensorFlowTestCase):
     return self.test_session(use_gpu=False, config=config)
 
 
+@test_util.run_deprecated_v1  # ResourceVariable only runs in graph mode
 class SdcaWithLogisticLossTest(_SDCAModelTest):
   """SDCA optimizer test class for logistic loss."""
 
@@ -833,6 +837,7 @@ class SdcaWithLogisticLossTest(_SDCAModelTest):
   # epoch are repeated, since example id may be duplicated.
 
 
+@test_util.run_deprecated_v1  # ResourceVariable only runs in graph mode
 class SdcaWithLinearLossTest(_SDCAModelTest):
   """SDCA optimizer test class for linear (squared) loss."""
 
@@ -1070,6 +1075,7 @@ class SdcaWithLinearLossTest(_SDCAModelTest):
       self.assertAllClose(2175.0 / 270.0, loss.eval(), atol=0.01)
 
 
+@test_util.run_deprecated_v1  # ResourceVariable only runs in graph mode
 class SdcaWithHingeLossTest(_SDCAModelTest):
   """SDCA optimizer test class for hinge loss."""
 
@@ -1218,6 +1224,7 @@ class SdcaWithHingeLossTest(_SDCAModelTest):
       self.assertAllClose(0.4, regularized_loss.eval(), atol=0.02)
 
 
+@test_util.run_deprecated_v1  # ResourceVariable only runs in graph mode
 class SdcaWithSmoothHingeLossTest(_SDCAModelTest):
   """SDCA optimizer test class for smooth hinge loss."""
 
@@ -1269,6 +1276,7 @@ class SdcaWithSmoothHingeLossTest(_SDCAModelTest):
       self.assertAllClose(0.44, regularized_loss.eval(), atol=0.02)
 
 
+@test_util.run_deprecated_v1  # ResourceVariable only runs in graph mode
 class SdcaWithPoissonLossTest(_SDCAModelTest):
   """SDCA optimizer test class for poisson loss."""
 
@@ -1321,6 +1329,7 @@ class SdcaWithPoissonLossTest(_SDCAModelTest):
       self.assertAllClose(0., approximate_duality_gap.eval(), atol=1e-6)
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class SdcaFprintTest(_SDCAModelTest):
   """Tests for the SdcaFprint op.
 
@@ -1338,9 +1347,10 @@ class SdcaFprintTest(_SDCAModelTest):
       self.assertAllEqual([[4143508125394299908, -6879828354153669051],
                            [5849691694103072671, -4874542629849009556],
                            [603227410218889250, 8762207001949257490]],
-                          out_data.eval())
+                          self.evaluate(out_data))
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class _SparseFeatureColumnTest(TensorFlowTestCase):
   """Tests for _SparseFeatureColumn.
   """
@@ -1354,13 +1364,19 @@ class _SparseFeatureColumnTest(TensorFlowTestCase):
     self.assertTrue(isinstance(sfc.feature_indices, ops.Tensor))
     self.assertEqual(sfc.feature_values, None)
     with self.cached_session():
-      self.assertAllEqual(expected_example_indices, sfc.example_indices.eval())
-      self.assertAllEqual(expected_feature_indices, sfc.feature_indices.eval())
+      self.assertAllEqual(
+          expected_example_indices,
+          self.evaluate(sfc.example_indices))
+      self.assertAllEqual(
+          expected_feature_indices,
+          self.evaluate(sfc.feature_indices))
     expected_feature_values = [1.0, 2.0, 3.0, 4.0]
     sfc = _SparseFeatureColumn([1, 1, 1, 2], [0, 1, 2, 0],
                                expected_feature_values)
     with self.cached_session():
-      self.assertAllEqual(expected_feature_values, sfc.feature_values.eval())
+      self.assertAllEqual(
+          expected_feature_values,
+          self.evaluate(sfc.feature_values))
 
 
 if __name__ == '__main__':
