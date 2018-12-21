@@ -1346,6 +1346,19 @@ py_test(
     ],
 )
 
+py_test(
+    name = "object_checkpointing_test",
+    size = "medium",
+    srcs = ["object_checkpointing_test.py"],
+    srcs_version = "PY2AND3",
+    deps = [
+        ":estimator",
+        ":model_fn",
+        ":optimizers",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
 py_library(
     name = "pandas_io",
     srcs = ["inputs/pandas_io.py"],
