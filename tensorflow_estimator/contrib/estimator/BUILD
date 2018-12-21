@@ -28,6 +28,7 @@ py_library(
         ":rnn",
         ":saved_model_estimator",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
     ],
 )
 
@@ -55,6 +56,7 @@ py_test(
         ":boosted_trees",
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
         "//tensorflow_estimator/python/estimator:numpy_io",
     ],
 )
@@ -66,6 +68,7 @@ py_library(
     deps = [
         "//tensorflow_estimator/python/estimator",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
         "//tensorflow_estimator/python/estimator:head",
         "//tensorflow_estimator/python/estimator:model_fn",
         "//tensorflow_estimator/python/estimator:optimizers",
@@ -90,6 +93,7 @@ py_test(
         "//tensorflow_estimator/python/estimator:expect_pandas_installed",
         "//tensorflow_estimator/python/estimator:expect_six_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
         "//tensorflow_estimator/python/estimator:export_export",
         "//tensorflow_estimator/python/estimator:numpy_io",
         "//tensorflow_estimator/python/estimator:pandas_io",
@@ -107,6 +111,7 @@ py_library(
         "//tensorflow_estimator/python/estimator",
         "//tensorflow_estimator/python/estimator:expect_six_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
         "//tensorflow_estimator/python/estimator:model_fn",
         "//tensorflow_estimator/python/estimator:util",
     ],
@@ -124,6 +129,7 @@ py_test(
         "//tensorflow_estimator/python/estimator:estimator_py",
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
         "//tensorflow_estimator/python/estimator:linear",
     ],
 )
@@ -149,6 +155,7 @@ py_test(
         ":export",
         "//tensorflow_estimator/python/estimator",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
         "//tensorflow_estimator/python/estimator:export_export",
         "//tensorflow_estimator/python/estimator:export_output",
         "//tensorflow_estimator/python/estimator:model_fn",
@@ -163,6 +170,7 @@ py_library(
     srcs_version = "PY2AND3",
     deps = [
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
         "//tensorflow_estimator/python/estimator:exporter",
     ],
 )
@@ -176,6 +184,7 @@ py_test(
         ":exporter",
         "//tensorflow_estimator/python/estimator",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
         "//tensorflow_estimator/python/estimator:exporter",
     ],
 )
@@ -188,6 +197,7 @@ py_library(
     srcs_version = "PY2AND3",
     deps = [
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
         "//tensorflow_estimator/python/estimator:export_output",
         "//tensorflow_estimator/python/estimator:head",
         "//tensorflow_estimator/python/estimator:metric_keys",
@@ -207,6 +217,7 @@ py_test(
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
         "//tensorflow_estimator/python/estimator:expect_six_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
         "//tensorflow_estimator/python/estimator:metric_keys",
         "//tensorflow_estimator/python/estimator:model_fn",
         "//tensorflow_estimator/python/estimator:prediction_keys",
@@ -222,6 +233,7 @@ py_library(
     deps = [
         "//tensorflow_estimator/python/estimator:dnn",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
         "//tensorflow_estimator/python/estimator:linear",
     ],
 )
@@ -234,6 +246,7 @@ py_test(
     deps = [
         ":logit_fns",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
         "//tensorflow_estimator/python/estimator:model_fn",
     ],
 )
@@ -247,6 +260,7 @@ py_library(
     deps = [
         "//tensorflow_estimator/python/estimator:expect_six_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
         "//tensorflow_estimator/python/estimator:export_output",
         "//tensorflow_estimator/python/estimator:head",
         "//tensorflow_estimator/python/estimator:metric_keys",
@@ -265,6 +279,7 @@ py_test(
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
         "//tensorflow_estimator/python/estimator:expect_six_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
         "//tensorflow_estimator/python/estimator:metric_keys",
         "//tensorflow_estimator/python/estimator:model_fn",
         "//tensorflow_estimator/python/estimator:prediction_keys",
@@ -280,6 +295,7 @@ py_library(
     deps = [
         "//tensorflow_estimator/python/estimator:expect_six_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
         "//tensorflow_estimator/python/estimator:export_output",
         "//tensorflow_estimator/python/estimator:model_fn",
         "//tensorflow_estimator/python/estimator:util",
@@ -296,6 +312,7 @@ py_library(
         "//tensorflow_estimator/python/estimator:binary_class_head",
         "//tensorflow_estimator/python/estimator:expect_six_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
         "//tensorflow_estimator/python/estimator:multi_class_head",
         "//tensorflow_estimator/python/estimator:optimizers",
         "//tensorflow_estimator/python/estimator:sequential_head",
@@ -321,6 +338,7 @@ py_test(
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
         "//tensorflow_estimator/python/estimator:expect_six_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
         "//tensorflow_estimator/python/estimator:multi_class_head",
         "//tensorflow_estimator/python/estimator:numpy_io",
         "//tensorflow_estimator/python/estimator:parsing_utils",
@@ -335,6 +353,7 @@ py_library(
     deps = [
         "//tensorflow_estimator/python/estimator",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
     ],
 )
 
@@ -347,6 +366,7 @@ py_test(
         "//tensorflow_estimator/python/estimator",
         "//tensorflow_estimator/python/estimator:expect_absl_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
     ],
 )
 
@@ -357,6 +377,7 @@ py_library(
         ":export",
         "//tensorflow_estimator/python/estimator",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
         "//tensorflow_estimator/python/estimator:export",
         "//tensorflow_estimator/python/estimator:model_fn",
     ],
@@ -375,6 +396,7 @@ py_test(
         ":saved_model_estimator",
         "//tensorflow_estimator/python/estimator",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
         "//tensorflow_estimator/python/estimator:export_export",
         "//tensorflow_estimator/python/estimator:export_output",
         "//tensorflow_estimator/python/estimator:model_fn",

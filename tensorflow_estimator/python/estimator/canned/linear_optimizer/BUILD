@@ -13,6 +13,7 @@ py_test(
     deps = [
         "//tensorflow_estimator/python/estimator",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
         "//tensorflow_estimator/python/estimator:linear",
     ],
 )
@@ -27,6 +28,7 @@ py_library(
     deps = [
         ":sharded_mutable_dense_hashtable_py",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
     ],
 )
 
@@ -43,6 +45,7 @@ py_test(
     deps = [
         ":sdca_ops_py",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
     ],
 )
 
@@ -52,6 +55,7 @@ py_library(
     srcs_version = "PY2AND3",
     deps = [
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
     ],
 )
 
@@ -63,5 +67,6 @@ py_test(
     deps = [
         ":sharded_mutable_dense_hashtable_py",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
     ],
 )
