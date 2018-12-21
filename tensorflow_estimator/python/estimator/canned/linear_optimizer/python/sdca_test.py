@@ -652,7 +652,9 @@ class SDCARegressorTest(test.TestCase):
 
     always_zero = feature_column_lib.numeric_column('always_zero')
     optimizer = linear.LinearSDCA(
-        example_id_column='example_id', symmetric_l2_regularization=0.1)
+        example_id_column='example_id',
+        symmetric_l2_regularization=0.1,
+        num_table_shards=3)
     regressor = linear.LinearRegressorV2(
         feature_columns=[always_zero], optimizer=optimizer)
     regressor.train(input_fn=input_fn, steps=100)
