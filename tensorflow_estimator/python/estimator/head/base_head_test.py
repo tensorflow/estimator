@@ -202,7 +202,7 @@ class CreateEstimatorSpecTest(test.TestCase):
       _ = head.create_estimator_spec(
           features=None, mode=None, logits=None)
 
-  @test_util.run_v1_only('Only checks graph mode')
+  @test_util.deprecated_graph_mode_only
   def test_tensor_shape_checking_in_graph_mode(self):
     """Test for shape checking of tensor with partially defined shape."""
     labels_placeholder = array_ops.placeholder(
