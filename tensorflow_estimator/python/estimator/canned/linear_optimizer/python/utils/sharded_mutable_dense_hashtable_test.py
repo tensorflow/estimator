@@ -18,14 +18,16 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+from tensorflow.python.eager import context
 from tensorflow.python.framework import constant_op
 from tensorflow.python.framework import dtypes
-from tensorflow.python.framework.test_util import TensorFlowTestCase
+from tensorflow.python.framework import test_util
 from tensorflow.python.platform import googletest
 from tensorflow_estimator.python.estimator.canned.linear_optimizer.python.utils.sharded_mutable_dense_hashtable import _ShardedMutableDenseHashTable
 
 
-class _ShardedMutableDenseHashTableTest(TensorFlowTestCase):
+@test_util.run_all_in_graph_and_eager_modes
+class _ShardedMutableDenseHashTableTest(test_util.TensorFlowTestCase):
   """Tests for the ShardedMutableHashTable class."""
 
   def testShardedMutableHashTable(self):
@@ -43,15 +45,15 @@ class _ShardedMutableDenseHashTableTest(TensorFlowTestCase):
             empty_key,
             deleted_key,
             num_shards=num_shards)
-        self.assertAllEqual(0, table.size().eval())
+        self.assertAllEqual(0, self.evaluate(table.size()))
 
-        table.insert(keys, values).run()
-        self.assertAllEqual(3, table.size().eval())
+        self.evaluate(table.insert(keys, values))
+        self.assertAllEqual(3, self.evaluate(table.size()))
 
         input_string = constant_op.constant([11, 12, 14], dtypes.int64)
         output = table.lookup(input_string)
         self.assertAllEqual([3], output.get_shape())
-        self.assertAllEqual([0, 1, -1], output.eval())
+        self.assertAllEqual([0, 1, -1], self.evaluate(output))
 
   def testShardedMutableHashTableVectors(self):
     for num_shards in [1, 3, 10]:
@@ -70,17 +72,17 @@ class _ShardedMutableDenseHashTableTest(TensorFlowTestCase):
             empty_key,
             deleted_key,
             num_shards=num_shards)
-        self.assertAllEqual(0, table.size().eval())
+        self.assertAllEqual(0, self.evaluate(table.size()))
 
-        table.insert(keys, values).run()
-        self.assertAllEqual(3, table.size().eval())
+        self.evaluate(table.insert(keys, values))
+        self.assertAllEqual(3, self.evaluate(table.size()))
 
         input_string = constant_op.constant([[11, 12], [13, 14], [11, 14]],
                                             dtypes.int64)
         output = table.lookup(input_string)
         self.assertAllEqual([3, 2], output.get_shape())
         self.assertAllClose([[0.5, 0.6], [1.5, 1.6], [-0.1, 0.2]],
-                            output.eval())
+                            self.evaluate(output))
 
   def testExportSharded(self):
     with self.cached_session():
@@ -97,21 +99,25 @@ class _ShardedMutableDenseHashTableTest(TensorFlowTestCase):
           empty_key,
           deleted_key,
           num_shards=num_shards)
-      self.assertAllEqual(0, table.size().eval())
+      self.assertAllEqual(0, self.evaluate(table.size()))
 
-      table.insert(keys, values).run()
-      self.assertAllEqual(3, table.size().eval())
+      self.evaluate(table.insert(keys, values))
+      self.assertAllEqual(3, self.evaluate(table.size()))
 
       keys_list, values_list = table.export_sharded()
       self.assertAllEqual(num_shards, len(keys_list))
       self.assertAllEqual(num_shards, len(values_list))
 
       # Exported keys include empty key buckets set to the empty_key
-      self.assertAllEqual(set([-2, 10, 12]), set(keys_list[0].eval().flatten()))
-      self.assertAllEqual(set([-2, 11]), set(keys_list[1].eval().flatten()))
+      self.assertAllEqual(
+          set([-2, 10, 12]), set(self.evaluate(keys_list[0]).flatten()))
+      self.assertAllEqual(
+          set([-2, 11]), set(self.evaluate(keys_list[1]).flatten()))
       # Exported values include empty value buckets set to 0
-      self.assertAllEqual(set([0, 2, 4]), set(values_list[0].eval().flatten()))
-      self.assertAllEqual(set([0, 3]), set(values_list[1].eval().flatten()))
+      self.assertAllEqual(
+          set([0, 2, 4]), set(self.evaluate(values_list[0]).flatten()))
+      self.assertAllEqual(
+          set([0, 3]), set(self.evaluate(values_list[1]).flatten()))
 
 
 if __name__ == '__main__':
