@@ -28,6 +28,7 @@ from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import errors
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import sparse_tensor
+from tensorflow.python.framework import test_util
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import check_ops
 from tensorflow.python.ops import control_flow_ops
@@ -87,6 +88,7 @@ def _sigmoid(logits):
   return 1 / (1 + np.exp(-logits))
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class CreateEstimatorSpecTest(test.TestCase):
 
   class _HeadWithTPUSupport(head_lib._Head):
@@ -179,6 +181,7 @@ class CreateEstimatorSpecTest(test.TestCase):
           features=None, mode=None, logits=None)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
 
   def setUp(self):
@@ -1426,6 +1429,7 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
           rtol=tol, atol=tol)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
 
   def setUp(self):
@@ -2757,6 +2761,7 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
           rtol=tol, atol=tol)
 
 
+@test_util.run_v1_only("Tests v1 only symbols")
 class RegressionHead(test.TestCase):
 
   def setUp(self):
