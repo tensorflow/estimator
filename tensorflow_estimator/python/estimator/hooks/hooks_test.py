@@ -30,6 +30,7 @@ from tensorflow.python.feature_column import feature_column_lib
 from tensorflow.python.framework import constant_op
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
+from tensorflow.python.framework import test_util
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import init_ops
 from tensorflow.python.ops import metrics as metrics_lib
@@ -76,6 +77,7 @@ def get_summary_value(dir_, step, keyword):
   return None
 
 
+@test_util.deprecated_graph_mode_only
 class InMemoryEvaluatorHookTest(test.TestCase):
 
   def test_runs_eval_metrics(self):
@@ -319,6 +321,7 @@ class InMemoryEvaluatorHookTest(test.TestCase):
       estimator.train(input_fn, hooks=[evaluator])
 
 
+@test_util.deprecated_graph_mode_only
 class StopAtCheckpointStepHookTest(test.TestCase):
 
   def test_do_not_stop_if_checkpoint_is_not_there(self):

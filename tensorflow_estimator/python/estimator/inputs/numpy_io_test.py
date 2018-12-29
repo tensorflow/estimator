@@ -20,7 +20,7 @@ from __future__ import print_function
 
 import numpy as np
 from tensorflow.python.client import session as session_lib
-from tensorflow_estimator.python.estimator.inputs import numpy_io
+from tensorflow.python.framework import test_util
 from tensorflow.python.feature_column import feature_column_lib as fc
 from tensorflow.python.feature_column.feature_column import _LinearModel
 from tensorflow.python.framework import errors
@@ -32,8 +32,10 @@ from tensorflow.python.platform import test
 from tensorflow.python.training import coordinator
 from tensorflow.python.training import monitored_session
 from tensorflow.python.training import queue_runner_impl
+from tensorflow_estimator.python.estimator.inputs import numpy_io
 
 
+@test_util.run_v1_only('Tests v1 only symbols')
 class NumpyIoTest(test.TestCase):
 
   def testNumpyInputFn(self):
@@ -462,6 +464,7 @@ class NumpyIoTest(test.TestCase):
       self.assertAllEqual(res_arr[1], res_dict[1])
 
 
+@test_util.run_v1_only('Tests v1 only symbols')
 class FeatureColumnIntegrationTest(test.TestCase):
 
   def _initialized_session(self, config=None):

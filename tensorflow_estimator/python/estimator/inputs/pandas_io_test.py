@@ -20,11 +20,12 @@ from __future__ import print_function
 
 import numpy as np
 
-from tensorflow_estimator.python.estimator.inputs import pandas_io
 from tensorflow.python.framework import errors
+from tensorflow.python.framework import test_util
 from tensorflow.python.platform import test
 from tensorflow.python.training import coordinator
 from tensorflow.python.training import queue_runner_impl
+from tensorflow_estimator.python.estimator.inputs import pandas_io
 
 try:
   # pylint: disable=g-import-not-at-top
@@ -37,6 +38,7 @@ except ImportError:
   HAS_PANDAS = False
 
 
+@test_util.run_v1_only('Tests v1 only symbols')
 class PandasIoTest(test.TestCase):
 
   def makeTestDataFrame(self):

@@ -22,6 +22,7 @@ import numpy as np
 
 from tensorflow.python.client import session
 from tensorflow.python.framework import ops
+from tensorflow.python.framework import test_util
 from tensorflow.python.platform import test
 from tensorflow.python.training import coordinator
 from tensorflow.python.training import queue_runner_impl
@@ -43,6 +44,7 @@ def get_rows(array, row_indices):
   return np.vstack(rows)
 
 
+@test_util.deprecated_graph_mode_only
 class FeedingQueueRunnerTestCase(test.TestCase):
   """Tests for `FeedingQueueRunner`."""
 

@@ -33,6 +33,7 @@ from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import errors
 from tensorflow.python.framework import meta_graph
 from tensorflow.python.framework import ops
+from tensorflow.python.framework import test_util
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import state_ops
@@ -46,7 +47,8 @@ from tensorflow.python.summary.writer import writer_cache
 from tensorflow.python.training import monitored_session
 from tensorflow.python.training import session_run_hook
 from tensorflow.python.training import training_util
-from tensorflow_estimator.python.estimator.hooks import basic_session_run_hooks, fake_summary_writer
+from tensorflow_estimator.python.estimator.hooks import basic_session_run_hooks
+from tensorflow_estimator.python.estimator.hooks import fake_summary_writer
 
 # Provide a realistic start time for unit tests where we need to mock out
 # calls to time.time().
@@ -86,6 +88,7 @@ class MockCheckpointSaverListener(
     }
 
 
+@test_util.deprecated_graph_mode_only
 class SecondOrStepTimerTest(test.TestCase):
 
   def test_raise_in_both_secs_and_steps(self):
@@ -136,6 +139,7 @@ class SecondOrStepTimerTest(test.TestCase):
     self.assertEqual(2, elapsed_steps)
 
 
+@test_util.deprecated_graph_mode_only
 class StopAtStepTest(test.TestCase):
 
   def test_raise_in_both_last_step_and_num_steps(self):
@@ -210,6 +214,7 @@ class StopAtStepTest(test.TestCase):
         self.assertTrue(mon_sess.should_stop())
 
 
+@test_util.deprecated_graph_mode_only
 class LoggingTensorHookTest(test.TestCase):
 
   def setUp(self):
@@ -378,6 +383,7 @@ class LoggingTensorHookTest(test.TestCase):
       self.assertEqual(self.logged_message[0], 'qqq=42.0')
 
 
+@test_util.deprecated_graph_mode_only
 class CheckpointSaverHookTest(test.TestCase):
 
   def setUp(self):
@@ -770,6 +776,7 @@ class CheckpointSaverHookTest(test.TestCase):
                                                         self.global_step.name))
 
 
+@test_util.deprecated_graph_mode_only
 class CheckpointSaverHookMultiStepTest(test.TestCase):
 
   def setUp(self):
@@ -863,6 +870,7 @@ class CheckpointSaverHookMultiStepTest(test.TestCase):
                                                         self.global_step.name))
 
 
+@test_util.deprecated_graph_mode_only
 class ResourceCheckpointSaverHookTest(test.TestCase):
 
   def setUp(self):
@@ -906,6 +914,7 @@ class ResourceCheckpointSaverHookTest(test.TestCase):
                                                         self.global_step.name))
 
 
+@test_util.deprecated_graph_mode_only
 class StepCounterHookTest(test.TestCase):
 
   def setUp(self):
@@ -1114,6 +1123,7 @@ class StepCounterHookTest(test.TestCase):
         self.assertGreater(summary_value.simple_value, 0)
 
 
+@test_util.deprecated_graph_mode_only
 class SummarySaverHookTest(test.TestCase):
 
   def setUp(self):
@@ -1279,6 +1289,7 @@ class SummarySaverHookTest(test.TestCase):
         })
 
 
+@test_util.deprecated_graph_mode_only
 class GlobalStepWaiterHookTest(test.TestCase):
 
   def test_not_wait_for_step_zero(self):
@@ -1331,6 +1342,7 @@ class GlobalStepWaiterHookTest(test.TestCase):
         self.assertEqual(Context.counter, 2)
 
 
+@test_util.deprecated_graph_mode_only
 class FinalOpsHookTest(test.TestCase):
 
   def test_final_ops_is_scalar_tensor(self):
@@ -1395,6 +1407,7 @@ class FinalOpsHookTest(test.TestCase):
                              hook.final_ops_values.tolist())
 
 
+@test_util.deprecated_graph_mode_only
 class ResourceSummarySaverHookTest(test.TestCase):
 
   def setUp(self):
@@ -1444,6 +1457,7 @@ class ResourceSummarySaverHookTest(test.TestCase):
         })
 
 
+@test_util.deprecated_graph_mode_only
 class FeedFnHookTest(test.TestCase):
 
   def test_feeding_placeholder(self):
@@ -1457,6 +1471,7 @@ class FeedFnHookTest(test.TestCase):
       self.assertEqual(mon_sess.run(y), 2)
 
 
+@test_util.deprecated_graph_mode_only
 class ProfilerHookTest(test.TestCase):
 
   def setUp(self):
