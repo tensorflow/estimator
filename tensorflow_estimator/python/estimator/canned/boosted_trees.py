@@ -103,7 +103,7 @@ def _get_transformed_features(features,
   for column in sorted_feature_columns:
     if isinstance(
         column,
-        (feature_column_lib.BucketizedColumn, fc_old._BucketizedColumn)):  # pylint: disable=protected-access
+        (feature_column_lib.BucketizedColumn, fc_old._BucketizedColumn)):
       source_name = column.source_column.name
       squeezed_tensor = array_ops.squeeze(transformed_features[column], axis=1)
       if len(squeezed_tensor.shape) > 1:
@@ -268,53 +268,52 @@ def _calculate_num_features(sorted_feature_columns):
   return num_features
 
 
-def _generate_feature_name_mapping(sorted_feature_columns):
-  """Return a list of feature name for feature ids.
+def _generate_feature_col_name_mapping(sorted_feature_columns):
+  """Return a list of feature column names for feature ids.
+
+    Example:
+
+    >>> gender_col = indicator_column(
+            categorical_column_with_vocabulary_list('gender',
+                                                    ['male', 'female', 'n/a']))
+    # Results in 3 binary features for which we store the mapping to the
+    # original feature column.
+    >>> _generate_feature_col_name_mapping([gender_col])
+    ['gender', 'gender', 'gender]
 
   Args:
     sorted_feature_columns: a list/set of tf.feature_column sorted by name.
 
   Returns:
-    feature_name_mapping: a list of feature names indexed by the feature ids.
+    feature_col_name_mapping: a list of feature column names indexed by the
+    feature ids.
 
   Raises:
     ValueError: when unsupported features/columns are tried.
   """
+  # pylint:disable=protected-access
   names = []
   for column in sorted_feature_columns:
     if isinstance(
-        column, (feature_column_lib.IndicatorColumn, fc_old._IndicatorColumn)):  # pylint:disable=protected-access
+        column, (feature_column_lib.IndicatorColumn, fc_old._IndicatorColumn)):
       categorical_column = column.categorical_column
-      if isinstance(categorical_column,
-                    (feature_column_lib.VocabularyListCategoricalColumn,
-                     fc_old._VocabularyListCategoricalColumn)):  # pylint:disable=protected-access
-        for value in categorical_column.vocabulary_list:
-          names.append('{}:{}'.format(column.name, value))
-      elif isinstance(
-          categorical_column,
-          (feature_column_lib.BucketizedColumn, fc_old._BucketizedColumn)):  # pylint:disable=protected-access
-        boundaries = [-np.inf] + list(categorical_column.boundaries) + [np.inf]
-        for pair in zip(boundaries[:-1], boundaries[1:]):
-          names.append('{}:{}'.format(column.name, pair))
-      else:
-        for num in range(categorical_column._num_buckets):  # pylint:disable=protected-access
-          names.append('{}:{}'.format(column.name, num))
+      one_hot_depth = categorical_column.num_buckets
+      for _ in range(one_hot_depth):
+        names.append(categorical_column.name)
     elif isinstance(
         column,
-        (feature_column_lib.BucketizedColumn, fc_old._BucketizedColumn)):  # pylint:disable=protected-access
+        (feature_column_lib.BucketizedColumn, fc_old._BucketizedColumn)):
       names.append(column.name)
-    elif isinstance(
-        column,
-        (
-            fc_old._NumericColumn,  # pylint:disable=protected-access
-            feature_column_lib.NumericColumn)):
+    elif isinstance(column,
+                    (fc_old._NumericColumn, feature_column_lib.NumericColumn)):
       num_float_features = column.shape[0] if column.shape else 1
-      for num in range(num_float_features):
-        names.append('{}:{}'.format(column.name, num))
+      for _ in range(num_float_features):
+        names.append(column.name)
     else:
       raise ValueError('For now, only {} is supported, but got: {}'.format(
           _SUPPORTED_COLUMNS, column))
   return names
+  # pylint:enable=protected-access
 
 
 def _cache_transformed_features(features, sorted_feature_columns, batch_size,
@@ -1240,9 +1239,8 @@ def _compute_feature_importances(tree_ensemble, num_features, normalize):
     normalize: If True, normalize the feature importances.
 
   Returns:
-    sorted_feature_idx: A list of feature_id which is sorted
-      by its feature importance.
-    feature_importances: A list of corresponding feature importances.
+    feature_importances: A list of corresponding feature importances indexed by
+    the original feature ids.
 
   Raises:
     AssertionError: When normalize = True, if feature importances
@@ -1261,8 +1259,7 @@ def _compute_feature_importances(tree_ensemble, num_features, normalize):
     assert normalizer > 0, 'Trees are all empty or contain only a root node.'
     feature_importances /= normalizer
 
-  sorted_feature_idx = np.argsort(feature_importances)[::-1]
-  return sorted_feature_idx, feature_importances[sorted_feature_idx]
+  return feature_importances
 
 
 def _bt_explanations_fn(features,
@@ -1386,8 +1383,8 @@ class _BoostedTreesBase(estimator.Estimator):
         feature_columns, key=lambda tc: tc.name)
     self._head = head
     self._n_features = _calculate_num_features(self._sorted_feature_columns)
-    self._names_for_feature_id = np.array(
-        _generate_feature_name_mapping(self._sorted_feature_columns))
+    self._feature_col_names = _generate_feature_col_name_mapping(
+        self._sorted_feature_columns)
     self._center_bias = center_bias
     self._is_classification = is_classification
     self._quantile_sketch_epsilon = quantile_sketch_epsilon
@@ -1401,9 +1398,8 @@ class _BoostedTreesBase(estimator.Estimator):
       normalize: If True, normalize the feature importances.
 
     Returns:
-      sorted_feature_names: 1-D array of feature name which is sorted
-        by its feature importance.
-      feature_importances: 1-D array of the corresponding feature importance.
+      feature_importances: an OrderedDict, where the keys are the feature column
+      names and the values are importances. It is sorted by importance.
 
     Raises:
       ValueError: When attempting to normalize on an empty ensemble
@@ -1418,9 +1414,12 @@ class _BoostedTreesBase(estimator.Estimator):
     ensemble_proto = boosted_trees_pb2.TreeEnsemble()
     ensemble_proto.ParseFromString(serialized)
 
-    sorted_feature_id, importances = _compute_feature_importances(
-        ensemble_proto, self._n_features, normalize)
-    return self._names_for_feature_id[sorted_feature_id], importances
+    importances = _compute_feature_importances(ensemble_proto, self._n_features,
+                                               normalize)
+    # pylint:disable=protected-access
+    return boosted_trees_utils._sum_by_feature_col_name_and_sort(
+        self._feature_col_names, importances)
+    # pylint:enable=protected-access
 
   def experimental_predict_with_explanations(self,
                                              input_fn,
@@ -1463,10 +1462,13 @@ class _BoostedTreesBase(estimator.Estimator):
       contain at least two keys 'dfc' and 'bias' for model explanations. The
       `dfc` value corresponds to the contribution of each feature to the overall
       prediction for this instance (positive indicating that the feature makes
-      it more likely to select class 1 and negative less likely). The 'bias'
-      value will be the same across all the instances, corresponding to the
-      probability (classification) or prediction (regression) of the training
-      data distribution.
+      it more likely to select class 1 and negative less likely). The `dfc` is
+      an OrderedDict, where the keys are the feature column names and the values
+      are the contributions. It is sorted by the absolute value of the
+      contribution (e.g OrderedDict([('age', -0.54), ('gender', 0.4), ('fare',
+      0.21)])). The 'bias' value will be the same across all the instances,
+      corresponding to the probability (classification) or prediction
+      (regression) of the training data distribution.
 
     Raises:
       ValueError: when wrong arguments are given or unsupported functionalities
@@ -1511,7 +1513,7 @@ class _BoostedTreesBase(estimator.Estimator):
         yield_single_examples=True)
     for pred in predictions:
       bias, dfcs = boosted_trees_utils._parse_explanations_from_prediction(
-          pred[boosted_trees_utils._DEBUG_PROTO_KEY], self._n_features,
+          pred[boosted_trees_utils._DEBUG_PROTO_KEY], self._feature_col_names,
           self._is_classification)
       pred['bias'] = bias
       pred['dfc'] = dfcs

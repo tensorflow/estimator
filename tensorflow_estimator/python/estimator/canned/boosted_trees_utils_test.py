@@ -28,7 +28,8 @@ class BoostedTreesDFCTest(test_util.TensorFlowTestCase):
 
   def testDirectionalFeatureContributionsCompute(self):
     """Tests logic to compute DFCs given feature ids and logits paths."""
-    num_bucketized_features = 3  # Includes one unused feature.
+    # Includes one unused feature (f_1).
+    feature_col_names = ('f_0', 'f_1', 'f_2')
     examples_feature_ids = ((2, 2, 0, 0), (2, 2, 0))
     e1_feature_ids, e2_feature_ids = examples_feature_ids
 
@@ -50,42 +51,42 @@ class BoostedTreesDFCTest(test_util.TensorFlowTestCase):
     # Keys are center_bias.
     expected_dfcs_identity = {
         False: ({
-            0: 4.9,
-            1: 0,
-            2: 1.214
+            'f_0': 4.9,
+            'f_1': 0,
+            'f_2': 1.214
         }, {
-            0: -7.0,
-            1: 0,
-            2: 1.514
+            'f_0': -7.0,
+            'f_1': 0,
+            'f_2': 1.514
         }),
         True: ({
-            0: 4.9,
-            1: 0,
-            2: 1.0039999999999998
+            'f_0': 4.9,
+            'f_1': 0,
+            'f_2': 1.0039999999999998
         }, {
-            0: -7.0,
-            1: 0,
-            2: 1.3039999999999998
+            'f_0': -7.0,
+            'f_1': 0,
+            'f_2': 1.3039999999999998
         })
     }
     expected_dfcs_sigmoid = {
         False: ({
-            0: 0.22678725678805578,
-            1: 0,
-            2: 0.2710059376234506
+            'f_0': 0.22678725678805578,
+            'f_1': 0,
+            'f_2': 0.2710059376234506
         }, {
-            0: -0.81552596670046507,
-            1: 0,
-            2: 0.319653250251275
+            'f_0': -0.81552596670046507,
+            'f_1': 0,
+            'f_2': 0.319653250251275
         }),
         True: ({
-            0: 0.22678725678805578,
-            1: 0,
-            2: 0.2186980280491253
+            'f_0': 0.22678725678805578,
+            'f_1': 0,
+            'f_2': 0.2186980280491253
         }, {
-            0: -0.81552596670046507,
-            1: 0,
-            2: 0.26734534067694971
+            'f_0': -0.81552596670046507,
+            'f_1': 0,
+            'f_2': 0.26734534067694971
         })
     }
     # pylint: disable=protected-access
@@ -110,12 +111,12 @@ class BoostedTreesDFCTest(test_util.TensorFlowTestCase):
         # Example 1.
         # pylint:disable=line-too-long
         e1_bias, e1_dfc = boosted_trees_utils._compute_directional_feature_contributions(
-            e1_feature_ids, e1_logits_path, f, num_bucketized_features)
+            e1_feature_ids, e1_logits_path, f, feature_col_names)
         self.assertAllClose(e1_bias, f_bias)
         self.assertAllClose(e1_dfc, e1_expected_dfcs)
         # Example 2.
         e2_bias, e2_dfc = boosted_trees_utils._compute_directional_feature_contributions(
-            e2_feature_ids, e2_logits_path, f, num_bucketized_features)
+            e2_feature_ids, e2_logits_path, f, feature_col_names)
         # pylint:enable=line-too-long
         self.assertAllClose(e2_bias, f_bias)
         self.assertAllClose(e2_dfc, e2_expected_dfcs)
@@ -135,11 +136,10 @@ class BoostedTreesDFCTest(test_util.TensorFlowTestCase):
 
     Example from http://blog.datadive.net/interpreting-random-forests.
     """
-    # DIS:3, RM: 2, LSTAT:1, NOX:0
-    num_bucketized_features = 4
-    e1_feature_ids = (2, 1, 0)
-    e2_feature_ids = (2, 2, 2)
-    e3_feature_ids = (2, 2, 0)
+    feature_col_names = ('DIS', 'LSTAT', 'NOX', 'RM')
+    e1_feature_ids = (3, 1, 2)
+    e2_feature_ids = (3, 3, 3)
+    e3_feature_ids = (3, 3, 2)
 
     bias_logit = 22.60  # Root node of tree_0.
     activation = boosted_trees_utils._identity
@@ -149,25 +149,80 @@ class BoostedTreesDFCTest(test_util.TensorFlowTestCase):
     e1_logits_path = (bias_logit, 19.96, 14.91, 18.11)
     e2_logits_path = (bias_logit, 37.42, 45.10, 45.90)
     e3_logits_path = (bias_logit, 37.42, 32.30, 33.58)
-    e1_expected_dfcs = {0: 3.20, 1: -5.05, 2: -2.64, 3: 0}
-    e2_expected_dfcs = {0: 0, 1: 0, 2: 23.3, 3: 0}
-    e3_expected_dfcs = {0: 1.28, 1: 0, 2: 9.7, 3: 0}
+    e1_expected_dfcs = {'NOX': 3.20, 'LSTAT': -5.05, 'RM': -2.64, 'DIS': 0}
+    e2_expected_dfcs = {'NOX': 0, 'LSTAT': 0, 'RM': 23.3, 'DIS': 0}
+    e3_expected_dfcs = {'NOX': 1.28, 'LSTAT': 0, 'RM': 9.7, 'DIS': 0}
     # Check feature contributions are correct for both examples.
     # Example 1.
     # pylint: disable=protected-access
     # pylint: disable=line-too-long
     e1_bias, e1_dfc = boosted_trees_utils._compute_directional_feature_contributions(
-        e1_feature_ids, e1_logits_path, activation, num_bucketized_features)
+        e1_feature_ids, e1_logits_path, activation, feature_col_names)
     self.assertAllClose(e1_bias, f_bias)
     self.assertAllClose(e1_dfc, e1_expected_dfcs)
     # Example 2.
     e2_bias, e2_dfc = boosted_trees_utils._compute_directional_feature_contributions(
-        e2_feature_ids, e2_logits_path, activation, num_bucketized_features)
+        e2_feature_ids, e2_logits_path, activation, feature_col_names)
     self.assertAllClose(e2_bias, f_bias)
     self.assertAllClose(e2_dfc, e2_expected_dfcs)
     # Example 3.
     e3_bias, e3_dfc = boosted_trees_utils._compute_directional_feature_contributions(
-        e3_feature_ids, e3_logits_path, activation, num_bucketized_features)
+        e3_feature_ids, e3_logits_path, activation, feature_col_names)
+
+    # pylint: enable=line-too-long
+    self.assertAllClose(e3_bias, f_bias)
+    self.assertAllClose(e3_dfc, e3_expected_dfcs)
+    # pylint: enable=protected-access
+    # Check if contributions sum to final prediction.
+    # For each tree, get leaf of last tree.
+    expected_logits = (18.11, 45.90, 33.58)
+    # Predictions should be the sum of contributions + bias.
+    expected_preds = [activation(logit) for logit in expected_logits]
+    e1_pred = e1_bias + sum(e1_dfc.values())
+    e2_pred = e2_bias + sum(e2_dfc.values())
+    e3_pred = e3_bias + sum(e3_dfc.values())
+    preds = [e1_pred, e2_pred, e3_pred]
+    self.assertAllClose(preds, expected_preds)
+
+  def testDFCGroupByFeatureColNameAndSumUsingExternalExample(self):
+    """Tests grouping by feature column name and summing contributions.
+
+    Example modified from http://blog.datadive.net/interpreting-random-forests.
+    """
+    # Use features from testDFCComputeComparedToExternalExample, but merge
+    # 'NOX' and 'RM' into 'NOX'.
+    feature_col_names = ('DIS', 'LSTAT', 'NOX', 'NOX')
+    e1_feature_ids = (2, 1, 2)
+    e2_feature_ids = (2, 2, 2)
+    e3_feature_ids = (2, 2, 2)
+
+    bias_logit = 22.60  # Root node of tree_0.
+    activation = boosted_trees_utils._identity
+    f_bias = activation(bias_logit)
+    # Logits before and after, as is outputed from
+    # boosted_trees_ops.example_debug_outputs
+    e1_logits_path = (bias_logit, 19.96, 14.91, 18.11)
+    e2_logits_path = (bias_logit, 37.42, 45.10, 45.90)
+    e3_logits_path = (bias_logit, 37.42, 32.30, 33.58)
+    e1_expected_dfcs = {'NOX': 3.20 - 2.64, 'LSTAT': -5.05, 'DIS': 0}
+    e2_expected_dfcs = {'NOX': 0 + 23.3, 'LSTAT': 0, 'DIS': 0}
+    e3_expected_dfcs = {'NOX': 1.28 + 9.7, 'LSTAT': 0, 'DIS': 0}
+    # Check feature contributions are correct for both examples.
+    # Example 1.
+    # pylint: disable=protected-access
+    # pylint: disable=line-too-long
+    e1_bias, e1_dfc = boosted_trees_utils._compute_directional_feature_contributions(
+        e1_feature_ids, e1_logits_path, activation, feature_col_names)
+    self.assertAllClose(e1_bias, f_bias)
+    self.assertAllClose(e1_dfc, e1_expected_dfcs)
+    # Example 2.
+    e2_bias, e2_dfc = boosted_trees_utils._compute_directional_feature_contributions(
+        e2_feature_ids, e2_logits_path, activation, feature_col_names)
+    self.assertAllClose(e2_bias, f_bias)
+    self.assertAllClose(e2_dfc, e2_expected_dfcs)
+    # Example 3.
+    e3_bias, e3_dfc = boosted_trees_utils._compute_directional_feature_contributions(
+        e3_feature_ids, e3_logits_path, activation, feature_col_names)
     # pylint: enable=line-too-long
     self.assertAllClose(e3_bias, f_bias)
     self.assertAllClose(e3_dfc, e3_expected_dfcs)
