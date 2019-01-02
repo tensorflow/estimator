@@ -90,7 +90,7 @@ def model_fn_diff_modes(features, labels, mode):
       predictions=predictions)
 
 
-@test_util.run_all_in_graph_and_eager_modes
+@test_util.run_v1_only("Tests v1 only symbols")
 class SavedModelEstimatorTest(test.TestCase):
 
   def setUp(self):
