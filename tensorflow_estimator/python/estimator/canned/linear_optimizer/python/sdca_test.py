@@ -30,7 +30,6 @@ from tensorflow.python.platform import test
 from tensorflow_estimator.python.estimator.canned import linear
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class SDCAClassifierTest(test.TestCase):
 
   def testRealValuedFeatures(self):
@@ -301,7 +300,6 @@ class SDCAClassifierTest(test.TestCase):
     self.assertLess(loss, 0.2)
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class SDCARegressorTest(test.TestCase):
 
   def testRealValuedLinearFeatures(self):

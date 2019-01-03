@@ -24,7 +24,6 @@ import numpy as np
 from tensorflow.python.data.ops import dataset_ops
 from tensorflow.python.feature_column import feature_column_lib as fc
 from tensorflow.python.framework import constant_op
-from tensorflow.python.framework import test_util
 from tensorflow.python.keras import metrics as keras_metrics
 from tensorflow.python.ops import metrics as metrics_lib
 from tensorflow.python.platform import test
@@ -45,7 +44,6 @@ def get_input_fn(x, y):
   return input_fn
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class AddMetricsTest(test.TestCase):
 
   def test_should_add_metrics(self):

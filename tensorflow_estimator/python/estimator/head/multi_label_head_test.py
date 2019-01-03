@@ -28,7 +28,6 @@ from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import errors
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import sparse_tensor
-from tensorflow.python.framework import test_util
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import math_ops
@@ -56,7 +55,6 @@ def _sigmoid_cross_entropy(labels, logits):
   return np.mean(unreduced_result, axis=-1, keepdims=True)
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class MultiLabelHead(test.TestCase):
 
   def test_n_classes_is_none(self):
@@ -303,13 +301,13 @@ class MultiLabelHead(test.TestCase):
           actual_training_loss.eval({
               labels_placeholder: labels_2x1
           })
-      with self.assertRaisesRegexp(
-          errors.InvalidArgumentError,
-          r'labels shape must be \[D0, D1, ... DN, 2\]\..*'
-          r'\[Received shape: \] \[2\]'):
-        actual_training_loss.eval({
-            labels_placeholder: labels_2
-        })
+        with self.assertRaisesRegexp(
+            errors.InvalidArgumentError,
+            r'labels shape must be \[D0, D1, ... DN, 2\]\..*'
+            r'\[Received shape: \] \[2\]'):
+          actual_training_loss.eval({
+              labels_placeholder: labels_2
+          })
 
   def test_eval_create_loss_loss_fn(self):
     """Tests head.loss for eval mode and custom loss_fn."""

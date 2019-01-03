@@ -192,7 +192,6 @@ def _create_run_config_with_cluster_spec(tf_config):
     return run_config_lib.RunConfig()
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class TrainSpecTest(test.TestCase):
   """Tests TrainSpec."""
 
@@ -224,7 +223,6 @@ class TrainSpecTest(test.TestCase):
       training.TrainSpec(input_fn=lambda: 1, hooks=[_InvalidHook()])
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class EvalSpecTest(test.TestCase):
   """Tests EvalSpec."""
 
@@ -325,7 +323,6 @@ class EvalSpecTest(test.TestCase):
       training.EvalSpec(input_fn=lambda: 1, exporters=_create_exporter(None))
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class TrainAndEvaluateTest(test.TestCase):
 
   def test_run_task(self):
@@ -383,7 +380,6 @@ class TrainAndEvaluateTest(test.TestCase):
       mock_executor.assert_not_called()
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class TrainingExecutorConstructorTest(test.TestCase):
   """Tests constructor of _TrainingExecutor."""
 
@@ -451,7 +447,6 @@ class TrainingExecutorConstructorTest(test.TestCase):
           continuous_eval_listener=invalid_continuous_eval_listener)
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class _TrainingExecutorTrainingTest(object):
   """Tests training of _TrainingExecutor."""
 
@@ -646,7 +641,6 @@ class _TrainingExecutorTrainingTest(object):
                                                 mock_eval_spec))
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class TrainingExecutorRunWorkerTest(_TrainingExecutorTrainingTest,
                                     test.TestCase):
   """Tests run_worker of _TrainingExecutor."""
@@ -674,7 +668,6 @@ class TrainingExecutorRunWorkerTest(_TrainingExecutorTrainingTest,
       self.assertTrue(mock_sleep.called)
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class TrainingExecutorRunChiefTest(_TrainingExecutorTrainingTest,
                                    test.TestCase):
   """Tests run_chief of _TrainingExecutor."""
@@ -700,7 +693,6 @@ class TrainingExecutorRunChiefTest(_TrainingExecutorTrainingTest,
       mock_sleep.assert_not_called()
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class TrainingExecutorRunMasterTest(test.TestCase):
   """Tests run_chief of _TrainingExecutor."""
 
@@ -1044,7 +1036,6 @@ class TrainingExecutorRunMasterTest(test.TestCase):
     self.assertEqual([False, True], is_final_export_list)
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class TrainingExecutorRunEvaluatorTest(test.TestCase):
   """Tests run_evaluator of _TrainingExecutor."""
 
@@ -1503,7 +1494,6 @@ class TrainingExecutorRunEvaluatorTest(test.TestCase):
       executor.run_evaluator()
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class TrainingExecutorRunPsTest(test.TestCase):
   """Tests run_ps of _TrainingExecutor."""
 
@@ -1623,7 +1613,6 @@ class StopAtSecsHookTest(test.TestCase):
         self.assertTrue(sess.should_stop())
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class TrainingExecutorRunLocalTest(test.TestCase):
   """Tests run_local of _TrainingExecutor."""
 
@@ -1940,7 +1929,6 @@ class TrainingExecutorRunLocalTest(test.TestCase):
     self.assertEqual(metrics['global_step'], 12)
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class TrainAndEvaluateRunTest(test.TestCase):
 
   def _test_run_task_and_executor(self, run_config):
@@ -2082,7 +2070,6 @@ class TrainAndEvaluateRunTest(test.TestCase):
       executor.run()
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class TrainAndEvaluateIntegrationTest(test.TestCase):
 
   def setUp(self):

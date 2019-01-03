@@ -26,7 +26,6 @@ from tensorflow.python.platform import test
 from tensorflow_estimator.python.estimator.canned import parsing_utils
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class ClassifierParseExampleSpec(test.TestCase):
   """Tests tf.estimator.classifier_parse_example_spec."""
 
@@ -113,7 +112,6 @@ class ClassifierParseExampleSpec(test.TestCase):
           weight_column=not_a_numeric_column)
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class RegressorParseExampleSpec(test.TestCase):
   """Tests tf.estimator.classifier_parse_example_spec."""
 

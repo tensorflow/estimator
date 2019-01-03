@@ -26,7 +26,6 @@ from tensorflow.python.platform import googletest
 from tensorflow_estimator.python.estimator.canned.linear_optimizer.python.utils.sharded_mutable_dense_hashtable import _ShardedMutableDenseHashTable
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class _ShardedMutableDenseHashTableTest(test_util.TensorFlowTestCase):
   """Tests for the ShardedMutableHashTable class."""
 

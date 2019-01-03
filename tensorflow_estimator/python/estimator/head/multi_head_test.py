@@ -36,7 +36,6 @@ from tensorflow_estimator.python.estimator.head import multi_label_head
 from tensorflow_estimator.python.estimator.head import regression_head
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class MultiHeadTest(test.TestCase):
 
   def test_no_heads(self):

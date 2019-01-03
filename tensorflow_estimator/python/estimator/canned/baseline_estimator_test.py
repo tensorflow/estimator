@@ -85,7 +85,6 @@ def _baseline_estimator_fn(weight_column=None,
       **kwargs)
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class BaselineEstimatorEvaluationTest(test.TestCase):
 
   def setUp(self):
@@ -180,7 +179,6 @@ class BaselineEstimatorEvaluationTest(test.TestCase):
     self.assertAlmostEqual(0, eval_metrics[metric_keys.MetricKeys.LOSS])
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class BaselineEstimatorPredictTest(test.TestCase):
 
   def setUp(self):
@@ -239,7 +237,6 @@ class BaselineEstimatorPredictTest(test.TestCase):
                         predicted_scores)
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class BaselineEstimatorIntegrationTest(test.TestCase):
 
   def setUp(self):
@@ -318,7 +315,6 @@ class BaselineEstimatorIntegrationTest(test.TestCase):
         prediction_length=prediction_length)
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class BaselineEstimatorTrainingTest(test.TestCase):
 
   def setUp(self):

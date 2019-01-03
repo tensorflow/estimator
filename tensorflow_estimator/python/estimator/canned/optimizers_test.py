@@ -36,7 +36,6 @@ class _TestOptimizer(optimizer_lib.Optimizer):
         use_locking=False, name='TestOptimizer')
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class GetOptimizerInstance(test.TestCase):
 
   def test_unsupported_name(self):

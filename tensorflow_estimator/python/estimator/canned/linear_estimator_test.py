@@ -51,7 +51,6 @@ def _linear_estimator_fn(
       **kwargs)
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class LinearEstimatorEvaluateTest(
     linear_testing_utils.BaseLinearRegressorEvaluationTest, test.TestCase):
 
@@ -61,7 +60,6 @@ class LinearEstimatorEvaluateTest(
         self, _linear_estimator_fn)
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class LinearEstimatorPredictTest(
     linear_testing_utils.BaseLinearRegressorPredictTest, test.TestCase):
 
@@ -71,7 +69,6 @@ class LinearEstimatorPredictTest(
         self, _linear_estimator_fn)
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class LinearEstimatorTrainTest(
     linear_testing_utils.BaseLinearRegressorTrainingTest, test.TestCase):
 
@@ -81,7 +78,6 @@ class LinearEstimatorTrainTest(
         self, _linear_estimator_fn)
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class LinearEstimatorIntegrationTest(test.TestCase):
 
   def setUp(self):

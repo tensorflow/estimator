@@ -68,7 +68,6 @@ def _dnn_only_estimator_fn(
       config=config)
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class DNNOnlyEstimatorEvaluateTest(
     dnn_testing_utils.BaseDNNRegressorEvaluateTest, test.TestCase):
 
@@ -78,7 +77,6 @@ class DNNOnlyEstimatorEvaluateTest(
         self, _dnn_only_estimator_fn)
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class DNNOnlyEstimatorPredictTest(
     dnn_testing_utils.BaseDNNRegressorPredictTest, test.TestCase):
 
@@ -88,7 +86,6 @@ class DNNOnlyEstimatorPredictTest(
         self, _dnn_only_estimator_fn)
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class DNNOnlyEstimatorTrainTest(
     dnn_testing_utils.BaseDNNRegressorTrainTest, test.TestCase):
 
@@ -121,7 +118,6 @@ def _linear_only_estimator_fn(
       linear_sparse_combiner=sparse_combiner)
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class LinearOnlyEstimatorEvaluateTest(
     linear_testing_utils.BaseLinearRegressorEvaluationTest, test.TestCase):
 
@@ -131,7 +127,6 @@ class LinearOnlyEstimatorEvaluateTest(
         self, _linear_only_estimator_fn)
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class LinearOnlyEstimatorPredictTest(
     linear_testing_utils.BaseLinearRegressorPredictTest, test.TestCase):
 
@@ -141,7 +136,6 @@ class LinearOnlyEstimatorPredictTest(
         self, _linear_only_estimator_fn)
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class LinearOnlyEstimatorTrainTest(
     linear_testing_utils.BaseLinearRegressorTrainingTest, test.TestCase):
 
@@ -151,7 +145,6 @@ class LinearOnlyEstimatorTrainTest(
         self, _linear_only_estimator_fn)
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class DNNLinearCombinedEstimatorIntegrationTest(test.TestCase):
 
   def setUp(self):

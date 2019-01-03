@@ -19,11 +19,9 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from tensorflow.python.eager import context
 from tensorflow.python.framework import constant_op
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import sparse_tensor
-from tensorflow.python.framework import test_util
 from tensorflow.python.keras import metrics
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.platform import test
@@ -46,7 +44,6 @@ class _InvalidScaffold(object):
   """Invalid scaffold (not a subclass of `Scaffold`)."""
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class EstimatorSpecTrainTest(test.TestCase):
   """Tests EstimatorSpec in train mode."""
 
@@ -203,7 +200,6 @@ class EstimatorSpecTrainTest(test.TestCase):
       self.assertIsNotNone(estimator_spec.scaffold)
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class EstimatorSpecEvalTest(test.TestCase):
   """Tests EstimatorSpec in eval mode."""
 
@@ -459,7 +455,6 @@ class EstimatorSpecEvalTest(test.TestCase):
             eval_metric_ops=eval_metric_ops)
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class EstimatorSpecInferTest(test.TestCase):
   """Tests EstimatorSpec in infer mode."""
 
@@ -642,7 +637,6 @@ class EstimatorSpecInferTest(test.TestCase):
     self.assertEqual(serving_output.outputs, expected)
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class LogitFnTest(test.TestCase):
 
   def test_simple_call_logit_fn(self):

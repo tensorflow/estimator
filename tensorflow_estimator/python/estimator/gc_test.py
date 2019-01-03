@@ -48,7 +48,6 @@ def _create_parser(base_dir):
   return parser
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class GcTest(test_util.TensorFlowTestCase):
 
   def testLargestExportVersions(self):

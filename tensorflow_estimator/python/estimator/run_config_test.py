@@ -73,7 +73,6 @@ def _create_run_config_with_cluster_spec(tf_config, **kwargs):
     return run_config_lib.RunConfig(**kwargs)
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class RunConfigTest(test.TestCase):
 
   def test_default_property_values(self):
@@ -241,7 +240,6 @@ class RunConfigTest(test.TestCase):
       run_config_lib.RunConfig(device_fn=lambda x: '/cpu:0')
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class RunConfigDistributedSettingTest(test.TestCase):
 
   def _assert_distributed_properties(self, run_config,
@@ -675,7 +673,6 @@ class RunConfigDistributedSettingTest(test.TestCase):
     self.assertEqual(2, run_config.global_id_in_cluster)
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class RunConfigDistributedSettingWithMasterTest(test.TestCase):
 
   def _assert_distributed_properties(self, run_config,
@@ -1009,7 +1006,6 @@ class RunConfigDistributedSettingWithMasterTest(test.TestCase):
     self.assertEqual(2, run_config.global_id_in_cluster)
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class RunConfigSaveCheckpointsTest(test.TestCase):
 
   def test_save_checkpoint(self):
@@ -1058,7 +1054,6 @@ class RunConfigSaveCheckpointsTest(test.TestCase):
     self.assertIsNone(config_without_ckpt.save_checkpoints_secs)
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class RunConfigServiceKeyTest(test.TestCase):
 
   def test_arbitrary_key_value_pairs(self):
@@ -1087,7 +1082,6 @@ class RunConfigServiceKeyTest(test.TestCase):
       _create_run_config_with_cluster_spec(tf_config)
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class RunConfigModelDirTest(test.TestCase):
 
   def test_default(self):
@@ -1128,7 +1122,6 @@ class RunConfigModelDirTest(test.TestCase):
       _create_run_config_with_cluster_spec(tf_config)
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class RunConfigSessionConfigTest(test.TestCase):
 
   def _assert_equal_session_config(self, session_config,

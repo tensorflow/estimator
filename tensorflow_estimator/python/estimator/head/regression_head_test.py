@@ -46,7 +46,6 @@ from tensorflow_estimator.python.estimator.head import regression_head as head_l
 from tensorflow_estimator.python.estimator.inputs import numpy_io
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class RegressionHead(test.TestCase):
 
   def test_invalid_label_dimension(self):
@@ -1502,7 +1501,6 @@ class RegressionHeadForEstimator(test.TestCase):
       })
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class PoissonRegressionHead(test.TestCase):
 
   def test_train(self):
@@ -1570,7 +1568,6 @@ class PoissonRegressionHead(test.TestCase):
     self.assertAllClose(logits, self.evaluate(preds[keys.LOGITS]))
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class LogisticRegressionHead(test.TestCase):
 
   def test_train(self):

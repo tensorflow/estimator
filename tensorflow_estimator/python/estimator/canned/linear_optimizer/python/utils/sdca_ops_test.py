@@ -216,7 +216,7 @@ def get_binary_predictions_for_hinge(predictions):
 
 
 # TODO(pmol): Refactor tests to avoid repetition of boilerplate code.
-@test_util.run_all_in_graph_and_eager_modes
+
 class _SDCAModelTest(TensorFlowTestCase):
   """Base SDCA optimizer test class for any loss type."""
 
@@ -1329,7 +1329,6 @@ class SdcaWithPoissonLossTest(_SDCAModelTest):
       self.assertAllClose(0., approximate_duality_gap.eval(), atol=1e-6)
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class SdcaFprintTest(_SDCAModelTest):
   """Tests for the SdcaFprint op.
 
@@ -1350,7 +1349,6 @@ class SdcaFprintTest(_SDCAModelTest):
                           self.evaluate(out_data))
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class _SparseFeatureColumnTest(TensorFlowTestCase):
   """Tests for _SparseFeatureColumn.
   """

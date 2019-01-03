@@ -47,7 +47,6 @@ from tensorflow_estimator.python.estimator.head import binary_class_head as head
 from tensorflow_estimator.python.estimator.head import head_utils as test_lib
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class BinaryClassHeadTest(test.TestCase):
 
   def test_threshold_too_small(self):

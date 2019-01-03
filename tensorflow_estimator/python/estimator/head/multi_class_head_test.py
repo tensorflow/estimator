@@ -45,7 +45,6 @@ from tensorflow_estimator.python.estimator.head import head_utils as test_lib
 from tensorflow_estimator.python.estimator.head import multi_class_head as head_lib
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class MultiClassHead(test.TestCase):
 
   def test_n_classes_is_none(self):

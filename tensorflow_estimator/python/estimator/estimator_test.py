@@ -114,7 +114,6 @@ def get_mock_saver():
   return test.mock.Mock(wraps=real_saver, saver_def=real_saver.saver_def)
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class EstimatorInheritanceConstraintTest(test.TestCase):
   """Tests that sub classes cannot override methods of Estimator."""
 
@@ -159,7 +158,6 @@ class EstimatorInheritanceConstraintTest(test.TestCase):
     _Estimator()
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class EstimatorConstructorTest(test.TestCase):
 
   def test_config_must_be_a_run_config(self):
@@ -405,7 +403,6 @@ def _make_input_fn(features, labels):
   return _input_fn
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class EstimatorTrainTest(test.TestCase):
 
   def test_callable_model_fn(self):
@@ -1152,7 +1149,6 @@ class _StepCounterHook(session_run_hook.SessionRunHook):
     return self._steps
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class EstimatorGetVariablesTest(test.TestCase):
 
   def test_model_should_be_trained(self):
@@ -1190,7 +1186,6 @@ class EstimatorGetVariablesTest(test.TestCase):
     self.assertEqual(3., est.get_variable_value('three'))
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class EstimatorDatasetIntegrationTest(test.TestCase):
   """Tests dataset integration."""
 
@@ -1265,7 +1260,6 @@ class EstimatorDatasetIntegrationTest(test.TestCase):
     self.assertEqual([1., 2.], list(est.predict(_input_fn)))
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class EstimatorEvaluateTest(test.TestCase):
 
   def test_eval_dir(self):
@@ -1709,7 +1703,6 @@ class EstimatorEvaluateTest(test.TestCase):
         self.assertTrue(value.HasField('tensor'))
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class EstimatorPredictTest(test.TestCase):
 
   def test_input_fn_args(self):
@@ -2257,7 +2250,6 @@ _VOCAB_FILE_CONTENT = 'emerson\nlake\npalmer\n'
 _EXTRA_FILE_CONTENT = 'kermit\npiggy\nralph\n'
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class EstimatorExportTest(test.TestCase):
 
   def test_export_saved_model_proto_roundtrip_raw_receiver(self):
@@ -3209,7 +3201,6 @@ class EstimatorExportTest(test.TestCase):
         self.assertEqual(sig_outputs['output'].name, 'Const:0')
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class EstimatorHookOrderingTest(test.TestCase):
 
   def testCustomHooksAreCalledBeforeNanTensorHook(self):
@@ -3251,7 +3242,6 @@ class EstimatorHookOrderingTest(test.TestCase):
     self.assertEqual(2, test_hook.after_run_count)
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class EstimatorIntegrationTest(test.TestCase):
 
   def test_complete_flow_with_a_simple_linear_model(self):

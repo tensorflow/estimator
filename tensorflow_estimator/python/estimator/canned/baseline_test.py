@@ -130,7 +130,7 @@ def _baseline_classifier_fn(*args, **kwargs):
 
 
 # TODO(b/36813849): Add tests with dynamic shape inputs using placeholders.
-@test_util.run_all_in_graph_and_eager_modes
+
 class BaselineRegressorEvaluationTest(test.TestCase):
 
   def setUp(self):
@@ -245,7 +245,6 @@ class BaselineRegressorEvaluationTest(test.TestCase):
     self.assertAlmostEqual(0, eval_metrics[metric_keys.MetricKeys.LOSS])
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class BaselineRegressorPredictTest(test.TestCase):
 
   def setUp(self):
@@ -304,7 +303,6 @@ class BaselineRegressorPredictTest(test.TestCase):
                         predicted_scores)
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class BaselineRegressorIntegrationTest(test.TestCase):
 
   def setUp(self):
@@ -469,7 +467,6 @@ class BaselineRegressorIntegrationTest(test.TestCase):
         prediction_length=prediction_length)
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class BaselineRegressorTrainingTest(test.TestCase):
 
   def setUp(self):
@@ -676,7 +673,6 @@ class BaselineRegressorTrainingTest(test.TestCase):
 # Tests for Baseline Classifier.
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class BaselineClassifierTrainingTest(test.TestCase):
 
   def setUp(self):
@@ -1051,7 +1047,6 @@ class BaselineClassifierTrainingTest(test.TestCase):
     self._testFromCheckpointMultiBatch(n_classes=4)
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class BaselineClassifierEvaluationTest(test.TestCase):
 
   def setUp(self):
@@ -1266,7 +1261,6 @@ class BaselineClassifierEvaluationTest(test.TestCase):
     self._test_evaluation_weights(n_classes=4)
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class BaselineClassifierPredictTest(test.TestCase):
 
   def setUp(self):
@@ -1363,7 +1357,6 @@ class BaselineClassifierPredictTest(test.TestCase):
         label_output_fn=lambda x: ('class_vocab_%s' % x).encode())
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class BaselineClassifierIntegrationTest(test.TestCase):
 
   def setUp(self):
@@ -1548,7 +1541,6 @@ class BaselineClassifierIntegrationTest(test.TestCase):
 # Tests for Baseline logit_fn.
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class BaselineLogitFnTest(test.TestCase):
 
   def test_basic_logit_correctness(self):

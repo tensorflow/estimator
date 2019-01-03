@@ -44,7 +44,6 @@ def vals_to_list(a):
   }
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class _FeedingFunctionsTestCase(test.TestCase):
   """Tests for feeding functions."""
 
