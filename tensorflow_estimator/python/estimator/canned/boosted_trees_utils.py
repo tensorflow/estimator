@@ -18,8 +18,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import collections
-
 import numpy as np
 
 from tensorflow.core.kernels.boosted_trees import boosted_trees_pb2
@@ -37,22 +35,24 @@ def _parse_debug_proto_string(example_proto_serialized):
   return feature_ids, logits_path
 
 
-def _compute_directional_feature_contributions(
-    example_feature_ids, example_logits_paths, activation, feature_col_names):
+def _compute_directional_feature_contributions(example_feature_ids,
+                                               example_logits_paths, activation,
+                                               num_bucketized_features):
   """Directional feature contributions and bias, per example."""
   # Initialize contributions to 0.
-  num_features = len(feature_col_names)
+  dfcs = {k: 0 for k in range(num_bucketized_features)}
+
   # Traverse tree subtracting child prediction from parent prediction and
   # associating change with feature id used to split.
   predictions = np.array(activation(example_logits_paths))
   delta_pred = predictions[_BIAS_ID + 1:] - predictions[:-1]
   # Group by feature id, then sum delta_pred.
   contribs = np.bincount(
-      example_feature_ids, weights=delta_pred, minlength=num_features)
-  dfcs = {}
-  for f, dfc in zip(range(num_features), contribs):
-    dfcs[f] = dfcs.setdefault(f, 0) + dfc
-  dfcs = _sum_by_feature_col_name_and_sort(feature_col_names, contribs)
+      example_feature_ids,
+      weights=delta_pred,
+      minlength=num_bucketized_features)
+  for f, dfc in zip(range(num_bucketized_features), contribs):
+    dfcs[f] = dfc
   return predictions[_BIAS_ID], dfcs
 
 
@@ -66,28 +66,15 @@ def _sigmoid(logits):
 
 
 def _parse_explanations_from_prediction(serialized_debug_proto,
-                                        feature_col_names,
+                                        n_features,
                                         classification=False):
   """Parse serialized explanability proto, compute dfc, and return bias, dfc."""
-  example_feature_ids, example_logits_path = _parse_debug_proto_string(
-      serialized_debug_proto)
+  feature_ids, logits_path = _parse_debug_proto_string(serialized_debug_proto)
   if classification:
     activation = _sigmoid
   else:
     activation = _identity
   bias, dfcs = _compute_directional_feature_contributions(
-      example_feature_ids, example_logits_path, activation, feature_col_names)
+      feature_ids, logits_path, activation, n_features)
   # TODO(crawles): Prediction path and leaf IDs.
   return bias, dfcs
-
-
-def _sum_by_feature_col_name_and_sort(names, vals):
-  """Group by feature column names, sum values, and sort by absolute value."""
-  sum_by_dict = {}
-  # Groupby and sum.
-  for name, val in zip(names, vals):
-    sum_by_dict[name] = sum_by_dict.setdefault(name, 0) + val
-  # Then sort.
-  sorted_sum_by = sorted(
-      sum_by_dict.items(), key=lambda tup: abs(tup[1]), reverse=True)
-  return collections.OrderedDict(sorted_sum_by)

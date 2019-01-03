@@ -17,8 +17,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import collections
-
 import numpy as np
 
 from tensorflow.core.kernels.boosted_trees import boosted_trees_pb2
@@ -475,28 +473,28 @@ class BoostedTreesDebugOutputTest(test_util.TensorFlowTestCase):
     biases, dfcs = zip(*[(pred['bias'], pred['dfc'])
                          for pred in debug_predictions])
     self.assertAllClose([1.8] * 5, biases)
-    expected_dfcs = (collections.OrderedDict(
-        (('f_1_bucketized', -0.09500002861022949),
-         ('f_0_bucketized', -0.07049942016601562), ('f_2_bucketized', 0.0))),
-                     collections.OrderedDict(
-                         (('f_0_bucketized', -0.5376303195953369),
-                          ('f_1_bucketized',
-                           0.06333339214324951), ('f_2_bucketized', 0.0))),
-                     collections.OrderedDict(
-                         (('f_0_bucketized', -0.5175694227218628),
-                          ('f_1_bucketized',
-                           -0.09500002861022949), ('f_2_bucketized', 0.0))),
-                     collections.OrderedDict(
-                         (('f_0_bucketized', 0.1563495397567749),
-                          ('f_1_bucketized',
-                           0.06333339214324951), ('f_2_bucketized', 0.0))),
-                     collections.OrderedDict(
-                         (('f_0_bucketized', 0.96934974193573),
-                          ('f_1_bucketized',
-                           0.06333339214324951), ('f_2_bucketized', 0.0))))
-    for expected, dfc in zip(expected_dfcs, dfcs):
-      self.assertAllEqual(expected.keys(), dfc.keys())
-      self.assertAllClose(expected.values(), dfc.values())
+    self.assertAllClose(({
+        0: -0.070499420166015625,
+        1: -0.095000028610229492,
+        2: 0.0
+    }, {
+        0: -0.53763031959533691,
+        1: 0.063333392143249512,
+        2: 0.0
+    }, {
+        0: -0.51756942272186279,
+        1: -0.095000028610229492,
+        2: 0.0
+    }, {
+        0: 0.1563495397567749,
+        1: 0.063333392143249512,
+        2: 0.0
+    }, {
+        0: 0.96934974193572998,
+        1: 0.063333392143249512,
+        2: 0.0
+    }), dfcs)
+
     # Assert sum(dfcs) + bias == predictions.
     expected_predictions = [[1.6345005], [1.32570302], [1.1874305],
                             [2.01968288], [2.83268309]]
