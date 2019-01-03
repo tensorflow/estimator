@@ -58,7 +58,6 @@ setuptools.setup(
     url='https://www.tensorflow.org/',
     download_url='https://github.com/tensorflow/estimator/tags',
     author='Google Inc.',
-    author_email='opensource@google.com',
     packages=setuptools.find_packages(),
     install_requires=REQUIRED_PACKAGES,
     # PyPI package information.
