@@ -690,6 +690,7 @@ class EstimatorTrainTest(test.TestCase):
         5, estimator._load_global_step_from_checkpoint_dir(
             warm_started_est.model_dir))
 
+  @test_util.run_v1_only('estimator.export_saved_model is not v2 ready')
   def test_warm_starts_from_savedmodel(self):
     def _make_model_fn(x):
       def _variable_creating_and_export_model_fn(features, labels, mode):
@@ -1330,6 +1331,7 @@ class EstimatorEvaluateTest(test.TestCase):
     self.assertEqual(3., scores['mean1'])
     self.assertEqual(3., scores['mean2'])
 
+  @test_util.run_v1_only('estimator.export_saved_model is not v2 ready')
   def test_no_checkpoint_uses_init_with_warm_starting(self):
     def _make_model_fn(x):
       def _variable_creating_and_export_model_fn(features, labels, mode):
@@ -1514,6 +1516,7 @@ class EstimatorEvaluateTest(test.TestCase):
         dummy_input_fn, steps=1, checkpoint_path=est1.latest_checkpoint())
     self.assertEqual(5, scores['global_step'])
 
+  @test_util.run_v1_only('VariableV1 is only exported in v1')
   def test_wrong_shape_throws_reasonable_error(self):
     """Make sure we are helpful when model_fns change. See b/110263146."""
     def _get_model_fn(val=1):
@@ -1744,6 +1747,7 @@ class EstimatorPredictTest(test.TestCase):
     # initialized (since there is no checkpoint).
     self.assertEqual(4., next(est.predict(dummy_input_fn)))
 
+  @test_util.run_v1_only('estimator.export_saved_model is not v2 ready')
   def test_no_checkpoint_uses_init_with_warm_starting(self):
     def _make_model_fn(x):
       def _variable_creating_and_export_model_fn(features, labels, mode):
@@ -2250,6 +2254,7 @@ _VOCAB_FILE_CONTENT = 'emerson\nlake\npalmer\n'
 _EXTRA_FILE_CONTENT = 'kermit\npiggy\nralph\n'
 
 
+@test_util.run_v1_only("estimator.export_saved_model is not v2 ready")
 class EstimatorExportTest(test.TestCase):
 
   def test_export_saved_model_proto_roundtrip_raw_receiver(self):
