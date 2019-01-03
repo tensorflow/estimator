@@ -217,6 +217,7 @@ def get_binary_predictions_for_hinge(predictions):
 
 # TODO(pmol): Refactor tests to avoid repetition of boilerplate code.
 
+
 class _SDCAModelTest(TensorFlowTestCase):
   """Base SDCA optimizer test class for any loss type."""
 
@@ -226,7 +227,8 @@ class _SDCAModelTest(TensorFlowTestCase):
     return self.test_session(use_gpu=False, config=config)
 
 
-@test_util.run_deprecated_v1  # ResourceVariable only runs in graph mode
+# ResourceVariable only runs in graph mode
+@test_util.deprecated_graph_mode_only
 class SdcaWithLogisticLossTest(_SDCAModelTest):
   """SDCA optimizer test class for logistic loss."""
 
@@ -440,6 +442,7 @@ class SdcaWithLogisticLossTest(_SDCAModelTest):
                                    'Duplicate'):
         train_op.run()
 
+  @test_util.run_v1_only('b/122315870')
   def testDistributedSimple(self):
     # Distributed SDCA may not converge if the workers update concurrently the
     # same example. In this test the examples are partitioned across workers.
@@ -837,7 +840,8 @@ class SdcaWithLogisticLossTest(_SDCAModelTest):
   # epoch are repeated, since example id may be duplicated.
 
 
-@test_util.run_deprecated_v1  # ResourceVariable only runs in graph mode
+# ResourceVariable only runs in graph mode
+@test_util.deprecated_graph_mode_only
 class SdcaWithLinearLossTest(_SDCAModelTest):
   """SDCA optimizer test class for linear (squared) loss."""
 
@@ -1075,7 +1079,8 @@ class SdcaWithLinearLossTest(_SDCAModelTest):
       self.assertAllClose(2175.0 / 270.0, loss.eval(), atol=0.01)
 
 
-@test_util.run_deprecated_v1  # ResourceVariable only runs in graph mode
+# ResourceVariable only runs in graph mode
+@test_util.deprecated_graph_mode_only
 class SdcaWithHingeLossTest(_SDCAModelTest):
   """SDCA optimizer test class for hinge loss."""
 
@@ -1224,7 +1229,8 @@ class SdcaWithHingeLossTest(_SDCAModelTest):
       self.assertAllClose(0.4, regularized_loss.eval(), atol=0.02)
 
 
-@test_util.run_deprecated_v1  # ResourceVariable only runs in graph mode
+# ResourceVariable only runs in graph mode
+@test_util.deprecated_graph_mode_only
 class SdcaWithSmoothHingeLossTest(_SDCAModelTest):
   """SDCA optimizer test class for smooth hinge loss."""
 
@@ -1276,7 +1282,8 @@ class SdcaWithSmoothHingeLossTest(_SDCAModelTest):
       self.assertAllClose(0.44, regularized_loss.eval(), atol=0.02)
 
 
-@test_util.run_deprecated_v1  # ResourceVariable only runs in graph mode
+# ResourceVariable only runs in graph mode
+@test_util.deprecated_graph_mode_only
 class SdcaWithPoissonLossTest(_SDCAModelTest):
   """SDCA optimizer test class for poisson loss."""
 
