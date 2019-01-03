@@ -22,12 +22,14 @@ from __future__ import print_function
 import numpy as np
 
 from tensorflow.python.data.ops import dataset_ops
-from tensorflow_estimator.python.estimator import util
 from tensorflow.python.framework import constant_op
+from tensorflow.python.framework import test_util
 from tensorflow.python.platform import test
 from tensorflow.python.training import training
+from tensorflow_estimator.python.estimator import util
 
 
+@test_util.deprecated_graph_mode_only
 class UtilTest(test.TestCase):
   """Tests for miscellaneous Estimator utils."""
 
