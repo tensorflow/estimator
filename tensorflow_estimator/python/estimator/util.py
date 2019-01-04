@@ -22,6 +22,7 @@ from __future__ import print_function
 import os
 import time
 
+from tensorflow.python.data.ops import dataset_ops
 from tensorflow.python.platform import gfile
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.training import training
@@ -98,14 +99,9 @@ def parse_input_fn_result(result):
     ValueError: if the result is a list or tuple of length != 2.
   """
   input_hooks = []
-  try:
-    # We can't just check whether this is a tf.data.Dataset instance here,
-    # as this is plausibly a PerDeviceDataset. Try treating as a dataset first.
-    iterator = result.make_initializable_iterator()
-  except AttributeError:
-    # Not a dataset or dataset-like-object. Move along.
-    pass
-  else:
+  if hasattr(result, 'make_initializable_iterator') or isinstance(
+      result, dataset_ops.DatasetV2):
+    iterator = dataset_ops.make_initializable_iterator(result)
     input_hooks.append(_DatasetInitializerHook(iterator))
     result = iterator.get_next()
   return parse_iterator_result(result) + (input_hooks,)

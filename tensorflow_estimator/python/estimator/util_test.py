@@ -19,10 +19,12 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+from absl.testing import parameterized
 import numpy as np
 
 from tensorflow.python.data.ops import dataset_ops
 from tensorflow.python.framework import constant_op
+from tensorflow.python.framework import ops
 from tensorflow.python.framework import test_util
 from tensorflow.python.platform import test
 from tensorflow.python.training import training
@@ -30,7 +32,7 @@ from tensorflow_estimator.python.estimator import util
 
 
 @test_util.deprecated_graph_mode_only
-class UtilTest(test.TestCase):
+class UtilTest(test.TestCase, parameterized.TestCase):
   """Tests for miscellaneous Estimator utils."""
 
   def test_parse_input_fn_result_tuple(self):
@@ -48,13 +50,43 @@ class UtilTest(test.TestCase):
     self.assertAllEqual(vals[1], np.arange(100, 200))
     self.assertEqual(hooks, [])
 
-  def test_parse_input_fn_result_dataset(self):
+  @parameterized.named_parameters(('DatasetV1', dataset_ops.DatasetV1),
+                                  ('DatasetV2', dataset_ops.DatasetV2))
+  def test_parse_input_fn_result_dataset(self, dataset_class):
+
     def _input_fn():
       features = np.expand_dims(np.arange(100), 0)
       labels = np.expand_dims(np.arange(100, 200), 0)
-      return dataset_ops.Dataset.from_tensor_slices((features, labels))
+      return dataset_class.from_tensor_slices((features, labels))
 
     features, labels, hooks = util.parse_input_fn_result(_input_fn())
+
+    with training.MonitoredSession(hooks=hooks) as sess:
+      vals = sess.run([features, labels])
+
+    self.assertAllEqual(vals[0], np.arange(100))
+    self.assertAllEqual(vals[1], np.arange(100, 200))
+    self.assertIsInstance(hooks[0], util._DatasetInitializerHook)
+
+  def test_parse_input_fn_result_mimic_dataset(self):
+
+    class MimicIterator(object):
+
+      @property
+      def initializer(self):
+        return {}
+
+      def get_next(self):
+        features = np.arange(100)
+        labels = np.arange(100, 200)
+        return ops.convert_to_tensor(features), ops.convert_to_tensor(labels)
+
+    class MimicDataset(object):
+
+      def make_initializable_iterator(self):
+        return MimicIterator()
+
+    features, labels, hooks = util.parse_input_fn_result(MimicDataset())
 
     with training.MonitoredSession(hooks=hooks) as sess:
       vals = sess.run([features, labels])
@@ -76,10 +108,13 @@ class UtilTest(test.TestCase):
     self.assertEqual(labels, None)
     self.assertEqual(hooks, [])
 
-  def test_parse_input_fn_result_features_only_dataset(self):
+  @parameterized.named_parameters(('DatasetV1', dataset_ops.DatasetV1),
+                                  ('DatasetV2', dataset_ops.DatasetV2))
+  def test_parse_input_fn_result_features_only_dataset(self, dataset_class):
+
     def _input_fn():
       features = np.expand_dims(np.arange(100), 0)
-      return dataset_ops.Dataset.from_tensor_slices(features)
+      return dataset_class.from_tensor_slices(features)
 
     features, labels, hooks = util.parse_input_fn_result(_input_fn())
 
@@ -90,11 +125,14 @@ class UtilTest(test.TestCase):
     self.assertEqual(labels, None)
     self.assertIsInstance(hooks[0], util._DatasetInitializerHook)
 
-  def test_parse_input_fn_result_invalid(self):
+  @parameterized.named_parameters(('DatasetV1', dataset_ops.DatasetV1),
+                                  ('DatasetV2', dataset_ops.DatasetV2))
+  def test_parse_input_fn_result_invalid(self, dataset_class):
+
     def _input_fn():
       features = np.expand_dims(np.arange(100), 0)
       labels = np.expand_dims(np.arange(100, 200), 0)
-      return dataset_ops.Dataset.from_tensor_slices((features, labels, labels))
+      return dataset_class.from_tensor_slices((features, labels, labels))
 
     with self.assertRaisesRegexp(ValueError, 'input_fn should return'):
       util.parse_input_fn_result(_input_fn())
