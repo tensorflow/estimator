@@ -148,16 +148,10 @@ class MultiHostDatasetInitializerHook(training.SessionRunHook):
 class StrategyInitFinalizeHook(training.SessionRunHook):
   """Creates a SessionRunHook that initializes and shutsdown devices."""
 
-  def __init__(self, initialization_fn, finalize_fn):
+  def __init__(self, initialization_fn):
     self._initialization_fn = initialization_fn
-    self._finalize_fn = finalize_fn
 
   def begin(self):
     # We only create the init ops, but don't run it. We rely on SessionManager
     # to run it for us.
     self._init_ops = self._initialization_fn()
-    self._finalize_ops = self._finalize_fn()
-
-  def end(self, session):
-    logging.info('Finalize strategy.')
-    session.run(self._finalize_ops)
