@@ -99,6 +99,8 @@ def parse_input_fn_result(result):
     ValueError: if the result is a list or tuple of length != 2.
   """
   input_hooks = []
+  # Treat any object that has a `make_initializable_iterator` method, such as
+  # PerReplicaDataset, or is an instance of DatasetV2 as a dataset object.
   if hasattr(result, 'make_initializable_iterator') or isinstance(
       result, dataset_ops.DatasetV2):
     iterator = dataset_ops.make_initializable_iterator(result)
