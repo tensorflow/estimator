@@ -19,7 +19,7 @@ from __future__ import division
 from __future__ import print_function
 
 import six
-
+import inspect
 
 from tensorflow.python.training import adagrad
 from tensorflow.python.training import adam
@@ -36,6 +36,10 @@ _OPTIMIZER_CLS_NAMES = {
     'RMSProp': rmsprop.RMSPropOptimizer,
     'SGD': gradient_descent.GradientDescentOptimizer,
 }
+
+# The default learning rate of 0.05 is a historical artifact of the initial
+# implementation, but seems a reasonable choice.
+_LEARNING_RATE = 0.05
 
 
 def get_optimizer_instance(opt, learning_rate=None):
@@ -68,6 +72,58 @@ def get_optimizer_instance(opt, learning_rate=None):
     if opt in six.iterkeys(_OPTIMIZER_CLS_NAMES):
       if not learning_rate:
         raise ValueError('learning_rate must be specified when opt is string.')
+      return _OPTIMIZER_CLS_NAMES[opt](learning_rate=learning_rate)
+    raise ValueError(
+        'Unsupported optimizer name: {}. Supported names are: {}'.format(
+            opt, tuple(sorted(six.iterkeys(_OPTIMIZER_CLS_NAMES)))))
+  if callable(opt):
+    opt = opt()
+  if not isinstance(opt, optimizer_lib.Optimizer):
+    raise ValueError(
+        'The given object is not an Optimizer instance. Given: {}'.format(opt))
+  return opt
+
+
+def _optimizer_has_default_learning_rate(opt):
+  signature = inspect.getargspec(opt.__init__)
+  default_name_to_value = dict(zip(signature.args[::-1], signature.defaults))
+  return 'learning_rate' in default_name_to_value
+
+
+def get_optimizer_instance_v2(opt, learning_rate=None):
+  """Returns an optimizer instance.
+
+  Supports the following types for the given `opt`:
+  * An `Optimizer` instance: Returns the given `opt`.
+  * A string: Creates an `Optimizer` subclass with the given `learning_rate`.
+    Supported strings:
+    * 'Adagrad': Returns an `AdagradOptimizer`.
+    * 'Adam': Returns an `AdamOptimizer`.
+    * 'Ftrl': Returns an `FtrlOptimizer`.
+    * 'RMSProp': Returns an `RMSPropOptimizer`.
+    * 'SGD': Returns a `GradientDescentOptimizer`.
+
+  Args:
+    opt: An `Optimizer` instance, or string, as discussed above.
+    learning_rate: A float. Only used if `opt` is a string. If None, and opt is
+      string, it will use the default learning_rate of the optimizer.
+
+  Returns:
+    An `Optimizer` instance.
+
+  Raises:
+    ValueError: If `opt` is an unsupported string.
+    ValueError: If `opt` is a supported string but `learning_rate` was not
+      specified.
+    ValueError: If `opt` is none of the above types.
+  """
+  if isinstance(opt, six.string_types):
+    if opt in six.iterkeys(_OPTIMIZER_CLS_NAMES):
+      if not learning_rate:
+        if _optimizer_has_default_learning_rate(_OPTIMIZER_CLS_NAMES[opt]):
+          return _OPTIMIZER_CLS_NAMES[opt]()
+        else:
+          return _OPTIMIZER_CLS_NAMES[opt](learning_rate=_LEARNING_RATE)
       return _OPTIMIZER_CLS_NAMES[opt](learning_rate=learning_rate)
     raise ValueError(
         'Unsupported optimizer name: {}. Supported names are: {}'.format(

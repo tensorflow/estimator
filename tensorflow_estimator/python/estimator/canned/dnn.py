@@ -212,69 +212,34 @@ class _DNNModel(training.Model):
     setattr(self, layer_name, layer)
 
 
-def _dnn_model_fn(features,
-                  labels,
-                  mode,
-                  head,
-                  hidden_units,
-                  feature_columns,
-                  optimizer='Adagrad',
-                  activation_fn=nn.relu,
-                  dropout=None,
-                  input_layer_partitioner=None,
-                  config=None,
-                  use_tpu=False,
-                  batch_norm=False):
-  """Deep Neural Net model_fn.
+def _dnn_model_fn_core(features,
+                       labels,
+                       mode,
+                       head,
+                       hidden_units,
+                       feature_columns,
+                       optimizer,
+                       activation_fn=nn.relu,
+                       dropout=None,
+                       input_layer_partitioner=None,
+                       config=None,
+                       use_tpu=False,
+                       batch_norm=False):
 
-  Args:
-    features: dict of `Tensor`.
-    labels: `Tensor` of shape [batch_size, 1] or [batch_size] labels of
-      dtype `int32` or `int64` in the range `[0, n_classes)`.
-    mode: Defines whether this is training, evaluation or prediction.
-      See `ModeKeys`.
-    head: A `head_lib._Head` instance.
-    hidden_units: Iterable of integer number of hidden units per layer.
-    feature_columns: Iterable of `feature_column._FeatureColumn` model inputs.
-    optimizer: String, `tf.Optimizer` object, or callable that creates the
-      optimizer to use for training. If not specified, will use the Adagrad
-      optimizer with a default learning rate of 0.05.
-    activation_fn: Activation function applied to each layer.
-    dropout: When not `None`, the probability we will drop out a given
-      coordinate.
-    input_layer_partitioner: Partitioner for input layer. Defaults
-      to `min_max_variable_partitioner` with `min_slice_size` 64 << 20.
-    config: `RunConfig` object to configure the runtime settings.
-    use_tpu: Whether to make a DNN model able to run on TPU. Will make function
-      return a `_TPUEstimatorSpec` instance and disable variable partitioning.
-    batch_norm: Whether to use batch normalization after each hidden layer.
-
-  Returns:
-    An `EstimatorSpec` instance.
-
-  Raises:
-    ValueError: If features has the wrong type.
-  """
   if not isinstance(features, dict):
     raise ValueError('features should be a dictionary of `Tensor`s. '
                      'Given type: {}'.format(type(features)))
 
-  optimizer = optimizers.get_optimizer_instance(
-      optimizer, learning_rate=_LEARNING_RATE)
   num_ps_replicas = config.num_ps_replicas if config else 0
 
   partitioner = (None if use_tpu else
                  partitioned_variables.min_max_variable_partitioner(
                      max_partitions=num_ps_replicas))
   with variable_scope.variable_scope(
-      'dnn',
-      values=tuple(six.itervalues(features)),
-      partitioner=partitioner):
+      'dnn', values=tuple(six.itervalues(features)), partitioner=partitioner):
     input_layer_partitioner = input_layer_partitioner or (
-        None if use_tpu else
-        partitioned_variables.min_max_variable_partitioner(
-            max_partitions=num_ps_replicas,
-            min_slice_size=64 << 20))
+        None if use_tpu else partitioned_variables.min_max_variable_partitioner(
+            max_partitions=num_ps_replicas, min_slice_size=64 << 20))
 
     logit_fn = dnn_logit_fn_builder(
         units=head.logits_dimension,
@@ -300,6 +265,133 @@ def _dnn_model_fn(features,
           labels=labels,
           optimizer=optimizer,
           logits=logits)
+
+
+def _dnn_model_fn(features,
+                  labels,
+                  mode,
+                  head,
+                  hidden_units,
+                  feature_columns,
+                  optimizer='Adagrad',
+                  activation_fn=nn.relu,
+                  dropout=None,
+                  input_layer_partitioner=None,
+                  config=None,
+                  use_tpu=False,
+                  batch_norm=False):
+  """Deep Neural Net model_fn v1.
+
+  Args:
+    features: dict of `Tensor`.
+    labels: `Tensor` of shape [batch_size, 1] or [batch_size] labels of dtype
+      `int32` or `int64` in the range `[0, n_classes)`.
+    mode: Defines whether this is training, evaluation or prediction. See
+      `ModeKeys`.
+    head: A `head_lib._Head` instance.
+    hidden_units: Iterable of integer number of hidden units per layer.
+    feature_columns: Iterable of `feature_column._FeatureColumn` model inputs.
+    optimizer: String, `tf.Optimizer` object, or callable that creates the
+      optimizer to use for training. If not specified, will use the Adagrad
+      optimizer with a default learning rate of 0.05.
+    activation_fn: Activation function applied to each layer.
+    dropout: When not `None`, the probability we will drop out a given
+      coordinate.
+    input_layer_partitioner: Partitioner for input layer. Defaults to
+      `min_max_variable_partitioner` with `min_slice_size` 64 << 20.
+    config: `RunConfig` object to configure the runtime settings.
+    use_tpu: Whether to make a DNN model able to run on TPU. Will make function
+      return a `_TPUEstimatorSpec` instance and disable variable partitioning.
+    batch_norm: Whether to use batch normalization after each hidden layer.
+
+  Returns:
+    An `EstimatorSpec` instance.
+
+  Raises:
+    ValueError: If features has the wrong type.
+  """
+
+  optimizer = optimizers.get_optimizer_instance(
+      optimizer, learning_rate=_LEARNING_RATE)
+
+  return _dnn_model_fn_core(
+      features,
+      labels,
+      mode,
+      head,
+      hidden_units,
+      feature_columns,
+      optimizer=optimizer,
+      activation_fn=activation_fn,
+      dropout=dropout,
+      input_layer_partitioner=input_layer_partitioner,
+      use_tpu=use_tpu,
+      batch_norm=batch_norm)
+
+
+def _dnn_model_fn_v2(features,
+                     labels,
+                     mode,
+                     head,
+                     hidden_units,
+                     feature_columns,
+                     optimizer='Adagrad',
+                     activation_fn=nn.relu,
+                     dropout=None,
+                     input_layer_partitioner=None,
+                     config=None,
+                     use_tpu=False,
+                     batch_norm=False):
+  """Deep Neural Net model_fn v2.
+
+  This function is different than _dnn_model_fn_v1 in the way it handles the
+  optimizer when a String optimizer name is passed.
+
+  Args:
+    features: dict of `Tensor`.
+    labels: `Tensor` of shape [batch_size, 1] or [batch_size] labels of dtype
+      `int32` or `int64` in the range `[0, n_classes)`.
+    mode: Defines whether this is training, evaluation or prediction. See
+      `ModeKeys`.
+    head: A `head_lib._Head` instance.
+    hidden_units: Iterable of integer number of hidden units per layer.
+    feature_columns: Iterable of `feature_column._FeatureColumn` model inputs.
+    optimizer: String, `tf.Optimizer` object, or callable that creates the
+      optimizer to use for training. If not specified, will use the Adagrad
+      optimizer. If it is String, the default learning rate of the optimizer
+      will be used. If it is String, and optimizer does not have a default
+      learning rate, then, a fixed learning rate of 0.05 is used.
+    activation_fn: Activation function applied to each layer.
+    dropout: When not `None`, the probability we will drop out a given
+      coordinate.
+    input_layer_partitioner: Partitioner for input layer. Defaults to
+      `min_max_variable_partitioner` with `min_slice_size` 64 << 20.
+    config: `RunConfig` object to configure the runtime settings.
+    use_tpu: Whether to make a DNN model able to run on TPU. Will make function
+      return a `_TPUEstimatorSpec` instance and disable variable partitioning.
+    batch_norm: Whether to use batch normalization after each hidden layer.
+
+  Returns:
+    An `EstimatorSpec` instance.
+
+  Raises:
+    ValueError: If features has the wrong type.
+  """
+  optimizer = optimizers.get_optimizer_instance_v2(optimizer)
+
+  return _dnn_model_fn_core(
+      features,
+      labels,
+      mode,
+      head,
+      hidden_units,
+      feature_columns,
+      optimizer=optimizer,
+      activation_fn=activation_fn,
+      dropout=dropout,
+      input_layer_partitioner=input_layer_partitioner,
+      use_tpu=use_tpu,
+      batch_norm=batch_norm)
 
 
 @estimator_export('estimator.DNNClassifier', v1=[])
@@ -459,8 +551,8 @@ class DNNClassifierV2(estimator.EstimatorV2):
         loss_reduction=loss_reduction)
 
     def _model_fn(features, labels, mode, config):
-      """Call the defined shared _dnn_model_fn."""
-      return _dnn_model_fn(
+      """Call the defined shared _dnn_model_fn_v2."""
+      return _dnn_model_fn_v2(
           features=features,
           labels=labels,
           mode=mode,
@@ -506,7 +598,7 @@ class DNNClassifier(estimator.Estimator):
         n_classes, weight_column, label_vocabulary, loss_reduction)
 
     def _model_fn(features, labels, mode, config):
-      """Call the defined shared _dnn_model_fn."""
+      """Call the defined shared _dnn_model_fn_v2."""
       return _dnn_model_fn(
           features=features,
           labels=labels,
@@ -665,8 +757,8 @@ class DNNEstimatorV2(estimator.EstimatorV2):
       batch_norm: Whether to use batch normalization after each hidden layer.
     """
     def _model_fn(features, labels, mode, config):
-      """Call the defined shared _dnn_model_fn."""
-      return _dnn_model_fn(
+      """Call the defined shared _dnn_model_fn_v2."""
+      return _dnn_model_fn_v2(
           features=features,
           labels=labels,
           mode=mode,
@@ -870,7 +962,7 @@ class DNNRegressorV2(estimator.EstimatorV2):
         loss_reduction=loss_reduction)
     def _model_fn(features, labels, mode, config):
       """Call the defined shared _dnn_model_fn."""
-      return _dnn_model_fn(
+      return _dnn_model_fn_v2(
           features=features,
           labels=labels,
           mode=mode,

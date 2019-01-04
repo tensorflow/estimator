@@ -1426,6 +1426,17 @@ py_test(
 )
 
 py_test(
+    name = "optimizers_test_v2",
+    size = "small",
+    srcs = ["canned/optimizers_test_v2.py"],
+    srcs_version = "PY2AND3",
+    deps = [
+        ":optimizers",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
+py_test(
     name = "object_checkpointing_test",
     size = "medium",
     srcs = ["object_checkpointing_test.py"],
