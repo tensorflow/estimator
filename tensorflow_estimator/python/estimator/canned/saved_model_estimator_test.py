@@ -90,10 +90,11 @@ def model_fn_diff_modes(features, labels, mode):
       predictions=predictions)
 
 
-@test_util.run_v1_only("Tests v1 only symbols")
+@test_util.run_v1_only('Tests v1 only symbols')
 class SavedModelEstimatorTest(test.TestCase):
 
   def setUp(self):
+    super(SavedModelEstimatorTest, self).setUp()
     self.tmpdirs = []
 
   def tearDown(self):
@@ -101,6 +102,7 @@ class SavedModelEstimatorTest(test.TestCase):
       # gfile.DeleteRecursively fails in the windows cmake test, so use shutil.
       shutil.rmtree(tmpdir, ignore_errors=True)
     self.tmpdirs = []
+    super(SavedModelEstimatorTest, self).tearDown()
 
   def _get_tmp_dir(self):
     tmpdir = tempfile.mkdtemp()

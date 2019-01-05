@@ -25,8 +25,6 @@ import time
 from google.protobuf import text_format
 
 from tensorflow.core.example import example_pb2
-from tensorflow_estimator.python.estimator.export import export
-from tensorflow_estimator.python.estimator.export import export_output
 from tensorflow.python.framework import constant_op
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
@@ -38,6 +36,8 @@ from tensorflow.python.ops import parsing_ops
 from tensorflow.python.platform import test
 from tensorflow.python.saved_model import signature_constants
 from tensorflow.python.saved_model import signature_def_utils
+from tensorflow_estimator.python.estimator.export import export
+from tensorflow_estimator.python.estimator.export import export_output
 
 
 class LabeledTensorMock(object):
@@ -66,15 +66,15 @@ class ServingInputReceiverTest(test_util.TensorFlowTestCase):
             indices=[[0, 0]], values=[1], dense_shape=[1, 1]),
     }
     receiver_tensors = {
-        "example0": array_ops.placeholder(dtypes.string, name="example0"),
-        u"example1": array_ops.placeholder(dtypes.string, name="example1"),
+        "example0": constant_op.constant(["test0"], name="example0"),
+        u"example1": constant_op.constant(["test1"], name="example1"),
     }
     export.ServingInputReceiver(features, receiver_tensors)
 
   def test_serving_input_receiver_features_invalid(self):
     receiver_tensors = {
-        "example0": array_ops.placeholder(dtypes.string, name="example0"),
-        u"example1": array_ops.placeholder(dtypes.string, name="example1"),
+        "example0": constant_op.constant(["test0"], name="example0"),
+        u"example1": constant_op.constant(["test1"], name="example1"),
     }
 
     with self.assertRaisesRegexp(ValueError, "features must be defined"):
@@ -111,8 +111,7 @@ class ServingInputReceiverTest(test_util.TensorFlowTestCase):
         ValueError, "receiver_tensor keys must be strings"):
       export.ServingInputReceiver(
           features=features,
-          receiver_tensors={
-              1: array_ops.placeholder(dtypes.string, name="example0")})
+          receiver_tensors={1: constant_op.constant(["test"], name="example0")})
 
     with self.assertRaisesRegexp(
         ValueError, "receiver_tensor example1 must be a Tensor"):
@@ -122,7 +121,7 @@ class ServingInputReceiverTest(test_util.TensorFlowTestCase):
 
   def test_single_feature_single_receiver(self):
     feature = constant_op.constant(5)
-    receiver_tensor = array_ops.placeholder(dtypes.string)
+    receiver_tensor = constant_op.constant(["test"])
     input_receiver = export.ServingInputReceiver(
         feature, receiver_tensor)
     # single feature is automatically named
@@ -135,25 +134,27 @@ class ServingInputReceiverTest(test_util.TensorFlowTestCase):
   def test_multi_feature_single_receiver(self):
     features = {"foo": constant_op.constant(5),
                 "bar": constant_op.constant(6)}
-    receiver_tensor = array_ops.placeholder(dtypes.string)
+    receiver_tensor = constant_op.constant(["test"])
     _ = export.ServingInputReceiver(features, receiver_tensor)
 
   def test_multi_feature_multi_receiver(self):
     features = {"foo": constant_op.constant(5),
                 "bar": constant_op.constant(6)}
-    receiver_tensors = {"baz": array_ops.placeholder(dtypes.int64),
-                        "qux": array_ops.placeholder(dtypes.float32)}
+    receiver_tensors = {
+        "baz": constant_op.constant(5),
+        "qux": constant_op.constant(6)
+    }
     _ = export.ServingInputReceiver(features, receiver_tensors)
 
   def test_feature_wrong_type(self):
     feature = "not a tensor"
-    receiver_tensor = array_ops.placeholder(dtypes.string)
+    receiver_tensor = constant_op.constant(["test"])
     with self.assertRaises(ValueError):
       _ = export.ServingInputReceiver(feature, receiver_tensor)
 
   def test_feature_labeled_tensor(self):
     feature = LabeledTensorMock()
-    receiver_tensor = array_ops.placeholder(dtypes.string)
+    receiver_tensor = constant_op.constant(["test"])
     _ = export.ServingInputReceiver(feature, receiver_tensor)
 
   def test_receiver_wrong_type(self):
@@ -180,12 +181,13 @@ class UnsupervisedInputReceiverTest(test_util.TensorFlowTestCase):
                 indices=[[0, 0]], values=[1], dense_shape=[1, 1]),
     }
     receiver_tensors = {
-        "example0": array_ops.placeholder(dtypes.string, name="example0"),
-        u"example1": array_ops.placeholder(dtypes.string, name="example1"),
+        "example0": constant_op.constant(["test0"], name="example0"),
+        u"example1": constant_op.constant(["test1"], name="example1"),
     }
     export.UnsupervisedInputReceiver(features, receiver_tensors)
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class SupervisedInputReceiverTest(test_util.TensorFlowTestCase):
 
   def test_input_receiver_constructor(self):
@@ -201,8 +203,8 @@ class SupervisedInputReceiverTest(test_util.TensorFlowTestCase):
     }
 
     receiver_tensors = {
-        "example0": array_ops.placeholder(dtypes.string, name="example0"),
-        u"example1": array_ops.placeholder(dtypes.string, name="example1"),
+        "example0": constant_op.constant(["test0"], name="example0"),
+        u"example1": constant_op.constant(["test1"], name="example1"),
     }
     export.SupervisedInputReceiver(features, labels, receiver_tensors)
 
@@ -220,8 +222,8 @@ class SupervisedInputReceiverTest(test_util.TensorFlowTestCase):
     }
 
     receiver_tensors = {
-        "example0": array_ops.placeholder(dtypes.string, name="example0"),
-        u"example1": array_ops.placeholder(dtypes.string, name="example1"),
+        "example0": constant_op.constant(["test0"], name="example0"),
+        u"example1": constant_op.constant(["test1"], name="example1"),
     }
     rec = export.SupervisedInputReceiver(
         features["feature2"], labels, receiver_tensors)
@@ -235,8 +237,8 @@ class SupervisedInputReceiverTest(test_util.TensorFlowTestCase):
     features = constant_op.constant([0] * 100)
     labels = constant_op.constant([0])
     receiver_tensors = {
-        "example0": array_ops.placeholder(dtypes.string, name="example0"),
-        u"example1": array_ops.placeholder(dtypes.string, name="example1"),
+        "example0": constant_op.constant(["test0"], name="example0"),
+        u"example1": constant_op.constant(["test1"], name="example1"),
     }
 
     with self.assertRaisesRegexp(ValueError, "features must be defined"):
@@ -300,7 +302,7 @@ class SupervisedInputReceiverTest(test_util.TensorFlowTestCase):
           features=features,
           labels=labels,
           receiver_tensors={
-              1: array_ops.placeholder(dtypes.string, name="example0")})
+              1: constant_op.constant(["test"], name="example0")})
 
     with self.assertRaisesRegexp(
         ValueError, "receiver_tensor example1 must be a Tensor"):
@@ -312,7 +314,7 @@ class SupervisedInputReceiverTest(test_util.TensorFlowTestCase):
   def test_single_feature_single_receiver(self):
     feature = constant_op.constant(5)
     label = constant_op.constant(5)
-    receiver_tensor = array_ops.placeholder(dtypes.string)
+    receiver_tensor = constant_op.constant(["test"])
     input_receiver = export.SupervisedInputReceiver(
         feature, label, receiver_tensor)
 
@@ -324,26 +326,27 @@ class SupervisedInputReceiverTest(test_util.TensorFlowTestCase):
     features = {"foo": constant_op.constant(5),
                 "bar": constant_op.constant(6)}
     labels = {"value": constant_op.constant(5)}
-    receiver_tensor = array_ops.placeholder(dtypes.string)
+    receiver_tensor = constant_op.constant(["test"])
     _ = export.SupervisedInputReceiver(features, labels, receiver_tensor)
 
   def test_multi_feature_multi_receiver(self):
     features = {"foo": constant_op.constant(5),
                 "bar": constant_op.constant(6)}
     labels = {"value": constant_op.constant(5)}
-    receiver_tensors = {"baz": array_ops.placeholder(dtypes.int64),
-                        "qux": array_ops.placeholder(dtypes.float32)}
+    receiver_tensors = {"baz": constant_op.constant(5),
+                        "qux": constant_op.constant(6)}
     _ = export.SupervisedInputReceiver(features, labels, receiver_tensors)
 
   def test_feature_labeled_tensor(self):
     feature = LabeledTensorMock()
     label = constant_op.constant(5)
-    receiver_tensor = array_ops.placeholder(dtypes.string)
+    receiver_tensor = constant_op.constant(["test"])
     _ = export.SupervisedInputReceiver(feature, label, receiver_tensor)
 
 
 class ExportTest(test_util.TensorFlowTestCase):
 
+  @test_util.run_v1_only("Calling serving_input_receiver_fn needs graph mode")
   def test_build_parsing_serving_input_receiver_fn(self):
     feature_spec = {"int_feature": parsing_ops.VarLenFeature(dtypes.int64),
                     "float_feature": parsing_ops.VarLenFeature(dtypes.float32)}
@@ -391,6 +394,7 @@ class ExportTest(test_util.TensorFlowTestCase):
         self.assertAllEqual([525.25],
                             sparse_result["float_feature"].values)
 
+  @test_util.run_v1_only("Calling serving_input_receiver_fn needs graph mode")
   def test_build_raw_serving_input_receiver_fn_name(self):
     """Test case for issue #12755."""
     f = {
@@ -402,6 +406,7 @@ class ExportTest(test_util.TensorFlowTestCase):
     v = serving_input_receiver_fn()
     self.assertTrue(isinstance(v, export.ServingInputReceiver))
 
+  @test_util.run_v1_only("Calling serving_input_receiver_fn needs graph mode")
   def test_build_raw_serving_input_receiver_fn_without_shape(self):
     """Test case for issue #21178."""
     f = {"feature_1": array_ops.placeholder(dtypes.float32),
@@ -416,7 +421,6 @@ class ExportTest(test_util.TensorFlowTestCase):
         tensor_shape.unknown_shape(),
         v.receiver_tensors["feature_2"].shape)
 
-  @test_util.run_in_graph_and_eager_modes
   def test_build_raw_serving_input_receiver_fn(self):
     features = {"feature_1": constant_op.constant(["hello"]),
                 "feature_2": constant_op.constant([42])}
@@ -435,7 +439,6 @@ class ExportTest(test_util.TensorFlowTestCase):
           dtypes.int32,
           serving_input_receiver.receiver_tensors["feature_2"].dtype)
 
-  @test_util.run_in_graph_and_eager_modes
   def test_build_raw_supervised_input_receiver_fn(self):
     features = {"feature_1": constant_op.constant(["hello"]),
                 "feature_2": constant_op.constant([42])}
@@ -456,7 +459,6 @@ class ExportTest(test_util.TensorFlowTestCase):
       self.assertEqual(
           dtypes.int32, input_receiver.receiver_tensors["feature_2"].dtype)
 
-  @test_util.run_in_graph_and_eager_modes
   def test_build_raw_supervised_input_receiver_fn_raw_tensors(self):
     features = {"feature_1": constant_op.constant(["hello"]),
                 "feature_2": constant_op.constant([42])}
@@ -480,7 +482,6 @@ class ExportTest(test_util.TensorFlowTestCase):
       self.assertEqual(set(["input", "label"]),
                        set(input_receiver.receiver_tensors.keys()))
 
-  @test_util.run_in_graph_and_eager_modes
   def test_build_raw_supervised_input_receiver_fn_batch_size(self):
     features = {"feature_1": constant_op.constant(["hello"]),
                 "feature_2": constant_op.constant([42])}
@@ -493,7 +494,6 @@ class ExportTest(test_util.TensorFlowTestCase):
       self.assertEqual([10], input_receiver.receiver_tensors["feature_1"].shape)
       self.assertEqual([10], input_receiver.features["feature_1"].shape)
 
-  @test_util.run_in_graph_and_eager_modes
   def test_build_raw_supervised_input_receiver_fn_overlapping_keys(self):
     features = {"feature_1": constant_op.constant(["hello"]),
                 "feature_2": constant_op.constant([42])}
@@ -502,7 +502,6 @@ class ExportTest(test_util.TensorFlowTestCase):
     with self.assertRaises(ValueError):
       export.build_raw_supervised_input_receiver_fn(features, labels)
 
-  @test_util.run_in_graph_and_eager_modes
   def test_build_supervised_input_receiver_fn_from_input_fn(self):
     def dummy_input_fn():
       return ({"x": constant_op.constant([[1], [1]]),
@@ -520,7 +519,6 @@ class ExportTest(test_util.TensorFlowTestCase):
       self.assertEqual(set(["x", "y", "label"]),
                        set(input_receiver.receiver_tensors.keys()))
 
-  @test_util.run_in_graph_and_eager_modes
   def test_build_supervised_input_receiver_fn_from_input_fn_args(self):
     def dummy_input_fn(feature_key="x"):
       return ({feature_key: constant_op.constant([[1], [1]]),
@@ -539,6 +537,7 @@ class ExportTest(test_util.TensorFlowTestCase):
       self.assertEqual(set(["z", "y", "my_label"]),
                        set(input_receiver.receiver_tensors.keys()))
 
+  @test_util.run_v1_only("build_all_signature_defs requires graph mode")
   def test_build_all_signature_defs_without_receiver_alternatives(self):
     receiver_tensor = array_ops.placeholder(dtypes.string)
     output_1 = constant_op.constant([1.])
@@ -571,6 +570,7 @@ class ExportTest(test_util.TensorFlowTestCase):
 
     self.assertDictEqual(expected_signature_defs, signature_defs)
 
+  @test_util.run_v1_only("build_all_signature_defs requires graph mode")
   def test_build_all_signature_defs_with_dict_alternatives(self):
     receiver_tensor = array_ops.placeholder(dtypes.string)
     receiver_tensors_alternative_1 = {
@@ -618,6 +618,7 @@ class ExportTest(test_util.TensorFlowTestCase):
 
     self.assertDictEqual(expected_signature_defs, signature_defs)
 
+  @test_util.run_v1_only("build_all_signature_defs requires graph mode")
   def test_build_all_signature_defs_with_single_alternatives(self):
     receiver_tensor = array_ops.placeholder(dtypes.string)
     receiver_tensors_alternative_1 = array_ops.placeholder(dtypes.int64)
@@ -674,6 +675,7 @@ class ExportTest(test_util.TensorFlowTestCase):
 
     self.assertDictEqual(expected_signature_defs, signature_defs)
 
+  @test_util.run_v1_only("build_all_signature_defs requires graph mode")
   def test_build_all_signature_defs_export_outputs_required(self):
     receiver_tensor = constant_op.constant(["11"])
 
@@ -706,6 +708,7 @@ class ExportTest(test_util.TensorFlowTestCase):
     self.assertTrue(int(time_1) < int(time_2))
     self.assertTrue(int(time_2) < int(time_3))
 
+  @test_util.run_v1_only("build_all_signature_defs requires graph mode")
   def test_build_all_signature_defs_serving_only(self):
     receiver_tensor = {"input": array_ops.placeholder(dtypes.string)}
     output_1 = constant_op.constant([1.])
@@ -741,8 +744,8 @@ class TensorServingReceiverTest(test_util.TensorFlowTestCase):
   def test_tensor_serving_input_receiver_constructor(self):
     features = constant_op.constant([0])
     receiver_tensors = {
-        "example0": array_ops.placeholder(dtypes.string, name="example0"),
-        u"example1": array_ops.placeholder(dtypes.string, name="example1"),
+        "example0": constant_op.constant(["test0"], name="example0"),
+        u"example1": constant_op.constant(["test1"], name="example1"),
     }
     r = export.TensorServingInputReceiver(features, receiver_tensors)
     self.assertTrue(isinstance(r.features, ops.Tensor))
@@ -752,8 +755,8 @@ class TensorServingReceiverTest(test_util.TensorFlowTestCase):
     features = sparse_tensor.SparseTensor(
         indices=[[0, 0]], values=[1], dense_shape=[1, 1])
     receiver_tensors = {
-        "example0": array_ops.placeholder(dtypes.string, name="example0"),
-        u"example1": array_ops.placeholder(dtypes.string, name="example1"),
+        "example0": constant_op.constant(["test0"], name="example0"),
+        u"example1": constant_op.constant(["test1"], name="example1"),
     }
     r = export.TensorServingInputReceiver(features, receiver_tensors)
     self.assertTrue(isinstance(r.features, sparse_tensor.SparseTensor))
@@ -761,8 +764,8 @@ class TensorServingReceiverTest(test_util.TensorFlowTestCase):
 
   def test_serving_input_receiver_features_invalid(self):
     receiver_tensors = {
-        "example0": array_ops.placeholder(dtypes.string, name="example0"),
-        u"example1": array_ops.placeholder(dtypes.string, name="example1"),
+        "example0": constant_op.constant(["test0"], name="example0"),
+        u"example1": constant_op.constant(["test1"], name="example1"),
     }
 
     with self.assertRaisesRegexp(ValueError, "features must be defined"):
@@ -789,7 +792,7 @@ class TensorServingReceiverTest(test_util.TensorFlowTestCase):
       export.TensorServingInputReceiver(
           features=features,
           receiver_tensors={
-              1: array_ops.placeholder(dtypes.string, name="example0")})
+              1: constant_op.constant(["test"], name="example0")})
 
     with self.assertRaisesRegexp(
         ValueError, "receiver_tensor example1 must be a Tensor"):
