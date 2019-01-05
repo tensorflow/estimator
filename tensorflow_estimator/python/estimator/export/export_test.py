@@ -187,7 +187,6 @@ class UnsupervisedInputReceiverTest(test_util.TensorFlowTestCase):
     export.UnsupervisedInputReceiver(features, receiver_tensors)
 
 
-@test_util.run_all_in_graph_and_eager_modes
 class SupervisedInputReceiverTest(test_util.TensorFlowTestCase):
 
   def test_input_receiver_constructor(self):
