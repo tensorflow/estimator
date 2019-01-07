@@ -160,7 +160,6 @@ class CreateEstimatorSpecTest(test.TestCase):
                        mode=None, regularization_losses=None):
       return None
 
-  @test_util.run_in_graph_and_eager_modes
   def test_head_override_tpu_estimator_spec(self):
     """Test for `_Head` that overrides _create_tpu_estimator_spec."""
     head = self._HeadWithTPUSupport()
@@ -172,7 +171,6 @@ class CreateEstimatorSpecTest(test.TestCase):
         features=None, mode=None, logits=None)
     self.assertTrue(isinstance(est_spec, model_fn.EstimatorSpec))
 
-  @test_util.run_in_graph_and_eager_modes
   def test_head_override_estimator_spec(self):
     """Test for `Head` that overrides create_estimator_spec."""
     head = self._HeadWithOutTPUSupport()
@@ -186,7 +184,6 @@ class CreateEstimatorSpecTest(test.TestCase):
         features=None, mode=None, logits=None)
     self.assertTrue(isinstance(est_spec, model_fn.EstimatorSpec))
 
-  @test_util.run_in_graph_and_eager_modes
   def test_invalid_head_class(self):
     head = self._InvalidHead()
 
