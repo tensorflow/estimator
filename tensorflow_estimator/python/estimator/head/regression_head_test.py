@@ -1274,6 +1274,7 @@ class RegressionHead(test.TestCase):
                                            [[2., 2.1], [2.5, 2.6]]])})
 
 
+@test_util.deprecated_graph_mode_only
 class RegressionHeadForEstimator(test.TestCase):
   """Tests for create_estimator_spec running in Graph mode only."""
 
@@ -1346,6 +1347,7 @@ class RegressionHeadForEstimator(test.TestCase):
         self.assertEqual(2, w_value)
         self.assertEqual(expected_train_result, t_value)
 
+  @test_util.run_v1_only('b/122438702')
   def test_train_summaries_with_head_name(self):
     head = head_lib.RegressionHead(name='some_regression_head')
     self.assertEqual(1, head.logits_dimension)

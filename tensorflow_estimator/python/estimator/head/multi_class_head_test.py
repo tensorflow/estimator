@@ -1550,6 +1550,7 @@ class MultiClassHead(test.TestCase):
           atol=tol)
 
 
+@test_util.deprecated_graph_mode_only
 class MultiClassHeadForEstimator(test.TestCase):
   """Tests for create_estimator_spec running in Graph mode only."""
 
@@ -1626,6 +1627,7 @@ class MultiClassHeadForEstimator(test.TestCase):
         self.assertEqual(2, w_value)
         self.assertEqual(expected_train_result, t_value)
 
+  @test_util.run_v1_only('b/122438702')
   def test_train_summaries_with_head_name(self):
     n_classes = 3
     head = head_lib.MultiClassHead(n_classes, name='some_multiclass_head')

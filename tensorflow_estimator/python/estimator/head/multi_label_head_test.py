@@ -28,6 +28,7 @@ from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import errors
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import sparse_tensor
+from tensorflow.python.framework import test_util
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import math_ops
@@ -1294,6 +1295,7 @@ class MultiLabelHead(test.TestCase):
         expected_metrics=expected_metrics)
 
 
+@test_util.deprecated_graph_mode_only
 class MultiLabelHeadForEstimator(test.TestCase):
   """Tests for create_estimator_spec running in Graph mode only."""
 

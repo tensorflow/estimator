@@ -1439,6 +1439,7 @@ class BinaryClassHeadTest(test.TestCase):
           rtol=tol, atol=tol)
 
 
+@test_util.deprecated_graph_mode_only
 class BinaryClassHeadForEstimator(test.TestCase):
   """Tests for create_estimator_spec running in Graph mode only."""
 
@@ -1504,6 +1505,7 @@ class BinaryClassHeadForEstimator(test.TestCase):
         self.assertEqual(2, w_value)
         self.assertEqual(expected_train_result, t_value)
 
+  @test_util.run_v1_only('b/122438702')
   def test_train_summaries_with_head_name(self):
     head = head_lib.BinaryClassHead(
         name='some_binary_head')
