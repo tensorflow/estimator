@@ -442,7 +442,6 @@ class SdcaWithLogisticLossTest(_SDCAModelTest):
                                    'Duplicate'):
         train_op.run()
 
-  @test_util.run_v1_only('b/122315870')
   def testDistributedSimple(self):
     # Distributed SDCA may not converge if the workers update concurrently the
     # same example. In this test the examples are partitioned across workers.
@@ -488,7 +487,7 @@ class SdcaWithLogisticLossTest(_SDCAModelTest):
           train_op = lr.minimize()
 
           def minimize(worker_id):
-            with self._single_threaded_test_session():
+            with context.graph_mode(), self._single_threaded_test_session():
               feed_dict = {example_ids: [
                   str(i + worker_id*len(example_weights)) for i in range(
                       len(example_weights))]}
