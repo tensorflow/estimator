@@ -21,50 +21,49 @@ from __future__ import print_function
 from tensorflow.core.framework import tensor_shape_pb2
 from tensorflow.core.framework import types_pb2
 from tensorflow.core.protobuf import meta_graph_pb2
-from tensorflow_estimator.python.estimator.export import export_output as export_output_lib
 from tensorflow.python.framework import constant_op
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import sparse_tensor
+from tensorflow.python.framework import test_util
 from tensorflow.python.keras import metrics as metrics_module
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.platform import test
 from tensorflow.python.saved_model import signature_constants
+from tensorflow_estimator.python.estimator.export import export_output as export_output_lib
 
 
 class ExportOutputTest(test.TestCase):
 
   def test_regress_value_must_be_float(self):
-    value = array_ops.placeholder(dtypes.string, 1, name="output-tensor-1")
-    with self.assertRaises(ValueError) as e:
+    value = constant_op.constant(
+        "1", dtype=dtypes.string, name="output-tensor-1")
+    with self.assertRaisesRegexp(
+        ValueError, "Regression output value must be a float32 Tensor;"):
       export_output_lib.RegressionOutput(value)
-    self.assertEqual('Regression output value must be a float32 Tensor; got '
-                     'Tensor("output-tensor-1:0", shape=(1,), dtype=string)',
-                     str(e.exception))
 
   def test_classify_classes_must_be_strings(self):
-    classes = array_ops.placeholder(dtypes.float32, 1, name="output-tensor-1")
-    with self.assertRaises(ValueError) as e:
+    classes = constant_op.constant(
+        1.0, dtype=dtypes.float32, name="output-tensor-1")
+    with self.assertRaisesRegexp(
+        ValueError, "Classification classes must be a string Tensor;"):
       export_output_lib.ClassificationOutput(classes=classes)
-    self.assertEqual('Classification classes must be a string Tensor; got '
-                     'Tensor("output-tensor-1:0", shape=(1,), dtype=float32)',
-                     str(e.exception))
 
   def test_classify_scores_must_be_float(self):
-    scores = array_ops.placeholder(dtypes.string, 1, name="output-tensor-1")
-    with self.assertRaises(ValueError) as e:
+    scores = constant_op.constant(
+        "1", dtype=dtypes.string, name="output-tensor-1")
+    with self.assertRaisesRegexp(
+        ValueError, "Classification scores must be a float32 Tensor;"):
       export_output_lib.ClassificationOutput(scores=scores)
-    self.assertEqual('Classification scores must be a float32 Tensor; got '
-                     'Tensor("output-tensor-1:0", shape=(1,), dtype=string)',
-                     str(e.exception))
 
   def test_classify_requires_classes_or_scores(self):
-    with self.assertRaises(ValueError) as e:
+    with self.assertRaisesRegexp(
+        ValueError, "At least one of scores and classes must be set."):
       export_output_lib.ClassificationOutput()
-    self.assertEqual("At least one of scores and classes must be set.",
-                     str(e.exception))
 
+  # export_output.as_signature_def requires graph mode.
+  @test_util.deprecated_graph_mode_only
   def test_build_standardized_signature_def_regression(self):
     input_tensors = {
         "input-1":
@@ -95,6 +94,8 @@ class ExportOutputTest(test.TestCase):
     expected_signature_def.method_name = signature_constants.REGRESS_METHOD_NAME
     self.assertEqual(actual_signature_def, expected_signature_def)
 
+  # export_output.as_signature_def requires graph mode.
+  @test_util.deprecated_graph_mode_only
   def test_build_standardized_signature_def_classify_classes_only(self):
     """Tests classification with one output tensor."""
     input_tensors = {
@@ -126,6 +127,8 @@ class ExportOutputTest(test.TestCase):
         signature_constants.CLASSIFY_METHOD_NAME)
     self.assertEqual(actual_signature_def, expected_signature_def)
 
+  # export_output.as_signature_def requires graph mode.
+  @test_util.deprecated_graph_mode_only
   def test_build_standardized_signature_def_classify_both(self):
     """Tests multiple output tensors that include classes and scores."""
     input_tensors = {
@@ -167,6 +170,8 @@ class ExportOutputTest(test.TestCase):
         signature_constants.CLASSIFY_METHOD_NAME)
     self.assertEqual(actual_signature_def, expected_signature_def)
 
+  # export_output.as_signature_def requires graph mode.
+  @test_util.deprecated_graph_mode_only
   def test_build_standardized_signature_def_classify_scores_only(self):
     """Tests classification without classes tensor."""
     input_tensors = {
@@ -235,6 +240,8 @@ class MockSupervisedOutput(export_output_lib._SupervisedOutput):
     pass
 
 
+# export_output.as_signature_def requires graph mode.
+@test_util.deprecated_graph_mode_only
 class SupervisedOutputTest(test.TestCase):
 
   def test_supervised_outputs_valid(self):
