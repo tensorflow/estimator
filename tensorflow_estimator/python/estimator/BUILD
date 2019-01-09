@@ -552,7 +552,7 @@ py_test(
     name = "dnn_test_fc_v2",
     size = "medium",
     srcs = ["canned/dnn_test_fc_v2.py"],
-    shard_count = 4,
+    shard_count = 8,
     srcs_version = "PY2AND3",
     tags = [
         "no_pip",
