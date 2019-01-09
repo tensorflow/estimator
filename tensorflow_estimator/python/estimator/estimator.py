@@ -1270,10 +1270,6 @@ class EstimatorV2(object):
             grouped_estimator_spec.training_hooks)
         training_chief_hooks = get_hooks_from_the_first_device(
             grouped_estimator_spec.training_chief_hooks)
-        worker_hooks.append(
-            estimator_util.StrategyInitFinalizeHook(
-                strategy.initialize))
-
         estimator_spec = model_fn_lib.EstimatorSpec(
             mode=grouped_estimator_spec.mode,
             loss=loss,
@@ -1516,10 +1512,6 @@ class EstimatorV2(object):
         grouped_estimator_spec.scaffold, self._eval_distribution)
     evaluation_hooks = self._eval_distribution.unwrap(
         grouped_estimator_spec.evaluation_hooks)[0]
-    evaluation_hooks = evaluation_hooks + (
-        estimator_util.StrategyInitFinalizeHook(
-            self._eval_distribution.initialize),)
-
     return (scaffold, evaluation_hooks, input_hooks, update_op, eval_dict)
 
   def _evaluate_run(self, checkpoint_path, scaffold, update_op, eval_dict,

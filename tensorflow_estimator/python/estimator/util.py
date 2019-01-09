@@ -145,15 +145,3 @@ class MultiHostDatasetInitializerHook(training.SessionRunHook):
     session.run(self._initializers)
     logging.info('Initialized dataset iterators in %d seconds',
                  time.time() - start)
-
-
-class StrategyInitFinalizeHook(training.SessionRunHook):
-  """Creates a SessionRunHook that initializes and shutsdown devices."""
-
-  def __init__(self, initialization_fn):
-    self._initialization_fn = initialization_fn
-
-  def begin(self):
-    # We only create the init ops, but don't run it. We rely on SessionManager
-    # to run it for us.
-    self._init_ops = self._initialization_fn()
