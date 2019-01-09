@@ -345,7 +345,8 @@ class SupervisedInputReceiverTest(test_util.TensorFlowTestCase):
 
 class ExportTest(test_util.TensorFlowTestCase):
 
-  @test_util.run_v1_only("Calling serving_input_receiver_fn needs graph mode")
+  # Calling serving_input_receiver_fn requires graph mode.
+  @test_util.deprecated_graph_mode_only
   def test_build_parsing_serving_input_receiver_fn(self):
     feature_spec = {"int_feature": parsing_ops.VarLenFeature(dtypes.int64),
                     "float_feature": parsing_ops.VarLenFeature(dtypes.float32)}
@@ -393,7 +394,8 @@ class ExportTest(test_util.TensorFlowTestCase):
         self.assertAllEqual([525.25],
                             sparse_result["float_feature"].values)
 
-  @test_util.run_v1_only("Calling serving_input_receiver_fn needs graph mode")
+  # Calling serving_input_receiver_fn requires graph mode.
+  @test_util.deprecated_graph_mode_only
   def test_build_raw_serving_input_receiver_fn_name(self):
     """Test case for issue #12755."""
     f = {
@@ -405,7 +407,8 @@ class ExportTest(test_util.TensorFlowTestCase):
     v = serving_input_receiver_fn()
     self.assertTrue(isinstance(v, export.ServingInputReceiver))
 
-  @test_util.run_v1_only("Calling serving_input_receiver_fn needs graph mode")
+  # Calling serving_input_receiver_fn requires graph mode.
+  @test_util.deprecated_graph_mode_only
   def test_build_raw_serving_input_receiver_fn_without_shape(self):
     """Test case for issue #21178."""
     f = {"feature_1": array_ops.placeholder(dtypes.float32),
@@ -536,7 +539,8 @@ class ExportTest(test_util.TensorFlowTestCase):
       self.assertEqual(set(["z", "y", "my_label"]),
                        set(input_receiver.receiver_tensors.keys()))
 
-  @test_util.run_v1_only("build_all_signature_defs requires graph mode")
+  # build_all_signature_defs requires graph mode.
+  @test_util.deprecated_graph_mode_only
   def test_build_all_signature_defs_without_receiver_alternatives(self):
     receiver_tensor = array_ops.placeholder(dtypes.string)
     output_1 = constant_op.constant([1.])
@@ -569,7 +573,8 @@ class ExportTest(test_util.TensorFlowTestCase):
 
     self.assertDictEqual(expected_signature_defs, signature_defs)
 
-  @test_util.run_v1_only("build_all_signature_defs requires graph mode")
+  # build_all_signature_defs requires graph mode.
+  @test_util.deprecated_graph_mode_only
   def test_build_all_signature_defs_with_dict_alternatives(self):
     receiver_tensor = array_ops.placeholder(dtypes.string)
     receiver_tensors_alternative_1 = {
@@ -617,7 +622,8 @@ class ExportTest(test_util.TensorFlowTestCase):
 
     self.assertDictEqual(expected_signature_defs, signature_defs)
 
-  @test_util.run_v1_only("build_all_signature_defs requires graph mode")
+  # build_all_signature_defs requires graph mode.
+  @test_util.deprecated_graph_mode_only
   def test_build_all_signature_defs_with_single_alternatives(self):
     receiver_tensor = array_ops.placeholder(dtypes.string)
     receiver_tensors_alternative_1 = array_ops.placeholder(dtypes.int64)
@@ -674,7 +680,8 @@ class ExportTest(test_util.TensorFlowTestCase):
 
     self.assertDictEqual(expected_signature_defs, signature_defs)
 
-  @test_util.run_v1_only("build_all_signature_defs requires graph mode")
+  # build_all_signature_defs requires graph mode.
+  @test_util.deprecated_graph_mode_only
   def test_build_all_signature_defs_export_outputs_required(self):
     receiver_tensor = constant_op.constant(["11"])
 
@@ -707,7 +714,8 @@ class ExportTest(test_util.TensorFlowTestCase):
     self.assertTrue(int(time_1) < int(time_2))
     self.assertTrue(int(time_2) < int(time_3))
 
-  @test_util.run_v1_only("build_all_signature_defs requires graph mode")
+  # build_all_signature_defs requires graph mode.
+  @test_util.deprecated_graph_mode_only
   def test_build_all_signature_defs_serving_only(self):
     receiver_tensor = {"input": array_ops.placeholder(dtypes.string)}
     output_1 = constant_op.constant([1.])

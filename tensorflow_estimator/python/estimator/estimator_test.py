@@ -32,6 +32,7 @@ from google.protobuf import text_format
 from tensorflow.core.protobuf import rewriter_config_pb2
 from tensorflow.python.client import session
 from tensorflow.python.data.ops import dataset_ops
+from tensorflow.python.eager import context
 from tensorflow.python.framework import constant_op
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import errors
@@ -690,7 +691,7 @@ class EstimatorTrainTest(test.TestCase):
         5, estimator._load_global_step_from_checkpoint_dir(
             warm_started_est.model_dir))
 
-  @test_util.run_v1_only('estimator.export_saved_model is not v2 ready')
+  @test_util.run_v1_only('b/119219961')
   def test_warm_starts_from_savedmodel(self):
     def _make_model_fn(x):
       def _variable_creating_and_export_model_fn(features, labels, mode):
@@ -1331,7 +1332,7 @@ class EstimatorEvaluateTest(test.TestCase):
     self.assertEqual(3., scores['mean1'])
     self.assertEqual(3., scores['mean2'])
 
-  @test_util.run_v1_only('estimator.export_saved_model is not v2 ready')
+  @test_util.run_v1_only('b/119219961')
   def test_no_checkpoint_uses_init_with_warm_starting(self):
     def _make_model_fn(x):
       def _variable_creating_and_export_model_fn(features, labels, mode):
@@ -1747,7 +1748,7 @@ class EstimatorPredictTest(test.TestCase):
     # initialized (since there is no checkpoint).
     self.assertEqual(4., next(est.predict(dummy_input_fn)))
 
-  @test_util.run_v1_only('estimator.export_saved_model is not v2 ready')
+  @test_util.run_v1_only('b/119219961')
   def test_no_checkpoint_uses_init_with_warm_starting(self):
     def _make_model_fn(x):
       def _variable_creating_and_export_model_fn(features, labels, mode):
@@ -1773,7 +1774,7 @@ class EstimatorPredictTest(test.TestCase):
     export_dir_base = os.path.join(
         compat.as_bytes(tmpdir), compat.as_bytes('export'))
     exported_path = first_est.export_saved_model(export_dir_base,
-                                                serving_input_receiver_fn)
+                                                 serving_input_receiver_fn)
 
     # Test that we can pass either warm_start_from as an external checkpoint
     # or an exported SavedModel.
@@ -2254,7 +2255,7 @@ _VOCAB_FILE_CONTENT = 'emerson\nlake\npalmer\n'
 _EXTRA_FILE_CONTENT = 'kermit\npiggy\nralph\n'
 
 
-@test_util.run_v1_only("estimator.export_saved_model is not v2 ready")
+@test_util.run_v1_only('b/119219961')
 class EstimatorExportTest(test.TestCase):
 
   def test_export_saved_model_proto_roundtrip_raw_receiver(self):
