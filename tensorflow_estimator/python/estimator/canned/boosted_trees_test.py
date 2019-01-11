@@ -17,6 +17,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import collections
 import os
 
 import numpy as np
@@ -852,20 +853,18 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
     num_steps = 100
     # Train for a few steps, and validate final checkpoint.
     est.train(input_fn, steps=num_steps)
-
-    feature_names_expected = ['f_0_bucketized',
-                              'f_2_bucketized',
-                              'f_1_bucketized']
-
-    feature_names, importances = est.experimental_feature_importances(
-        normalize=False)
-    self.assertAllEqual(feature_names_expected, feature_names)
-    self.assertAllClose([0.833933, 0.606342, 0.0], importances)
-
-    feature_names, importances = est.experimental_feature_importances(
-        normalize=True)
-    self.assertAllEqual(feature_names_expected, feature_names)
-    self.assertAllClose([0.579010, 0.420990, 0.0], importances)
+    importances = est.experimental_feature_importances(normalize=False)
+    expected_importances = collections.OrderedDict(
+        (('f_0_bucketized', 0.833933), ('f_2_bucketized', 0.606342),
+         ('f_1_bucketized', 0.0)))
+    self.assertAllEqual(expected_importances.keys(), importances.keys())
+    self.assertAllClose(expected_importances.values(), importances.values())
+    importances = est.experimental_feature_importances(normalize=True)
+    expected_importances = collections.OrderedDict(
+        (('f_0_bucketized', 0.579010), ('f_2_bucketized', 0.420990),
+         ('f_1_bucketized', 0.0)))
+    self.assertAllEqual(expected_importances.keys(), importances.keys())
+    self.assertAllClose(expected_importances.values(), importances.values())
 
   def testFeatureImportancesOnEmptyEnsemble(self):
     input_fn = _make_train_input_fn(is_classification=True)
@@ -1029,20 +1028,21 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
     self._create_fake_checkpoint_with_tree_ensemble_proto(
         est, tree_ensemble_text)
 
-    feature_names_expected = ['f_0_bucketized',
-                              'f_2_bucketized',
-                              'f_1_bucketized']
-    feature_names, importances = est.experimental_feature_importances(
-        normalize=False)
-    self.assertAllEqual(feature_names_expected, feature_names)
+    importances = est.experimental_feature_importances(normalize=False)
     # Gain sum for each features:
     # = 1.0 * [3 + 1, 2, 2] + 1.0 * [1, 1, 0]
-    self.assertAllClose([5.0, 3.0, 2.0], importances)
-
-    feature_names, importances = est.experimental_feature_importances(
-        normalize=True)
-    self.assertAllEqual(feature_names_expected, feature_names)
-    self.assertAllClose([0.5, 0.3, 0.2], importances)
+    expected_importances = collections.OrderedDict(
+        (('f_0_bucketized', 5.0), ('f_2_bucketized', 3.0), ('f_1_bucketized',
+                                                            2.0)))
+    self.assertAllEqual(expected_importances.keys(), importances.keys())
+    self.assertAllClose(expected_importances.values(), importances.values())
+    # Normalize importances.
+    importances = est.experimental_feature_importances(normalize=True)
+    expected_importances = collections.OrderedDict(
+        (('f_0_bucketized', 0.5), ('f_2_bucketized', 0.3), ('f_1_bucketized',
+                                                            0.2)))
+    self.assertAllEqual(expected_importances.keys(), importances.keys())
+    self.assertAllClose(expected_importances.values(), importances.values())
 
   def testFeatureImportancesWithTreeWeights(self):
     est = boosted_trees.BoostedTreesClassifier(
@@ -1125,20 +1125,21 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
     self._create_fake_checkpoint_with_tree_ensemble_proto(
         est, tree_ensemble_text)
 
-    feature_names_expected = ['f_0_bucketized',
-                              'f_2_bucketized',
-                              'f_1_bucketized']
-    feature_names, importances = est.experimental_feature_importances(
-        normalize=False)
-    self.assertAllEqual(feature_names_expected, feature_names)
+    importances = est.experimental_feature_importances(normalize=False)
     # Gain sum for each features:
     # = 0.4 * [12.5, 0, 5] + 0.6 * [0, 5, 0] + 1.0 * [0, 0, 0]
-    self.assertAllClose([5.0, 3.0, 2.0], importances)
-
-    feature_names, importances = est.experimental_feature_importances(
-        normalize=True)
-    self.assertAllEqual(feature_names_expected, feature_names)
-    self.assertAllClose([0.5, 0.3, 0.2], importances)
+    expected_importances = collections.OrderedDict(
+        (('f_0_bucketized', 5.0), ('f_2_bucketized', 3.0), ('f_1_bucketized',
+                                                            2.0)))
+    self.assertAllEqual(expected_importances.keys(), importances.keys())
+    self.assertAllClose(expected_importances.values(), importances.values())
+    # Normalize importances.
+    importances = est.experimental_feature_importances(normalize=True)
+    expected_importances = collections.OrderedDict(
+        (('f_0_bucketized', 0.5), ('f_2_bucketized', 0.3), ('f_1_bucketized',
+                                                            0.2)))
+    self.assertAllEqual(expected_importances.keys(), importances.keys())
+    self.assertAllClose(expected_importances.values(), importances.values())
 
   def testFeatureImportancesWithAllEmptyTree(self):
     est = boosted_trees.BoostedTreesClassifier(
@@ -1167,16 +1168,13 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
         """
     self._create_fake_checkpoint_with_tree_ensemble_proto(
         est, tree_ensemble_text)
-
-    # Reverse order because importances are sorted by np.argsort(f)[::-1].
-    feature_names_expected = ['f_2_bucketized',
-                              'f_1_bucketized',
-                              'f_0_bucketized']
-    feature_names, importances = est.experimental_feature_importances(
-        normalize=False)
-    self.assertAllEqual(feature_names_expected, feature_names)
-    self.assertAllClose([0.0, 0.0, 0.0], importances)
-
+    importances = est.experimental_feature_importances(normalize=False)
+    expected_importances = {
+        'f_2_bucketized': 0.0,
+        'f_1_bucketized': 0.0,
+        'f_0_bucketized': 0.0
+    }
+    self.assertAllClose(expected_importances, importances)
     with self.assertRaisesRegexp(AssertionError,
                                  'all empty or contain only a root node'):
       est.experimental_feature_importances(normalize=True)
@@ -1217,18 +1215,15 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
         """
     self._create_fake_checkpoint_with_tree_ensemble_proto(
         est, tree_ensemble_text)
-
-    # Github #21509 (nataliaponomareva):
+    importances = est.experimental_feature_importances(normalize=False)
     # The gains stored in the splits can be negative
     # if people are using complexity regularization.
-    feature_names_expected = ['f_2_bucketized',
-                              'f_0_bucketized',
-                              'f_1_bucketized']
-    feature_names, importances = est.experimental_feature_importances(
-        normalize=False)
-    self.assertAllEqual(feature_names_expected, feature_names)
-    self.assertAllClose([0.0, 0.0, -5.0], importances)
-
+    expected_importances = {
+        'f_2_bucketized': 0.0,
+        'f_0_bucketized': 0.0,
+        'f_1_bucketized': -5.0
+    }
+    self.assertAllClose(expected_importances, importances)
     with self.assertRaisesRegexp(AssertionError, 'non-negative'):
       est.experimental_feature_importances(normalize=True)
 
@@ -1332,35 +1327,30 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
     self._create_fake_checkpoint_with_tree_ensemble_proto(
         est, tree_ensemble_text)
 
-    feature_names_expected = ['categorical_indicator:ok',
-                              'continuous_bucketized_indicator:(-2.0, 0.5)',
-                              'continuous_bucketized_indicator:(-inf, -2.0)',
-                              'categorical_indicator:bad',
-                              # Reverse order because feature importances
-                              # are sorted by np.argsort(f)[::-1]
-                              'continuous_bucketized_indicator:(12.0, inf)',
-                              'continuous_bucketized_indicator:(0.5, 12.0)',
-                              'continuous_bucketized',
-                              'categorical_indicator:good']
+    feature_col_names_expected = [
+        'categorical', 'categorical', 'categorical', 'continuous_bucketized',
+        'continuous_bucketized', 'continuous_bucketized',
+        'continuous_bucketized', 'continuous_bucketized'
+    ]
+    self.assertAllEqual(feature_col_names_expected, est._feature_col_names)
+    importances = est.experimental_feature_importances(normalize=False)
+    expected_importances = collections.OrderedDict(
+        (('categorical', 6.0), ('continuous_bucketized', 4.0)))
+    self.assertAllEqual(expected_importances.keys(), importances.keys())
+    self.assertAllClose(expected_importances.values(), importances.values())
+    # Normalize importances.
+    importances = est.experimental_feature_importances(normalize=True)
+    expected_importances = collections.OrderedDict(
+        (('categorical', 0.6), ('continuous_bucketized', 0.4)))
+    self.assertAllEqual(expected_importances.keys(), importances.keys())
+    self.assertAllClose(expected_importances.values(), importances.values())
 
-    feature_names, importances = est.experimental_feature_importances(
-        normalize=False)
-    self.assertAllEqual(feature_names_expected, feature_names)
-    # Gain sum for each features:
-    # = 1.0 * [5, 0, 2, 0, 0, 0, 0, 0] + 1.0 * [0, 2, 0, 1, 0, 0, 0, 0]
-    self.assertAllClose([5.0, 2.0, 2.0, 1.0, 0.0, 0.0, 0.0, 0.0], importances)
-
-    feature_names, importances = est.experimental_feature_importances(
-        normalize=True)
-    self.assertAllEqual(feature_names_expected, feature_names)
-    self.assertAllClose([0.5, 0.2, 0.2, 0.1, 0.0, 0.0, 0.0, 0.0], importances)
-
-  def testFeatureImportancesNamesForUnsupportedColumn(self):
+  def testForUnsupportedColumn(self):
     categorical_col = feature_column.categorical_column_with_vocabulary_list(
         key='categorical', vocabulary_list=('bad', 'good', 'ok'))
 
-    with self.assertRaisesRegexp(ValueError,
-                                 'only bucketized_column, indicator_column'):
+    with self.assertRaisesRegexp(
+        ValueError, 'only bucketized_column, indicator_column, numeric_column'):
       _ = boosted_trees.BoostedTreesRegressor(
           feature_columns=[categorical_col],
           n_batches_per_layer=1,
@@ -1437,28 +1427,26 @@ class BoostedTreesDebugOutputsTest(test_util.TensorFlowTestCase):
     biases, dfcs = zip(*[(pred['bias'], pred['dfc'])
                          for pred in debug_predictions])
     self.assertAllClose([0.4] * 5, biases)
-    self.assertAllClose(({
-        0: -0.12108613453574479,
-        1: 0.0,
-        2: -0.039254929814481143
-    }, {
-        0: 0.19650601422250574,
-        1: 0.0,
-        2: 0.02693827052766018
-    }, {
-        0: 0.16057487356133376,
-        1: 0.0,
-        2: 0.02693827052766018
-    }, {
-        0: -0.12108613453574479,
-        1: 0.0,
-        2: -0.039254929814481143
-    }, {
-        0: -0.10832468554550384,
-        1: 0.0,
-        2: 0.02693827052766018
-    }), dfcs)
-
+    expected_dfcs = (collections.OrderedDict(
+        (('f_0_bucketized', -0.1210861345357448),
+         ('f_2_bucketized', -0.03925492981448114), ('f_1_bucketized', 0.0))),
+                     collections.OrderedDict(
+                         (('f_0_bucketized', 0.19650601422250574),
+                          ('f_2_bucketized',
+                           0.02693827052766018), ('f_1_bucketized', 0.0))),
+                     collections.OrderedDict(
+                         (('f_0_bucketized', 0.16057487356133376),
+                          ('f_2_bucketized',
+                           0.02693827052766018), ('f_1_bucketized', 0.0))),
+                     collections.OrderedDict(
+                         (('f_0_bucketized', -0.1210861345357448),
+                          ('f_2_bucketized',
+                           -0.03925492981448114), ('f_1_bucketized', 0.0))),
+                     collections.OrderedDict(
+                         (('f_0_bucketized', -0.10832468554550384),
+                          ('f_2_bucketized',
+                           0.02693827052766018), ('f_1_bucketized', 0.0))))
+    self.assertAllClose(expected_dfcs, dfcs)
     # Assert sum(dfcs) + bias == probabilities.
     expected_probabilities = [
         0.23965894, 0.62344426, 0.58751315, 0.23965894, 0.31861359
@@ -1498,27 +1486,26 @@ class BoostedTreesDebugOutputsTest(test_util.TensorFlowTestCase):
     biases, dfcs = zip(*[(pred['bias'], pred['dfc'])
                          for pred in debug_predictions])
     self.assertAllClose([1.8] * 5, biases)
-    self.assertAllClose(({
-        0: -0.070499420166015625,
-        1: -0.095000028610229492,
-        2: 0.0
-    }, {
-        0: -0.53763031959533691,
-        1: 0.063333392143249512,
-        2: 0.0
-    }, {
-        0: -0.51756942272186279,
-        1: -0.095000028610229492,
-        2: 0.0
-    }, {
-        0: 0.1563495397567749,
-        1: 0.063333392143249512,
-        2: 0.0
-    }, {
-        0: 0.96934974193572998,
-        1: 0.063333392143249512,
-        2: 0.0
-    }), dfcs)
+    expected_dfcs = (collections.OrderedDict(
+        (('f_1_bucketized', -0.09500002861022949),
+         ('f_0_bucketized', -0.07049942016601562), ('f_2_bucketized', 0.0))),
+                     collections.OrderedDict(
+                         (('f_0_bucketized', -0.5376303195953369),
+                          ('f_1_bucketized',
+                           0.06333339214324951), ('f_2_bucketized', 0.0))),
+                     collections.OrderedDict(
+                         (('f_0_bucketized', -0.5175694227218628),
+                          ('f_1_bucketized',
+                           -0.09500002861022949), ('f_2_bucketized', 0.0))),
+                     collections.OrderedDict(
+                         (('f_0_bucketized', 0.1563495397567749),
+                          ('f_1_bucketized',
+                           0.06333339214324951), ('f_2_bucketized', 0.0))),
+                     collections.OrderedDict(
+                         (('f_0_bucketized', 0.96934974193573),
+                          ('f_1_bucketized',
+                           0.06333339214324951), ('f_2_bucketized', 0.0))))
+    self.assertAllClose(expected_dfcs, dfcs)
 
     # Assert sum(dfcs) + bias == predictions.
     expected_predictions = [[1.6345005], [1.32570302], [1.1874305],
@@ -1537,7 +1524,7 @@ class BoostedTreesDebugOutputsTest(test_util.TensorFlowTestCase):
       self.assertTrue('predictions' in prediction_dict)
       self.assertEqual(len(prediction_dict), 3)
 
-  def testThatBucketsAreUsedInPredictWithExplanations(self):
+  def testDFCClassifierWithOnlyFloatColumn(self):
     feature_columns = {
         feature_column.numeric_column('f_%d' % i, dtype=dtypes.float32)
         for i in range(NUM_FEATURES)
@@ -1559,16 +1546,16 @@ class BoostedTreesDebugOutputsTest(test_util.TensorFlowTestCase):
     predictions = list(est.predict(predict_input_fn))
     debug_predictions = list(
         est.experimental_predict_with_explanations(predict_input_fn))
+    # Predictions using vanilla est.predict are equal to the sum of DFCs.
     for pred, debug_pred in zip(predictions, debug_predictions):
       self.assertTrue('bias' in debug_pred)
       self.assertTrue('dfc' in debug_pred)
       self.assertTrue('probabilities' in debug_pred)
-      # Predictions using vanilla est.predict are equal to the sum of DFCs.
       self.assertAlmostEqual(
           sum(debug_pred['dfc'].values()) + debug_pred['bias'],
           pred['probabilities'][1])
 
-  def testRegressorThatDFCIsInPredictionsWithOnlyFloatColumn(self):
+  def testDFCRegressorWithOnlyFloatColumn(self):
     feature_columns = {
         feature_column.numeric_column('f_%d' % i, dtype=dtypes.float32)
         for i in range(NUM_FEATURES)
@@ -1583,19 +1570,17 @@ class BoostedTreesDebugOutputsTest(test_util.TensorFlowTestCase):
         max_depth=5,
         center_bias=True,
         quantile_sketch_epsilon=0.33)
-
     # It will stop after 5 steps because of the max depth and num trees.
     num_steps = 100
     est.train(input_fn, steps=num_steps)
-    debug_predictions = est.experimental_predict_with_explanations(
-        predict_input_fn)
-    for prediction_dict in debug_predictions:
-      self.assertTrue('bias' in prediction_dict)
-      self.assertTrue('dfc' in prediction_dict)
-      self.assertTrue('predictions' in prediction_dict)
+    predictions = list(est.predict(predict_input_fn))
+    debug_predictions = list(
+        est.experimental_predict_with_explanations(predict_input_fn))
+    # Predictions using vanilla est.predict are equal to the sum of DFCs.
+    for pred, debug_pred in zip(predictions, debug_predictions):
       self.assertAlmostEqual(
-          sum(prediction_dict['dfc'].values()) + prediction_dict['bias'],
-          prediction_dict['predictions'][0])
+          sum(debug_pred['dfc'].values()) + debug_pred['bias'],
+          pred['predictions'])
 
 
 class ModelFnTests(test_util.TensorFlowTestCase):
