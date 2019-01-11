@@ -268,7 +268,7 @@ def _create_keras_model_fn(keras_model, custom_objects=None):
     """model_fn for keras Estimator."""
     # Raise an error when users use DistributionStrategy with native Keras
     # optimizers. Currently we only support native TensorFlow optimizers.
-    if distribution_strategy_context.has_distribution_strategy() and \
+    if distribution_strategy_context.has_strategy() and \
         not isinstance(keras_model.optimizer,
                        (tf_optimizer_module.Optimizer, optimizers.TFOptimizer)):
       raise ValueError('Only TensorFlow native optimizers are supported with '
@@ -280,7 +280,7 @@ def _create_keras_model_fn(keras_model, custom_objects=None):
     # We need to make sure that the output names of the last layer in the model
     # is the same for each of the cloned models. This is required for mirrored
     # strategy when we call regroup.
-    if distribution_strategy_context.has_distribution_strategy():
+    if distribution_strategy_context.has_strategy():
       for name in model.output_names:
         name = re.compile(r'_\d$').sub('', name)
         model_output_names.append(name)
