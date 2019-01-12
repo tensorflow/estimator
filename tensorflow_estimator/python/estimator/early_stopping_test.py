@@ -22,6 +22,7 @@ import os
 import tempfile
 
 from absl.testing import parameterized
+from tensorflow.python.eager import context
 from tensorflow.python.framework import ops
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import state_ops
@@ -58,11 +59,12 @@ class _FakeEstimator(estimator.Estimator):
 
 def _write_events(eval_dir, params):
   """Test helper to write events to summary files."""
-  for steps, loss, accuracy in params:
-    estimator._write_dict_to_summary(eval_dir, {
-        'loss': loss,
-        'accuracy': accuracy,
-    }, steps)
+  with context.graph_mode():
+    for steps, loss, accuracy in params:
+      estimator._write_dict_to_summary(eval_dir, {
+          'loss': loss,
+          'accuracy': accuracy,
+      }, steps)
 
 
 class ReadEvalMetricsTest(test.TestCase):
@@ -109,6 +111,7 @@ class ReadEvalMetricsTest(test.TestCase):
 class EarlyStoppingHooksTest(test.TestCase, parameterized.TestCase):
 
   def setUp(self):
+    super(EarlyStoppingHooksTest, self).setUp()
     config = _FakeRunConfig(is_chief=True)
     self._estimator = _FakeEstimator(config=config)
     eval_dir = self._estimator.eval_dir()
@@ -174,12 +177,12 @@ class EarlyStoppingHooksTest(test.TestCase, parameterized.TestCase):
                             (500, 0.3, True))
   def test_multiple_hooks(self, max_steps, loss_threshold, should_stop):
     self.run_session([
-      early_stopping.stop_if_no_decrease_hook(
-          self._estimator,
-          metric_name='loss',
-          max_steps_without_decrease=max_steps),
-      early_stopping.stop_if_lower_hook(
-          self._estimator, metric_name='loss', threshold=loss_threshold)
+        early_stopping.stop_if_no_decrease_hook(
+            self._estimator,
+            metric_name='loss',
+            max_steps_without_decrease=max_steps),
+        early_stopping.stop_if_lower_hook(
+            self._estimator, metric_name='loss', threshold=loss_threshold)
     ], should_stop)
 
   @parameterized.parameters(False, True)
