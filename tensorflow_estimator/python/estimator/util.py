@@ -133,6 +133,20 @@ class _DatasetInitializerHook(training.SessionRunHook):
     session.run(self._initializer)
 
 
+class DistributedIteratorInitializerHook(training.SessionRunHook):
+  """Creates a SessionRunHook that initializes the passed iterator."""
+
+  def __init__(self, iterator):
+    self._iterator = iterator
+
+  def begin(self):
+    self._initializer = self._iterator.initialize()
+
+  def after_create_session(self, session, coord):
+    del coord
+    session.run(self._initializer)
+
+
 class MultiHostDatasetInitializerHook(training.SessionRunHook):
   """Creates a SessionRunHook that initializes all passed iterators."""
 

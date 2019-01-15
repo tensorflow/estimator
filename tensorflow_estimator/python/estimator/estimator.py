@@ -192,7 +192,7 @@ class EstimatorV2(object):
     self._config = maybe_overwrite_model_dir_and_session_config(config,
                                                                 model_dir)
 
-    # The distribute field contains an instance of DistributionStrategy.
+    # The distribute field contains an instance of tf.distribute.Strategy.
     self._train_distribution = self._config.train_distribute
     self._eval_distribution = self._config.eval_distribute
     # Model directory.
@@ -977,13 +977,14 @@ class EstimatorV2(object):
 
   def _get_iterator_from_input_fn(self, input_fn, mode, distribution=None):
     if distribution is not None:
-      result = distribution.distribute_dataset(
-          lambda: self._call_input_fn(input_fn, mode))
+      iterator = distribution.make_input_fn_iterator(
+          lambda _: self._call_input_fn(input_fn, mode))
+      input_hooks = [
+          estimator_util.DistributedIteratorInitializerHook(iterator)]
     else:
       result = self._call_input_fn(input_fn, mode)
-
-    iterator = result.make_initializable_iterator()
-    input_hooks = [estimator_util._DatasetInitializerHook(iterator)]  # pylint: disable=protected-access
+      iterator = result.make_initializable_iterator()
+      input_hooks = [estimator_util._DatasetInitializerHook(iterator)]  # pylint: disable=protected-access
     return iterator, input_hooks
 
   def _get_features_and_labels_from_input_fn(self, input_fn, mode):
