@@ -457,7 +457,6 @@ py_library(
 
 py_library(
     name = "dnn_testing_utils",
-    testonly = 1,
     srcs = ["canned/dnn_testing_utils.py"],
     srcs_version = "PY2AND3",
     visibility = ["//visibility:public"],
@@ -478,7 +477,6 @@ py_library(
 
 py_library(
     name = "dnn_testing_utils_v1",
-    testonly = 1,
     srcs = ["canned/v1/dnn_testing_utils_v1.py"],
     srcs_version = "PY2AND3",
     deps = [
@@ -1248,7 +1246,6 @@ py_library(
 
 py_library(
     name = "linear_testing_utils",
-    testonly = 1,
     srcs = ["canned/linear_testing_utils.py"],
     srcs_version = "PY2AND3",
     visibility = ["//visibility:public"],
@@ -1270,7 +1267,6 @@ py_library(
 
 py_library(
     name = "linear_testing_utils_v1",
-    testonly = 1,
     srcs = ["canned/v1/linear_testing_utils_v1.py"],
     srcs_version = "PY2AND3",
     deps = [
