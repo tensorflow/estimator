@@ -21,13 +21,15 @@ import os
 import tempfile
 import time
 
-from tensorflow_estimator.python.estimator import estimator as estimator_lib
-from tensorflow_estimator.python.estimator import exporter as exporter_lib
+from tensorflow.python.eager import context
+from tensorflow.python.framework import test_util
 from tensorflow.python.ops import array_ops
 from tensorflow.python.platform import gfile
 from tensorflow.python.platform import test
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.util import compat
+from tensorflow_estimator.python.estimator import estimator as estimator_lib
+from tensorflow_estimator.python.estimator import exporter as exporter_lib
 
 
 class BestExporterTest(test.TestCase):
@@ -121,8 +123,10 @@ class BestExporterTest(test.TestCase):
     gfile.MkDir(export_dir_base + "/eval")
 
     eval_dir_base = os.path.join(export_dir_base, "eval_continuous")
-    estimator_lib._write_dict_to_summary(eval_dir_base, {"loss": 50}, 1)
-    estimator_lib._write_dict_to_summary(eval_dir_base, {"loss": 60}, 2)
+    # _write_dict_to_summary is only called internally within graph mode.
+    with context.graph_mode():
+      estimator_lib._write_dict_to_summary(eval_dir_base, {"loss": 50}, 1)
+      estimator_lib._write_dict_to_summary(eval_dir_base, {"loss": 60}, 2)
 
     exporter = exporter_lib.BestExporter(
         name="best_exporter",
@@ -148,6 +152,7 @@ class BestExporterTest(test.TestCase):
                                     "checkpoint_path", {"loss": 20}, False)
     self.assertEqual(None, export_result)
 
+  @test_util.run_v1_only("Tests v1 only symbols")
   def test_best_exporter_with_empty_event(self):
 
     def _serving_input_receiver_fn():
