@@ -910,7 +910,8 @@ class EstimatorV2(object):
           getattr(input_receiver, 'receiver_tensors_alternatives', None),
           serving_only=(mode == model_fn_lib.ModeKeys.PREDICT))
 
-      with tf_session.Session(config=self._session_config) as session:
+      with tf_session.Session(
+          target=self._config.master, config=self._session_config) as session:
 
         if estimator_spec.scaffold.local_init_op is not None:
           local_init_op = estimator_spec.scaffold.local_init_op
