@@ -21,12 +21,14 @@ from __future__ import print_function
 from tensorflow.python.eager import context
 from tensorflow.python.framework import ops
 from tensorflow.python.keras import metrics
+from tensorflow.python.keras.utils import metrics_utils
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import lookup_ops
 from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import nn
 from tensorflow.python.ops import string_ops
+from tensorflow.python.ops import weights_broadcast_ops
 from tensorflow.python.ops.losses import losses
 from tensorflow_estimator.python.estimator import model_fn
 from tensorflow_estimator.python.estimator.canned import metric_keys
@@ -307,9 +309,10 @@ class BinaryClassHead(base_head.Head):
       eval_metrics[self._label_mean_key] = metrics.Mean(name=keys.LABEL_MEAN)
       eval_metrics[self._accuracy_baseline_key] = (
           metrics.Mean(name=keys.ACCURACY_BASELINE))
-      # TODO(b/118843532): create Keras metrics
-      # eval_metrics[self._auc_key] = metrics.Precision(name=keys.AUC)
-      # eval_metrics[self._auc_pr_key] = metrics.Precision(name=keys.AUC_PR)
+      # The default summation_method is "interpolation" in the AUC metric.
+      eval_metrics[self._auc_key] = metrics.AUC(name=keys.AUC)
+      eval_metrics[self._auc_pr_key] = metrics.AUC(
+          curve=metrics_utils.AUCCurve.PR, name=keys.AUC_PR)
       if regularization_losses is not None:
         eval_metrics[self._loss_regularization_key] = metrics.Mean(
             name=keys.LOSS_REGULARIZATION)
@@ -358,6 +361,13 @@ class BinaryClassHead(base_head.Head):
         label_mean_metric.count - label_mean_metric.total)
     accuracy_baseline_metric.count = label_mean_metric.count
 
+  def _update_auc(self, auc_metric, labels, predictions, weights=None):
+    predictions = math_ops.to_float(predictions)
+    if weights is not None:
+      weights = weights_broadcast_ops.broadcast_weights(weights, predictions)
+    auc_metric.update_state(
+        y_true=labels, y_pred=predictions, sample_weight=weights)
+
   def update_metrics(self, eval_metrics, features, logits, labels,
                      regularization_losses=None):
     """Updates eval metrics. See `base_head.Head` for details."""
@@ -384,9 +394,12 @@ class BinaryClassHead(base_head.Head):
     base_head.update_metric_with_broadcast_weights(
         eval_metrics[self._label_mean_key], labels, weights)
     self._update_accuracy_baseline(eval_metrics)
-    # TODO(b/118843532): update Keras metrics
-    # eval_metrics[self._auc_key].update_state(...)
-    # eval_metrics[self._auc_pr_key].update_state(...)
+    self._update_auc(
+        auc_metric=eval_metrics[self._auc_key], labels=labels,
+        predictions=logistic, weights=weights)
+    self._update_auc(
+        auc_metric=eval_metrics[self._auc_pr_key], labels=labels,
+        predictions=logistic, weights=weights)
     if regularization_losses is not None:
       regularization_loss = math_ops.add_n(regularization_losses)
       eval_metrics[self._loss_regularization_key].update_state(

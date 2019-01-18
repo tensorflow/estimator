@@ -437,9 +437,8 @@ class MultiLabelHead(test.TestCase):
         keys.LOSS_MEAN: expected_loss,
         # auc and auc_pr cannot be reliably calculated for only 4 samples, but
         # this assert tests that the algorithm remains consistent.
-        # TODO(b/118843532): update metrics
-        # keys.AUC: 0.3333,
-        # keys.AUC_PR: 0.7639,
+        keys.AUC: 0.3333,
+        keys.AUC_PR: 0.7689,
     }
     self._test_eval(
         head=head,
@@ -469,9 +468,8 @@ class MultiLabelHead(test.TestCase):
         keys.LOSS_MEAN: expected_loss,
         # auc and auc_pr cannot be reliably calculated for only 4 samples, but
         # this assert tests that the algorithm remains consistent.
-        # TODO(b/118843532): update metrics
-        # keys.AUC: 0.3333,
-        # keys.AUC_PR: 0.7639,
+        keys.AUC: 0.3333,
+        keys.AUC_PR: 0.7689,
     }
     self._test_eval(
         head=head,
@@ -501,9 +499,8 @@ class MultiLabelHead(test.TestCase):
         keys.LOSS_REGULARIZATION: expected_regularization_loss,
         # auc and auc_pr cannot be reliably calculated for only 4 samples, but
         # this assert tests that the algorithm remains consistent.
-        # TODO(b/118843532): update metrics
-        # keys.AUC: 0.3333,
-        # keys.AUC_PR: 0.7639,
+        keys.AUC: 0.3333,
+        keys.AUC_PR: 0.7689,
     }
     self._test_eval(
         head=head,
@@ -535,9 +532,8 @@ class MultiLabelHead(test.TestCase):
         keys.LOSS_MEAN: expected_loss,
         # auc and auc_pr cannot be reliably calculated for only 4 samples, but
         # this assert tests that the algorithm remains consistent.
-        # TODO(b/118843532): update metrics
-        # keys.AUC: 0.3333,
-        # keys.AUC_PR: 0.7639,
+        keys.AUC: 0.3333,
+        keys.AUC_PR: 0.7689,
     }
     self._test_eval(
         head=head,
@@ -563,9 +559,8 @@ class MultiLabelHead(test.TestCase):
         keys.LOSS_MEAN: expected_loss,
         # auc and auc_pr cannot be reliably calculated for only 4 samples, but
         # this assert tests that the algorithm remains consistent.
-        # TODO(b/118843532): update metrics
-        # keys.AUC: 0.3333,
-        # keys.AUC_PR: 0.7639,
+        keys.AUC: 0.3333,
+        keys.AUC_PR: 0.7689,
     }
     self._test_eval(
         head=head,
@@ -593,9 +588,8 @@ class MultiLabelHead(test.TestCase):
         keys.LOSS_MEAN: expected_loss,
         # auc and auc_pr cannot be reliably calculated for only 4 samples, but
         # this assert tests that the algorithm remains consistent.
-        # TODO(b/118843532): update metrics
-        # keys.AUC: 0.3333,
-        # keys.AUC_PR: 0.7639,
+        keys.AUC: 0.3333,
+        keys.AUC_PR: 0.7689,
         keys.ACCURACY_AT_THRESHOLD % thresholds[0]: 2. / 4.,
         keys.PRECISION_AT_THRESHOLD % thresholds[0]: 2. / 3.,
         keys.RECALL_AT_THRESHOLD % thresholds[0]: 2. / 3.,
@@ -632,17 +626,16 @@ class MultiLabelHead(test.TestCase):
         keys.LOSS_MEAN: expected_loss,
         # auc and auc_pr cannot be reliably calculated for only 4 samples, but
         # this assert tests that the algorithm remains consistent.
-        # TODO(b/118843532): update metrics
-        # keys.AUC: 0.3333,
-        # keys.AUC_PR: 0.7639,
+        keys.AUC: 0.3333,
+        keys.AUC_PR: 0.7689,
         keys.PROBABILITY_MEAN_AT_CLASS % 0:
             math_ops.reduce_sum(nn.sigmoid(logits[:, 0])) / 2.,
-        # keys.AUC_AT_CLASS % 0: 0.,
-        # keys.AUC_PR_AT_CLASS % 0: 1.,
+        keys.AUC_AT_CLASS % 0: 0.,
+        keys.AUC_PR_AT_CLASS % 0: 1.,
         keys.PROBABILITY_MEAN_AT_CLASS % 1:
             math_ops.reduce_sum(nn.sigmoid(logits[:, 1])) / 2.,
-        # keys.AUC_AT_CLASS % 1: 1.,
-        # keys.AUC_PR_AT_CLASS % 1: 1.,
+        keys.AUC_AT_CLASS % 1: 1.,
+        keys.AUC_PR_AT_CLASS % 1: 1.,
     }
 
     self._test_eval(
@@ -675,17 +668,16 @@ class MultiLabelHead(test.TestCase):
         keys.LOSS_MEAN: expected_loss,
         # auc and auc_pr cannot be reliably calculated for only 4 samples, but
         # this assert tests that the algorithm remains consistent.
-        # TODO(b/118843532): update metrics
-        # keys.AUC: 0.3333,
-        # keys.AUC_PR: 0.7639,
+        keys.AUC: 0.3333,
+        keys.AUC_PR: 0.7689,
         keys.PROBABILITY_MEAN_AT_NAME % 'a':
             math_ops.reduce_sum(nn.sigmoid(logits[:, 0])) / 2.,
-        # keys.AUC_AT_NAME % 'a': 0.,
-        # keys.AUC_PR_AT_NAME % 'a': 1.,
+        keys.AUC_AT_NAME % 'a': 0.,
+        keys.AUC_PR_AT_NAME % 'a': 1.,
         keys.PROBABILITY_MEAN_AT_NAME % 'b':
             math_ops.reduce_sum(nn.sigmoid(logits[:, 1])) / 2.,
-        # keys.AUC_AT_NAME % 'b': 1.,
-        # keys.AUC_PR_AT_NAME % 'b': 1.,
+        keys.AUC_AT_NAME % 'b': 1.,
+        keys.AUC_PR_AT_NAME % 'b': 1.,
     }
 
     self._test_eval(
@@ -718,9 +710,8 @@ class MultiLabelHead(test.TestCase):
         keys.LOSS_MEAN: expected_loss * (2. / 3.),
         # auc and auc_pr cannot be reliably calculated for only 4 samples, but
         # this assert tests that the algorithm remains consistent.
-        # TODO(b/118843532): update metrics
-        # keys.AUC: 0.2000,
-        # keys.AUC_PR: 0.7833,
+        keys.AUC: 0.2000,
+        keys.AUC_PR: 0.7280,
     }
     self._test_eval(
         head=head,
@@ -1282,9 +1273,8 @@ class MultiLabelHead(test.TestCase):
         keys.LOSS_MEAN: expected_loss * (4. / np.sum(weights)),
         # auc and auc_pr cannot be reliably calculated for only 4 samples, but
         # this assert tests that the algorithm remains consistent.
-        # TODO(b/118843532): update metrics
-        # keys.AUC: 0.4977,
-        # keys.AUC_PR: 0.6645,
+        keys.AUC: 0.4977,
+        keys.AUC_PR: 0.5461,
     }
     self._test_eval(
         head=head,

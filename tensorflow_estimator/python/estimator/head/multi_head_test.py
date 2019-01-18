@@ -23,7 +23,6 @@ import six
 
 from tensorflow.python.eager import context
 from tensorflow.python.framework import constant_op
-from tensorflow.python.framework import test_util
 from tensorflow.python.ops import nn
 from tensorflow.python.ops import string_ops
 from tensorflow.python.platform import test
@@ -314,11 +313,10 @@ class MultiHeadTest(test.TestCase):
         keys.LOSS_MEAN + '/head2': expected_loss_head2,
         # auc and auc_pr cannot be reliably calculated for only 4-6 samples, but
         # this assert tests that the algorithm remains consistent.
-        # TODO(yhliang): update metrics
-        # keys.AUC + '/head1': 0.1667,
-        # keys.AUC + '/head2': 0.3333,
-        # keys.AUC_PR + '/head1': 0.6667,
-        # keys.AUC_PR + '/head2': 0.5000,
+        keys.AUC + '/head1': 0.1667,
+        keys.AUC + '/head2': 0.3333,
+        keys.AUC_PR + '/head1': 0.60228,
+        keys.AUC_PR + '/head2': 0.40152,
     }
 
     if context.executing_eagerly():

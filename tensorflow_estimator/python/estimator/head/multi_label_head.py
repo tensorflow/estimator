@@ -25,6 +25,7 @@ from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import sparse_tensor
 from tensorflow.python.keras import metrics
+from tensorflow.python.keras.utils import metrics_utils
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import lookup_ops
 from tensorflow.python.ops import math_ops
@@ -385,9 +386,10 @@ class MultiLabelHead(base_head.Head):
       # Mean metric.
       eval_metrics = {}
       eval_metrics[self._loss_mean_key] = metrics.Mean(name=keys.LOSS_MEAN)
-      # TODO(b/118843532): create Keras metrics
-      # eval_metrics[self._auc] = metrics.Precision(name=keys.AUC)
-      # eval_metrics[self._auc_pr_key] = metrics.Precision(name=keys.AUC_PR)
+      # The default summation_method is "interpolation" in the AUC metric.
+      eval_metrics[self._auc_key] = metrics.AUC(name=keys.AUC)
+      eval_metrics[self._auc_pr_key] = metrics.AUC(
+          curve=metrics_utils.AUCCurve.PR, name=keys.AUC_PR)
       if regularization_losses is not None:
         eval_metrics[self._loss_regularization_key] = metrics.Mean(
             name=keys.LOSS_REGULARIZATION)
@@ -400,12 +402,10 @@ class MultiLabelHead(base_head.Head):
         eval_metrics[self._recall_keys[i]] = metrics.Recall(
             name=self._recall_keys[i], thresholds=threshold)
       for i in range(len(self._classes_for_class_based_metrics)):
-        # TODO(b/118843532): create Keras metrics
         eval_metrics[self._prob_keys[i]] = metrics.Mean(name=self._prob_keys[i])
-        # eval_metrics[self._auc_keys[i]] = metrics.AUC(name=self._auc_keys[i])
-        # eval_metrics[self._auc_pr_keys[i]] = metrics.AUC_PR(
-        #     name=self._auc_pr_keys[i])
-
+        eval_metrics[self._auc_keys[i]] = metrics.AUC(name=self._auc_keys[i])
+        eval_metrics[self._auc_pr_keys[i]] = metrics.AUC(
+            curve=metrics_utils.AUCCurve.PR, name=self._auc_pr_keys[i])
     return eval_metrics
 
   def update_metrics(self, eval_metrics, features, logits, labels,
@@ -422,20 +422,21 @@ class MultiLabelHead(base_head.Head):
     # Update metrics.
     eval_metrics[self._loss_mean_key].update_state(
         values=unweighted_loss, sample_weight=weights)
-    # TODO(b/118843532): update Keras metrics
-    # eval_metrics[self._auc_key].update_state(...)
-    # eval_metrics[self._auc_pr_key].update_state(...)
+    eval_metrics[self._auc_key].update_state(
+        y_true=processed_labels, y_pred=probabilities, sample_weight=weights)
+    eval_metrics[self._auc_pr_key].update_state(
+        y_true=processed_labels, y_pred=probabilities, sample_weight=weights)
     if regularization_losses is not None:
       regularization_loss = math_ops.add_n(regularization_losses)
       eval_metrics[self._loss_regularization_key].update_state(
           values=regularization_loss)
     for i in range(len(self._thresholds)):
       eval_metrics[self._accuracy_keys[i]].update_state(
-          y_true=labels, y_pred=probabilities, sample_weight=weights)
+          y_true=processed_labels, y_pred=probabilities, sample_weight=weights)
       eval_metrics[self._precision_keys[i]].update_state(
-          y_true=labels, y_pred=probabilities, sample_weight=weights)
+          y_true=processed_labels, y_pred=probabilities, sample_weight=weights)
       eval_metrics[self._recall_keys[i]].update_state(
-          y_true=labels, y_pred=probabilities, sample_weight=weights)
+          y_true=processed_labels, y_pred=probabilities, sample_weight=weights)
     for i, class_id in enumerate(self._classes_for_class_based_metrics):
       batch_rank = array_ops.rank(probabilities) - 1
       begin = array_ops.concat(
@@ -446,12 +447,15 @@ class MultiLabelHead(base_head.Head):
           axis=0)
       class_probabilities = array_ops.slice(
           probabilities, begin=begin, size=size)
-      # class_labels = array_ops.slice(labels, begin=begin, size=size)
-      # TODO(b/118843532): update Keras metrics
+      class_labels = array_ops.slice(processed_labels, begin=begin, size=size)
       base_head.update_metric_with_broadcast_weights(
           eval_metrics[self._prob_keys[i]], class_probabilities, weights)
-      # eval_metrics[self._auc_keys[i]].update_state(...)
-      # eval_metrics[self._auc_pr_key[i]].update_state(...)
+      eval_metrics[self._auc_keys[i]].update_state(
+          y_true=class_labels, y_pred=class_probabilities,
+          sample_weight=weights)
+      eval_metrics[self._auc_pr_keys[i]].update_state(
+          y_true=class_labels, y_pred=class_probabilities,
+          sample_weight=weights)
     return eval_metrics
 
   def _create_tpu_estimator_spec(

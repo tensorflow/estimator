@@ -930,12 +930,11 @@ class RNNClassifierEvaluationTest(test.TestCase):
             1.0,
         metric_keys.MetricKeys.PRECISION:
             1.0,
-        # TODO(b/118843532): update metrics
-        # # Positive example is scored above negative, so AUC = 1.0.
-        # metric_keys.MetricKeys.AUC:
-        #     1.0,
-        # metric_keys.MetricKeys.AUC_PR:
-        #     1.0,
+        # Positive example is scored above negative, so AUC = 1.0.
+        metric_keys.MetricKeys.AUC:
+            1.0,
+        metric_keys.MetricKeys.AUC_PR:
+            1.0,
     }
     self.assertAllClose(
         sorted_key_dict(expected_metrics), sorted_key_dict(eval_metrics))
