@@ -33,10 +33,8 @@ DOCLINES = __doc__.split('\n')
 _VERSION = '1.13.0'
 
 REQUIRED_PACKAGES = [
-    'absl-py >= 0.1.6',
-    'numpy >= 1.13.3',
-    'six >= 1.10.0',
-    # Depends on TensorFlow. Not declared here to avoid circular dependency.
+    # We depend on TensorFlow's declared pip dependencies.
+    # Add a new dep there if one is needed.
 ]
 
 project_name = 'tensorflow_estimator'
@@ -45,10 +43,6 @@ if '--project_name' in sys.argv:
   project_name = sys.argv[project_name_idx + 1]
   sys.argv.remove('--project_name')
   sys.argv.pop(project_name_idx)
-
-if sys.version_info.major == 2:
-  # mock comes with unittest.mock for python3, need to install for python2
-  REQUIRED_PACKAGES.append('mock >= 2.0.0')
 
 setuptools.setup(
     name=project_name,
