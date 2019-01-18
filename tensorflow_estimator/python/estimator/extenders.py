@@ -35,13 +35,10 @@ def add_metrics(estimator, metric_fn):
   Example:
 
   ```python
-    # Use tf.metrics (to be deprecated)
     def my_auc(labels, predictions):
-      return {'auc': tf.metrics.auc(labels, predictions['logistic'])}
-    # TODO(b/117774910): add an example of new AUC Metric when it's available
-    # Or use tf.keras.Metrics
-    # def my_auc(labels, predictions):
-    #  return {'auc': tf.keras.metrics.AUC(labels, predictions['logistic'])}
+      auc_metric = tf.keras.metrics.AUC(name="my_auc")
+      auc_metric.update_state(y_true=labels, y_pred=predictions['logistic'])
+      return {'auc': auc_metric}
 
     estimator = tf.estimator.DNNClassifier(...)
     estimator = tf.estimator.add_metrics(estimator, my_auc)
@@ -51,13 +48,11 @@ def add_metrics(estimator, metric_fn):
   Example usage of custom metric which uses features:
 
   ```python
-    def my_auc(features, labels, predictions):
-      return {'auc': tf.metrics.auc(
-        labels, predictions['logistic'], weights=features['weight'])}
-    # TODO(b/117774910): add an example of new AUC Metric when it's available
-    # Or use tf.keras.Metrics
-    # def my_auc(labels, predictions):
-    #  return {'auc': tf.keras.metrics.AUC(labels, predictions['logistic'])}
+    def my_auc(labels, predictions):
+      auc_metric = tf.keras.metrics.AUC(name="my_auc")
+      auc_metric.update_state(y_true=labels, y_pred=predictions['logistic'],
+                              sample_weight=features['weight'])
+      return {'auc': auc_metric}
 
     estimator = tf.estimator.DNNClassifier(...)
     estimator = tf.estimator.add_metrics(estimator, my_auc)
