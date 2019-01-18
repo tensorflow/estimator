@@ -99,6 +99,11 @@ class RegressionHead(base_head.Head):
       `SUM_OVER_BATCH_SIZE`, namely weighted sum of losses divided by
       `batch size * label_dimension`.
     loss_fn: Optional loss function. Defaults to `mean_squared_error`.
+    update_ops: A list or tuple of update ops to be run at training time. For
+      example, layers such as BatchNormalization create mean and variance update
+      ops that need to be run at training time. In Tensorflow 1.x, these are
+      thrown into an UPDATE_OPS collection. As Tensorflow 2.x doesn't have
+      collections, update_ops need to be explicitly passed to Head constructor.
     inverse_link_fn: Optional inverse link function, also known as 'mean
       function'. Defaults to identity.
     name: name of the head. If provided, summary and metrics keys will be
@@ -111,19 +116,20 @@ class RegressionHead(base_head.Head):
       weight_column=None,
       loss_reduction=losses.Reduction.SUM_OVER_BATCH_SIZE,
       loss_fn=None,
+      update_ops=None,
       inverse_link_fn=None,
       name=None):
     if label_dimension < 1:
       raise ValueError('Invalid label_dimension {}.'.format(label_dimension))
-    if (loss_reduction not in losses.Reduction.all() or
-        loss_reduction == losses.Reduction.NONE):
-      raise ValueError('Invalid loss_reduction: {}'.format(loss_reduction))
+    base_head.validate_loss_reduction(loss_reduction)
     if loss_fn:
       base_head.validate_loss_fn_args(loss_fn)
+    base_head.validate_update_ops(update_ops)
     self._logits_dimension = label_dimension
     self._weight_column = weight_column
     self._loss_reduction = loss_reduction
     self._loss_fn = loss_fn
+    self._update_ops = update_ops
     self._inverse_link_fn = inverse_link_fn
     self._name = name
     # Metric keys.
@@ -323,10 +329,14 @@ class RegressionHead(base_head.Head):
                 }))
       # Train.
       train_op = base_head.create_estimator_spec_train_op(
-          self._name, optimizer, train_op_fn, regularized_training_loss)
+          head_name=self._name, optimizer=optimizer, train_op_fn=train_op_fn,
+          update_ops=self._update_ops,
+          regularized_training_loss=regularized_training_loss)
     # Create summary.
     base_head.create_estimator_spec_summary(
-        regularized_training_loss, regularization_losses, self._summary_key)
+        regularized_training_loss=regularized_training_loss,
+        regularization_losses=regularization_losses,
+        summary_key_fn=self._summary_key)
     return model_fn._TPUEstimatorSpec(  # pylint: disable=protected-access
         mode=model_fn.ModeKeys.TRAIN,
         predictions=predictions,

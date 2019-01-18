@@ -1478,12 +1478,9 @@ class BinaryClassHeadForEstimator(test.TestCase):
       self.assertEqual(expected_train_result, train_result)
 
   def test_train_with_update_ops(self):
-    head = head_lib.BinaryClassHead()
-
     with ops.Graph().as_default():
       w = variables.Variable(1)
       update_op = w.assign_add(1)
-      ops.add_to_collection(ops.GraphKeys.UPDATE_OPS, update_op)
 
       t = variables.Variable('')
       expected_train_result = b'my_train_op'
@@ -1491,6 +1488,7 @@ class BinaryClassHeadForEstimator(test.TestCase):
         del loss
         return t.assign(expected_train_result)
 
+      head = head_lib.BinaryClassHead(update_ops=[update_op])
       spec = head.create_estimator_spec(
           features={'x': np.array(((42,),), dtype=np.int32)},
           mode=model_fn.ModeKeys.TRAIN,
@@ -1505,7 +1503,6 @@ class BinaryClassHeadForEstimator(test.TestCase):
         self.assertEqual(2, w_value)
         self.assertEqual(expected_train_result, t_value)
 
-  @test_util.run_v1_only('b/122438702')
   def test_train_summaries_with_head_name(self):
     head = head_lib.BinaryClassHead(
         name='some_binary_head')

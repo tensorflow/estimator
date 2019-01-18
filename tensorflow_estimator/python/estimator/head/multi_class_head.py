@@ -104,7 +104,12 @@ class MultiClassHead(base_head.Head):
       reduce training loss over batch. Defaults to `SUM_OVER_BATCH_SIZE`, namely
       weighted sum of losses divided by `batch size * label_dimension`.
     loss_fn: Optional loss function.
-    name: name of the head. If provided, summary and metrics keys will be
+    update_ops: A list or tuple of update ops to be run at training time. For
+      example, layers such as BatchNormalization create mean and variance update
+      ops that need to be run at training time. In Tensorflow 1.x, these are
+      thrown into an UPDATE_OPS collection. As Tensorflow 2.x doesn't have
+      collections, update_ops need to be explicitly passed to Head constructor.
+    name: Name of the head. If provided, summary and metrics keys will be
       suffixed by `"/" + name`. Also used as `name_scope` when creating ops.
   """
 
@@ -114,6 +119,7 @@ class MultiClassHead(base_head.Head):
                label_vocabulary=None,
                loss_reduction=losses.Reduction.SUM_OVER_BATCH_SIZE,
                loss_fn=None,
+               update_ops=None,
                name=None):
     if (n_classes is None) or (n_classes <= 2):
       raise ValueError('n_classes must be > 2: {}.'.format(n_classes))
@@ -122,16 +128,16 @@ class MultiClassHead(base_head.Head):
       raise ValueError(
           'label_vocabulary should be a list or a tuple. Given type: {}'.format(
               type(label_vocabulary)))
-    if (loss_reduction not in losses.Reduction.all() or
-        loss_reduction == losses.Reduction.NONE):
-      raise ValueError('Invalid loss_reduction: {}'.format(loss_reduction))
+    base_head.validate_loss_reduction(loss_reduction)
     if loss_fn:
       base_head.validate_loss_fn_args(loss_fn)
+    base_head.validate_update_ops(update_ops)
     self._n_classes = n_classes
     self._weight_column = weight_column
     self._label_vocabulary = label_vocabulary
     self._loss_reduction = loss_reduction
     self._loss_fn = loss_fn
+    self._update_ops = update_ops
     self._name = name
     # Metric keys.
     keys = metric_keys.MetricKeys
@@ -407,10 +413,14 @@ class MultiClassHead(base_head.Head):
                 }))
       # Train.
       train_op = base_head.create_estimator_spec_train_op(
-          self._name, optimizer, train_op_fn, regularized_training_loss)
+          head_name=self._name, optimizer=optimizer, train_op_fn=train_op_fn,
+          update_ops=self._update_ops,
+          regularized_training_loss=regularized_training_loss)
     # Create summary.
     base_head.create_estimator_spec_summary(
-        regularized_training_loss, regularization_losses, self._summary_key)
+        regularized_training_loss=regularized_training_loss,
+        regularization_losses=regularization_losses,
+        summary_key_fn=self._summary_key)
     return model_fn._TPUEstimatorSpec(  # pylint: disable=protected-access
         mode=model_fn.ModeKeys.TRAIN,
         predictions=predictions,

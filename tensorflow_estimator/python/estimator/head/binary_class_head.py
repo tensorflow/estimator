@@ -80,7 +80,12 @@ class BinaryClassHead(base_head.Head):
       reduce training loss over batch. Defaults to `SUM_OVER_BATCH_SIZE`, namely
       weighted sum of losses divided by `batch size * label_dimension`.
     loss_fn: Optional loss function.
-    name: name of the head. If provided, summary and metrics keys will be
+    update_ops: A list or tuple of update ops to be run at training time. For
+      example, layers such as BatchNormalization create mean and variance update
+      ops that need to be run at training time. In Tensorflow 1.x, these are
+      thrown into an UPDATE_OPS collection. As Tensorflow 2.x doesn't have
+      collections, update_ops need to be explicitly passed to Head constructor.
+    name: Name of the head. If provided, summary and metrics keys will be
       suffixed by `"/" + name`. Also used as `name_scope` when creating ops.
   """
 
@@ -90,6 +95,7 @@ class BinaryClassHead(base_head.Head):
                label_vocabulary=None,
                loss_reduction=losses.Reduction.SUM_OVER_BATCH_SIZE,
                loss_fn=None,
+               update_ops=None,
                name=None):
     if label_vocabulary is not None and not isinstance(label_vocabulary,
                                                        (list, tuple)):
@@ -100,19 +106,16 @@ class BinaryClassHead(base_head.Head):
     for threshold in thresholds:
       if (threshold <= 0.0) or (threshold >= 1.0):
         raise ValueError('thresholds not in (0, 1): {}.'.format((thresholds,)))
-    if (loss_reduction not in losses.Reduction.all() or
-        loss_reduction == losses.Reduction.NONE):
-      raise ValueError(
-          'Invalid loss_reduction: {}. See `tf.losses.Reduction` for valid '
-          'options.'.format(loss_reduction))
+    base_head.validate_loss_reduction(loss_reduction)
     if loss_fn:
       base_head.validate_loss_fn_args(loss_fn)
-
+    base_head.validate_update_ops(update_ops)
     self._weight_column = weight_column
     self._thresholds = thresholds
     self._label_vocabulary = label_vocabulary
     self._loss_reduction = loss_reduction
     self._loss_fn = loss_fn
+    self._update_ops = update_ops
     self._name = name
     # Metric keys.
     keys = metric_keys.MetricKeys
@@ -407,7 +410,7 @@ class BinaryClassHead(base_head.Head):
         `SparseTensor` objects containing the values for that feature in a
         minibatch. Often to be used to fetch example-weight tensor.
       mode: Estimator's `ModeKeys`.
-      logits: logits `Tensor` with shape `[D0, D1, ... DN, 1]`. For many
+      logits: Logits `Tensor` with shape `[D0, D1, ... DN, 1]`. For many
         applications, the shape is `[batch_size, 1]`.
       labels: Labels integer or string `Tensor` with shape matching `logits`,
         namely `[D0, D1, ... DN, 1]` or `[D0, D1, ... DN]`. `labels` is required
@@ -472,10 +475,14 @@ class BinaryClassHead(base_head.Head):
                 }))
       # Train.
       train_op = base_head.create_estimator_spec_train_op(
-          self._name, optimizer, train_op_fn, regularized_training_loss)
+          head_name=self._name, optimizer=optimizer, train_op_fn=train_op_fn,
+          update_ops=self._update_ops,
+          regularized_training_loss=regularized_training_loss)
     # Create summary.
     base_head.create_estimator_spec_summary(
-        regularized_training_loss, regularization_losses, self._summary_key)
+        regularized_training_loss=regularized_training_loss,
+        regularization_losses=regularization_losses,
+        summary_key_fn=self._summary_key)
     return model_fn._TPUEstimatorSpec(  # pylint: disable=protected-access
         mode=model_fn.ModeKeys.TRAIN,
         predictions=predictions,

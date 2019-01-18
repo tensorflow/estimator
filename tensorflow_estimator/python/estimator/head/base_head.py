@@ -35,11 +35,11 @@ from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import string_ops
 from tensorflow.python.ops import weights_broadcast_ops
+from tensorflow.python.ops.losses import losses
 from tensorflow.python.saved_model import signature_constants
 from tensorflow.python.summary import summary
 from tensorflow.python.training import training_util
 from tensorflow.python.util import function_utils
-from tensorflow_estimator.python.estimator.canned import head as head_v1
 from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.export import export_output
 
@@ -600,6 +600,21 @@ def validate_loss_fn_args(loss_fn):
     raise ValueError('loss_fn has unexpected args: {}'.format(invalid_args))
 
 
+def validate_loss_reduction(loss_reduction):
+  if (loss_reduction not in losses.Reduction.all() or
+      loss_reduction == losses.Reduction.NONE):
+    raise ValueError(
+        'Invalid loss_reduction: {}. See `tf.losses.Reduction` for valid '
+        'options.'.format(loss_reduction))
+
+
+def validate_update_ops(update_ops=None):
+  if update_ops is not None and not isinstance(update_ops, (list, tuple)):
+    raise ValueError(
+        'update_ops should be a list or a tuple. Given type: {}'.format(
+            type(update_ops)))
+
+
 def call_loss_fn(loss_fn, labels, logits, features, expected_loss_dim=1):
   """Calls loss_fn and checks the returned shape.
 
@@ -742,8 +757,9 @@ def create_eval_metrics_tuple(fn, kwargs):
   return (_fn, tensor_kwargs)
 
 
-def create_estimator_spec_train_op(head_name, optimizer, train_op_fn,
-                                   regularized_training_loss):
+def create_estimator_spec_train_op(
+    head_name, optimizer=None, train_op_fn=None, update_ops=None,
+    regularized_training_loss=None):
   """Create train_op for estimator_spec."""
   with ops.name_scope(head_name, 'head'):
     if optimizer is not None:
@@ -756,12 +772,13 @@ def create_estimator_spec_train_op(head_name, optimizer, train_op_fn,
       train_op = train_op_fn(regularized_training_loss)
     else:
       raise ValueError('train_op_fn and optimizer cannot both be None.')
-    train_op = head_v1._append_update_ops(train_op)  # pylint: disable=protected-access
+    if update_ops is not None:
+      train_op = control_flow_ops.group(train_op, *update_ops)
     return train_op
 
 
 def create_estimator_spec_summary(
-    regularized_training_loss, regularization_losses, summary_key_fn=None):
+    regularized_training_loss, regularization_losses=None, summary_key_fn=None):
   """Create summary for estimator_spec."""
   with ops.name_scope(''):
     keys = metric_keys.MetricKeys
