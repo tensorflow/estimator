@@ -40,8 +40,8 @@ _DEFAULT_SERVING_KEY = signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY
 def multi_head(heads, head_weights=None):
   """Creates a `_Head` for multi-objective learning.
 
-  This class merges the output of multiple `_Head` objects.
-  Specifically:
+  This class merges the output of multiple `_Head` objects. Specifically:
+
   * For training, sums losses of each head, calls `train_op_fn` with this
     final loss.
   * For eval, merges metrics by adding `head.name` suffix to the keys in eval

@@ -56,8 +56,8 @@ def _default_export_output(export_outputs, head_name):
 class MultiHead(base_head.Head):
   """Creates a `Head` for multi-objective learning.
 
-  This class merges the output of multiple `Head` objects.
-  Specifically:
+  This class merges the output of multiple `Head` objects. Specifically:
+
   * For training, sums losses of each head, calls `train_op_fn` with this
     final loss.
   * For eval, merges metrics by adding `head.name` suffix to the keys in eval
