@@ -20,7 +20,6 @@ from __future__ import print_function
 
 import six
 
-from tensorflow.contrib.feature_column.python.feature_column import sequence_feature_column as seq_fc
 from tensorflow.python.feature_column import feature_column as feature_column_lib
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
@@ -215,6 +214,10 @@ def _rnn_logit_fn_builder(output_units, rnn_cell_fn, sequence_feature_columns,
       A tuple of `Tensor` objects representing the logits and the sequence
       length mask.
     """
+    # Can't import from tf.contrib at the module level, otherwise you
+    # can hit a circular import issue if tf_estimator.contrib is
+    # imported before tf.contrib.
+    from tensorflow.contrib.feature_column.python.feature_column import sequence_feature_column as seq_fc  # pylint: disable=g-import-not-at-top
     with variable_scope.variable_scope(
         'sequence_input_layer',
         values=tuple(six.itervalues(features)),
