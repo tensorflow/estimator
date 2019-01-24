@@ -24,8 +24,7 @@ import numpy as np
 from tensorflow.python.data.ops import dataset_ops
 from tensorflow.python.feature_column import feature_column_lib as fc
 from tensorflow.python.framework import constant_op
-from tensorflow.python.keras import metrics as keras_metrics
-from tensorflow.python.ops import metrics as metrics_lib
+from tensorflow.python.keras import metrics as metrics_module
 from tensorflow.python.platform import test
 from tensorflow_estimator.python.estimator import extenders
 from tensorflow_estimator.python.estimator import run_config
@@ -63,15 +62,12 @@ class AddMetricsTest(test.TestCase):
       # assert that it keeps original estimators metrics
       self.assertIn('auc', metrics)
 
-    def metric_fn_1(features):
-      return {'mean_x': metrics_lib.mean(features['x'])}
-    _test_metric_fn(metric_fn_1)
-
-    def metric_fn_2(features):
-      metric = keras_metrics.Mean()
+    def metric_fn(features):
+      metric = metrics_module.Mean()
       metric.update_state(features['x'])
       return {'mean_x': metric}
-    _test_metric_fn(metric_fn_2)
+
+    _test_metric_fn(metric_fn)
 
   def test_should_error_out_for_not_recognized_args(self):
     estimator = linear.LinearClassifierV2([fc.numeric_column('x')])
@@ -125,15 +121,12 @@ class AddMetricsTest(test.TestCase):
       metrics = estimator.evaluate(input_fn=input_fn)
       self.assertEqual(2., metrics['two'])
 
-    def metric_fn_1():
-      return {'two': metrics_lib.mean(constant_op.constant([2.]))}
-    _test_metric_fn(metric_fn_1)
-
-    def metric_fn_2():
-      metric = keras_metrics.Mean()
+    def metric_fn():
+      metric = metrics_module.Mean()
       metric.update_state(constant_op.constant([2.]))
       return {'two': metric}
-    _test_metric_fn(metric_fn_2)
+
+    _test_metric_fn(metric_fn)
 
   def test_overrides_existing_metrics(self):
     def _test_metric_fn(metric_fn):
@@ -147,15 +140,13 @@ class AddMetricsTest(test.TestCase):
       metrics = estimator.evaluate(input_fn=input_fn)
       self.assertEqual(2., metrics['auc'])
 
-    def metric_fn_1():
-      return {'auc': metrics_lib.mean(constant_op.constant([2.]))}
-    _test_metric_fn(metric_fn_1)
-
-    def metric_fn_2():
-      metric = keras_metrics.Mean()
+    def metric_fn():
+      metric = metrics_module.Mean()
       metric.update_state(constant_op.constant([2.]))
       return {'auc': metric}
-    _test_metric_fn(metric_fn_2)
+
+    _test_metric_fn(metric_fn)
+
 
 if __name__ == '__main__':
   test.main()

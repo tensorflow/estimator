@@ -30,12 +30,11 @@ from tensorflow.python.framework import random_seed
 from tensorflow.python.framework import sparse_tensor as sparse_tensor_lib
 from tensorflow.python.framework import tensor_util
 from tensorflow.python.keras import backend as K
-from tensorflow.python.keras import metrics
+from tensorflow.python.keras import metrics as metrics_module
 from tensorflow.python.keras import models
 from tensorflow.python.keras import optimizers
 from tensorflow.python.ops import check_ops
 from tensorflow.python.ops import math_ops
-from tensorflow.python.ops import metrics as metrics_module
 from tensorflow.python.platform import gfile
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.saved_model import signature_constants
@@ -219,7 +218,7 @@ def _convert_keras_metrics_to_estimator(model):
   eval_metric_ops = {}
 
   def get_metric_name(metric):
-    if isinstance(metric, metrics.Metric):
+    if isinstance(metric, metrics_module.Metric):
       return metric.name
     if callable(metric):
       return metric.__name__
@@ -237,19 +236,21 @@ def _convert_keras_metrics_to_estimator(model):
       # When some outputs use the same metric
       if list(model.metrics.values()).count(metric_name) > 1:
         metric_name += '_' + output_name
-      if isinstance(metric, metrics.Metric):
+      if isinstance(metric, metrics_module.Metric):
         eval_metric_ops[metric_name] = metric
       else:
-        eval_metric_ops[metric_name] = metrics_module.mean(
-            model.metrics_tensors[i - len(model.metrics)])
+        mean = metrics_module.Mean()
+        mean.update_state(model.metrics_tensors[i - len(model.metrics)])
+        eval_metric_ops[metric_name] = mean
   else:
     for i, metric in enumerate(model.metrics):
       metric_name = get_metric_name(metric)
-      if isinstance(metric, metrics.Metric):
+      if isinstance(metric, metrics_module.Metric):
         eval_metric_ops[metric_name] = metric
       else:
-        eval_metric_ops[metric_name] = metrics_module.mean(
-            model.metrics_tensors[i])
+        mean = metrics_module.Mean()
+        mean.update_state(model.metrics_tensors[i])
+        eval_metric_ops[metric_name] = mean
   return eval_metric_ops
 
 
@@ -412,7 +413,7 @@ def model_to_estimator(keras_model=None,
                        custom_objects=None,
                        model_dir=None,
                        config=None):
-# LINT.ThenChange(//third_party/tensorflow/python/keras/estimator/__init__.py)
+  # LINT.ThenChange(//third_party/tensorflow/python/keras/estimator/__init__.py)
   """Constructs an `Estimator` instance from given keras model.
 
   For usage example, please see:

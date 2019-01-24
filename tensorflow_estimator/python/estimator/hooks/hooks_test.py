@@ -31,9 +31,9 @@ from tensorflow.python.framework import constant_op
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import test_util
+from tensorflow.python.keras import metrics as metrics_module
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import init_ops
-from tensorflow.python.ops import metrics as metrics_lib
 from tensorflow.python.ops import state_ops
 from tensorflow.python.ops import variable_scope
 from tensorflow.python.ops import variables
@@ -90,10 +90,14 @@ class InMemoryEvaluatorHookTest(test.TestCase):
         return estimator_lib.EstimatorSpec(
             mode, loss=constant_op.constant(3.), train_op=train_op)
       if estimator_lib.ModeKeys.EVAL == mode:
+        mean = metrics_module.Mean()
+        mean.update_state(features)
         return estimator_lib.EstimatorSpec(
             mode,
             loss=constant_op.constant(5.),
-            eval_metric_ops={'mean_of_features': metrics_lib.mean(features)})
+            eval_metric_ops={
+                'mean_of_features': mean,
+            })
 
     estimator = estimator_lib.Estimator(model_fn=model_fn)
 
@@ -142,12 +146,14 @@ class InMemoryEvaluatorHookTest(test.TestCase):
         # to consume features, we have control dependency
         with ops.control_dependencies([features]):
           loss = constant_op.constant(5.)
+        mean = metrics_module.Mean()
+        mean.update_state(w)
         return estimator_lib.EstimatorSpec(
             mode,
             loss=loss,
             # w is constant in each step, so the mean.
             # w = 0 if step==0 else step+2
-            eval_metric_ops={'mean_of_const': metrics_lib.mean(w)})
+            eval_metric_ops={'mean_of_const': mean})
 
     estimator = estimator_lib.Estimator(model_fn=model_fn)
 
@@ -248,13 +254,15 @@ class InMemoryEvaluatorHookTest(test.TestCase):
 
     def model_fn(features, labels, mode):
       _, _ = features, labels
+      mean = metrics_module.Mean()
+      mean.update_state(constant_op.constant(2.))
       return estimator_lib.EstimatorSpec(
           mode,
           loss=constant_op.constant(3.),
           scaffold=training.Scaffold(saver=training.Saver()),
           train_op=constant_op.constant(5.),
           eval_metric_ops={
-              'mean_of_features': metrics_lib.mean(constant_op.constant(2.))
+              'mean_of_features': mean,
           })
 
     estimator = estimator_lib.Estimator(model_fn=model_fn)
@@ -274,13 +282,15 @@ class InMemoryEvaluatorHookTest(test.TestCase):
       def init_fn(scaffold, session):
         _, _ = scaffold, session
 
+      mean = metrics_module.Mean()
+      mean.update_state(constant_op.constant(2.))
       return estimator_lib.EstimatorSpec(
           mode,
           loss=constant_op.constant(3.),
           scaffold=training.Scaffold(init_fn=init_fn),
           train_op=constant_op.constant(5.),
           eval_metric_ops={
-              'mean_of_features': metrics_lib.mean(constant_op.constant(2.))
+              'mean_of_features': mean,
           })
 
     estimator = estimator_lib.Estimator(model_fn=model_fn)
@@ -302,13 +312,16 @@ class InMemoryEvaluatorHookTest(test.TestCase):
           collections=[ops.GraphKeys.SAVEABLE_OBJECTS])
       init_op = control_flow_ops.group(
           [w.initializer, training.get_global_step().initializer])
+
+      mean = metrics_module.Mean()
+      mean.update_state(constant_op.constant(2.))
       return estimator_lib.EstimatorSpec(
           mode,
           loss=constant_op.constant(3.),
           scaffold=training.Scaffold(init_op=init_op),
           train_op=constant_op.constant(5.),
           eval_metric_ops={
-              'mean_of_features': metrics_lib.mean(constant_op.constant(2.))
+              'mean_of_features': mean,
           })
 
     estimator = estimator_lib.Estimator(model_fn=model_fn)
