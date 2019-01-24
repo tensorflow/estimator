@@ -83,7 +83,7 @@ class UtilTest(test.TestCase, parameterized.TestCase):
 
     class MimicDataset(object):
 
-      def make_initializable_iterator(self):
+      def make_initializable_iterator(self, shared_name=None):
         return MimicIterator()
 
     features, labels, hooks = util.parse_input_fn_result(MimicDataset())
