@@ -1377,7 +1377,7 @@ class BaseLinearClassifierTrainingTest(object):
   def _testFromCheckpointMultiBatch(self, n_classes):
     # Create initial checkpoint.
     label = [1, 0]
-    age = [17, 18.5]
+    age = [17.0, 18.5]
     # For binary case, the expected weight has shape (1,1). For multi class
     # case, the shape is (1, n_classes). In order to test the weights, set
     # weights as 2.0 * range(n_classes).
