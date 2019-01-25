@@ -29,6 +29,7 @@ py_library(
         ":hooks",
         ":inputs",
         ":keras",
+        ":kmeans",
         ":linear",
         ":mode_keys",
         ":model_fn",
@@ -437,6 +438,35 @@ py_test(
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
+    ],
+)
+
+py_library(
+    name = "kmeans",
+    srcs = ["canned/kmeans.py"],
+    srcs_version = "PY2AND3",
+    deps = [
+        ":estimator",
+        ":head",
+        ":model_fn",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
+py_test(
+    name = "kmeans_test",
+    size = "medium",
+    srcs = ["canned/kmeans_test.py"],
+    shard_count = 4,
+    srcs_version = "PY2AND3",
+    tags = [
+        "notsan",  # b/67512932
+    ],
+    deps = [
+        ":inputs",
+        ":kmeans",
+        "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
     ],
 )
 
