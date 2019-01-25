@@ -40,7 +40,7 @@ from tensorflow.python.training import queue_runner
 from tensorflow_estimator.contrib.estimator.python.estimator import dnn_with_layer_annotations
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
 from tensorflow_estimator.python.estimator.canned import dnn
-from tensorflow_estimator.python.estimator.canned import dnn_testing_utils
+from tensorflow_estimator.python.estimator.canned.v1 import dnn_testing_utils_v1 as dnn_testing_utils
 from tensorflow_estimator.python.estimator.canned import prediction_keys
 from tensorflow_estimator.python.estimator.export import export
 from tensorflow_estimator.python.estimator.inputs import numpy_io

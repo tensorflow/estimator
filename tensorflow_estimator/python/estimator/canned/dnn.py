@@ -353,7 +353,7 @@ def _dnn_model_fn_v2(features,
       `int32` or `int64` in the range `[0, n_classes)`.
     mode: Defines whether this is training, evaluation or prediction. See
       `ModeKeys`.
-    head: A `head_lib._Head` instance.
+    head: A `base_head.Head` instance.
     hidden_units: Iterable of integer number of hidden units per layer.
     feature_columns: Iterable of `feature_column._FeatureColumn` model inputs.
     optimizer: String, `tf.Optimizer` object, or callable that creates the

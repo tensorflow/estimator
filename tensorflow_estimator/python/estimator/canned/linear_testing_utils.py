@@ -1570,7 +1570,7 @@ class BaseLinearClassifierEvaluationTest(object):
           metric_keys.MetricKeys.LABEL_MEAN: 0.5,
           metric_keys.MetricKeys.ACCURACY_BASELINE: 0.5,
           metric_keys.MetricKeys.AUC: 0.,
-          metric_keys.MetricKeys.AUC_PR: 0.25,
+          metric_keys.MetricKeys.AUC_PR: 0.3068,
       }
     else:
       # Multi classes: loss = 1 * -log ( soft_max(logits)[label] )
@@ -1664,7 +1664,7 @@ class BaseLinearClassifierEvaluationTest(object):
           metric_keys.MetricKeys.AUC:
               0.,
           metric_keys.MetricKeys.AUC_PR:
-              0.1668,
+              0.1891,
       }
     else:
       # Multi classes: unweighted_loss = 1 * -log ( soft_max(logits)[label] )

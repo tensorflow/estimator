@@ -48,6 +48,7 @@ from tensorflow_estimator.python.estimator.canned import head as head_lib
 from tensorflow_estimator.python.estimator.canned import optimizers
 from tensorflow_estimator.python.estimator.canned.linear_optimizer.python.utils import sdca_ops
 from tensorflow_estimator.python.estimator.head import head_utils
+from tensorflow_estimator.python.estimator.head import binary_class_head
 from tensorflow_estimator.python.estimator.head import regression_head
 
 # The default learning rate of 0.2 is a historical artifact of the initial
@@ -400,9 +401,17 @@ def _sdca_model_fn(features, labels, mode, head, feature_columns, optimizer):
     ValueError: mode or params are invalid, or features has the wrong type.
   """
   assert feature_column_lib.is_feature_column_v2(feature_columns)
-  if isinstance(head, head_lib._BinaryLogisticHeadWithSigmoidCrossEntropyLoss):  # pylint: disable=protected-access
+  # The _sdca_model_fn is used by _linear_model_fn with LinearSDCA optimizer in
+  # both v1 and v2 Linear Estimators, and the only difference is to check head
+  # type. Here we check the instance for both v1 and v2 Head to avoid duplicate
+  # codes. Later v1 and v2 versions of _sdca_model_fn can be created if
+  # necessary.
+  if isinstance(head,
+                (binary_class_head.BinaryClassHead,
+                 head_lib._BinaryLogisticHeadWithSigmoidCrossEntropyLoss)):  # pylint: disable=protected-access
     loss_type = 'logistic_loss'
-  elif isinstance(head, regression_head.RegressionHead):  # pylint: disable=protected-access
+  elif isinstance(head, (regression_head.RegressionHead,
+                         head_lib._RegressionHeadWithMeanSquaredErrorLoss)):  # pylint: disable=protected-access
     assert head.logits_dimension == 1
     loss_type = 'squared_loss'
   else:
@@ -521,7 +530,6 @@ def _linear_model_fn(features, labels, mode, head, feature_columns, optimizer,
       assert sparse_combiner == 'sum'
       return _sdca_model_fn(
           features, labels, mode, head, feature_columns, optimizer)
-
     else:
       logit_fn = linear_logit_fn_builder(
           units=head.logits_dimension, feature_columns=feature_columns,

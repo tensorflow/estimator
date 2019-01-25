@@ -1281,7 +1281,7 @@ class BaseDNNClassifierEvaluateTest(object):
             metric_keys.MetricKeys.AUC:
                 0.5,
             metric_keys.MetricKeys.AUC_PR:
-                0.75,
+                0.5,
             ops.GraphKeys.GLOBAL_STEP:
                 global_step
         },

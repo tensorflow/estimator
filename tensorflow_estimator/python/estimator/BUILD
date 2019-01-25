@@ -998,7 +998,7 @@ py_library(
     srcs = ["head/head_utils.py"],
     srcs_version = "PY2AND3",
     deps = [
-        ":head",
+        ":binary_class_head",
         ":multi_class_head",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
@@ -1234,6 +1234,7 @@ py_library(
     srcs = ["canned/linear.py"],
     srcs_version = "PY2AND3",
     deps = [
+        ":binary_class_head",
         ":estimator",
         ":head",
         ":head_utils",

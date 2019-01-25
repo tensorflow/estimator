@@ -20,7 +20,7 @@ from __future__ import print_function
 
 from tensorflow.core.framework import summary_pb2
 from tensorflow.python.saved_model import signature_constants
-from tensorflow_estimator.python.estimator.canned import head as head_v1
+from tensorflow_estimator.python.estimator.head import binary_class_head
 from tensorflow_estimator.python.estimator.head import multi_class_head
 
 _DEFAULT_SERVING_KEY = signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY
@@ -53,8 +53,7 @@ def binary_or_multi_class_head(n_classes, weight_column, label_vocabulary,
     A `Head` instance.
   """
   if n_classes == 2:
-    # TODO(b/117517419): Update binary_class_head when it's fully implemented.
-    head = head_v1._binary_logistic_head_with_sigmoid_cross_entropy_loss(  # pylint: disable=protected-access
+    head = binary_class_head.BinaryClassHead(
         weight_column=weight_column,
         label_vocabulary=label_vocabulary,
         loss_reduction=loss_reduction)

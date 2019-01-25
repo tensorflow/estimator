@@ -88,7 +88,7 @@ py_test(
     deps = [
         ":dnn_with_layer_annotations",
         "//tensorflow_estimator/python/estimator:dnn",
-        "//tensorflow_estimator/python/estimator:dnn_testing_utils",
+        "//tensorflow_estimator/python/estimator:dnn_testing_utils_v1",
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
         "//tensorflow_estimator/python/estimator:expect_pandas_installed",
         "//tensorflow_estimator/python/estimator:expect_six_installed",
