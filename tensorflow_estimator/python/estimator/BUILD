@@ -44,6 +44,7 @@ py_library(
         ":training",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
+        "//tensorflow_estimator/python/estimator/canned/timeseries:estimators",
     ],
 )
 
