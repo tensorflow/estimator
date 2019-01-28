@@ -1834,12 +1834,19 @@ def _combine_distributed_scaffold(grouped_scaffold, distribution):
   else:
     summary_op = None
 
+  savers = [s.saver for s in scaffold_list if s.saver is not None]
+  if savers:
+    saver = savers[0]
+  else:
+    saver = None
+
   scaffold = monitored_session.Scaffold(
       init_op=init_op,
       ready_op=ready_op,
       ready_for_local_init_op=ready_for_local_init_op,
       local_init_op=local_init_op,
       summary_op=summary_op,
+      saver=saver,
       init_feed_dict=init_feed_dict,
       init_fn=init_fn)
   return scaffold
