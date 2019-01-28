@@ -25,15 +25,13 @@ from absl.testing import parameterized
 import numpy
 import six
 
-from tensorflow.contrib.estimator.python.estimator import extenders
-from tensorflow.contrib.timeseries.examples import lstm as lstm_example
-from tensorflow.contrib.timeseries.python.timeseries import input_pipeline
 from tensorflow.core.example import example_pb2
 
 from tensorflow.python.client import session as session_lib
 from tensorflow.python.feature_column import feature_column_lib as feature_column
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
+from tensorflow.python.framework import test_util
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import math_ops
@@ -47,6 +45,7 @@ from tensorflow.python.training import coordinator as coordinator_lib
 from tensorflow.python.training import queue_runner_impl
 from tensorflow.python.training import training as train
 from tensorflow_estimator.python.estimator import estimator_lib
+from tensorflow_estimator.python.estimator import extenders
 from tensorflow_estimator.python.estimator.canned.timeseries import ar_model
 from tensorflow_estimator.python.estimator.canned.timeseries import estimators as ts_estimators
 from tensorflow_estimator.python.estimator.canned.timeseries import feature_keys
@@ -89,6 +88,7 @@ class _TickerModel(object):
         predictions={"ticker": features["ticker"]})
 
 
+@test_util.run_v1_only("Currently incompatible with ResourceVariable")
 class EvaluationMetricsTests(test.TestCase):
 
   def test_metrics_consistent(self):
@@ -142,8 +142,12 @@ class EvaluationMetricsTests(test.TestCase):
   def test_custom_metrics(self):
     """Tests that the custom metrics can be applied to the estimator."""
     model_dir = self.get_temp_dir()
-    estimator = ts_estimators.TimeSeriesRegressor(
-        model=lstm_example._LSTMModel(num_features=1, num_units=4),
+    estimator = ts_estimators.LSTMAutoRegressor(
+        periodicities=1,
+        input_window_size=1,
+        output_window_size=1,
+        num_features=1,
+        num_units=4,
         optimizer=adam.AdamOptimizer(0.001),
         config=estimator_lib.RunConfig(tf_random_seed=4),
         model_dir=model_dir)
@@ -173,10 +177,6 @@ class EvaluationMetricsTests(test.TestCase):
     self.assertIn("plain_boring_metric386", evaluation)
     self.assertIn("fun_metric101", evaluation)
     self.assertIn("average_loss", evaluation)
-    # The values are deterministic because of fixed tf_random_seed.
-    # However if they become flaky, remove such exacts comparisons.
-    self.assertAllClose(evaluation["plain_boring_metric386"], 1.130380)
-    self.assertAllClose(evaluation["fun_metric101"], 10.435442)
 
 
 class _StubModel(object):
@@ -324,26 +324,11 @@ class PredictFeatureCheckingTests(test.TestCase):
           mode=estimator_lib.ModeKeys.PREDICT)
 
 
-def _ar_lstm_regressor(
-    model_dir, head_type, exogenous_feature_columns):
-  return ts_estimators.TimeSeriesRegressor(
-      model=ar_model.ARModel(
-          periodicities=10, input_window_size=10, output_window_size=6,
-          num_features=5,
-          exogenous_feature_columns=exogenous_feature_columns,
-          prediction_model_factory=functools.partial(
-              ar_model.LSTMPredictionModel,
-              num_units=10)),
-      head_type=head_type,
-      model_dir=model_dir)
-
-
+@test_util.run_v1_only("Currently incompatible with ResourceVariable")
 class OneShotTests(parameterized.TestCase):
 
-  @parameterized.named_parameters(
-      {"testcase_name": "ar_lstm_regressor",
-       "estimator_factory": _ar_lstm_regressor})
-  def test_one_shot_prediction_head_export(self, estimator_factory):
+  def test_one_shot_prediction_head_export(self):
+
     def _new_temp_dir():
       return os.path.join(test.get_temp_dir(), str(ops.uid()))
     model_dir = _new_temp_dir()
@@ -354,22 +339,34 @@ class OneShotTests(parameterized.TestCase):
             "2d_exogenous_feature", shape=(2,)),
         feature_column.embedding_column(
             categorical_column=categorical_column, dimension=10)]
-    estimator = estimator_factory(
-        model_dir=model_dir,
-        exogenous_feature_columns=exogenous_feature_columns,
-        head_type=ts_head_lib.OneShotPredictionHead)
-    train_features = {
-        feature_keys.TrainEvalFeatures.TIMES: numpy.arange(
-            20, dtype=numpy.int64),
-        feature_keys.TrainEvalFeatures.VALUES: numpy.tile(numpy.arange(
-            20, dtype=numpy.float32)[:, None], [1, 5]),
-        "2d_exogenous_feature": numpy.ones([20, 2]),
-        "categorical_exogenous_feature": numpy.array(
-            ["strkey"] * 20)[:, None]
-    }
-    train_input_fn = input_pipeline.RandomWindowInputFn(
-        input_pipeline.NumpyReader(train_features), shuffle_seed=2,
-        num_threads=1, batch_size=16, window_size=16)
+    estimator = ts_estimators.TimeSeriesRegressor(
+        model=ar_model.ARModel(
+            periodicities=10,
+            input_window_size=10,
+            output_window_size=6,
+            num_features=5,
+            exogenous_feature_columns=exogenous_feature_columns,
+            prediction_model_factory=functools.partial(
+                ar_model.LSTMPredictionModel, num_units=10)),
+        head_type=ts_head_lib.OneShotPredictionHead,
+        model_dir=model_dir)
+
+    def train_input_fn():
+      num_range = math_ops.range(16, dtype=dtypes.int64)
+      features = {
+          feature_keys.TrainEvalFeatures.TIMES:
+              array_ops.expand_dims(num_range, axis=0),
+          feature_keys.TrainEvalFeatures.VALUES:
+              array_ops.expand_dims(
+                  array_ops.tile(num_range[:, None], [1, 5]), axis=0),
+          "2d_exogenous_feature":
+              array_ops.ones([1, 16, 2]),
+          "categorical_exogenous_feature":
+              array_ops.expand_dims(
+                  array_ops.tile(["strkey"], [16])[:, None], axis=0)
+      }
+      return features
+
     estimator.train(input_fn=train_input_fn, steps=5)
     result = estimator.evaluate(input_fn=train_input_fn, steps=1)
     self.assertIn("average_loss", result)

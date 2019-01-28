@@ -99,29 +99,26 @@ py_library(
     ],
 )
 
-# py_test(
-#     name = "head_test",
-#     size = "large",
-#     srcs = [
-#         "head_test.py",
-#     ],
-#     shard_count = 4,
-#     srcs_version = "PY2AND3",
-#     tags = ["no_oss"],
-#     deps = [
-#         ":estimators",
-#         ":feature_keys",
-#         ":head",
-#         ":model",
-#         ":state_management",
-#         "//tensorflow_estimator/python/estimator:expect_absl_installed",
-#         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
-#         "//tensorflow_estimator/python/estimator:expect_six_installed",
-#         "//third_party/py/tensorflow",
-#         "//third_party/tensorflow/contrib/timeseries/examples:lstm",
-#         "//third_party/tensorflow/contrib/timeseries/python/timeseries:input_pipeline",
-#     ],
-# )
+py_test(
+    name = "head_test",
+    srcs = [
+        "head_test.py",
+    ],
+    shard_count = 4,
+    srcs_version = "PY2AND3",
+    deps = [
+        ":estimators",
+        ":feature_keys",
+        ":head",
+        ":model",
+        ":state_management",
+        "//tensorflow_estimator/python/estimator:estimator_py",
+        "//tensorflow_estimator/python/estimator:expect_absl_installed",
+        "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_six_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
 
 py_library(
     name = "model_utils",

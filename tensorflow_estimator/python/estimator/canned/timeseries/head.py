@@ -18,7 +18,6 @@ from __future__ import division
 from __future__ import print_function
 
 import re
-from tensorflow.python.estimator import estimator_lib
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import sparse_tensor
@@ -31,6 +30,7 @@ from tensorflow.python.ops import variable_scope
 from tensorflow.python.summary import summary
 from tensorflow.python.training import training_util
 from tensorflow.python.util import nest
+from tensorflow_estimator.python.estimator import estimator_lib
 from tensorflow_estimator.python.estimator.canned import head as head_lib
 from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.canned.timeseries import feature_keys

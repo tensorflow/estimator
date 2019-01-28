@@ -18,17 +18,16 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from tensorflow.contrib import distributions
-
-from tensorflow.contrib.rnn.python.ops import lstm_ops
 from tensorflow.python.framework import constant_op
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
 from tensorflow.python.keras.engine import training
 from tensorflow.python.keras.layers import core
+from tensorflow.python.keras.layers import recurrent
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import check_ops
 from tensorflow.python.ops import control_flow_ops
+from tensorflow.python.ops import distributions
 from tensorflow.python.ops import gen_math_ops
 from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import nn_ops
@@ -65,10 +64,10 @@ class LSTMPredictionModel(training.Model):
       num_units: The number of units in the encoder and decoder LSTM cells.
     """
     super(LSTMPredictionModel, self).__init__()
-    self._encoder = lstm_ops.LSTMBlockFusedCell(
-        num_units=num_units, name="encoder")
-    self._decoder = lstm_ops.LSTMBlockFusedCell(
-        num_units=num_units, name="decoder")
+    self._encoder = recurrent.UnifiedLSTM(
+        num_units, name="encoder", dtype=self.dtype, return_state=True)
+    self._decoder = recurrent.UnifiedLSTM(
+        num_units, name="decoder", dtype=self.dtype, return_sequences=True)
     self._mean_transform = core.Dense(num_features,
                                       name="mean_transform")
     self._covariance_transform = core.Dense(num_features,
@@ -76,19 +75,10 @@ class LSTMPredictionModel(training.Model):
 
   def call(self, input_window_features, output_window_features):
     """Compute predictions from input and output windows."""
-    # Convert to time major
-    input_window_features = array_ops.transpose(input_window_features,
-                                                [1, 0, 2])
-    output_window_features = array_ops.transpose(output_window_features,
-                                                 [1, 0, 2])
-    _, encoder_state = self._encoder(
-        input_window_features, dtype=self.dtype)
-    decoder_output, _ = self._decoder(
-        output_window_features, dtype=self.dtype,
-        initial_state=encoder_state)
-
-    # Switch back to batch major
-    decoder_output = array_ops.transpose(decoder_output, [1, 0, 2])
+    _, state_h, state_c = self._encoder(input_window_features)
+    encoder_states = [state_h, state_c]
+    decoder_output = self._decoder(
+        output_window_features, initial_state=encoder_states)
     predicted_mean = self._mean_transform(decoder_output)
     predicted_covariance = gen_math_ops.exp(
         self._covariance_transform(decoder_output))
@@ -377,7 +367,7 @@ class ARModel(model.TimeSeriesModel):
     if self.loss == ARModel.NORMAL_LIKELIHOOD_LOSS:
       covariance = prediction_ops["covariance"]
       sigma = math_ops.sqrt(gen_math_ops.maximum(covariance, 1e-5))
-      normal = distributions.Normal(loc=targets, scale=sigma)
+      normal = distributions.normal.Normal(loc=targets, scale=sigma)
       loss_op = -math_ops.reduce_sum(normal.log_prob(prediction))
     else:
       assert self.loss == ARModel.SQUARED_LOSS, self.loss
@@ -815,4 +805,3 @@ class ARModel(model.TimeSeriesModel):
     mod = nn_ops.relu(mod - intervals)
     mod = array_ops.where(mod < 1.0, mod, array_ops.zeros_like(mod))
     return window_offset, mod
-
