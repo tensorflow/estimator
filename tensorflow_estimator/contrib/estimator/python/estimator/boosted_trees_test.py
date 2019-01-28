@@ -340,8 +340,7 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
     self.assertAllClose([[0], [1], [1], [0], [0]],
                         [pred['class_ids'] for pred in predictions])
 
-  # TODO(b/120674465): Re-enable the test.
-  def DISABLED_testBinaryClassifierTrainInMemoryFloatColumns(self):
+  def testBinaryClassifierTrainInMemoryFloatColumns(self):
     train_input_fn = _make_train_input_fn_dataset(is_classification=True)
     predict_input_fn = numpy_io.numpy_input_fn(
         x=FEATURES_DICT, y=None, batch_size=1, num_epochs=1, shuffle=False)
@@ -389,8 +388,7 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
         [[0.571619], [0.262821], [0.124549], [0.956801], [1.769801]],
         [pred['predictions'] for pred in predictions])
 
-  # TODO(b/120674465): Re-enable the test.
-  def DISABLED_testRegressorTrainInMemoryWithFloatColumns(self):
+  def testRegressorTrainInMemoryWithFloatColumns(self):
     train_input_fn = _make_train_input_fn(is_classification=False)
     predict_input_fn = numpy_io.numpy_input_fn(
         x=FEATURES_DICT, y=None, batch_size=1, num_epochs=1, shuffle=False)

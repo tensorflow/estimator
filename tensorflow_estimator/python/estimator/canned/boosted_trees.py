@@ -331,37 +331,47 @@ def _cache_transformed_features(features, sorted_feature_columns, batch_size,
   ]
   are_features_cached = _local_variable(False, name='are_features_cached')
 
-  def cache_features_and_return():
-    """Caches transformed features.
-
-    The intention is to hide get_transformed_features() from the graph by
-    caching the result except the first step, since bucketize operation
-    (inside get_transformed_features) is expensive.
-
-    Returns:
-      input_feature_list: a list of input features.
-      cache_flip_op: op to add to graph to make sure cache update is included to
-          the graph.
-    """
-
+  def get_features_without_cache():
+    """Returns transformed features"""
     transformed_features = _get_transformed_features(
         features, sorted_feature_columns, bucket_boundaries_dict)
-    cached = [
-        state_ops.assign(cached_features[i], transformed_features[i])
-        for i in range(num_features)
-    ]
-    # TODO(youngheek): Try other combination of dependencies so that the
-    # function returns a single result, not a tuple.
-    with ops.control_dependencies(cached):
-      # Do not cache if boundaries are not ready.
-      cache_flip_op = control_flow_ops.cond(
-          are_boundaries_ready, lambda: are_features_cached.assign(True),
-          control_flow_ops.no_op)
-    return cached, cache_flip_op
+    return transformed_features, control_flow_ops.no_op()
+
+  def get_features_with_cache():
+    """Either returns from cache or transforms and caches features."""
+
+    def _cache_features_and_return():
+      """Caches transformed features.
+
+      The intention is to hide get_transformed_features() from the graph by
+      caching the result except the first step, since bucketize operation
+      (inside get_transformed_features) is expensive.
+
+      Returns:
+        input_feature_list: a list of input features.
+        cache_flip_op: op to add to graph to make sure cache update is included
+        to
+            the graph.
+      """
+      transformed_features = _get_transformed_features(
+          features, sorted_feature_columns, bucket_boundaries_dict)
+      cached = [
+          state_ops.assign(cached_features[i], transformed_features[i])
+          for i in range(num_features)
+      ]
+      # TODO(youngheek): Try other combination of dependencies so that the
+      # function returns a single result, not a tuple.
+      with ops.control_dependencies(cached):
+        cache_flip_op = are_features_cached.assign(True)
+      return cached, cache_flip_op
+
+    return control_flow_ops.cond(
+        are_features_cached, lambda: (cached_features, control_flow_ops.no_op()
+                                     ), _cache_features_and_return)
 
   input_feature_list, cache_flip_op = control_flow_ops.cond(
-      are_features_cached, lambda: (cached_features, control_flow_ops.no_op()),
-      cache_features_and_return)
+      are_boundaries_ready, get_features_without_cache, get_features_with_cache)
+
   return input_feature_list, cache_flip_op
 
 
@@ -927,6 +937,7 @@ def _bt_model_fn(
     num_quantiles = int(1. / eps)
     bucket_boundaries_dict = {}
     quantile_accumulator = None
+
     if float_columns:
       num_float_features = _calculate_num_features(float_columns)
       quantile_accumulator = boosted_trees_ops.QuantileAccumulator(
@@ -934,6 +945,10 @@ def _bt_model_fn(
       bucket_boundaries = quantile_accumulator.get_bucket_boundaries()
       bucket_boundaries_dict = _get_float_boundaries_dict(
           float_columns, bucket_boundaries)
+      are_boundaries_ready_initial = False
+    else:
+      are_boundaries_ready_initial = True
+
     bucket_size_list, feature_ids_list = _group_features_by_num_buckets(
         sorted_feature_columns, num_quantiles)
 
@@ -972,7 +987,7 @@ def _bt_model_fn(
     training_state_cache = None
 
     are_boundaries_ready = variable_scope.variable(
-        initial_value=False,
+        initial_value=are_boundaries_ready_initial,
         name='are_boundaries_ready',
         trainable=False,
         use_resource=True)

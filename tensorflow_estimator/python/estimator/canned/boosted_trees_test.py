@@ -50,8 +50,8 @@ BUCKET_BOUNDARIES = [-2., .5, 12.]  # Boundaries for all the features.
 INPUT_FEATURES = np.array(
     [
         [12.5, 1.0, -2.001, -2.0001, -1.999],  # feature_0 quantized:[3,2,0,0,1]
-        [2.0, -3.0, 0.5, 0.0, 0.4995],         # feature_1 quantized:[2,0,2,1,1]
-        [3.0, 20.0, 50.0, -100.0, 102.75],     # feature_2 quantized:[2,3,3,0,3]
+        [2.0, -3.0, 0.5, 0.0, 0.4995],  # feature_1 quantized:[2,0,2,1,1]
+        [3.0, 20.0, 50.0, -100.0, 102.75],  # feature_2 quantized:[2,3,3,0,3]
     ],
     dtype=np.float32)
 
@@ -104,8 +104,7 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
     self._feature_columns = {
         feature_column.bucketized_column(
             feature_column.numeric_column('f_%d' % i, dtype=dtypes.float32),
-            BUCKET_BOUNDARIES)
-        for i in range(NUM_FEATURES)
+            BUCKET_BOUNDARIES) for i in range(NUM_FEATURES)
     }
 
   def _assert_checkpoint(self,
@@ -168,8 +167,10 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
       def before_run(self, run_context):
         raise StopIteration('to bail out.')
 
-    est.train(input_fn, steps=100,  # must stop at 0 anyway.
-              hooks=[BailOutWithoutTraining()])
+    est.train(
+        input_fn,
+        steps=100,  # must stop at 0 anyway.
+        hooks=[BailOutWithoutTraining()])
     self._assert_checkpoint(
         est.model_dir, global_step=0, finalized_trees=0, attempted_layers=0)
     # Empty ensemble returns 0 logits, so that all output labels are 0.
@@ -464,8 +465,10 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
     est.train(input_fn, steps=num_steps)
 
     self._assert_checkpoint(
-        est.model_dir, global_step=num_steps * 2,
-        finalized_trees=0, attempted_layers=4)
+        est.model_dir,
+        global_step=num_steps * 2,
+        finalized_trees=0,
+        attempted_layers=4)
     eval_res = est.evaluate(input_fn=input_fn, steps=1)
     self.assertAllClose(eval_res['accuracy'], 1.0)
 
@@ -492,6 +495,7 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
 
   def testTrainClassifierWithRankOneLabel(self):
     """Tests that label with rank-1 tensor is also accepted by classifier."""
+
     def _input_fn_with_rank_one_label():
       return FEATURES_DICT, [0., 1., 1., 0., 0.]
 
@@ -512,8 +516,10 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
 
   def testTrainClassifierWithLabelVocabulary(self):
     apple, banana = 'apple', 'banana'
+
     def _input_fn_with_label_vocab():
       return FEATURES_DICT, [[apple], [banana], [banana], [apple], [apple]]
+
     predict_input_fn = numpy_io.numpy_input_fn(
         x=FEATURES_DICT, y=None, batch_size=1, num_epochs=1, shuffle=False)
 
@@ -533,9 +539,11 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
                         [pred['class_ids'] for pred in predictions])
 
   def testTrainClassifierWithIntegerLabel(self):
+
     def _input_fn_with_integer_label():
       return (FEATURES_DICT,
               constant_op.constant([[0], [1], [1], [0], [0]], dtypes.int32))
+
     predict_input_fn = numpy_io.numpy_input_fn(
         x=FEATURES_DICT, y=None, batch_size=1, num_epochs=1, shuffle=False)
 
@@ -614,6 +622,7 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
 
   def testTrainRegressorWithRankOneLabel(self):
     """Tests that label with rank-1 tensor is also accepted by regressor."""
+
     def _input_fn_with_rank_one_label():
       return FEATURES_DICT, [1.5, 0.3, 0.2, 2., 5.]
 
@@ -785,9 +794,7 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
     self.assertAllClose(eval_res['loss'], 0)
 
     predictions = list(est.predict(input_fn))
-    self.assertAllClose(
-        labels,
-        [pred['predictions'] for pred in predictions])
+    self.assertAllClose(labels, [pred['predictions'] for pred in predictions])
 
     self.assertEqual(3, len(ensemble.trees[0].nodes))
 
@@ -829,9 +836,7 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
     self.assertAllClose(eval_res['loss'], 0)
 
     predictions = list(est.predict(input_fn))
-    self.assertAllClose(
-        labels,
-        [pred['predictions'] for pred in predictions])
+    self.assertAllClose(labels, [pred['predictions'] for pred in predictions])
 
     self.assertEqual(3, len(ensemble.trees[0].nodes))
 
@@ -881,9 +886,10 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
         raise StopIteration('to bail out.')
 
     # The step-0 checkpoint will have only an empty ensemble.
-    est.train(input_fn,
-              steps=100,  # must stop at 0 anyway.
-              hooks=[BailOutWithoutTraining()])
+    est.train(
+        input_fn,
+        steps=100,  # must stop at 0 anyway.
+        hooks=[BailOutWithoutTraining()])
 
     with self.assertRaisesRegexp(ValueError, 'empty serialized string'):
       est.experimental_feature_importances(normalize=False)
@@ -891,8 +897,7 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
     with self.assertRaisesRegexp(ValueError, 'empty serialized string'):
       est.experimental_feature_importances(normalize=True)
 
-  def _create_fake_checkpoint_with_tree_ensemble_proto(self,
-                                                       est,
+  def _create_fake_checkpoint_with_tree_ensemble_proto(self, est,
                                                        tree_ensemble_text):
     with ops.Graph().as_default():
       with ops.name_scope('boosted_trees') as name:
@@ -1587,10 +1592,13 @@ class ModelFnTests(test_util.TensorFlowTestCase):
   """Tests bt_model_fn including unexposed internal functionalities."""
 
   def setUp(self):
+    self._numeric_feature_columns = {
+        feature_column.numeric_column('f_%d' % i, dtype=dtypes.float32)
+        for i in range(NUM_FEATURES)
+    }
     self._feature_columns = {
-        feature_column.bucketized_column(
-            feature_column.numeric_column('f_%d' % i, dtype=dtypes.float32),
-            BUCKET_BOUNDARIES) for i in range(NUM_FEATURES)
+        feature_column.bucketized_column(numeric_column, BUCKET_BOUNDARIES)
+        for numeric_column in self._numeric_feature_columns
     }
 
   def _get_expected_ensembles_for_classification(self):
@@ -1819,6 +1827,131 @@ class ModelFnTests(test_util.TensorFlowTestCase):
         }
         """
     return (first_round, second_round, third_round)
+
+  def _get_expected_ensembles_for_classification_with_floats(self):
+    first_round = """
+        trees {
+          nodes {
+            bucketized_split {
+              feature_id: 2
+              threshold: 1
+              left_id: 1
+              right_id: 2
+            }
+            metadata {
+              gain: 0.387675
+            }
+          }
+          nodes {
+            leaf {
+              scalar: -0.181818
+            }
+          }
+          nodes {
+            leaf {
+              scalar: 0.0625
+            }
+          }
+        }
+        tree_weights: 1.0
+        tree_metadata {
+          num_layers_grown: 1
+          is_finalized: false
+        }
+        growing_metadata {
+          num_trees_attempted: 1
+          num_layers_attempted: 1
+          last_layer_node_start: 1
+          last_layer_node_end: 3
+        }
+        """
+    second_round = """
+        trees {
+          nodes {
+            bucketized_split {
+              feature_id: 2
+              threshold: 1
+              left_id: 1
+              right_id: 2
+            }
+            metadata {
+              gain: 0.387675
+            }
+          }
+          nodes {
+            bucketized_split {
+              feature_id: 0
+              threshold: 0
+              left_id: 3
+              right_id: 4
+            }
+            metadata {
+              gain: 0.0
+              original_leaf {
+                scalar: -0.181818
+              }
+            }
+          }
+          nodes {
+            bucketized_split {
+              feature_id: 2
+              threshold: 3
+              left_id: 5
+              right_id: 6
+            }
+            metadata {
+              gain: 0.46758
+              original_leaf {
+                scalar: 0.0625
+              }
+            }
+          }
+          nodes {
+            leaf {
+              scalar: -0.181817993522
+            }
+          }
+          nodes {
+            leaf {
+              scalar: -0.348397
+            }
+          }
+          nodes {
+            leaf {
+              scalar: 0.238795
+            }
+          }
+          nodes {
+            leaf {
+              scalar: -0.109513
+            }
+          }
+        }
+        trees {
+          nodes {
+            leaf {
+              scalar: 0.0
+            }
+          }
+        }
+        tree_weights: 1.0
+        tree_weights: 1.0
+        tree_metadata {
+          num_layers_grown: 2
+          is_finalized: true
+        }
+        tree_metadata {
+          num_layers_grown: 0
+          is_finalized: false
+        }
+        growing_metadata {
+          num_trees_attempted: 1
+          num_layers_attempted: 2
+          last_layer_node_start: 0
+          last_layer_node_end: 1
+        }
+        """
+    return (first_round, second_round)
 
   def _get_expected_ensembles_for_classification_with_bias(self):
     first_round = """
@@ -2534,7 +2667,21 @@ class ModelFnTests(test_util.TensorFlowTestCase):
                                  config,
                                  is_classification,
                                  train_in_memory,
-                                 center_bias=False):
+                                 center_bias=False,
+                                 use_numeric_columns=False):
+    """Calls bt_model_fn() and returns the train_op and ensemble_serialzed."""
+    train_op, ensemble_serialized, _ = self._get_train_op_and_ensemble_and_boundaries(
+        head, config, is_classification, train_in_memory, center_bias,
+        use_numeric_columns)
+    return train_op, ensemble_serialized
+
+  def _get_train_op_and_ensemble_and_boundaries(self,
+                                                head,
+                                                config,
+                                                is_classification,
+                                                train_in_memory,
+                                                center_bias=False,
+                                                use_numeric_columns=False):
     """Calls bt_model_fn() and returns the train_op and ensemble_serialzed."""
     features, labels = _make_train_input_fn(is_classification)()
 
@@ -2550,12 +2697,18 @@ class ModelFnTests(test_util.TensorFlowTestCase):
         pruning_mode='none',
         quantile_sketch_epsilon=0.01)
 
+    if use_numeric_columns:
+      columns = self._numeric_feature_columns
+      num_resources = 2
+    else:
+      columns = self._feature_columns
+      num_resources = 1
     estimator_spec = boosted_trees._bt_model_fn(  # pylint:disable=protected-access
         features=features,
         labels=labels,
         mode=model_fn.ModeKeys.TRAIN,
         head=head,
-        feature_columns=self._feature_columns,
+        feature_columns=columns,
         tree_hparams=tree_hparams,
         example_id_column_name=EXAMPLE_ID_COLUMN,
         n_batches_per_layer=1,
@@ -2567,13 +2720,20 @@ class ModelFnTests(test_util.TensorFlowTestCase):
 
     # Gets the train_op and serialized proto of the ensemble.
     shared_resources = resources.shared_resources()
-    self.assertEqual(1, len(shared_resources))
+    self.assertEqual(num_resources, len(shared_resources))
     train_op = estimator_spec.train_op
     with ops.control_dependencies([train_op]):
       _, ensemble_serialized = (
           gen_boosted_trees_ops.boosted_trees_serialize_ensemble(
               shared_resources[0].handle))
-    return train_op, ensemble_serialized
+
+      if use_numeric_columns:
+        bucket_boundaries = boosted_trees_ops.get_bucket_boundaries(
+            shared_resources[1].handle, num_features=len(columns))
+      else:
+        bucket_boundaries = []
+
+    return train_op, ensemble_serialized, bucket_boundaries
 
   def testTrainClassifierInMemory(self):
     ops.reset_default_graph()
@@ -2604,6 +2764,91 @@ class ModelFnTests(test_util.TensorFlowTestCase):
       ensemble_proto = boosted_trees_pb2.TreeEnsemble()
       ensemble_proto.ParseFromString(serialized)
       self.assertProtoEquals(expected_third, ensemble_proto)
+
+  def testTrainClassifierWithFloatColumns(self):
+    ops.reset_default_graph()
+    expected_first, expected_second = (
+        self._get_expected_ensembles_for_classification_with_floats())
+    expected_buckets = [[-2.001, -2.0001, -1.999, 1., 12.5],
+                        [-3., 0., 0.4995, 0.5, 2.],
+                        [-100., 3., 20., 50., 102.75]]
+    with self.cached_session() as sess:
+      # Train with train_in_memory mode.
+      with sess.graph.as_default():
+        train_op, ensemble_serialized, buckets = (
+            self._get_train_op_and_ensemble_and_boundaries(
+                boosted_trees._create_classification_head(n_classes=2),
+                run_config.RunConfig(),
+                is_classification=True,
+                train_in_memory=False,
+                # We are dealing with numeric values that will be quantized.
+                use_numeric_columns=True))
+      _, serialized, evaluated_buckets = sess.run(
+          [train_op, ensemble_serialized, buckets])
+      # First an ensemble didn't change
+      ensemble_proto = boosted_trees_pb2.TreeEnsemble()
+      ensemble_proto.ParseFromString(serialized)
+      self.assertProtoEquals('', ensemble_proto)
+      self.assertAllClose(expected_buckets, evaluated_buckets)
+
+      # Run one more time and validate the trained ensemble.
+      _, serialized, evaluated_buckets = sess.run(
+          [train_op, ensemble_serialized, buckets])
+      ensemble_proto = boosted_trees_pb2.TreeEnsemble()
+      ensemble_proto.ParseFromString(serialized)
+      self.assertProtoEquals(expected_first, ensemble_proto)
+      self.assertAllClose(expected_buckets, evaluated_buckets)
+
+      # Third round training and validation.
+      _, serialized, evaluated_buckets = sess.run(
+          [train_op, ensemble_serialized, buckets])
+      ensemble_proto = boosted_trees_pb2.TreeEnsemble()
+      ensemble_proto.ParseFromString(serialized)
+      self.assertProtoEquals(expected_second, ensemble_proto)
+      self.assertAllClose(expected_buckets, evaluated_buckets)
+
+  def testTrainClassifierWithFloatColumnsInMemory(self):
+    ops.reset_default_graph()
+    expected_first, expected_second = (
+        self._get_expected_ensembles_for_classification_with_floats())
+    expected_buckets = [[-2.001, -2.0001, -1.999, 1., 12.5],
+                        [-3., 0., 0.4995, 0.5, 2.],
+                        [-100., 3., 20., 50., 102.75]]
+    with self.cached_session() as sess:
+      # Train with train_in_memory mode.
+      with sess.graph.as_default():
+        train_op, ensemble_serialized, buckets = (
+            self._get_train_op_and_ensemble_and_boundaries(
+                boosted_trees._create_classification_head(n_classes=2),
+                run_config.RunConfig(),
+                is_classification=True,
+                train_in_memory=True,
+                # We are dealing with numeric values that will be quantized.
+                use_numeric_columns=True))
+      _, serialized, evaluated_buckets = sess.run(
+          [train_op, ensemble_serialized, buckets])
+      # First an ensemble didn't change
+      ensemble_proto = boosted_trees_pb2.TreeEnsemble()
+      ensemble_proto.ParseFromString(serialized)
+      self.assertProtoEquals('', ensemble_proto)
+      self.assertAllClose(expected_buckets, evaluated_buckets)
+
+      # Run one more time and validate the trained ensemble.
+      _, serialized, evaluated_buckets = sess.run(
+          [train_op, ensemble_serialized, buckets])
+      ensemble_proto = boosted_trees_pb2.TreeEnsemble()
+      ensemble_proto.ParseFromString(serialized)
+      self.assertProtoEquals(expected_first, ensemble_proto)
+      self.assertAllClose(expected_buckets, evaluated_buckets)
+
+      # Third round training and validation.
+      _, serialized, evaluated_buckets = sess.run(
+          [train_op, ensemble_serialized, buckets])
+      ensemble_proto = boosted_trees_pb2.TreeEnsemble()
+      ensemble_proto.ParseFromString(serialized)
+      self.assertProtoEquals(expected_second, ensemble_proto)
+      self.assertAllClose(expected_buckets, evaluated_buckets)
+
 
   def testTrainClassifierWithCenterBiasInMemory(self):
     ops.reset_default_graph()
