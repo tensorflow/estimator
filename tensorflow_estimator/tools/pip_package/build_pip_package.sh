@@ -38,36 +38,9 @@ function build_wheel() {
   cp -r "bazel-bin/tensorflow_estimator/tools/pip_package/build_pip_package.runfiles/org_tensorflow_estimator/tensorflow_estimator" "$TMPDIR"
   cp tensorflow_estimator/tools/pip_package/setup.py "$TMPDIR"
 
-  # Make sure init files exist.
-  touch "${TMPDIR}/tensorflow_estimator/__init__.py"
-  touch "${TMPDIR}/tensorflow_estimator/_api/__init__.py"
-  touch "${TMPDIR}/tensorflow_estimator/_api/v1/__init__.py"
-  touch "${TMPDIR}/tensorflow_estimator/_api/v2/__init__.py"
-  touch "${TMPDIR}/tensorflow_estimator/python/__init__.py"
-  touch "${TMPDIR}/tensorflow_estimator/python/estimator/__init__.py"
-  touch "${TMPDIR}/tensorflow_estimator/python/estimator/api/__init__.py"
-  touch "${TMPDIR}/tensorflow_estimator/python/estimator/api/_v1/__init__.py"
-  touch "${TMPDIR}/tensorflow_estimator/python/estimator/api/_v2/__init__.py"
-  touch "${TMPDIR}/tensorflow_estimator/python/estimator/canned/__init__.py"
-  touch "${TMPDIR}/tensorflow_estimator/python/estimator/canned/v1/__init__.py"
-  touch "${TMPDIR}/tensorflow_estimator/python/estimator/canned/linear_optimizer/__init__.py"
-  touch "${TMPDIR}/tensorflow_estimator/python/estimator/canned/linear_optimizer/python/__init__.py"
-  touch "${TMPDIR}/tensorflow_estimator/python/estimator/canned/linear_optimizer/python/utils/__init__.py"
-  touch "${TMPDIR}/tensorflow_estimator/python/estimator/canned/timeseries/__init__.py"
-  touch "${TMPDIR}/tensorflow_estimator/python/estimator/export/__init__.py"
-  touch "${TMPDIR}/tensorflow_estimator/python/estimator/head/__init__.py"
-  touch "${TMPDIR}/tensorflow_estimator/python/estimator/hooks/__init__.py"
-  touch "${TMPDIR}/tensorflow_estimator/python/estimator/inputs/__init__.py"
-  touch "${TMPDIR}/tensorflow_estimator/python/estimator/inputs/queues/__init__.py"
-
-  # We should not have contrib/ directory in Estimator 2.*. If we don't have
-  # contrib directory, then we shouldn't create __init__.py files under contrib.
-  if [ -d "${TMPDIR}/tensorflow_estimator/contrib/" ]; then
-    touch "${TMPDIR}/tensorflow_estimator/contrib/__init__.py"
-    touch "${TMPDIR}/tensorflow_estimator/contrib/estimator/__init__.py"
-    touch "${TMPDIR}/tensorflow_estimator/contrib/estimator/python/__init__.py"
-    touch "${TMPDIR}/tensorflow_estimator/contrib/estimator/python/estimator/__init__.py"
-  fi
+  # Verifies all expected files are in pip.
+  # Creates init files in all directory in pip.
+  python tensorflow_estimator/tools/pip_package/create_pip_helper.py --pip-root "${TMPDIR}/tensorflow_estimator/" --bazel-root "./tensorflow_estimator"
 
   pushd ${TMPDIR} > /dev/null
   echo $(date) : "=== Building wheel"
