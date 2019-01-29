@@ -1245,6 +1245,30 @@ py_library(
     srcs_version = "PY2AND3",
     deps = [
         ":base_head",
+        ":model_fn",
+        ":multi_head",
+        "//tensorflow_estimator/python/estimator:expect_six_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
+py_test(
+    name = "sequential_head_test",
+    size = "medium",
+    srcs = ["head/sequential_head_test.py"],
+    srcs_version = "PY2AND3",
+    deps = [
+        ":base_head_test",
+        ":binary_class_head",
+        ":metric_keys",
+        ":model_fn",
+        ":multi_class_head",
+        ":multi_head",
+        ":prediction_keys",
+        ":sequential_head",
+        "//tensorflow_estimator/python/estimator:expect_absl_installed",
+        "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
     ],
 )
 
