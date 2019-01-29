@@ -795,8 +795,7 @@ class _MultiClassHeadWithSoftmaxCrossEntropyLoss(_Head):
       regularization_losses: A list of additional scalar losses to be added to
         the training loss, such as regularization losses. These losses are
         usually expressed as a batch average, so for best results users need to
-        set `loss_reduction=SUM_OVER_BATCH_SIZE` or
-        `loss_reduction=SUM_OVER_NONZERO_WEIGHTS` when creating the head to
+        set `loss_reduction=SUM_OVER_BATCH_SIZE` when creating the head to
         avoid scaling errors.
     Returns:
       A `model_fn._TPUEstimatorSpec` instance.
@@ -1155,8 +1154,7 @@ class _BinaryLogisticHeadWithSigmoidCrossEntropyLoss(_Head):
       regularization_losses: A list of additional scalar losses to be added to
         the training loss, such as regularization losses. These losses are
         usually expressed as a batch average, so for best results users need to
-        set `loss_reduction=SUM_OVER_BATCH_SIZE` or
-        `loss_reduction=SUM_OVER_NONZERO_WEIGHTS` when creating the head to
+        set `loss_reduction=SUM_OVER_BATCH_SIZE` when creating the head to
         avoid scaling errors.
     Returns:
       `EstimatorSpec`.
@@ -1447,8 +1445,7 @@ class _RegressionHeadWithMeanSquaredErrorLoss(_Head):
       regularization_losses: A list of additional scalar losses to be added to
         the training loss, such as regularization losses. These losses are
         usually expressed as a batch average, so for best results users need to
-        set `loss_reduction=SUM_OVER_BATCH_SIZE` or
-        `loss_reduction=SUM_OVER_NONZERO_WEIGHTS` when creating the head to
+        set `loss_reduction=SUM_OVER_BATCH_SIZE` when creating the head to
         avoid scaling errors.
     Returns:
       A `model_fn._TPUEstimatorSpec` instance.

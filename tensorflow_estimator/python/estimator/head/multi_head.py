@@ -346,11 +346,10 @@ class MultiHead(base_head.Head):
       regularization_losses: A list of additional scalar losses to be added to
         the training loss, such as regularization losses. These losses are
         usually expressed as a batch average, so for best results, in each head,
-        users need to use the default `loss_reduction=SUM_OVER_BATCH_SIZE` or
-        set `loss_reduction=SUM_OVER_NONZERO_WEIGHTS` to avoid scaling errors.
-        Compared to the regularization losses for each head, this loss is to
-        regularize the merged loss of all heads in multi head, and will be added
-        to the overall training loss of multi head.
+        users need to use the default `loss_reduction=SUM_OVER_BATCH_SIZE` to
+        avoid scaling errors.  Compared to the regularization losses for each
+        head, this loss is to regularize the merged loss of all heads in multi
+        head, and will be added to the overall training loss of multi head.
 
     Returns:
       A `model_fn.EstimatorSpec` instance.
