@@ -130,7 +130,8 @@ class TrainSpec(
 
     Args:
       input_fn: A function that provides input data for training as minibatches.
-        See [Premade Estimators](https://tensorflow.org/guide/premade_estimators#create_input_functions)
+        See [Premade Estimators](
+        https://tensorflow.org/guide/premade_estimators#create_input_functions)
         for more information. The function should construct and return one of
         the following:
           * A 'tf.data.Dataset' object: Outputs of `Dataset` object must be a
@@ -194,7 +195,8 @@ class EvalSpec(
 
     Args:
       input_fn: A function that constructs the input data for evaluation.
-        See [Premade Estimators](https://tensorflow.org/api_guides/premade_estimators#create_input_functions)
+        See [Premade Estimators](
+        https://tensorflow.org/guide/premade_estimators#create_input_functions)
         for more information. The function should construct and return one of
         the following:
           * A 'tf.data.Dataset' object: Outputs of `Dataset` object must be a
