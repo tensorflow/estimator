@@ -68,33 +68,6 @@ class UtilTest(test.TestCase, parameterized.TestCase):
     self.assertAllEqual(vals[1], np.arange(100, 200))
     self.assertIsInstance(hooks[0], util._DatasetInitializerHook)
 
-  def test_parse_input_fn_result_mimic_dataset(self):
-
-    class MimicIterator(object):
-
-      @property
-      def initializer(self):
-        return {}
-
-      def get_next(self):
-        features = np.arange(100)
-        labels = np.arange(100, 200)
-        return ops.convert_to_tensor(features), ops.convert_to_tensor(labels)
-
-    class MimicDataset(object):
-
-      def make_initializable_iterator(self, shared_name=None):
-        return MimicIterator()
-
-    features, labels, hooks = util.parse_input_fn_result(MimicDataset())
-
-    with training.MonitoredSession(hooks=hooks) as sess:
-      vals = sess.run([features, labels])
-
-    self.assertAllEqual(vals[0], np.arange(100))
-    self.assertAllEqual(vals[1], np.arange(100, 200))
-    self.assertIsInstance(hooks[0], util._DatasetInitializerHook)
-
   def test_parse_input_fn_result_features_only(self):
     def _input_fn():
       return constant_op.constant(np.arange(100))
