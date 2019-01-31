@@ -111,7 +111,7 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
         self.assertAllClose(
             bucket_boundary,
             reader.get_tensor(
-                'boosted_trees/QuantileAccumulator/_bucket_boundaries_' +
+                'boosted_trees/QuantileAccumulator:0_bucket_boundaries_' +
                 str(i)))
 
   def testTrainAndEvaluateEstimator(self):

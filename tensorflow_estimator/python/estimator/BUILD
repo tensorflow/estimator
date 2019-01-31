@@ -392,9 +392,9 @@ py_library(
 
 py_test(
     name = "boosted_trees_test",
-    size = "large",
+    size = "medium",
     srcs = ["canned/boosted_trees_test.py"],
-    shard_count = 8,
+    shard_count = 32,
     srcs_version = "PY2AND3",
     tags = [
         "manual",

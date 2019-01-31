@@ -19,6 +19,7 @@ from __future__ import print_function
 
 import collections
 import os
+import tempfile
 
 import numpy as np
 
@@ -35,13 +36,16 @@ from tensorflow.python.ops import boosted_trees_ops
 from tensorflow.python.ops import gen_boosted_trees_ops
 from tensorflow.python.ops import resources
 from tensorflow.python.ops import variables
+from tensorflow.python.platform import gfile
 from tensorflow.python.platform import googletest
+from tensorflow.python.saved_model import loader
 from tensorflow.python.training import checkpoint_utils
 from tensorflow.python.training import saver as saver_lib
 from tensorflow.python.training import session_run_hook
 from tensorflow_estimator.python.estimator import model_fn
 from tensorflow_estimator.python.estimator import run_config
 from tensorflow_estimator.python.estimator.canned import boosted_trees
+from tensorflow_estimator.python.estimator.export import export
 from tensorflow_estimator.python.estimator.inputs import numpy_io
 
 NUM_FEATURES = 3
@@ -140,10 +144,50 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
         self.assertAllClose(
             bucket_boundary,
             reader.get_tensor(
-                'boosted_trees/QuantileAccumulator/_bucket_boundaries_' +
+                'boosted_trees/QuantileAccumulator:0_bucket_boundaries_' +
                 str(i)))
 
     return ensemble_proto
+
+  def testSavedModel(self):
+    self._feature_columns = {
+        feature_column.numeric_column('f_%d' % i, dtype=dtypes.float32)
+        for i in range(NUM_FEATURES)
+    }
+    input_fn = _make_train_input_fn_dataset(is_classification=True)
+    est = boosted_trees.BoostedTreesClassifier(
+        feature_columns=self._feature_columns,
+        n_batches_per_layer=1,
+        n_trees=1,
+        max_depth=5)
+    est.train(input_fn, steps=10)
+    tmpdir = tempfile.mkdtemp()
+    export_dir = os.path.join(tmpdir, 'saved_model')
+    input_receiver_fn = export.build_supervised_input_receiver_fn_from_input_fn(
+        input_fn)
+    export_dir = est.export_savedmodel(
+        export_dir, input_receiver_fn, as_text=True, strip_default_attrs=True)
+
+    # Restore, to validate that the export was well-formed.
+    tag_set = model_fn.EXPORT_TAG_MAP[model_fn.ModeKeys.PREDICT]
+    with ops.Graph().as_default() as graph:
+      with session.Session(graph=graph) as sess:
+        loader.load(sess, tag_set, export_dir)
+        graph_ops = [x.name for x in graph.get_operations()]
+        # Assert Tree Ensemble resource op is in graph def.
+        self.assertTrue('boosted_trees' in graph_ops)
+        # Assert Quantile Accumulator resource op is in graph def.
+        self.assertTrue('boosted_trees/QuantileAccumulator' in graph_ops)
+        saveable_objects = ops.get_collection(ops.GraphKeys.SAVEABLE_OBJECTS)
+        saveable_objects = sorted(saveable_objects, key=lambda obj: obj.name)
+        # Assert QuantileAccumulator is in saveable object collection.
+        self.assertEqual('boosted_trees/QuantileAccumulator:0',
+                         saveable_objects[0].name)
+        # Assert TreeEnsemble is in saveable object collection.
+        self.assertEqual('boosted_trees:0', saveable_objects[1].name)
+
+    # Clean up.
+    gfile.DeleteRecursively(tmpdir)
 
   def testFirstCheckpointWorksFine(self):
     """Tests that eval/pred doesn't crash with the very first checkpoint.

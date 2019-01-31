@@ -61,6 +61,7 @@ _HOLD_FOR_MULTI_DIM_SUPPORT = object()
 _DUMMY_NUM_BUCKETS = -1
 _DUMMY_NODE_ID = -1
 _SUPPORTED_COLUMNS = 'bucketized_column, indicator_column, numeric_column'
+_QUANTILE_ACCUMULATOR_RESOURCE_NAME = 'QuantileAccumulator'
 
 
 def _get_float_feature_columns(sorted_feature_columns):
@@ -941,7 +942,10 @@ def _bt_model_fn(
     if float_columns:
       num_float_features = _calculate_num_features(float_columns)
       quantile_accumulator = boosted_trees_ops.QuantileAccumulator(
-          eps, num_float_features, num_quantiles)
+          epsilon=eps,
+          num_streams=num_float_features,
+          num_quantiles=num_quantiles,
+          name=_QUANTILE_ACCUMULATOR_RESOURCE_NAME)
       bucket_boundaries = quantile_accumulator.get_bucket_boundaries()
       bucket_boundaries_dict = _get_float_boundaries_dict(
           float_columns, bucket_boundaries)
@@ -1320,7 +1324,10 @@ def _bt_explanations_fn(features,
     # Create Quantile accumulator resource.
     else:
       quantile_accumulator = boosted_trees_ops.QuantileAccumulator(
-          quantile_sketch_epsilon, num_float_features, num_quantiles)
+          epsilon=quantile_sketch_epsilon,
+          num_streams=num_float_features,
+          num_quantiles=num_quantiles,
+          name=_QUANTILE_ACCUMULATOR_RESOURCE_NAME)
       bucket_boundaries = quantile_accumulator.get_bucket_boundaries()
       bucket_boundaries_dict = _get_float_boundaries_dict(
           float_columns, bucket_boundaries)
