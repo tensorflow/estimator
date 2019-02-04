@@ -18,11 +18,10 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import numpy
-
-from tensorflow.contrib.timeseries.python.timeseries import input_pipeline
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
+from tensorflow.python.ops import array_ops
+from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import variables
 from tensorflow.python.platform import test
 from tensorflow.python.training import coordinator as coordinator_lib
@@ -33,25 +32,25 @@ from tensorflow_estimator.python.estimator.canned.timeseries.feature_keys import
 
 class InputStatisticsTests(test.TestCase):
 
-  def _input_statistics_test_template(
-      self, stat_object, num_features, dtype, give_full_data,
-      warmup_iterations=0, rtol=1e-6, data_length=500, chunk_size=4):
+  def _input_statistics_test_template(self,
+                                      stat_object,
+                                      num_features,
+                                      dtype,
+                                      warmup_iterations=0,
+                                      rtol=1e-6,
+                                      data_length=4):
     graph = ops.Graph()
     with graph.as_default():
-      numpy_dtype = dtype.as_numpy_dtype
+      data_length_range = math_ops.range(data_length, dtype=dtype)
+      num_features_range = math_ops.range(num_features, dtype=dtype)
+      times = 2 * data_length_range[None, :] - 3
       values = (
-          (numpy.arange(data_length, dtype=numpy_dtype)[..., None]
-           + numpy.arange(num_features, dtype=numpy_dtype)[None, ...])[None])
-      times = 2 * (numpy.arange(data_length)[None]) - 3
-      if give_full_data:
-        stat_object.set_data((times, values))
-      features = {TrainEvalFeatures.TIMES: times,
-                  TrainEvalFeatures.VALUES: values}
-      input_fn = input_pipeline.RandomWindowInputFn(
-          batch_size=16, window_size=chunk_size,
-          time_series_reader=input_pipeline.NumpyReader(features))
-      statistics = stat_object.initialize_graph(
-          features=input_fn()[0])
+          data_length_range[:, None] + num_features_range[None, :])[None, ...]
+      features = {
+          TrainEvalFeatures.TIMES: times,
+          TrainEvalFeatures.VALUES: values,
+      }
+      statistics = stat_object.initialize_graph(features=features)
       with self.session(graph=graph) as session:
         variables.global_variables_initializer().run()
         coordinator = coordinator_lib.Coordinator()
@@ -60,31 +59,29 @@ class InputStatisticsTests(test.TestCase):
           # A control dependency should ensure that, for queue-based statistics,
           # a use of any statistic is preceded by an update of all adaptive
           # statistics.
-          statistics.total_observation_count.eval()
+          self.evaluate(statistics.total_observation_count)
         self.assertAllClose(
-            range(num_features) + numpy.mean(numpy.arange(chunk_size))[None],
-            statistics.series_start_moments.mean.eval(),
+            range(num_features) + math_ops.reduce_mean(data_length_range)[None],
+            self.evaluate(statistics.series_start_moments.mean),
             rtol=rtol)
         self.assertAllClose(
-            numpy.tile(numpy.var(numpy.arange(chunk_size))[None],
-                       [num_features]),
-            statistics.series_start_moments.variance.eval(),
+            array_ops.tile(
+                math_ops.reduce_variance(data_length_range)[None],
+                [num_features]),
+            self.evaluate(statistics.series_start_moments.variance),
             rtol=rtol)
         self.assertAllClose(
-            numpy.mean(values[0], axis=0),
-            statistics.overall_feature_moments.mean.eval(),
+            math_ops.reduce_mean(values[0], axis=0),
+            self.evaluate(statistics.overall_feature_moments.mean),
             rtol=rtol)
         self.assertAllClose(
-            numpy.var(values[0], axis=0),
-            statistics.overall_feature_moments.variance.eval(),
+            math_ops.reduce_variance(values[0], axis=0),
+            self.evaluate(statistics.overall_feature_moments.variance),
             rtol=rtol)
-        self.assertAllClose(
-            -3,
-            statistics.start_time.eval(),
-            rtol=rtol)
+        self.assertAllClose(-3, self.evaluate(statistics.start_time), rtol=rtol)
         self.assertAllClose(
             data_length,
-            statistics.total_observation_count.eval(),
+            self.evaluate(statistics.total_observation_count),
             rtol=rtol)
         coordinator.request_stop()
         coordinator.join()
@@ -97,7 +94,6 @@ class InputStatisticsTests(test.TestCase):
                 num_features=num_features, dtype=dtype),
             num_features=num_features,
             dtype=dtype,
-            give_full_data=False,
             warmup_iterations=1000,
             rtol=0.1)
 

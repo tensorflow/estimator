@@ -172,8 +172,9 @@ class InputStatisticsFromMiniBatch(object):
         # eventually even with the race condition, but for example state space
         # models have an assertion which could fail without this
         # post-processing.
-        return stat_variables._replace(start_time=gen_math_ops.minimum(
-            stat_variables.start_time, math_ops.reduce_min(times)))
+        min_time = math_ops.cast(math_ops.reduce_min(times), dtypes.int64)
+        start_time = gen_math_ops.minimum(stat_variables.start_time, min_time)
+        return stat_variables._replace(start_time=start_time)
     else:
       return statistics
 
@@ -253,10 +254,11 @@ class InputStatisticsFromMiniBatch(object):
       # There is a race condition if this value is being updated from multiple
       # workers. However, it should eventually reach the correct value if the
       # last chunk is presented enough times.
-      max_time_seen_assign = state_ops.assign(
-          auxiliary_variables.max_time_seen,
-          gen_math_ops.maximum(auxiliary_variables.max_time_seen,
-                               math_ops.reduce_max(times)))
+      latest_time = math_ops.cast(math_ops.reduce_max(times), dtypes.int64)
+      max_time_seen = gen_math_ops.maximum(auxiliary_variables.max_time_seen,
+                                           latest_time)
+      max_time_seen_assign = state_ops.assign(auxiliary_variables.max_time_seen,
+                                              max_time_seen)
     with ops.device(auxiliary_variables.chunk_count.device):
       chunk_count_assign = state_ops.assign_add(auxiliary_variables.chunk_count,
                                                 array_ops.shape(
@@ -324,8 +326,9 @@ class InputStatisticsFromMiniBatch(object):
             # statistics.start_time will reflect the global lowest time, and
             # given that we will eventually update the series start moments to
             # their correct values).
-            math_ops.less_equal(times[min_time_batch, 0],
-                                statistics.start_time),
+            math_ops.less_equal(
+                times[min_time_batch, 0],
+                math_ops.cast(statistics.start_time, times.dtype)),
             series_start_updates,
             control_flow_ops.no_op)
         with ops.control_dependencies([series_start_update]):
@@ -335,10 +338,10 @@ class InputStatisticsFromMiniBatch(object):
           # variable is post-processed above to guarantee that each worker is
           # presented with a start time which is at least as low as the lowest
           # time in its current mini-batch.
+          min_time = math_ops.cast(math_ops.reduce_min(times), dtypes.int64)
+          start_time = gen_math_ops.minimum(statistics.start_time, min_time)
           start_time_update = state_ops.assign(statistics.start_time,
-                                               gen_math_ops.minimum(
-                                                   statistics.start_time,
-                                                   math_ops.reduce_min(times)))
+                                               start_time)
       inter_observation_duration_estimate = (
           auxiliary_variables.inter_observation_duration_sum / math_ops.cast(
               auxiliary_variables.chunk_count, self._dtype))

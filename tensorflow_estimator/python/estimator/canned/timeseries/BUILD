@@ -214,21 +214,15 @@ py_library(
     ],
 )
 
-# py_test(
-#     name = "math_utils_test",
-#     srcs = [
-#         "math_utils_test.py",
-#     ],
-#     srcs_version = "PY2AND3",
-#     tags = [
-#         "no_oss",
-#         "no_windows",  # TODO: needs investigation on Windows
-#     ],
-#     deps = [
-#         ":feature_keys",
-#         ":math_utils",
-#         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
-#         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
-#         "//third_party/tensorflow/contrib/timeseries/python/timeseries:input_pipeline",
-#     ],
-# )
+py_test(
+    name = "math_utils_test",
+    srcs = [
+        "math_utils_test.py",
+    ],
+    srcs_version = "PY2AND3",
+    deps = [
+        ":feature_keys",
+        ":math_utils",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
