@@ -27,8 +27,8 @@ from tensorflow.python.eager import context
 from tensorflow_estimator.python.estimator import model_fn
 from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.canned import prediction_keys
-from tensorflow_estimator.python.estimator.head import base_head_test as test_lib
 from tensorflow_estimator.python.estimator.head import binary_class_head as binary_head_lib
+from tensorflow_estimator.python.estimator.head import head_utils
 from tensorflow_estimator.python.estimator.head import multi_class_head as multi_head_lib
 from tensorflow_estimator.python.estimator.head import multi_head
 from tensorflow_estimator.python.estimator.head import sequential_head as seq_head_lib
@@ -461,7 +461,7 @@ class TestSequentialHead(test.TestCase):
         labels=labels, regularization_losses=regularization_losses)
 
     with self.cached_session() as sess:
-      test_lib._initialize_variables(self, spec.scaffold)
+      head_utils._initialize_variables(self, spec.scaffold)
       self.assertIsNone(spec.scaffold.summary_op)
       value_ops = {k: spec.eval_metric_ops[k][0] for k in spec.eval_metric_ops}
       update_ops = {k: spec.eval_metric_ops[k][1] for k in spec.eval_metric_ops}

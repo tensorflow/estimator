@@ -36,17 +36,6 @@ from tensorflow_estimator.python.estimator.head import base_head
 _DEFAULT_SERVING_KEY = signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY
 
 
-def _initialize_variables(test_case, scaffold):
-  scaffold.finalize()
-  test_case.assertIsNone(scaffold.init_feed_dict)
-  test_case.assertIsNone(scaffold.init_fn)
-  scaffold.init_op.run()
-  scaffold.ready_for_local_init_op.eval()
-  scaffold.local_init_op.run()
-  scaffold.ready_op.eval()
-  test_case.assertIsNotNone(scaffold.saver)
-
-
 def _assert_simple_summaries(test_case, expected_summaries, summary_str,
                              tol=1e-6):
   """Assert summary the specified simple values.

@@ -1258,8 +1258,8 @@ py_test(
     srcs = ["head/sequential_head_test.py"],
     srcs_version = "PY2AND3",
     deps = [
-        ":base_head_test",
         ":binary_class_head",
+        ":head_utils",
         ":metric_keys",
         ":model_fn",
         ":multi_class_head",
