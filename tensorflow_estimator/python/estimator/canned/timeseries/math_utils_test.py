@@ -19,6 +19,7 @@ from __future__ import division
 from __future__ import print_function
 
 import numpy
+
 from tensorflow.contrib.timeseries.python.timeseries import input_pipeline
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
