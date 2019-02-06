@@ -38,6 +38,10 @@ PIP_EXCLUDED_FILES = [
     'tensorflow_estimator/python/estimator/api/create_python_api_wrapper.py',
     'tensorflow_estimator/tools/pip_package/setup.py',
     'tensorflow_estimator/tools/pip_package/create_pip_helper.py',
+    # `rnn_v2.py` and `rnn_v2_test.py` are under development and should not be
+    # used until they are moved to core.
+    'tensorflow_estimator/contrib/estimator/python/estimator/rnn_v2.py',
+    'tensorflow_estimator/contrib/estimator/python/estimator/rnn_v2_test.py',
 ]
 
 # Directories that should not have __init__.py files generated within them.
