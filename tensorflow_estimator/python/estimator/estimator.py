@@ -30,8 +30,8 @@ import six
 from google.protobuf import message
 from tensorflow.core.framework import summary_pb2
 from tensorflow.python.client import session as tf_session
-from tensorflow.python.distribute import distribute_lib
 from tensorflow.python.distribute import estimator_training as distribute_coordinator_training
+from tensorflow.python.distribute import reduce_util
 from tensorflow.python.eager import context
 from tensorflow.python.framework import constant_op
 from tensorflow.python.framework import dtypes
@@ -1231,7 +1231,7 @@ class EstimatorV2(object):
             ctx.set_last_step_output(
                 name='loss',
                 output=estimator_spec.loss,
-                reduce_op=distribute_lib.get_loss_reduction())
+                reduce_op=reduce_util.ReduceOp.SUM)
             ctx.set_non_tensor_output(
                 name='estimator_spec', output=estimator_spec)
             return estimator_spec.train_op
@@ -1253,7 +1253,7 @@ class EstimatorV2(object):
                     labels,  # although this will be None it seems
                     model_fn_lib.ModeKeys.TRAIN,
                     self.config))
-          loss = strategy.reduce(distribute_lib.get_loss_reduction(),
+          loss = strategy.reduce(reduce_util.ReduceOp.SUM,
                                  grouped_estimator_spec.loss)
           distributed_train_op = grouped_estimator_spec.train_op
 
