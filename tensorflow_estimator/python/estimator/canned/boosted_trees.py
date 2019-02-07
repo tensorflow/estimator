@@ -80,10 +80,11 @@ def _get_float_feature_columns(sorted_feature_columns):
       float_columns.append(feature_column)
   return float_columns
 
-
-def _get_transformed_features(features,
-                              sorted_feature_columns,
-                              bucket_boundaries_dict=None):
+def _get_transformed_features(
+    features,
+    sorted_feature_columns,
+    bucket_boundaries_dict=None,
+):
   """Gets the transformed features from features/feature_columns pair.
 
   Args:
@@ -97,11 +98,48 @@ def _get_transformed_features(features,
   Raises:
     ValueError: when unsupported features/columns are tried.
   """
+  return _get_transformed_features_and_merge_with_previously_transformed(
+      features, sorted_feature_columns, sorted_feature_columns,
+      bucket_boundaries_dict)
+
+
+def _get_transformed_features_and_merge_with_previously_transformed(
+    features,
+    sorted_feature_columns,
+    all_sorted_columns,
+    bucket_boundaries_dict=None,
+    already_transformed_features={},
+):
+  """Gets the transformed features from features/feature_columns pair.
+
+  This signature allows to pass in previously transformed features.
+
+  Args:
+    features: a dicionary of name to Tensor.
+    sorted_feature_columns: a list/set of tf.feature_column, sorted by name, to
+      be used for transforming features.
+    all_sorted_columns: a total list of feature columns, including those that
+      were already used for transformation.
+    bucket_boundaries_dict: a dict of name to list of Tensors.
+    already_transformed_features: features that were already transformed (for
+      columns all_sorted_columns-sorted_feature_columns)
+
+  Returns:
+    result_features: a list of the transformed features, sorted by the name.
+
+  Raises:
+    ValueError: when unsupported features/columns are tried.
+  """
   # pylint:disable=protected-access
   transformed_features = fc_old._transform_features(features,
                                                     sorted_feature_columns)
   result_features = []
-  for column in sorted_feature_columns:
+
+  if sorted_feature_columns != all_sorted_columns:
+    # Add previously transformed features.
+    transformed_features.update(already_transformed_features)
+
+  for column in all_sorted_columns:
     if isinstance(
         column,
         (feature_column_lib.BucketizedColumn, fc_old._BucketizedColumn)):
@@ -154,9 +192,9 @@ def _local_variable(initial_value, name=None):
   result = variable_scope.variable(
       initial_value=initial_value,
       trainable=False,
-      collections=[ops.GraphKeys.LOCAL_VARIABLES],
       validate_shape=False,
-      name=name)
+      name=name
+  )
   if isinstance(initial_value, ops.Tensor):
     # Match the resulting variable's shape if the initial_value is a Tensor.
     result.set_shape(initial_value.shape)
@@ -321,7 +359,8 @@ def _generate_feature_col_name_mapping(sorted_feature_columns):
   # pylint:enable=protected-access
 
 
-def _cache_transformed_features(features, sorted_feature_columns, batch_size,
+def _cache_transformed_features(features, sorted_feature_columns, cat_columns,
+                                other_columns, batch_size,
                                 bucket_boundaries_dict, are_boundaries_ready):
   """Transform features and cache, then returns (cached_features, cache_op)."""
   num_features = _calculate_num_features(sorted_feature_columns)
@@ -332,10 +371,20 @@ def _cache_transformed_features(features, sorted_feature_columns, batch_size,
   ]
   are_features_cached = _local_variable(False, name='are_features_cached')
 
+  # An ugly hack - for categorical features, in order to have lookup tables
+  # initialized, transform should happen outside of cond. So we always transform
+  # cat columns separately (it is not as expensive as bucketizing) and then
+  # merge these processed features with other columns in cond branches.
+  cat_transformed = []
+  if len(cat_columns) > 0:
+    cat_transformed = fc_old._transform_features(features, cat_columns)
+
   def get_features_without_cache():
     """Returns transformed features"""
-    transformed_features = _get_transformed_features(
-        features, sorted_feature_columns, bucket_boundaries_dict)
+    transformed_features = _get_transformed_features_and_merge_with_previously_transformed(
+        features, other_columns, sorted_feature_columns, bucket_boundaries_dict,
+        cat_transformed)
+
     return transformed_features, control_flow_ops.no_op()
 
   def get_features_with_cache():
@@ -354,8 +403,10 @@ def _cache_transformed_features(features, sorted_feature_columns, batch_size,
         to
             the graph.
       """
-      transformed_features = _get_transformed_features(
-          features, sorted_feature_columns, bucket_boundaries_dict)
+      transformed_features = _get_transformed_features_and_merge_with_previously_transformed(
+          features, other_columns, sorted_feature_columns,
+          bucket_boundaries_dict, cat_transformed)
+
       cached = [
           state_ops.assign(cached_features[i], transformed_features[i])
           for i in range(num_features)
@@ -999,9 +1050,23 @@ def _bt_model_fn(
     if train_in_memory:
       # cache transformed features as well for in-memory training.
       batch_size = array_ops.shape(labels)[0]
+
+      def _split_into_cat_and_other_columns():
+        cat_columns = []
+        other_columns = []
+        for fc in sorted_feature_columns:
+          if isinstance(
+              fc, (feature_column_lib.IndicatorColumn, fc_old._IndicatorColumn)):
+            cat_columns.append(fc)
+          else:
+            other_columns.append(fc)
+        return cat_columns, other_columns
+      # Split columns into categorical and other columns.
+      cat_columns, other_columns = _split_into_cat_and_other_columns()     
+
       input_feature_list, input_cache_op = _cache_transformed_features(
-          features, sorted_feature_columns, batch_size, bucket_boundaries_dict,
-          are_boundaries_ready)
+          features, sorted_feature_columns, cat_columns, other_columns,
+          batch_size, bucket_boundaries_dict, are_boundaries_ready)
 
       training_state_cache = _CacheTrainingStatesUsingVariables(
           batch_size, head.logits_dimension)

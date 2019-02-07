@@ -319,6 +319,41 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
     self.assertAllClose([[0], [1], [1], [0], [0]],
                         [pred['class_ids'] for pred in predictions])
 
+  def testBinaryClassifierTrainInMemoryWithMixedColumns(self):
+    categorical = feature_column.categorical_column_with_vocabulary_list(
+        key='f_0', vocabulary_list=('bad', 'good', 'ok'))
+    indicator_col = feature_column.indicator_column(categorical)
+    bucketized_col = feature_column.bucketized_column(
+        feature_column.numeric_column('f_1', dtype=dtypes.float32),
+        BUCKET_BOUNDARIES)
+    numeric_col = feature_column.numeric_column('f_2', dtype=dtypes.float32)
+
+    labels = np.array([[0], [1], [1], [1], [1]], dtype=np.float32)
+    input_fn = numpy_io.numpy_input_fn(
+        x={
+            'f_0': np.array(['bad', 'good', 'good', 'ok', 'bad']),
+            'f_1': np.array([1, 1, 1, 1, 1]),
+            'f_2': np.array([12.5, 1.0, -2.001, -2.0001, -1.999]),
+        },
+        y=labels,
+        num_epochs=None,
+        batch_size=5,
+        shuffle=False)
+    feature_columns = [numeric_col, bucketized_col, indicator_col]
+
+    est = boosted_trees.boosted_trees_classifier_train_in_memory(
+        train_input_fn=input_fn,
+        feature_columns=feature_columns,
+        n_trees=1,
+        max_depth=5,
+        quantile_sketch_epsilon=0.33)
+
+    self._assert_checkpoint(
+        est.model_dir, global_step=5, finalized_trees=1, attempted_layers=5)
+
+    eval_res = est.evaluate(input_fn=input_fn, steps=1)
+    self.assertAllClose(eval_res['accuracy'], 1.0)
+
   def testBinaryClassifierTrainInMemoryWithDataset(self):
     train_input_fn = _make_train_input_fn_dataset(is_classification=True)
     predict_input_fn = numpy_io.numpy_input_fn(
