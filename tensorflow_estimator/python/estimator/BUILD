@@ -182,18 +182,6 @@ py_library(
     ],
 )
 
-py_test(
-    name = "mode_keys_test",
-    size = "small",
-    srcs = ["mode_keys_test.py"],
-    srcs_version = "PY2AND3",
-    deps = [
-        ":mode_keys",
-        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
-        "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
-    ],
-)
-
 py_library(
     name = "training",
     srcs = ["training.py"],
