@@ -26,6 +26,7 @@ py_library(
         ":multi_head",
         ":replicate_model_fn",
         ":rnn",
+        ":rnn_v2",
         ":saved_model_estimator",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
@@ -333,6 +334,50 @@ py_test(
     deps = [
         ":head",
         ":rnn",
+        "//tensorflow_estimator/python/estimator:estimator_py",
+        "//tensorflow_estimator/python/estimator:expect_absl_installed",
+        "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_six_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
+        "//tensorflow_estimator/python/estimator:multi_class_head",
+        "//tensorflow_estimator/python/estimator:numpy_io",
+        "//tensorflow_estimator/python/estimator:parsing_utils",
+        "//tensorflow_estimator/python/estimator:sequential_head",
+    ],
+)
+
+py_library(
+    name = "rnn_v2",
+    srcs = ["python/estimator/rnn_v2.py"],
+    srcs_version = "PY2AND3",
+    deps = [
+        ":extenders",
+        "//tensorflow_estimator/python/estimator",
+        "//tensorflow_estimator/python/estimator:binary_class_head",
+        "//tensorflow_estimator/python/estimator:expect_six_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
+        "//tensorflow_estimator/python/estimator:multi_class_head",
+        "//tensorflow_estimator/python/estimator:optimizers",
+        "//tensorflow_estimator/python/estimator:sequential_head",
+    ],
+)
+
+py_test(
+    name = "rnn_v2_test",
+    size = "medium",
+    srcs = ["python/estimator/rnn_v2_test.py"],
+    srcs_version = "PY2AND3",
+    tags = [
+        "no_pip",
+        "noasan",  # times out
+        "notsan",
+        "optonly",  # times out http://b/79220679
+    ],
+    deps = [
+        ":head",
+        ":rnn_v2",
         "//tensorflow_estimator/python/estimator:estimator_py",
         "//tensorflow_estimator/python/estimator:expect_absl_installed",
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
