@@ -47,6 +47,7 @@ from tensorflow_estimator.python.estimator import model_fn
 from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.canned import prediction_keys
 from tensorflow_estimator.python.estimator.export import export_output
+from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 
 _DEFAULT_SERVING_KEY = signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY
 
@@ -145,7 +146,7 @@ class _Head(object):
         mode=mode,
         logits=logits,
         train_op_fn=lambda _: tf.no_op())
-    if mode == model_fn.ModeKeys.TRAIN:
+    if mode == ModeKeys.TRAIN:
       optimizer = ...
       sync = tf.train.SyncReplicasOptimizer(opt=optimizer, ...)
       update_op = sync.minimize(
@@ -828,12 +829,12 @@ class _MultiClassHeadWithSoftmaxCrossEntropyLoss(_Head):
             pred_keys.CLASS_IDS: class_ids,
             pred_keys.CLASSES: classes,
         }
-      if mode == model_fn.ModeKeys.PREDICT:
+      if mode == ModeKeys.PREDICT:
         classifier_output = _classification_output(
             scores=probabilities, n_classes=self._n_classes,
             label_vocabulary=self._label_vocabulary)
         return model_fn._TPUEstimatorSpec(  # pylint: disable=protected-access
-            mode=model_fn.ModeKeys.PREDICT,
+            mode=ModeKeys.PREDICT,
             predictions=predictions,
             export_outputs={
                 _DEFAULT_SERVING_KEY: classifier_output,
@@ -851,18 +852,19 @@ class _MultiClassHeadWithSoftmaxCrossEntropyLoss(_Head):
         regularization_loss = None
         regularized_training_loss = training_loss
       # Eval.
-      if mode == model_fn.ModeKeys.EVAL:
+      if mode == ModeKeys.EVAL:
         return model_fn._TPUEstimatorSpec(  # pylint: disable=protected-access
-            mode=model_fn.ModeKeys.EVAL,
+            mode=ModeKeys.EVAL,
             predictions=predictions,
             loss=regularized_training_loss,
-            eval_metrics=_create_eval_metrics_tuple(self._eval_metric_ops, {
-                'labels': label_ids,
-                'class_ids': class_ids,
-                'weights': weights,
-                'unreduced_loss': unreduced_loss,
-                'regularization_loss': regularization_loss
-            }))
+            eval_metrics=_create_eval_metrics_tuple(
+                self._eval_metric_ops, {
+                    'labels': label_ids,
+                    'class_ids': class_ids,
+                    'weights': weights,
+                    'unreduced_loss': unreduced_loss,
+                    'regularization_loss': regularization_loss
+                }))
 
       # Train.
       if optimizer is not None:
@@ -898,7 +900,7 @@ class _MultiClassHeadWithSoftmaxCrossEntropyLoss(_Head):
             _summary_key(self._name, keys.LOSS_REGULARIZATION),
             regularization_loss)
     return model_fn._TPUEstimatorSpec(  # pylint: disable=protected-access
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         predictions=predictions,
         loss=regularized_training_loss,
         train_op=train_op)
@@ -1190,12 +1192,12 @@ class _BinaryLogisticHeadWithSigmoidCrossEntropyLoss(_Head):
             pred_keys.CLASS_IDS: class_ids,
             pred_keys.CLASSES: classes,
         }
-      if mode == model_fn.ModeKeys.PREDICT:
+      if mode == ModeKeys.PREDICT:
         classifier_output = _classification_output(
             scores=probabilities, n_classes=2,
             label_vocabulary=self._label_vocabulary)
         return model_fn._TPUEstimatorSpec(  # pylint: disable=protected-access
-            mode=model_fn.ModeKeys.PREDICT,
+            mode=ModeKeys.PREDICT,
             predictions=predictions,
             export_outputs={
                 _DEFAULT_SERVING_KEY: classifier_output,
@@ -1217,14 +1219,13 @@ class _BinaryLogisticHeadWithSigmoidCrossEntropyLoss(_Head):
         regularized_training_loss = training_loss
 
       # Eval.
-      if mode == model_fn.ModeKeys.EVAL:
+      if mode == ModeKeys.EVAL:
         return model_fn._TPUEstimatorSpec(  # pylint: disable=protected-access
-            mode=model_fn.ModeKeys.EVAL,
+            mode=ModeKeys.EVAL,
             predictions=predictions,
             loss=regularized_training_loss,
             eval_metrics=_create_eval_metrics_tuple(
-                self._eval_metric_ops,
-                {
+                self._eval_metric_ops, {
                     'labels': processed_labels,
                     'logits': logits,
                     'logistic': logistic,
@@ -1232,8 +1233,7 @@ class _BinaryLogisticHeadWithSigmoidCrossEntropyLoss(_Head):
                     'weights': weights,
                     'unreduced_loss': unreduced_loss,
                     'regularization_loss': regularization_loss
-                }
-            ))
+                }))
 
       # Train.
       if optimizer is not None:
@@ -1268,7 +1268,7 @@ class _BinaryLogisticHeadWithSigmoidCrossEntropyLoss(_Head):
             _summary_key(self._name, keys.LOSS_REGULARIZATION),
             regularization_loss)
     return model_fn._TPUEstimatorSpec(  # pylint: disable=protected-access
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         predictions=predictions,
         loss=regularized_training_loss,
         train_op=train_op)
@@ -1466,11 +1466,11 @@ class _RegressionHeadWithMeanSquaredErrorLoss(_Head):
         predicted_value = logits
         predictions = {
             prediction_keys.PredictionKeys.PREDICTIONS: predicted_value}
-      if mode == model_fn.ModeKeys.PREDICT:
+      if mode == ModeKeys.PREDICT:
         regression_output = export_output.RegressionOutput(
             value=predicted_value)
         return model_fn._TPUEstimatorSpec(  # pylint: disable=protected-access
-            mode=model_fn.ModeKeys.PREDICT,
+            mode=ModeKeys.PREDICT,
             predictions=predictions,
             export_outputs={
                 _DEFAULT_SERVING_KEY: regression_output,
@@ -1489,9 +1489,9 @@ class _RegressionHeadWithMeanSquaredErrorLoss(_Head):
         regularized_training_loss = training_loss
 
       # Eval.
-      if mode == model_fn.ModeKeys.EVAL:
+      if mode == ModeKeys.EVAL:
         return model_fn._TPUEstimatorSpec(  # pylint: disable=protected-access
-            mode=model_fn.ModeKeys.EVAL,
+            mode=ModeKeys.EVAL,
             predictions=predictions,
             loss=regularized_training_loss,
             eval_metrics=_create_eval_metrics_tuple(
@@ -1536,7 +1536,7 @@ class _RegressionHeadWithMeanSquaredErrorLoss(_Head):
             _summary_key(self._name, keys.LOSS_REGULARIZATION),
             regularization_loss)
     return model_fn._TPUEstimatorSpec(  # pylint: disable=protected-access
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         predictions=predictions,
         loss=regularized_training_loss,
         train_op=train_op)

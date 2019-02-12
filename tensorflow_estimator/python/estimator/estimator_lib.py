@@ -51,10 +51,9 @@ from tensorflow_estimator.python.estimator.hooks import hooks
 from tensorflow_estimator.python.estimator.hooks import session_run_hook
 from tensorflow_estimator.python.estimator.inputs import inputs
 from tensorflow_estimator.python.estimator.keras import model_to_estimator
-from tensorflow_estimator.python.estimator.mode_keys import ModeKeysV2
+from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 from tensorflow_estimator.python.estimator.model_fn import call_logit_fn
 from tensorflow_estimator.python.estimator.model_fn import EstimatorSpec
-from tensorflow_estimator.python.estimator.model_fn import ModeKeys
 from tensorflow_estimator.python.estimator.run_config import RunConfig
 from tensorflow_estimator.python.estimator.training import EvalSpec
 from tensorflow_estimator.python.estimator.training import train_and_evaluate

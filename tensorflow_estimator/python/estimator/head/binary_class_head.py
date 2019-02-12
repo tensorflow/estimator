@@ -35,6 +35,7 @@ from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.canned import prediction_keys
 from tensorflow_estimator.python.estimator.export import export_output
 from tensorflow_estimator.python.estimator.head import base_head
+from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 
 
 class BinaryClassHead(base_head.Head):
@@ -450,14 +451,14 @@ class BinaryClassHead(base_head.Head):
       # Predict.
       pred_keys = prediction_keys.PredictionKeys
       predictions = self.predictions(logits)
-      if mode == model_fn.ModeKeys.PREDICT:
+      if mode == ModeKeys.PREDICT:
         probabilities = predictions[pred_keys.PROBABILITIES]
         logistic = predictions[pred_keys.LOGISTIC]
         classifier_output = base_head.classification_output(
             scores=probabilities, n_classes=2,
             label_vocabulary=self._label_vocabulary)
         return model_fn._TPUEstimatorSpec(  # pylint: disable=protected-access
-            mode=model_fn.ModeKeys.PREDICT,
+            mode=ModeKeys.PREDICT,
             predictions=predictions,
             export_outputs={
                 base_head.DEFAULT_SERVING_KEY: classifier_output,
@@ -471,10 +472,10 @@ class BinaryClassHead(base_head.Head):
           logits=logits, labels=labels, features=features, mode=mode,
           regularization_losses=regularization_losses)
       # Eval.
-      if mode == model_fn.ModeKeys.EVAL:
+      if mode == ModeKeys.EVAL:
         eval_metrics = self.metrics(regularization_losses=regularization_losses)
         return model_fn._TPUEstimatorSpec(  # pylint: disable=protected-access
-            mode=model_fn.ModeKeys.EVAL,
+            mode=ModeKeys.EVAL,
             predictions=predictions,
             loss=regularized_training_loss,
             eval_metrics=base_head.create_eval_metrics_tuple(
@@ -496,7 +497,7 @@ class BinaryClassHead(base_head.Head):
         regularization_losses=regularization_losses,
         summary_key_fn=self._summary_key)
     return model_fn._TPUEstimatorSpec(  # pylint: disable=protected-access
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         predictions=predictions,
         loss=regularized_training_loss,
         train_op=train_op)

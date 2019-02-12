@@ -58,6 +58,8 @@ from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.canned import prediction_keys
 from tensorflow_estimator.python.estimator.head import base_head
 from tensorflow_estimator.python.estimator.inputs import numpy_io
+from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
+
 
 # pylint rules which are disabled by default for test files.
 # pylint: disable=invalid-name,protected-access,missing-docstring
@@ -171,17 +173,17 @@ def mock_head(testcase, hidden_units, logits_dimension, expected_logits):
     assert_logits = assert_close(
         expected_logits, logits, message='Failed for mode={}. '.format(mode))
     with ops.control_dependencies([assert_logits]):
-      if mode == model_fn.ModeKeys.TRAIN:
+      if mode == ModeKeys.TRAIN:
         if train_op_fn is not None:
           train_op = train_op_fn(loss)
         elif optimizer is not None:
           train_op = optimizer.minimize(loss, global_step=None)
         return model_fn._TPUEstimatorSpec(
             mode=mode, loss=loss, train_op=train_op)
-      elif mode == model_fn.ModeKeys.EVAL:
+      elif mode == ModeKeys.EVAL:
         return model_fn._TPUEstimatorSpec(
             mode=mode, loss=array_ops.identity(loss))
-      elif mode == model_fn.ModeKeys.PREDICT:
+      elif mode == ModeKeys.PREDICT:
         return model_fn._TPUEstimatorSpec(
             mode=mode, predictions={'logits': array_ops.identity(logits)})
       else:
@@ -290,11 +292,11 @@ class BaseDNNModelFnTest(object):
           optimizer=mock_optimizer(self, hidden_units))
       with monitored_session.MonitoredTrainingSession(
           checkpoint_dir=self._model_dir) as sess:
-        if mode == model_fn.ModeKeys.TRAIN:
+        if mode == ModeKeys.TRAIN:
           sess.run(estimator_spec.train_op)
-        elif mode == model_fn.ModeKeys.EVAL:
+        elif mode == ModeKeys.EVAL:
           sess.run(estimator_spec.loss)
-        elif mode == model_fn.ModeKeys.PREDICT:
+        elif mode == ModeKeys.PREDICT:
           sess.run(estimator_spec.predictions)
         else:
           self.fail('Invalid mode: {}'.format(mode))
@@ -314,8 +316,8 @@ class BaseDNNModelFnTest(object):
          ([[-1.], [1.]], [.3]),), base_global_step, self._model_dir)
 
     for mode in [
-        model_fn.ModeKeys.TRAIN, model_fn.ModeKeys.EVAL,
-        model_fn.ModeKeys.PREDICT
+        ModeKeys.TRAIN, ModeKeys.EVAL,
+        ModeKeys.PREDICT
     ]:
       self._test_logits(
           mode,
@@ -341,8 +343,8 @@ class BaseDNNModelFnTest(object):
                       base_global_step, self._model_dir)
 
     for mode in [
-        model_fn.ModeKeys.TRAIN, model_fn.ModeKeys.EVAL,
-        model_fn.ModeKeys.PREDICT
+        ModeKeys.TRAIN, ModeKeys.EVAL,
+        ModeKeys.PREDICT
     ]:
       self._test_logits(
           mode,
@@ -372,8 +374,8 @@ class BaseDNNModelFnTest(object):
                       base_global_step, self._model_dir)
 
     for mode in [
-        model_fn.ModeKeys.TRAIN, model_fn.ModeKeys.EVAL,
-        model_fn.ModeKeys.PREDICT
+        ModeKeys.TRAIN, ModeKeys.EVAL,
+        ModeKeys.PREDICT
     ]:
       self._test_logits(
           mode,
@@ -399,8 +401,8 @@ class BaseDNNModelFnTest(object):
                       self._model_dir)
 
     for mode in [
-        model_fn.ModeKeys.TRAIN, model_fn.ModeKeys.EVAL,
-        model_fn.ModeKeys.PREDICT
+        ModeKeys.TRAIN, ModeKeys.EVAL,
+        ModeKeys.PREDICT
     ]:
       self._test_logits(
           mode,
@@ -426,8 +428,8 @@ class BaseDNNModelFnTest(object):
                       base_global_step, self._model_dir)
 
     for mode in [
-        model_fn.ModeKeys.TRAIN, model_fn.ModeKeys.EVAL,
-        model_fn.ModeKeys.PREDICT
+        ModeKeys.TRAIN, ModeKeys.EVAL,
+        ModeKeys.PREDICT
     ]:
       self._test_logits(
           mode,
@@ -454,8 +456,8 @@ class BaseDNNModelFnTest(object):
     expected_logits = [[-0.48, 0.48, 0.39]]
 
     for mode in [
-        model_fn.ModeKeys.TRAIN, model_fn.ModeKeys.EVAL,
-        model_fn.ModeKeys.PREDICT
+        ModeKeys.TRAIN, ModeKeys.EVAL,
+        ModeKeys.PREDICT
     ]:
       with ops.Graph().as_default():
         training_util.create_global_step()
@@ -480,11 +482,11 @@ class BaseDNNModelFnTest(object):
             optimizer=mock_optimizer(self, hidden_units))
         with monitored_session.MonitoredTrainingSession(
             checkpoint_dir=self._model_dir) as sess:
-          if mode == model_fn.ModeKeys.TRAIN:
+          if mode == ModeKeys.TRAIN:
             sess.run(estimator_spec.train_op)
-          elif mode == model_fn.ModeKeys.EVAL:
+          elif mode == ModeKeys.EVAL:
             sess.run(estimator_spec.loss)
-          elif mode == model_fn.ModeKeys.PREDICT:
+          elif mode == ModeKeys.PREDICT:
             sess.run(estimator_spec.predictions)
           else:
             self.fail('Invalid mode: {}'.format(mode))
@@ -508,8 +510,8 @@ class BaseDNNModelFnTest(object):
     expected_logits = [[-0.48, 0.48, 0.39]]
 
     for mode in [
-        model_fn.ModeKeys.TRAIN, model_fn.ModeKeys.EVAL,
-        model_fn.ModeKeys.PREDICT
+        ModeKeys.TRAIN, ModeKeys.EVAL,
+        ModeKeys.PREDICT
     ]:
       with ops.Graph().as_default():
         training_util.create_global_step()
@@ -534,11 +536,11 @@ class BaseDNNModelFnTest(object):
             optimizer=mock_optimizer(self, hidden_units))
         with monitored_session.MonitoredTrainingSession(
             checkpoint_dir=self._model_dir) as sess:
-          if mode == model_fn.ModeKeys.TRAIN:
+          if mode == ModeKeys.TRAIN:
             sess.run(estimator_spec.train_op)
-          elif mode == model_fn.ModeKeys.EVAL:
+          elif mode == ModeKeys.EVAL:
             sess.run(estimator_spec.loss)
-          elif mode == model_fn.ModeKeys.PREDICT:
+          elif mode == ModeKeys.PREDICT:
             sess.run(estimator_spec.predictions)
           else:
             self.fail('Invalid mode: {}'.format(mode))
@@ -561,7 +563,7 @@ class BaseDNNModelFnTest(object):
         self._dnn_model_fn(
             features=constant_op.constant(inputs),
             labels=constant_op.constant([[1]]),
-            mode=model_fn.ModeKeys.TRAIN,
+            mode=ModeKeys.TRAIN,
             head=head,
             hidden_units=hidden_units,
             feature_columns=[
@@ -635,8 +637,8 @@ class BaseDNNLogitFnTest(object):
         (([[.6, .5]], [.1, -.1]), ([[1., .8], [-.8, -1.]], [.2, -.2]),
          ([[-1.], [1.]], [.3]),), base_global_step, self._model_dir)
     for mode in [
-        model_fn.ModeKeys.TRAIN, model_fn.ModeKeys.EVAL,
-        model_fn.ModeKeys.PREDICT
+        ModeKeys.TRAIN, ModeKeys.EVAL,
+        ModeKeys.PREDICT
     ]:
       self._test_logits(
           mode,
@@ -693,13 +695,13 @@ class BaseDNNLogitFnTest(object):
                           [1, 1],  # moving variance.
                          ],))
     self._test_logits(
-        model_fn.ModeKeys.TRAIN,
+        ModeKeys.TRAIN,
         hidden_units=[2],
         logits_dimension=1,
         inputs=[[10.], [20.]],
         expected_logits=[[-0.699895571], [1.299895571]],
         batch_norm=True)
-    for mode in [model_fn.ModeKeys.EVAL, model_fn.ModeKeys.PREDICT]:
+    for mode in [ModeKeys.EVAL, ModeKeys.PREDICT]:
       self._test_logits(
           mode,
           hidden_units=[2],
@@ -724,8 +726,8 @@ class BaseDNNLogitFnTest(object):
                        ([[-1., 1., .5], [-1., 1., .5]], [.3, -.3, .0]),),
                       base_global_step, self._model_dir)
     for mode in [
-        model_fn.ModeKeys.TRAIN, model_fn.ModeKeys.EVAL,
-        model_fn.ModeKeys.PREDICT
+        ModeKeys.TRAIN, ModeKeys.EVAL,
+        ModeKeys.PREDICT
     ]:
       self._test_logits(
           mode,
@@ -754,8 +756,8 @@ class BaseDNNLogitFnTest(object):
                        ([[-1., 1., .5], [-1., 1., .5]], [.3, -.3, .0]),),
                       base_global_step, self._model_dir)
     for mode in [
-        model_fn.ModeKeys.TRAIN, model_fn.ModeKeys.EVAL,
-        model_fn.ModeKeys.PREDICT
+        ModeKeys.TRAIN, ModeKeys.EVAL,
+        ModeKeys.PREDICT
     ]:
       self._test_logits(
           mode,
@@ -781,8 +783,8 @@ class BaseDNNLogitFnTest(object):
                       self._model_dir)
 
     for mode in [
-        model_fn.ModeKeys.TRAIN, model_fn.ModeKeys.EVAL,
-        model_fn.ModeKeys.PREDICT
+        ModeKeys.TRAIN, ModeKeys.EVAL,
+        ModeKeys.PREDICT
     ]:
       self._test_logits(
           mode,
@@ -807,8 +809,8 @@ class BaseDNNLogitFnTest(object):
                        ([[-1., 1., .5], [-1., 1., .5]], [.3, -.3, .0]),),
                       base_global_step, self._model_dir)
     for mode in [
-        model_fn.ModeKeys.TRAIN, model_fn.ModeKeys.EVAL,
-        model_fn.ModeKeys.PREDICT
+        ModeKeys.TRAIN, ModeKeys.EVAL,
+        ModeKeys.PREDICT
     ]:
       self._test_logits(
           mode,
@@ -836,8 +838,8 @@ class BaseDNNLogitFnTest(object):
     expected_logits = [[-0.48, 0.48, 0.39]]
 
     for mode in [
-        model_fn.ModeKeys.TRAIN, model_fn.ModeKeys.EVAL,
-        model_fn.ModeKeys.PREDICT
+        ModeKeys.TRAIN, ModeKeys.EVAL,
+        ModeKeys.PREDICT
     ]:
       with ops.Graph().as_default():
         # Global step needed for MonitoredSession, which is in turn used to
@@ -890,8 +892,8 @@ class BaseDNNLogitFnTest(object):
     expected_logits = [[-0.48, 0.48, 0.39]]
 
     for mode in [
-        model_fn.ModeKeys.TRAIN, model_fn.ModeKeys.EVAL,
-        model_fn.ModeKeys.PREDICT
+        ModeKeys.TRAIN, ModeKeys.EVAL,
+        ModeKeys.PREDICT
     ]:
       with ops.Graph().as_default():
         # Global step needed for MonitoredSession, which is in turn used to

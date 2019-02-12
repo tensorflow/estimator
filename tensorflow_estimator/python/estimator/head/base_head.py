@@ -117,7 +117,7 @@ class Head(object):
           mode=mode,
           logits=logits,
           train_op_fn=lambda _: tf.no_op())
-      if mode == model_fn.ModeKeys.TRAIN:
+      if mode == ModeKeys.TRAIN:
         optimizer = ...
         sync_opt = tf.train.SyncReplicasOptimizer(opt=optimizer, ...)
         update_op = sync_opt.minimize(

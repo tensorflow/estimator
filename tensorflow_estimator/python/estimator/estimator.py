@@ -67,6 +67,7 @@ from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
 from tensorflow_estimator.python.estimator import run_config
 from tensorflow_estimator.python.estimator import util as estimator_util
 from tensorflow_estimator.python.estimator.export import export as export_helpers
+from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 
 
 _VALID_MODEL_FN_ARGS = set(
@@ -606,9 +607,9 @@ class EstimatorV2(object):
         random_seed.set_random_seed(self._config.tf_random_seed)
         self._create_and_assert_global_step(g)
         features, input_hooks = self._get_features_from_input_fn(
-            input_fn, model_fn_lib.ModeKeys.PREDICT)
+            input_fn, ModeKeys.PREDICT)
         estimator_spec = self._call_model_fn(
-            features, None, model_fn_lib.ModeKeys.PREDICT, self.config)
+            features, None, ModeKeys.PREDICT, self.config)
 
         # Call to warm_start has to be after model_fn is called.
         self._maybe_warm_start(checkpoint_path)
@@ -648,7 +649,7 @@ class EstimatorV2(object):
       assets_extra=None,
       as_text=False,
       checkpoint_path=None,
-      experimental_mode=model_fn_lib.ModeKeys.PREDICT):
+      experimental_mode=ModeKeys.PREDICT):
     # pylint: disable=line-too-long
     """Exports inference graph as a `SavedModel` into the given dir.
 
@@ -811,20 +812,20 @@ class EstimatorV2(object):
       # first, as that is also the mode used for checkpoints, and therefore
       # we are not likely to have vars in PREDICT that are not in the checkpoint
       # created by TRAIN.
-      if input_receiver_fn_map.get(model_fn_lib.ModeKeys.TRAIN):
+      if input_receiver_fn_map.get(ModeKeys.TRAIN):
         self._add_meta_graph_for_mode(
             builder, input_receiver_fn_map, checkpoint_path,
-            save_variables, mode=model_fn_lib.ModeKeys.TRAIN)
+            save_variables, mode=ModeKeys.TRAIN)
         save_variables = False
-      if input_receiver_fn_map.get(model_fn_lib.ModeKeys.EVAL):
+      if input_receiver_fn_map.get(ModeKeys.EVAL):
         self._add_meta_graph_for_mode(
             builder, input_receiver_fn_map, checkpoint_path,
-            save_variables, mode=model_fn_lib.ModeKeys.EVAL)
+            save_variables, mode=ModeKeys.EVAL)
         save_variables = False
-      if input_receiver_fn_map.get(model_fn_lib.ModeKeys.PREDICT):
+      if input_receiver_fn_map.get(ModeKeys.PREDICT):
         self._add_meta_graph_for_mode(
             builder, input_receiver_fn_map, checkpoint_path,
-            save_variables, mode=model_fn_lib.ModeKeys.PREDICT)
+            save_variables, mode=ModeKeys.PREDICT)
         save_variables = False
 
       if save_variables:
@@ -852,7 +853,7 @@ class EstimatorV2(object):
                                input_receiver_fn_map,
                                checkpoint_path,
                                save_variables=True,
-                               mode=model_fn_lib.ModeKeys.PREDICT,
+                               mode=ModeKeys.PREDICT,
                                export_tags=None,
                                check_variables=True):
     """Loads variables and adds them along with a `tf.MetaGraphDef` for saving.
@@ -908,7 +909,7 @@ class EstimatorV2(object):
           input_receiver.receiver_tensors,
           export_outputs,
           getattr(input_receiver, 'receiver_tensors_alternatives', None),
-          serving_only=(mode == model_fn_lib.ModeKeys.PREDICT))
+          serving_only=(mode == ModeKeys.PREDICT))
 
       with tf_session.Session(config=self._session_config) as session:
 
@@ -1149,10 +1150,10 @@ class EstimatorV2(object):
 
       features, labels, input_hooks = (
           self._get_features_and_labels_from_input_fn(
-              input_fn, model_fn_lib.ModeKeys.TRAIN))
+              input_fn, ModeKeys.TRAIN))
       worker_hooks.extend(input_hooks)
       estimator_spec = self._call_model_fn(
-          features, labels, model_fn_lib.ModeKeys.TRAIN, self.config)
+          features, labels, ModeKeys.TRAIN, self.config)
       global_step_tensor = training_util.get_global_step(g)
       return self._train_with_estimator_spec(estimator_spec, worker_hooks,
                                              hooks, global_step_tensor,
@@ -1204,7 +1205,7 @@ class EstimatorV2(object):
       with strategy.scope():
         random_seed.set_random_seed(self._config.tf_random_seed)
         iterator, input_hooks = self._get_iterator_from_input_fn(
-            input_fn, model_fn_lib.ModeKeys.TRAIN, strategy)
+            input_fn, ModeKeys.TRAIN, strategy)
         worker_hooks.extend(input_hooks)
         global_step_tensor = self._create_and_assert_global_step(g)
         # we want to add to the global collection in the main thread not the
@@ -1226,7 +1227,7 @@ class EstimatorV2(object):
                 self._call_model_fn,
                 args=(features,
                       labels,
-                      model_fn_lib.ModeKeys.TRAIN,
+                      ModeKeys.TRAIN,
                       self.config))
             ctx.set_last_step_output(
                 name='loss',
@@ -1251,7 +1252,7 @@ class EstimatorV2(object):
               self._call_model_fn,
               args=(features,
                     labels,  # although this will be None it seems
-                    model_fn_lib.ModeKeys.TRAIN,
+                    ModeKeys.TRAIN,
                     self.config))
           loss = strategy.reduce(reduce_util.ReduceOp.SUM,
                                  grouped_estimator_spec.loss)
@@ -1450,10 +1451,10 @@ class EstimatorV2(object):
   def _call_model_fn_eval(self, input_fn, config):
     """Call model_fn for evaluation and handle return values."""
     features, labels, input_hooks = self._get_features_and_labels_from_input_fn(
-        input_fn, model_fn_lib.ModeKeys.EVAL)
+        input_fn, ModeKeys.EVAL)
 
     estimator_spec = self._call_model_fn(
-        features, labels, model_fn_lib.ModeKeys.EVAL, config)
+        features, labels, ModeKeys.EVAL, config)
     eval_metric_ops = _verify_and_create_loss_metric(
         estimator_spec.eval_metric_ops, estimator_spec.loss)
     update_op, eval_dict = _extract_metric_update_ops(eval_metric_ops)
@@ -1464,7 +1465,7 @@ class EstimatorV2(object):
     """Call model_fn in distribution mode and handle return values."""
 
     iterator, input_hooks = self._get_iterator_from_input_fn(
-        input_fn, model_fn_lib.ModeKeys.EVAL, self._eval_distribution)
+        input_fn, ModeKeys.EVAL, self._eval_distribution)
 
     is_tpu_strategy = (
         self._eval_distribution.__class__.__name__ == 'TPUStrategy')
@@ -1480,7 +1481,7 @@ class EstimatorV2(object):
           labels = None
         estimator_spec = self._eval_distribution.extended.call_for_each_replica(
             self._call_model_fn,
-            args=(features, labels, model_fn_lib.ModeKeys.EVAL, config))
+            args=(features, labels, ModeKeys.EVAL, config))
         eval_metric_ops = _verify_and_create_loss_metric(
             estimator_spec.eval_metric_ops, estimator_spec.loss,
             self._eval_distribution)
@@ -1502,7 +1503,7 @@ class EstimatorV2(object):
       grouped_estimator_spec = (
           self._eval_distribution.extended.call_for_each_replica(
               self._call_model_fn,
-              args=(features, labels, model_fn_lib.ModeKeys.EVAL, config)))
+              args=(features, labels, ModeKeys.EVAL, config)))
       eval_metric_ops = _verify_and_create_loss_metric(
           grouped_estimator_spec.eval_metric_ops, grouped_estimator_spec.loss,
           self._eval_distribution)
@@ -1633,14 +1634,14 @@ class Estimator(EstimatorV2):
         assets_extra=assets_extra,
         as_text=as_text,
         checkpoint_path=checkpoint_path,
-        experimental_mode=model_fn_lib.ModeKeys.PREDICT)
+        experimental_mode=ModeKeys.PREDICT)
 
   def export_saved_model(
       self, export_dir_base, serving_input_receiver_fn,
       assets_extra=None,
       as_text=False,
       checkpoint_path=None,
-      experimental_mode=model_fn_lib.ModeKeys.PREDICT):
+      experimental_mode=ModeKeys.PREDICT):
     self._strip_default_attrs = True
     return super(Estimator, self).export_saved_model(
         export_dir_base,

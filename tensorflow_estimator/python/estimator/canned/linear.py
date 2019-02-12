@@ -43,13 +43,13 @@ from tensorflow.python.training import training
 from tensorflow.python.util import nest
 from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator import estimator
-from tensorflow_estimator.python.estimator import model_fn
 from tensorflow_estimator.python.estimator.canned import head as head_lib
 from tensorflow_estimator.python.estimator.canned import optimizers
 from tensorflow_estimator.python.estimator.canned.linear_optimizer.python.utils import sdca_ops
-from tensorflow_estimator.python.estimator.head import head_utils
 from tensorflow_estimator.python.estimator.head import binary_class_head
+from tensorflow_estimator.python.estimator.head import head_utils
 from tensorflow_estimator.python.estimator.head import regression_head
+from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 
 # The default learning rate of 0.2 is a historical artifact of the initial
 # implementation, but seems a reasonable choice.
@@ -437,7 +437,7 @@ def _sdca_model_fn(features, labels, mode, head, feature_columns, optimizer):
   summary.scalar('fraction_of_zero_weights',
                  _compute_fraction_of_zero(variables))
 
-  if mode == model_fn.ModeKeys.TRAIN:
+  if mode == ModeKeys.TRAIN:
     sdca_model, train_op = optimizer.get_train_step(
         linear_model.layer._state_manager,  # pylint: disable=protected-access
         head._weight_column,  # pylint: disable=protected-access

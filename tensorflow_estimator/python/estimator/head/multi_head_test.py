@@ -26,13 +26,13 @@ from tensorflow.python.framework import constant_op
 from tensorflow.python.ops import nn
 from tensorflow.python.ops import string_ops
 from tensorflow.python.platform import test
-from tensorflow_estimator.python.estimator import model_fn
 from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.canned import prediction_keys
 from tensorflow_estimator.python.estimator.head import head_utils as test_lib
 from tensorflow_estimator.python.estimator.head import multi_head as multi_head_lib
 from tensorflow_estimator.python.estimator.head import multi_label_head
 from tensorflow_estimator.python.estimator.head import regression_head
+from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 
 
 class MultiHeadTest(test.TestCase):
@@ -98,7 +98,7 @@ class MultiHeadTest(test.TestCase):
 
     spec = multi_head.create_estimator_spec(
         features={'x': np.array(((42,),), dtype=np.int32)},
-        mode=model_fn.ModeKeys.PREDICT,
+        mode=ModeKeys.PREDICT,
         logits=logits)
     self.assertItemsEqual(
         (test_lib._DEFAULT_SERVING_KEY, 'predict', 'head1',
@@ -183,7 +183,7 @@ class MultiHeadTest(test.TestCase):
 
     spec = multi_head.create_estimator_spec(
         features={'x': np.array(((42,),), dtype=np.int32)},
-        mode=model_fn.ModeKeys.PREDICT,
+        mode=ModeKeys.PREDICT,
         logits=logits)
     self.assertItemsEqual(
         (test_lib._DEFAULT_SERVING_KEY, 'predict', 'head1',
@@ -249,7 +249,7 @@ class MultiHeadTest(test.TestCase):
 
     spec = multi_head.create_estimator_spec(
         features={'x': np.array(((42,),), dtype=np.int32)},
-        mode=model_fn.ModeKeys.PREDICT,
+        mode=ModeKeys.PREDICT,
         logits=logits)
     self.assertItemsEqual(
         (test_lib._DEFAULT_SERVING_KEY, 'predict', 'head1', 'head1/regression',
@@ -321,7 +321,7 @@ class MultiHeadTest(test.TestCase):
 
     if context.executing_eagerly():
       loss = multi_head.loss(
-          logits, labels, features=features, mode=model_fn.ModeKeys.EVAL)
+          logits, labels, features=features, mode=ModeKeys.EVAL)
       self.assertIsNotNone(loss)
       self.assertAllClose(expected_loss, loss, rtol=tol, atol=tol)
 
@@ -338,7 +338,7 @@ class MultiHeadTest(test.TestCase):
 
     spec = multi_head.create_estimator_spec(
         features=features,
-        mode=model_fn.ModeKeys.EVAL,
+        mode=ModeKeys.EVAL,
         logits=logits,
         labels=labels)
     # Assert spec contains expected tensors.
@@ -371,7 +371,7 @@ class MultiHeadTest(test.TestCase):
         logits=logits,
         labels=labels,
         features={'x': np.array(((42,),), dtype=np.int32)},
-        mode=model_fn.ModeKeys.TRAIN)
+        mode=ModeKeys.TRAIN)
     tol = 1e-3
     # Unreduced loss of the head is [[(10 + 10) / 2], (15 + 0) / 2]
     # (averaged over classes, averaged over examples).
@@ -406,7 +406,7 @@ class MultiHeadTest(test.TestCase):
             'weights1': weights1,
             'weights2': weights2
         },
-        mode=model_fn.ModeKeys.TRAIN)
+        mode=ModeKeys.TRAIN)
     tol = 1e-3
     # loss of the first head is [[(10 + 10) / 2], [(15 + 0) / 2]]
     # = [10, 7.5]
@@ -444,7 +444,7 @@ class MultiHeadTest(test.TestCase):
             'weights1': weights1,
             'weights2': weights2
         },
-        mode=model_fn.ModeKeys.TRAIN)
+        mode=ModeKeys.TRAIN)
     tol = 1e-3
     # loss of the first head is [[(10 + 10) / 2], [(15 + 0) / 2]]
     # = [10, 7.5]
@@ -487,7 +487,7 @@ class MultiHeadTest(test.TestCase):
         logits=logits,
         labels=labels,
         features={},
-        mode=model_fn.ModeKeys.TRAIN)
+        mode=ModeKeys.TRAIN)
     tol = 1e-3
     self.assertAllClose(
         expected_training_loss, self.evaluate(training_loss),
@@ -514,7 +514,7 @@ class MultiHeadTest(test.TestCase):
         logits=logits,
         labels=labels,
         features=features,
-        mode=model_fn.ModeKeys.TRAIN)
+        mode=ModeKeys.TRAIN)
     self.assertAllClose(expected_loss, self.evaluate(loss), rtol=tol, atol=tol)
     if context.executing_eagerly():
       return
@@ -526,7 +526,7 @@ class MultiHeadTest(test.TestCase):
            string_ops.as_string(loss, precision=3)])
     spec = multi_head.create_estimator_spec(
         features=features,
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
         train_op_fn=_train_op_fn)
@@ -575,7 +575,7 @@ class MultiHeadTest(test.TestCase):
         logits=logits,
         labels=labels,
         features=features,
-        mode=model_fn.ModeKeys.TRAIN)
+        mode=ModeKeys.TRAIN)
     self.assertAllClose(expected_loss, self.evaluate(loss), rtol=tol, atol=tol)
     if context.executing_eagerly():
       return
@@ -591,7 +591,7 @@ class MultiHeadTest(test.TestCase):
              string_ops.as_string(loss, precision=3)])
     spec = multi_head.create_estimator_spec(
         features=features,
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
         optimizer=_Optimizer())
@@ -639,7 +639,7 @@ class MultiHeadTest(test.TestCase):
         logits=logits,
         labels=labels,
         features=features,
-        mode=model_fn.ModeKeys.TRAIN)
+        mode=ModeKeys.TRAIN)
     self.assertAllClose(expected_loss, self.evaluate(loss), rtol=tol, atol=tol)
     if context.executing_eagerly():
       return
@@ -652,7 +652,7 @@ class MultiHeadTest(test.TestCase):
 
     spec = multi_head.create_estimator_spec(
         features=features,
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
         train_op_fn=_train_op_fn)
@@ -735,7 +735,7 @@ class MultiHeadTest(test.TestCase):
         logits=logits,
         labels=labels,
         features=features,
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         regularization_losses=regularization_losses)
     self.assertAllClose(expected_loss, self.evaluate(loss), rtol=tol, atol=tol)
     if context.executing_eagerly():
@@ -750,7 +750,7 @@ class MultiHeadTest(test.TestCase):
 
     spec = multi_head.create_estimator_spec(
         features=features,
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
         train_op_fn=_train_op_fn,

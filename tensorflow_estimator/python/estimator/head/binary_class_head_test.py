@@ -45,6 +45,7 @@ from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.canned import prediction_keys
 from tensorflow_estimator.python.estimator.head import binary_class_head as head_lib
 from tensorflow_estimator.python.estimator.head import head_utils as test_lib
+from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 
 
 class BinaryClassHeadTest(test.TestCase):
@@ -115,7 +116,7 @@ class BinaryClassHeadTest(test.TestCase):
     logits_placeholder = array_ops.placeholder(dtype=dtypes.float32)
     spec = head.create_estimator_spec(
         features={'x': np.array(((42.,),))},
-        mode=model_fn.ModeKeys.PREDICT,
+        mode=ModeKeys.PREDICT,
         logits=logits_placeholder)
     with self.cached_session():
       with self.assertRaisesRegexp(errors.OpError, 'logits shape'):
@@ -138,7 +139,7 @@ class BinaryClassHeadTest(test.TestCase):
           logits=logits_2x1,
           labels=labels_2x2,
           features=features,
-          mode=model_fn.ModeKeys.EVAL)
+          mode=ModeKeys.EVAL)
       self.evaluate(training_loss)
     if context.executing_eagerly():
       return
@@ -150,7 +151,7 @@ class BinaryClassHeadTest(test.TestCase):
         logits=logits_placeholder,
         labels=labels_placeholder,
         features=features,
-        mode=model_fn.ModeKeys.EVAL)
+        mode=ModeKeys.EVAL)
     with self.cached_session():
       with self.assertRaisesRegexp(
           errors.InvalidArgumentError,
@@ -177,14 +178,14 @@ class BinaryClassHeadTest(test.TestCase):
             logits=values_2x1,
             labels=values_3x1,
             features=features,
-            mode=model_fn.ModeKeys.EVAL)
+            mode=ModeKeys.EVAL)
       with self.assertRaisesRegexp(
           ValueError, 'labels shape'):
         head.loss(
             logits=values_3x1,
             labels=values_2x1,
             features=features,
-            mode=model_fn.ModeKeys.EVAL)
+            mode=ModeKeys.EVAL)
       return
 
     # Static shape for Graph mode.
@@ -194,14 +195,14 @@ class BinaryClassHeadTest(test.TestCase):
           logits=values_2x1,
           labels=values_3x1,
           features=features,
-          mode=model_fn.ModeKeys.EVAL)
+          mode=ModeKeys.EVAL)
     with self.assertRaisesRegexp(
         ValueError, 'logits and labels must have the same shape'):
       head.loss(
           logits=values_3x1,
           labels=values_2x1,
           features=features,
-          mode=model_fn.ModeKeys.EVAL)
+          mode=ModeKeys.EVAL)
     # Dynamic shape only works in Graph mode.
     labels_placeholder = array_ops.placeholder(dtype=dtypes.float32)
     logits_placeholder = array_ops.placeholder(dtype=dtypes.float32)
@@ -209,7 +210,7 @@ class BinaryClassHeadTest(test.TestCase):
         logits=logits_placeholder,
         labels=labels_placeholder,
         features=features,
-        mode=model_fn.ModeKeys.EVAL)
+        mode=ModeKeys.EVAL)
     with self.cached_session():
       with self.assertRaisesRegexp(
           errors.InvalidArgumentError,
@@ -256,7 +257,7 @@ class BinaryClassHeadTest(test.TestCase):
     # Create estimator spec.
     spec = head.create_estimator_spec(
         features={'x': np.array(((42,),), dtype=np.int32)},
-        mode=model_fn.ModeKeys.PREDICT,
+        mode=ModeKeys.PREDICT,
         logits=logits)
 
     # Assert spec contains expected tensors.
@@ -324,7 +325,7 @@ class BinaryClassHeadTest(test.TestCase):
         logits=logits,
         labels=labels,
         features=features,
-        mode=model_fn.ModeKeys.EVAL)
+        mode=ModeKeys.EVAL)
     self.assertAllClose(expected_training_loss, self.evaluate(training_loss),
                         rtol=1e-2, atol=1e-2)
 
@@ -348,7 +349,7 @@ class BinaryClassHeadTest(test.TestCase):
         logits=logits_input,
         labels=labels_input,
         features={'x': np.array(((42,),), dtype=np.int32)},
-        mode=model_fn.ModeKeys.EVAL)
+        mode=ModeKeys.EVAL)
     self.assertAllClose(np.sum(loss) / 2., self.evaluate(actual_training_loss))
 
   def test_eval_create_loss_loss_fn_wrong_shape(self):
@@ -367,11 +368,11 @@ class BinaryClassHeadTest(test.TestCase):
     if context.executing_eagerly():
       with self.assertRaisesRegexp(ValueError, 'loss_shape'):
         head.loss(logits=logits, labels=labels, features=features,
-                  mode=model_fn.ModeKeys.EVAL)
+                  mode=ModeKeys.EVAL)
     else:
       actual_training_loss = head.loss(
           logits=logits, labels=labels, features=features,
-          mode=model_fn.ModeKeys.EVAL)
+          mode=ModeKeys.EVAL)
       with self.assertRaisesRegexp(
           errors.InvalidArgumentError,
           r'\[loss_fn must return Tensor of shape \[D0, D1, ... DN, 1\]\. \] '
@@ -390,7 +391,7 @@ class BinaryClassHeadTest(test.TestCase):
           logits=np.array(((45,), (-41,),), dtype=np.float32),
           labels=None,
           features={'x': np.array(((42,),), dtype=np.int32)},
-          mode=model_fn.ModeKeys.EVAL)
+          mode=ModeKeys.EVAL)
 
   def test_eval(self):
     head = head_lib.BinaryClassHead()
@@ -422,7 +423,7 @@ class BinaryClassHeadTest(test.TestCase):
           expected_metrics,
           {k: updated_metrics[k].result() for k in updated_metrics})
       loss = head.loss(
-          logits, labels, features=features, mode=model_fn.ModeKeys.EVAL)
+          logits, labels, features=features, mode=ModeKeys.EVAL)
       self.assertIsNotNone(loss)
       self.assertAllClose(expected_loss, loss)
       return
@@ -430,7 +431,7 @@ class BinaryClassHeadTest(test.TestCase):
     # Create estimator spec.
     spec = head.create_estimator_spec(
         features=features,
-        mode=model_fn.ModeKeys.EVAL,
+        mode=ModeKeys.EVAL,
         logits=logits,
         labels=labels)
     # Assert spec contains expected tensors.
@@ -516,7 +517,7 @@ class BinaryClassHeadTest(test.TestCase):
     # Create estimator spec.
     spec = head.create_estimator_spec(
         features=features,
-        mode=model_fn.ModeKeys.EVAL,
+        mode=ModeKeys.EVAL,
         logits=logits,
         labels=labels,
         regularization_losses=regularization_losses)
@@ -547,7 +548,7 @@ class BinaryClassHeadTest(test.TestCase):
           logits=logits,
           labels=labels,
           features=features,
-          mode=model_fn.ModeKeys.EVAL)
+          mode=ModeKeys.EVAL)
       self.assertAllClose(expected_training_loss, training_loss,
                           rtol=1e-2, atol=1e-2)
       return
@@ -555,7 +556,7 @@ class BinaryClassHeadTest(test.TestCase):
         logits=logits,
         labels=labels,
         features=features,
-        mode=model_fn.ModeKeys.EVAL)
+        mode=ModeKeys.EVAL)
     with self.cached_session():
       test_lib._initialize_variables(self, monitored_session.Scaffold())
       self.assertAllClose(expected_training_loss, training_loss.eval())
@@ -578,7 +579,7 @@ class BinaryClassHeadTest(test.TestCase):
     # Create estimator spec.
     spec = head.create_estimator_spec(
         features=features,
-        mode=model_fn.ModeKeys.EVAL,
+        mode=ModeKeys.EVAL,
         logits=logits,
         labels=labels)
 
@@ -609,7 +610,7 @@ class BinaryClassHeadTest(test.TestCase):
         logits=logits,
         labels=labels,
         features=features,
-        mode=model_fn.ModeKeys.EVAL)
+        mode=ModeKeys.EVAL)
     self.assertAllClose(expected_training_loss, self.evaluate(training_loss),
                         rtol=1e-2, atol=1e-2)
 
@@ -654,7 +655,7 @@ class BinaryClassHeadTest(test.TestCase):
           logits=logits,
           labels=labels,
           features=features,
-          mode=model_fn.ModeKeys.EVAL)
+          mode=ModeKeys.EVAL)
       self.assertAllClose(1.62652338 / 2., self.evaluate(training_loss))
       # Eval metrics.
       eval_metrics = head.metrics()
@@ -672,7 +673,7 @@ class BinaryClassHeadTest(test.TestCase):
     # Create estimator spec.
     spec = head.create_estimator_spec(
         features=features,
-        mode=model_fn.ModeKeys.EVAL,
+        mode=ModeKeys.EVAL,
         logits=logits,
         labels=labels)
     self.assertItemsEqual(expected_metrics.keys(), spec.eval_metric_ops.keys())
@@ -744,7 +745,7 @@ class BinaryClassHeadTest(test.TestCase):
           logits=np.array(((45,), (-41,),), dtype=np.float32),
           labels=None,
           features={'x': np.array(((42,),), dtype=np.int32)},
-          mode=model_fn.ModeKeys.TRAIN)
+          mode=ModeKeys.TRAIN)
 
   def test_train(self):
     head = head_lib.BinaryClassHead()
@@ -760,7 +761,7 @@ class BinaryClassHeadTest(test.TestCase):
           logits=logits,
           labels=labels,
           features=features,
-          mode=model_fn.ModeKeys.TRAIN)
+          mode=ModeKeys.TRAIN)
       self.assertIsNotNone(loss)
       self.assertAllClose(expected_loss, loss)
       return
@@ -774,7 +775,7 @@ class BinaryClassHeadTest(test.TestCase):
     # Create estimator spec.
     spec = head.create_estimator_spec(
         features=features,
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
         train_op_fn=_train_op_fn)
@@ -849,7 +850,7 @@ class BinaryClassHeadTest(test.TestCase):
           logits=logits,
           labels=labels_rank_1,
           features=features,
-          mode=model_fn.ModeKeys.TRAIN)
+          mode=ModeKeys.TRAIN)
       self.assertIsNotNone(loss)
       self.assertAllClose(expected_loss, loss)
       return
@@ -862,7 +863,7 @@ class BinaryClassHeadTest(test.TestCase):
         return constant_op.constant(expected_train_result)
     spec = head.create_estimator_spec(
         features=features,
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels_rank_1,
         train_op_fn=_train_op_fn)
@@ -899,7 +900,7 @@ class BinaryClassHeadTest(test.TestCase):
           logits=logits,
           labels=labels,
           features=features,
-          mode=model_fn.ModeKeys.TRAIN,
+          mode=ModeKeys.TRAIN,
           regularization_losses=regularization_losses)
       self.assertAllClose(expected_loss, loss)
       return
@@ -913,7 +914,7 @@ class BinaryClassHeadTest(test.TestCase):
     # Create estimator spec.
     spec = head.create_estimator_spec(
         features=features,
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
         train_op_fn=_train_op_fn,
@@ -945,14 +946,14 @@ class BinaryClassHeadTest(test.TestCase):
             logits=logits,
             labels=labels,
             features=features,
-            mode=model_fn.ModeKeys.TRAIN)
+            mode=ModeKeys.TRAIN)
       return
 
     training_loss = head.loss(
         logits=logits,
         labels=labels,
         features=features,
-        mode=model_fn.ModeKeys.TRAIN)
+        mode=ModeKeys.TRAIN)
     with self.assertRaisesRegexp(
         errors.InvalidArgumentError,
         r'Labels must be <= n_classes - 1'):
@@ -979,7 +980,7 @@ class BinaryClassHeadTest(test.TestCase):
         logits=logits,
         labels=labels,
         features=features,
-        mode=model_fn.ModeKeys.TRAIN)
+        mode=ModeKeys.TRAIN)
     self.assertAllClose(
         expected_training_loss, self.evaluate(training_loss))
 
@@ -1000,7 +1001,7 @@ class BinaryClassHeadTest(test.TestCase):
     # Create loss.
     training_loss = head.loss(
         logits=logits, labels=labels, features=features,
-        mode=model_fn.ModeKeys.TRAIN)
+        mode=ModeKeys.TRAIN)
     self.assertAlmostEqual(
         expected_loss, self.evaluate(training_loss), delta=1.e-5)
     if context.executing_eagerly():
@@ -1013,7 +1014,7 @@ class BinaryClassHeadTest(test.TestCase):
     # Create estimator spec.
     spec = head.create_estimator_spec(
         features=features,
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
         train_op_fn=_train_op_fn)
@@ -1041,7 +1042,7 @@ class BinaryClassHeadTest(test.TestCase):
     # Create loss.
     training_loss = head.loss(
         logits=logits, labels=labels, features=features,
-        mode=model_fn.ModeKeys.EVAL)
+        mode=ModeKeys.EVAL)
     self.assertAllClose(expected_training_loss, self.evaluate(training_loss),
                         rtol=1e-2, atol=1e-2)
 
@@ -1062,7 +1063,7 @@ class BinaryClassHeadTest(test.TestCase):
     # Create loss.
     training_loss = head.loss(
         logits=logits, labels=labels, features=features,
-        mode=model_fn.ModeKeys.EVAL)
+        mode=ModeKeys.EVAL)
     self.assertAlmostEqual(expected_loss, self.evaluate(training_loss),
                            delta=1.e-5)
     # Eval metrics.
@@ -1078,7 +1079,7 @@ class BinaryClassHeadTest(test.TestCase):
     # Create estimator spec.
     spec = head.create_estimator_spec(
         features=features,
-        mode=model_fn.ModeKeys.EVAL,
+        mode=ModeKeys.EVAL,
         logits=logits,
         labels=labels)
     with self.cached_session() as sess:
@@ -1156,7 +1157,7 @@ class BinaryClassHeadTest(test.TestCase):
           expected_metrics,
           {k: updated_metrics[k].result() for k in updated_metrics})
       loss = head.loss(
-          logits, labels, features=features, mode=model_fn.ModeKeys.EVAL)
+          logits, labels, features=features, mode=ModeKeys.EVAL)
       self.assertIsNotNone(loss)
       self.assertAllClose(expected_loss, loss)
       return
@@ -1164,7 +1165,7 @@ class BinaryClassHeadTest(test.TestCase):
     # Create estimator spec.
     spec = head.create_estimator_spec(
         features=features,
-        mode=model_fn.ModeKeys.EVAL,
+        mode=ModeKeys.EVAL,
         logits=logits,
         labels=labels)
     # Assert spec contains expected tensors.
@@ -1203,7 +1204,7 @@ class BinaryClassHeadTest(test.TestCase):
           logits=logits,
           labels=labels,
           features=features,
-          mode=model_fn.ModeKeys.TRAIN)
+          mode=ModeKeys.TRAIN)
       self.assertIsNotNone(loss)
       self.assertAllClose(expected_loss, loss)
       return
@@ -1215,7 +1216,7 @@ class BinaryClassHeadTest(test.TestCase):
         return constant_op.constant(expected_train_result)
     spec = head.create_estimator_spec(
         features=features,
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
         train_op_fn=_train_op_fn)
@@ -1251,7 +1252,7 @@ class BinaryClassHeadTest(test.TestCase):
     # Create loss.
     if context.executing_eagerly():
       training_loss = head.loss(logits, labels, features,
-                                mode=model_fn.ModeKeys.TRAIN)
+                                mode=ModeKeys.TRAIN)
       self.assertAllClose(
           expected_training_loss, training_loss, rtol=tol, atol=tol)
       return
@@ -1279,7 +1280,7 @@ class BinaryClassHeadTest(test.TestCase):
     # Create loss.
     if context.executing_eagerly():
       training_loss = head.loss(logits, labels, features,
-                                mode=model_fn.ModeKeys.TRAIN)
+                                mode=ModeKeys.TRAIN)
       self.assertAllClose(
           expected_loss, training_loss, rtol=tol, atol=tol)
       return
@@ -1292,7 +1293,7 @@ class BinaryClassHeadTest(test.TestCase):
     # Create estimator spec.
     spec = head.create_estimator_spec(
         features=features,
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
         train_op_fn=_train_op_fn)
@@ -1319,7 +1320,7 @@ class BinaryClassHeadTest(test.TestCase):
             logits=logits,
             labels=labels,
             features={'weights': weights},
-            mode=model_fn.ModeKeys.TRAIN)
+            mode=ModeKeys.TRAIN)
       return
 
     def _no_op_train_fn(loss):
@@ -1327,7 +1328,7 @@ class BinaryClassHeadTest(test.TestCase):
       return control_flow_ops.no_op()
     spec = head.create_estimator_spec(
         features={'weights': weights},
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
         train_op_fn=_no_op_train_fn)
@@ -1350,7 +1351,7 @@ class BinaryClassHeadTest(test.TestCase):
             logits=logits,
             labels=labels,
             features={'weights': weights},
-            mode=model_fn.ModeKeys.TRAIN)
+            mode=ModeKeys.TRAIN)
       return
     weights_placeholder = array_ops.placeholder(dtype=dtypes.float32)
     def _no_op_train_fn(loss):
@@ -1358,7 +1359,7 @@ class BinaryClassHeadTest(test.TestCase):
       return control_flow_ops.no_op()
     spec = head.create_estimator_spec(
         features={'weights': weights_placeholder},
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
         train_op_fn=_no_op_train_fn)
@@ -1400,7 +1401,7 @@ class BinaryClassHeadTest(test.TestCase):
           logits=logits,
           labels=labels,
           features={'weights': weights},
-          mode=model_fn.ModeKeys.TRAIN)
+          mode=ModeKeys.TRAIN)
       self.assertAllClose(expected_loss, loss, rtol=tol, atol=tol)
       eval_metrics = head.metrics()
       updated_metrics = head.update_metrics(
@@ -1418,7 +1419,7 @@ class BinaryClassHeadTest(test.TestCase):
     # Create estimator spec.
     spec = head.create_estimator_spec(
         features={'weights': weights},
-        mode=model_fn.ModeKeys.EVAL,
+        mode=ModeKeys.EVAL,
         logits=logits,
         labels=labels)
     with self.cached_session() as sess:
@@ -1460,7 +1461,7 @@ class BinaryClassHeadForEstimator(test.TestCase):
     # Create estimator spec.
     spec = head.create_estimator_spec(
         features=features,
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
         optimizer=_Optimizer())
@@ -1485,7 +1486,7 @@ class BinaryClassHeadForEstimator(test.TestCase):
       head = head_lib.BinaryClassHead(update_ops=[update_op])
       spec = head.create_estimator_spec(
           features={'x': np.array(((42,),), dtype=np.int32)},
-          mode=model_fn.ModeKeys.TRAIN,
+          mode=ModeKeys.TRAIN,
           logits=np.array(((45,), (-41,),), dtype=np.float32),
           labels=np.array(((1,), (1,),), dtype=np.float64),
           train_op_fn=_train_op_fn)
@@ -1515,7 +1516,7 @@ class BinaryClassHeadForEstimator(test.TestCase):
     # Create estimator spec.
     spec = head.create_estimator_spec(
         features=features,
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
         train_op_fn=_train_op_fn)

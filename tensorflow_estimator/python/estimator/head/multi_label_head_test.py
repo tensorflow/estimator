@@ -44,6 +44,7 @@ from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.canned import prediction_keys
 from tensorflow_estimator.python.estimator.head import head_utils as test_lib
 from tensorflow_estimator.python.estimator.head import multi_label_head as head_lib
+from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 
 
 def _sigmoid_cross_entropy(labels, logits):
@@ -170,7 +171,7 @@ class MultiLabelHead(test.TestCase):
       return
     spec = head.create_estimator_spec(
         features={'x': np.array(((42,),), dtype=np.int32)},
-        mode=model_fn.ModeKeys.PREDICT,
+        mode=ModeKeys.PREDICT,
         logits=logits)
     self.assertItemsEqual(
         (test_lib._DEFAULT_SERVING_KEY, 'predict', 'classification'),
@@ -216,7 +217,7 @@ class MultiLabelHead(test.TestCase):
 
     spec = head.create_estimator_spec(
         features=features,
-        mode=model_fn.ModeKeys.PREDICT,
+        mode=ModeKeys.PREDICT,
         logits=logits)
     # Assert predictions and export_outputs.
     with self.cached_session() as sess:
@@ -245,7 +246,7 @@ class MultiLabelHead(test.TestCase):
         logits=logits,
         labels=labels,
         features=features,
-        mode=model_fn.ModeKeys.EVAL)
+        mode=ModeKeys.EVAL)
     self.assertAllClose(expected_training_loss,
                         self.evaluate(actual_training_loss))
 
@@ -268,7 +269,7 @@ class MultiLabelHead(test.TestCase):
         logits=logits,
         labels=labels,
         features=features,
-        mode=model_fn.ModeKeys.EVAL)
+        mode=ModeKeys.EVAL)
     self.assertAllClose(expected_training_loss,
                         self.evaluate(actual_training_loss), atol=1e-4)
 
@@ -285,15 +286,15 @@ class MultiLabelHead(test.TestCase):
     if context.executing_eagerly():
       with self.assertRaisesRegexp(ValueError, 'Expected labels dimension=2'):
         head.loss(logits=logits, labels=labels_2x1, features=features,
-                  mode=model_fn.ModeKeys.EVAL)
+                  mode=ModeKeys.EVAL)
       with self.assertRaisesRegexp(ValueError, 'Expected labels dimension=2'):
         head.loss(logits=logits, labels=labels_2, features=features,
-                  mode=model_fn.ModeKeys.EVAL)
+                  mode=ModeKeys.EVAL)
     else:
       labels_placeholder = array_ops.placeholder(dtype=dtypes.int64)
       actual_training_loss = head.loss(
           logits=logits, labels=labels_placeholder, features=features,
-          mode=model_fn.ModeKeys.EVAL)
+          mode=ModeKeys.EVAL)
       with self.cached_session():
         test_lib._initialize_variables(self, monitored_session.Scaffold())
         with self.assertRaisesRegexp(
@@ -330,7 +331,7 @@ class MultiLabelHead(test.TestCase):
         logits=logits_input,
         labels=labels_input,
         features={'x': np.array(((42,),), dtype=np.int32)},
-        mode=model_fn.ModeKeys.EVAL)
+        mode=ModeKeys.EVAL)
     self.assertAllClose(np.sum(loss) / 2., self.evaluate(actual_training_loss))
 
   def test_eval_create_loss_loss_fn_wrong_shape(self):
@@ -350,11 +351,11 @@ class MultiLabelHead(test.TestCase):
           ValueError,
           'loss_shape'):
         head.loss(logits=logits, labels=labels, features=features,
-                  mode=model_fn.ModeKeys.EVAL)
+                  mode=ModeKeys.EVAL)
     else:
       actual_training_loss = head.loss(
           logits=logits, labels=labels, features=features,
-          mode=model_fn.ModeKeys.EVAL)
+          mode=ModeKeys.EVAL)
       with self.assertRaisesRegexp(
           errors.InvalidArgumentError,
           r'\[loss_fn must return Tensor of shape \[D0, D1, ... DN, 1\]\. \] '
@@ -370,7 +371,7 @@ class MultiLabelHead(test.TestCase):
           logits=np.array([[-10., 10.], [-15., 10.]], dtype=np.float32),
           labels=None,
           features={'x': np.array(((42,),), dtype=np.int32)},
-          mode=model_fn.ModeKeys.EVAL)
+          mode=ModeKeys.EVAL)
 
   def _test_eval(
       self, head, logits, labels, expected_loss, expected_metrics,
@@ -378,7 +379,7 @@ class MultiLabelHead(test.TestCase):
     tol = 1e-3
     if context.executing_eagerly():
       loss = head.loss(
-          logits, labels, features=features or {}, mode=model_fn.ModeKeys.EVAL,
+          logits, labels, features=features or {}, mode=ModeKeys.EVAL,
           regularization_losses=regularization_losses)
       self.assertIsNotNone(loss)
       self.assertAllClose(expected_loss, loss, rtol=tol, atol=tol)
@@ -397,7 +398,7 @@ class MultiLabelHead(test.TestCase):
 
     spec = head.create_estimator_spec(
         features=features or {},
-        mode=model_fn.ModeKeys.EVAL,
+        mode=ModeKeys.EVAL,
         logits=logits,
         labels=labels,
         regularization_losses=regularization_losses)
@@ -745,7 +746,7 @@ class MultiLabelHead(test.TestCase):
         logits=logits,
         labels=labels,
         features=features,
-        mode=model_fn.ModeKeys.TRAIN)
+        mode=ModeKeys.TRAIN)
     self.assertAllClose(
         expected_training_loss, self.evaluate(training_loss), atol=1e-4)
 
@@ -774,7 +775,7 @@ class MultiLabelHead(test.TestCase):
             'x': np.array(((42,),), dtype=np.int32),
             'example_weights': weights
         },
-        mode=model_fn.ModeKeys.TRAIN)
+        mode=ModeKeys.TRAIN)
     self.assertAllClose(
         expected_training_loss, self.evaluate(training_loss), atol=1e-4)
 
@@ -788,7 +789,7 @@ class MultiLabelHead(test.TestCase):
           logits=np.array([[-10., 10.], [-15., 10.]], dtype=np.float32),
           labels=None,
           features={'x': np.array(((42,),), dtype=np.int32)},
-          mode=model_fn.ModeKeys.TRAIN)
+          mode=ModeKeys.TRAIN)
 
   def test_train_invalid_indicator_labels(self):
     head = head_lib.MultiLabelHead(n_classes=2)
@@ -804,7 +805,7 @@ class MultiLabelHead(test.TestCase):
             logits=logits,
             labels=labels,
             features={},
-            mode=model_fn.ModeKeys.TRAIN)
+            mode=ModeKeys.TRAIN)
       return
 
     def _train_op_fn(loss):
@@ -812,7 +813,7 @@ class MultiLabelHead(test.TestCase):
       return control_flow_ops.no_op()
     spec = head.create_estimator_spec(
         features={},
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
         train_op_fn=_train_op_fn)
@@ -840,7 +841,7 @@ class MultiLabelHead(test.TestCase):
             logits=logits,
             labels=labels,
             features={},
-            mode=model_fn.ModeKeys.TRAIN)
+            mode=ModeKeys.TRAIN)
       return
 
     def _train_op_fn(loss):
@@ -848,7 +849,7 @@ class MultiLabelHead(test.TestCase):
       return control_flow_ops.no_op()
     spec = head.create_estimator_spec(
         features={},
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
         train_op_fn=_train_op_fn)
@@ -867,7 +868,7 @@ class MultiLabelHead(test.TestCase):
           logits=logits,
           labels=labels,
           features=features,
-          mode=model_fn.ModeKeys.TRAIN)
+          mode=ModeKeys.TRAIN)
       self.assertIsNotNone(loss)
       self.assertAllClose(expected_loss, loss, rtol=tol, atol=tol)
       return
@@ -879,7 +880,7 @@ class MultiLabelHead(test.TestCase):
            string_ops.as_string(loss, precision=3)])
     spec = head.create_estimator_spec(
         features=features,
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
         train_op_fn=_train_op_fn)
@@ -969,7 +970,7 @@ class MultiLabelHead(test.TestCase):
         logits=logits,
         labels=labels,
         features=features,
-        mode=model_fn.ModeKeys.TRAIN)
+        mode=ModeKeys.TRAIN)
     self.assertIsNotNone(loss)
     self.assertAllClose(expected_loss, self.evaluate(loss), rtol=tol, atol=tol)
     if context.executing_eagerly():
@@ -986,7 +987,7 @@ class MultiLabelHead(test.TestCase):
              string_ops.as_string(loss, precision=3)])
     spec = head.create_estimator_spec(
         features=features,
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
         optimizer=_Optimizer())
@@ -1020,7 +1021,7 @@ class MultiLabelHead(test.TestCase):
         logits=logits,
         labels=labels,
         features=features,
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         regularization_losses=regularization_losses)
     self.assertIsNotNone(loss)
     self.assertAllClose(expected_loss, self.evaluate(loss), rtol=tol, atol=tol)
@@ -1034,7 +1035,7 @@ class MultiLabelHead(test.TestCase):
            string_ops.as_string(loss, precision=3)])
     spec = head.create_estimator_spec(
         features=features,
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
         train_op_fn=_train_op_fn,
@@ -1075,7 +1076,7 @@ class MultiLabelHead(test.TestCase):
         logits=logits,
         labels=labels,
         features=features,
-        mode=model_fn.ModeKeys.TRAIN)
+        mode=ModeKeys.TRAIN)
     self.assertIsNotNone(loss)
     self.assertAllClose(expected_loss, self.evaluate(loss), rtol=tol, atol=tol)
     if context.executing_eagerly():
@@ -1089,7 +1090,7 @@ class MultiLabelHead(test.TestCase):
 
     spec = head.create_estimator_spec(
         features=features,
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
         train_op_fn=_train_op_fn)
@@ -1132,7 +1133,7 @@ class MultiLabelHead(test.TestCase):
         logits=logits,
         labels=labels,
         features={'weights': weights},
-        mode=model_fn.ModeKeys.TRAIN)
+        mode=ModeKeys.TRAIN)
     atol = 1.e-3
     self.assertAllClose(
         expected_training_loss, self.evaluate(training_loss), atol=atol)
@@ -1156,7 +1157,7 @@ class MultiLabelHead(test.TestCase):
         logits=logits,
         labels=labels,
         features={'weights': weights},
-        mode=model_fn.ModeKeys.TRAIN)
+        mode=ModeKeys.TRAIN)
     self.assertIsNotNone(loss)
     self.assertAllClose(expected_loss, self.evaluate(loss), atol=atol)
     if context.executing_eagerly():
@@ -1170,7 +1171,7 @@ class MultiLabelHead(test.TestCase):
 
     spec = head.create_estimator_spec(
         features={'weights': weights},
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
         train_op_fn=_train_op_fn)
@@ -1198,7 +1199,7 @@ class MultiLabelHead(test.TestCase):
             logits=logits,
             labels=labels,
             features={'weights': weights},
-            mode=model_fn.ModeKeys.TRAIN)
+            mode=ModeKeys.TRAIN)
       return
 
     def _train_op_fn(loss):
@@ -1207,7 +1208,7 @@ class MultiLabelHead(test.TestCase):
 
     spec = head.create_estimator_spec(
         features={'weights': weights},
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
         train_op_fn=_train_op_fn)
@@ -1235,7 +1236,7 @@ class MultiLabelHead(test.TestCase):
             logits=logits,
             labels=labels,
             features={'weights': weights},
-            mode=model_fn.ModeKeys.TRAIN)
+            mode=ModeKeys.TRAIN)
       return
 
     weights_placeholder = array_ops.placeholder(dtype=dtypes.float32)
@@ -1244,7 +1245,7 @@ class MultiLabelHead(test.TestCase):
       return control_flow_ops.no_op()
     spec = head.create_estimator_spec(
         features={'weights': weights_placeholder},
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
         train_op_fn=_train_op_fn)
@@ -1300,7 +1301,7 @@ class MultiLabelHeadForEstimator(test.TestCase):
 
     spec = head.create_estimator_spec(
         features={'x': np.array(((42,),), dtype=np.int32)},
-        mode=model_fn.ModeKeys.PREDICT,
+        mode=ModeKeys.PREDICT,
         logits=logits)
 
     with self.cached_session() as sess:
@@ -1323,7 +1324,7 @@ class MultiLabelHeadForEstimator(test.TestCase):
       head = head_lib.MultiLabelHead(n_classes=2, update_ops=[update_op])
       spec = head.create_estimator_spec(
           features={'x': np.array(((42,),), dtype=np.int32)},
-          mode=model_fn.ModeKeys.TRAIN,
+          mode=ModeKeys.TRAIN,
           logits=np.array([[-10., 10.], [-15., 10.]], dtype=np.float32),
           labels=np.array([[1, 0], [1, 1]], dtype=np.int64),
           train_op_fn=_train_op_fn)

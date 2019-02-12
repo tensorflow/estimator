@@ -45,6 +45,7 @@ from tensorflow.python.training import training_util
 from tensorflow_estimator.python.estimator import estimator as estimator_lib
 from tensorflow_estimator.python.estimator import export as export_lib
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
+from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 
 
 _DEFAULT_SERVING_KEY = signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY
@@ -180,11 +181,11 @@ def _clone_and_build_model(mode,
     The newly built model.
   """
   # Set to True during training, False for inference or testing.
-  K.set_learning_phase(mode == model_fn_lib.ModeKeys.TRAIN)
+  K.set_learning_phase(mode == ModeKeys.TRAIN)
   input_tensors, target_tensors = _convert_estimator_io_to_keras(
       keras_model, features, labels)
 
-  compile_clone = (mode != model_fn_lib.ModeKeys.PREDICT)
+  compile_clone = (mode != ModeKeys.PREDICT)
 
   global_step = None
   if compile_clone:
@@ -296,8 +297,8 @@ def _create_keras_model_fn(keras_model, custom_objects=None):
     eval_metric_ops = None
 
     # Set loss and metric only during train and evaluate.
-    if mode is not model_fn_lib.ModeKeys.PREDICT:
-      if mode is model_fn_lib.ModeKeys.TRAIN:
+    if mode is not ModeKeys.PREDICT:
+      if mode is ModeKeys.TRAIN:
         model._make_train_function()  # pylint: disable=protected-access
       else:
         model._make_test_function()  # pylint: disable=protected-access
@@ -306,7 +307,7 @@ def _create_keras_model_fn(keras_model, custom_objects=None):
       eval_metric_ops = _convert_keras_metrics_to_estimator(model)
 
     # Set train_op only during train.
-    if mode is model_fn_lib.ModeKeys.TRAIN:
+    if mode is ModeKeys.TRAIN:
       train_op = model.train_function.updates_op
 
     if not model._is_graph_network:
@@ -351,7 +352,7 @@ def _save_first_checkpoint(keras_model, custom_objects, config):
     with ops.Graph().as_default():
       random_seed.set_random_seed(config.tf_random_seed)
       training_util.create_global_step()
-      model = _clone_and_build_model(model_fn_lib.ModeKeys.TRAIN, keras_model,
+      model = _clone_and_build_model(ModeKeys.TRAIN, keras_model,
                                      custom_objects)
       # save to checkpoint
       with session.Session(config=config.session_config) as sess:

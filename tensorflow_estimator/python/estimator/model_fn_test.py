@@ -30,6 +30,7 @@ from tensorflow.python.training import monitored_session
 from tensorflow.python.training import session_run_hook
 from tensorflow_estimator.python.estimator import model_fn
 from tensorflow_estimator.python.estimator.export import export_output
+from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 
 
 class _FakeHook(session_run_hook.SessionRunHook):
@@ -51,7 +52,7 @@ class EstimatorSpecTrainTest(test.TestCase):
     """Tests that no errors are raised when all required arguments are set."""
     with ops.Graph().as_default(), self.cached_session():
       model_fn.EstimatorSpec(
-          mode=model_fn.ModeKeys.TRAIN,
+          mode=ModeKeys.TRAIN,
           loss=constant_op.constant(1.),
           train_op=control_flow_ops.no_op())
 
@@ -64,7 +65,7 @@ class EstimatorSpecTrainTest(test.TestCase):
       metric_obj = metrics.Mean()
       metric_obj.update_state(loss)
       model_fn.EstimatorSpec(
-          mode=model_fn.ModeKeys.TRAIN,
+          mode=ModeKeys.TRAIN,
           predictions=predictions,
           loss=loss,
           train_op=control_flow_ops.no_op(),
@@ -86,7 +87,7 @@ class EstimatorSpecTrainTest(test.TestCase):
     with ops.Graph().as_default(), self.cached_session():
       with self.assertRaisesRegexp(TypeError, 'loss must be Tensor'):
         model_fn.EstimatorSpec(
-            mode=model_fn.ModeKeys.TRAIN,
+            mode=ModeKeys.TRAIN,
             loss=1.,
             train_op=control_flow_ops.no_op())
 
@@ -94,7 +95,7 @@ class EstimatorSpecTrainTest(test.TestCase):
     """Tests that no errors are raised when loss is 1D tensor."""
     with ops.Graph().as_default(), self.cached_session():
       model_fn.EstimatorSpec(
-          mode=model_fn.ModeKeys.TRAIN,
+          mode=ModeKeys.TRAIN,
           loss=constant_op.constant([1.]),
           train_op=control_flow_ops.no_op())
 
@@ -102,13 +103,13 @@ class EstimatorSpecTrainTest(test.TestCase):
     with ops.Graph().as_default(), self.cached_session():
       with self.assertRaisesRegexp(ValueError, 'Missing loss'):
         model_fn.EstimatorSpec(
-            mode=model_fn.ModeKeys.TRAIN, train_op=control_flow_ops.no_op())
+            mode=ModeKeys.TRAIN, train_op=control_flow_ops.no_op())
 
   def testLossNotScalar(self):
     with ops.Graph().as_default(), self.cached_session():
       with self.assertRaisesRegexp(ValueError, 'Loss must be scalar'):
         model_fn.EstimatorSpec(
-            mode=model_fn.ModeKeys.TRAIN,
+            mode=ModeKeys.TRAIN,
             loss=constant_op.constant([1., 2.]),
             train_op=control_flow_ops.no_op())
 
@@ -120,7 +121,7 @@ class EstimatorSpecTrainTest(test.TestCase):
           dense_shape=[1])
       with self.assertRaisesRegexp(TypeError, 'loss must be Tensor'):
         model_fn.EstimatorSpec(
-            mode=model_fn.ModeKeys.TRAIN,
+            mode=ModeKeys.TRAIN,
             loss=loss,
             train_op=control_flow_ops.no_op())
 
@@ -131,7 +132,7 @@ class EstimatorSpecTrainTest(test.TestCase):
       with self.assertRaisesRegexp(
           ValueError, 'must be from the default graph'):
         model_fn.EstimatorSpec(
-            mode=model_fn.ModeKeys.TRAIN,
+            mode=ModeKeys.TRAIN,
             loss=loss,
             train_op=control_flow_ops.no_op())
 
@@ -139,14 +140,14 @@ class EstimatorSpecTrainTest(test.TestCase):
     with ops.Graph().as_default(), self.cached_session():
       with self.assertRaisesRegexp(ValueError, 'Missing train_op'):
         model_fn.EstimatorSpec(
-            mode=model_fn.ModeKeys.TRAIN, loss=constant_op.constant(1.))
+            mode=ModeKeys.TRAIN, loss=constant_op.constant(1.))
 
   def testTrainOpNotOperationAndTensor(self):
     with ops.Graph().as_default(), self.cached_session():
       with self.assertRaisesRegexp(TypeError,
                                    'train_op must be Operation or Tensor'):
         model_fn.EstimatorSpec(
-            mode=model_fn.ModeKeys.TRAIN,
+            mode=ModeKeys.TRAIN,
             loss=constant_op.constant(1.),
             train_op='Not an Operation or Tensor')
 
@@ -157,7 +158,7 @@ class EstimatorSpecTrainTest(test.TestCase):
       with self.assertRaisesRegexp(
           ValueError, 'must be from the default graph'):
         model_fn.EstimatorSpec(
-            mode=model_fn.ModeKeys.TRAIN,
+            mode=ModeKeys.TRAIN,
             loss=constant_op.constant(1.),
             train_op=train_op)
 
@@ -166,7 +167,7 @@ class EstimatorSpecTrainTest(test.TestCase):
       with self.assertRaisesRegexp(
           TypeError, 'All hooks must be SessionRunHook instances'):
         model_fn.EstimatorSpec(
-            mode=model_fn.ModeKeys.TRAIN,
+            mode=ModeKeys.TRAIN,
             loss=constant_op.constant(1.),
             train_op=control_flow_ops.no_op(),
             training_chief_hooks=[_InvalidHook()])
@@ -176,7 +177,7 @@ class EstimatorSpecTrainTest(test.TestCase):
       with self.assertRaisesRegexp(
           TypeError, 'All hooks must be SessionRunHook instances'):
         model_fn.EstimatorSpec(
-            mode=model_fn.ModeKeys.TRAIN,
+            mode=ModeKeys.TRAIN,
             loss=constant_op.constant(1.),
             train_op=control_flow_ops.no_op(),
             training_hooks=[_InvalidHook()])
@@ -186,7 +187,7 @@ class EstimatorSpecTrainTest(test.TestCase):
       with self.assertRaisesRegexp(
           TypeError, r'scaffold must be tf\.train\.Scaffold'):
         model_fn.EstimatorSpec(
-            mode=model_fn.ModeKeys.TRAIN,
+            mode=ModeKeys.TRAIN,
             loss=constant_op.constant(1.),
             train_op=control_flow_ops.no_op(),
             scaffold=_InvalidScaffold())
@@ -194,7 +195,7 @@ class EstimatorSpecTrainTest(test.TestCase):
   def testReturnDefaultScaffold(self):
     with ops.Graph().as_default(), self.cached_session():
       estimator_spec = model_fn.EstimatorSpec(
-          mode=model_fn.ModeKeys.TRAIN,
+          mode=ModeKeys.TRAIN,
           loss=constant_op.constant(1.),
           train_op=control_flow_ops.no_op())
       self.assertIsNotNone(estimator_spec.scaffold)
@@ -208,7 +209,7 @@ class EstimatorSpecEvalTest(test.TestCase):
     with ops.Graph().as_default(), self.cached_session():
       loss = constant_op.constant(1.)
       model_fn.EstimatorSpec(
-          mode=model_fn.ModeKeys.EVAL,
+          mode=ModeKeys.EVAL,
           predictions={'loss': loss},
           loss=loss)
 
@@ -221,7 +222,7 @@ class EstimatorSpecEvalTest(test.TestCase):
       metric_obj = metrics.Mean()
       metric_obj.update_state(loss)
       model_fn.EstimatorSpec(
-          mode=model_fn.ModeKeys.EVAL,
+          mode=ModeKeys.EVAL,
           predictions=predictions,
           loss=loss,
           train_op=control_flow_ops.no_op(),
@@ -242,7 +243,7 @@ class EstimatorSpecEvalTest(test.TestCase):
       with self.assertRaisesRegexp(
           TypeError, 'All hooks must be SessionRunHook instances'):
         model_fn.EstimatorSpec(
-            mode=model_fn.ModeKeys.EVAL,
+            mode=ModeKeys.EVAL,
             loss=constant_op.constant(1.),
             evaluation_hooks=[_InvalidHook()])
 
@@ -251,7 +252,7 @@ class EstimatorSpecEvalTest(test.TestCase):
     with ops.Graph().as_default(), self.cached_session():
       loss = constant_op.constant(1.)
       model_fn.EstimatorSpec(
-          mode=model_fn.ModeKeys.EVAL,
+          mode=ModeKeys.EVAL,
           loss=loss,
           eval_metric_ops={
               'some_metric': ((loss, loss, (constant_op.constant(2), loss)),
@@ -262,7 +263,7 @@ class EstimatorSpecEvalTest(test.TestCase):
     with ops.Graph().as_default(), self.cached_session():
       loss = constant_op.constant([1.])
       model_fn.EstimatorSpec(
-          mode=model_fn.ModeKeys.EVAL,
+          mode=ModeKeys.EVAL,
           predictions={'loss': loss},
           loss=loss)
 
@@ -271,7 +272,7 @@ class EstimatorSpecEvalTest(test.TestCase):
     with ops.Graph().as_default(), self.cached_session():
       with self.assertRaisesRegexp(TypeError, 'loss must be Tensor'):
         model_fn.EstimatorSpec(
-            mode=model_fn.ModeKeys.EVAL,
+            mode=ModeKeys.EVAL,
             predictions={'loss': constant_op.constant(1.)},
             loss=1.)
 
@@ -279,7 +280,7 @@ class EstimatorSpecEvalTest(test.TestCase):
     with ops.Graph().as_default(), self.cached_session():
       with self.assertRaisesRegexp(ValueError, 'Missing loss'):
         model_fn.EstimatorSpec(
-            mode=model_fn.ModeKeys.EVAL,
+            mode=ModeKeys.EVAL,
             predictions={'loss': constant_op.constant(1.)})
 
   def testLossNotScalar(self):
@@ -287,7 +288,7 @@ class EstimatorSpecEvalTest(test.TestCase):
       loss = constant_op.constant([1., 2.])
       with self.assertRaisesRegexp(ValueError, 'Loss must be scalar'):
         model_fn.EstimatorSpec(
-            mode=model_fn.ModeKeys.EVAL,
+            mode=ModeKeys.EVAL,
             predictions={'loss': loss},
             loss=loss)
 
@@ -300,7 +301,7 @@ class EstimatorSpecEvalTest(test.TestCase):
       with self.assertRaisesRegexp(
           TypeError, 'loss must be Tensor'):
         model_fn.EstimatorSpec(
-            mode=model_fn.ModeKeys.EVAL,
+            mode=ModeKeys.EVAL,
             predictions={'prediction': constant_op.constant(1.)},
             loss=loss)
 
@@ -311,7 +312,7 @@ class EstimatorSpecEvalTest(test.TestCase):
       with self.assertRaisesRegexp(
           ValueError, 'must be from the default graph'):
         model_fn.EstimatorSpec(
-            mode=model_fn.ModeKeys.EVAL,
+            mode=ModeKeys.EVAL,
             predictions={'prediction': constant_op.constant(1.)},
             loss=loss)
 
@@ -319,7 +320,7 @@ class EstimatorSpecEvalTest(test.TestCase):
     with ops.Graph().as_default(), self.cached_session():
       loss = constant_op.constant(1.)
       spec = model_fn.EstimatorSpec(
-          mode=model_fn.ModeKeys.EVAL, predictions={'loss': loss}, loss=loss)
+          mode=ModeKeys.EVAL, predictions={'loss': loss}, loss=loss)
       with self.assertRaisesRegexp(ValueError, 'Loss must be scalar'):
         spec._replace(loss=constant_op.constant([1., 2.]))
 
@@ -327,7 +328,7 @@ class EstimatorSpecEvalTest(test.TestCase):
     with ops.Graph().as_default(), self.cached_session():
       loss = constant_op.constant(1.)
       spec = model_fn.EstimatorSpec(
-          mode=model_fn.ModeKeys.EVAL, predictions={'loss': loss}, loss=loss)
+          mode=ModeKeys.EVAL, predictions={'loss': loss}, loss=loss)
       new_spec = spec._replace(predictions={'m': loss})
       self.assertEqual(['m'], list(new_spec.predictions.keys()))
 
@@ -335,23 +336,23 @@ class EstimatorSpecEvalTest(test.TestCase):
     with ops.Graph().as_default(), self.cached_session():
       loss = constant_op.constant(1.)
       spec = model_fn.EstimatorSpec(
-          mode=model_fn.ModeKeys.EVAL, predictions={'loss': loss}, loss=loss)
-      spec._replace(mode=model_fn.ModeKeys.EVAL)
+          mode=ModeKeys.EVAL, predictions={'loss': loss}, loss=loss)
+      spec._replace(mode=ModeKeys.EVAL)
       with self.assertRaisesRegexp(ValueError,
                                    'mode of EstimatorSpec cannot be changed'):
-        spec._replace(mode=model_fn.ModeKeys.TRAIN)
+        spec._replace(mode=ModeKeys.TRAIN)
 
   def testPredictionsMissingIsOkay(self):
     with ops.Graph().as_default(), self.cached_session():
       model_fn.EstimatorSpec(
-          mode=model_fn.ModeKeys.EVAL, loss=constant_op.constant(1.))
+          mode=ModeKeys.EVAL, loss=constant_op.constant(1.))
 
   def testPredictionsTensor(self):
     """Tests that no error is raised when predictions is Tensor (not dict)."""
     with ops.Graph().as_default(), self.cached_session():
       loss = constant_op.constant(1.)
       model_fn.EstimatorSpec(
-          mode=model_fn.ModeKeys.EVAL,
+          mode=ModeKeys.EVAL,
           predictions=loss,
           loss=loss)
 
@@ -360,7 +361,7 @@ class EstimatorSpecEvalTest(test.TestCase):
       with self.assertRaisesRegexp(
           TypeError, r'predictions\[number\] must be Tensor'):
         model_fn.EstimatorSpec(
-            mode=model_fn.ModeKeys.EVAL,
+            mode=ModeKeys.EVAL,
             predictions={'number': 1.},
             loss=constant_op.constant(1.))
 
@@ -374,7 +375,7 @@ class EstimatorSpecEvalTest(test.TestCase):
       with self.assertRaisesRegexp(
           TypeError, r'predictions\[sparse\] must be Tensor'):
         model_fn.EstimatorSpec(
-            mode=model_fn.ModeKeys.EVAL,
+            mode=ModeKeys.EVAL,
             predictions=predictions,
             loss=constant_op.constant(1.))
 
@@ -385,7 +386,7 @@ class EstimatorSpecEvalTest(test.TestCase):
       with self.assertRaisesRegexp(
           ValueError, 'must be from the default graph'):
         model_fn.EstimatorSpec(
-            mode=model_fn.ModeKeys.EVAL,
+            mode=ModeKeys.EVAL,
             predictions=predictions,
             loss=constant_op.constant(1.))
 
@@ -395,7 +396,7 @@ class EstimatorSpecEvalTest(test.TestCase):
       with self.assertRaisesRegexp(
           TypeError, 'eval_metric_ops must be a dict'):
         model_fn.EstimatorSpec(
-            mode=model_fn.ModeKeys.EVAL,
+            mode=ModeKeys.EVAL,
             predictions={'loss': loss},
             loss=loss,
             eval_metric_ops=loss)
@@ -408,7 +409,7 @@ class EstimatorSpecEvalTest(test.TestCase):
           (r'Values of eval_metric_ops must be \(metric_value, update_op\) '
            'tuples')):
         model_fn.EstimatorSpec(
-            mode=model_fn.ModeKeys.EVAL,
+            mode=ModeKeys.EVAL,
             predictions={'loss': loss},
             loss=loss,
             eval_metric_ops={'loss': loss})
@@ -422,7 +423,7 @@ class EstimatorSpecEvalTest(test.TestCase):
       with self.assertRaisesRegexp(
           ValueError, 'must be from the default graph'):
         model_fn.EstimatorSpec(
-            mode=model_fn.ModeKeys.EVAL,
+            mode=ModeKeys.EVAL,
             predictions={'loss': loss},
             loss=loss,
             eval_metric_ops=eval_metric_ops)
@@ -437,7 +438,7 @@ class EstimatorSpecEvalTest(test.TestCase):
       with self.assertRaisesRegexp(
           ValueError, 'must be from the default graph'):
         model_fn.EstimatorSpec(
-            mode=model_fn.ModeKeys.EVAL,
+            mode=ModeKeys.EVAL,
             predictions={'loss': loss},
             loss=loss,
             eval_metric_ops=eval_metric_ops)
@@ -449,7 +450,7 @@ class EstimatorSpecEvalTest(test.TestCase):
       loss = constant_op.constant(1.)
       with self.assertRaisesRegexp(ValueError, 'Please call update_state(...)'):
         model_fn.EstimatorSpec(
-            mode=model_fn.ModeKeys.EVAL,
+            mode=ModeKeys.EVAL,
             predictions={'loss': loss},
             loss=loss,
             eval_metric_ops=eval_metric_ops)
@@ -462,7 +463,7 @@ class EstimatorSpecInferTest(test.TestCase):
     """Tests that no errors are raised when all required arguments are set."""
     with ops.Graph().as_default(), self.cached_session():
       model_fn.EstimatorSpec(
-          mode=model_fn.ModeKeys.PREDICT,
+          mode=ModeKeys.PREDICT,
           predictions={'loss': constant_op.constant(1.)})
 
   def testAllArgumentsSet(self):
@@ -474,7 +475,7 @@ class EstimatorSpecInferTest(test.TestCase):
       metric_obj = metrics.Mean()
       metric_obj.update_state(loss)
       model_fn.EstimatorSpec(
-          mode=model_fn.ModeKeys.PREDICT,
+          mode=ModeKeys.PREDICT,
           predictions=predictions,
           loss=loss,
           train_op=control_flow_ops.no_op(),
@@ -496,27 +497,27 @@ class EstimatorSpecInferTest(test.TestCase):
       with self.assertRaisesRegexp(
           TypeError, 'All hooks must be SessionRunHook instances'):
         model_fn.EstimatorSpec(
-            mode=model_fn.ModeKeys.PREDICT,
+            mode=ModeKeys.PREDICT,
             predictions=constant_op.constant(1.),
             prediction_hooks=[_InvalidHook()])
 
   def testPredictionsMissing(self):
     with ops.Graph().as_default(), self.cached_session():
       with self.assertRaisesRegexp(ValueError, 'Missing predictions'):
-        model_fn.EstimatorSpec(mode=model_fn.ModeKeys.PREDICT)
+        model_fn.EstimatorSpec(mode=ModeKeys.PREDICT)
 
   def testPredictionsTensor(self):
     """Tests that no error is raised when predictions is Tensor (not dict)."""
     with ops.Graph().as_default(), self.cached_session():
       model_fn.EstimatorSpec(
-          mode=model_fn.ModeKeys.PREDICT, predictions=constant_op.constant(1.))
+          mode=ModeKeys.PREDICT, predictions=constant_op.constant(1.))
 
   def testPredictionsNumber(self):
     with ops.Graph().as_default(), self.cached_session():
       with self.assertRaisesRegexp(
           TypeError, r'predictions\[number\] must be Tensor'):
         model_fn.EstimatorSpec(
-            mode=model_fn.ModeKeys.PREDICT, predictions={'number': 1.})
+            mode=ModeKeys.PREDICT, predictions={'number': 1.})
 
   def testPredictionsSparseTensor(self):
     with ops.Graph().as_default(), self.cached_session():
@@ -528,7 +529,7 @@ class EstimatorSpecInferTest(test.TestCase):
       with self.assertRaisesRegexp(
           TypeError, r'predictions\[sparse\] must be Tensor'):
         model_fn.EstimatorSpec(
-            mode=model_fn.ModeKeys.PREDICT, predictions=predictions)
+            mode=ModeKeys.PREDICT, predictions=predictions)
 
   def testExportOutputsNoDict(self):
     with ops.Graph().as_default(), self.cached_session():
@@ -537,7 +538,7 @@ class EstimatorSpecInferTest(test.TestCase):
       with self.assertRaisesRegexp(
           TypeError, 'export_outputs must be dict'):
         model_fn.EstimatorSpec(
-            mode=model_fn.ModeKeys.PREDICT,
+            mode=ModeKeys.PREDICT,
             predictions=predictions,
             export_outputs=export_output.ClassificationOutput(classes=classes))
 
@@ -550,7 +551,7 @@ class EstimatorSpecInferTest(test.TestCase):
           r"Given: {'head_name': {'loss': <tf.Tensor 'Const:0' shape=\(\) "
           r"dtype=float32>}}"):
         model_fn.EstimatorSpec(
-            mode=model_fn.ModeKeys.PREDICT,
+            mode=ModeKeys.PREDICT,
             predictions=predictions,
             export_outputs={'head_name': predictions})
 
@@ -563,7 +564,7 @@ class EstimatorSpecInferTest(test.TestCase):
           'head-1': regression_output,
           }
       estimator_spec = model_fn.EstimatorSpec(
-          mode=model_fn.ModeKeys.PREDICT,
+          mode=ModeKeys.PREDICT,
           predictions=predictions,
           export_outputs=export_outputs)
       expected_export_outputs = {
@@ -587,7 +588,7 @@ class EstimatorSpecInferTest(test.TestCase):
               'some_output_3': output_3
           })}
       estimator_spec = model_fn.EstimatorSpec(
-          mode=model_fn.ModeKeys.PREDICT,
+          mode=ModeKeys.PREDICT,
           predictions=predictions,
           export_outputs=export_outputs)
       self.assertEqual(export_outputs, estimator_spec.export_outputs)
@@ -610,7 +611,7 @@ class EstimatorSpecInferTest(test.TestCase):
           'specified as the default.  Do this by naming one of them with '
           'signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY.'):
         model_fn.EstimatorSpec(
-            mode=model_fn.ModeKeys.PREDICT,
+            mode=ModeKeys.PREDICT,
             predictions=predictions,
             export_outputs=export_outputs)
 
@@ -629,7 +630,7 @@ class EstimatorSpecInferTest(test.TestCase):
 
   def _assertDefaultExportOutputForPredictions(self, predictions):
     spec = model_fn.EstimatorSpec(
-        mode=model_fn.ModeKeys.PREDICT, predictions=predictions)
+        mode=ModeKeys.PREDICT, predictions=predictions)
 
     expected = export_output.PredictOutput(predictions).outputs
     serving_output = spec.export_outputs[
@@ -642,7 +643,7 @@ class LogitFnTest(test.TestCase):
   def test_simple_call_logit_fn(self):
 
     def dummy_logit_fn(features, mode):
-      if mode == model_fn.ModeKeys.TRAIN:
+      if mode == ModeKeys.TRAIN:
         return features['f1']
       else:
         return features['f2']
@@ -652,7 +653,7 @@ class LogitFnTest(test.TestCase):
         'f2': constant_op.constant([[4., 5.]])
     }
     logit_fn_result = model_fn.call_logit_fn(dummy_logit_fn, features,
-                                             model_fn.ModeKeys.EVAL,
+                                             ModeKeys.EVAL,
                                              'fake_params', 'fake_config')
     with self.cached_session():
       self.assertAllClose([[4., 5.]], self.evaluate(logit_fn_result))
@@ -667,7 +668,7 @@ class LogitFnTest(test.TestCase):
         'f2': constant_op.constant([[4., 5.]])
     }
     logit_fn_result = model_fn.call_logit_fn(dummy_logit_fn, features,
-                                             model_fn.ModeKeys.TRAIN,
+                                             ModeKeys.TRAIN,
                                              'fake_params', 'fake_config')
     with self.cached_session():
       self.assertAllClose([[2., 3.]],

@@ -35,6 +35,7 @@ from tensorflow_estimator.python.estimator import estimator as estimator_lib
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
 from tensorflow_estimator.python.estimator.export import export as export_lib
 from tensorflow_estimator.python.estimator.export import export_output
+from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 
 
 @estimator_export('estimator.experimental.SavedModelEstimator')
@@ -162,8 +163,8 @@ class SavedModelEstimator(estimator_lib.EstimatorV2):
     """Return list of modes found in SavedModel."""
     available_modes = []
     logging.info('Checking available modes for SavedModelEstimator.')
-    for mode in [model_fn_lib.ModeKeys.TRAIN, model_fn_lib.ModeKeys.EVAL,
-                 model_fn_lib.ModeKeys.PREDICT]:
+    for mode in [ModeKeys.TRAIN, ModeKeys.EVAL,
+                 ModeKeys.PREDICT]:
       try:
         self._get_meta_graph_def_for_mode(mode)
       except RuntimeError:
@@ -189,7 +190,7 @@ class SavedModelEstimator(estimator_lib.EstimatorV2):
 
   def _get_signature_def_for_mode(self, mode):
     meta_graph_def = self._get_meta_graph_def_for_mode(mode)
-    if mode == model_fn_lib.ModeKeys.PREDICT:
+    if mode == ModeKeys.PREDICT:
       sig_def_key = signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY
     else:
       sig_def_key = mode
@@ -427,13 +428,13 @@ def _validate_and_extract_outputs(mode, output_dict, method_name):
   # pylint: disable=protected-access
   loss, predictions, metrics = None, None, None
 
-  if mode == model_fn_lib.ModeKeys.PREDICT:
+  if mode == ModeKeys.PREDICT:
     predictions = output_dict
   else:
     # Validate that the SignatureDef's method name matches the expected name for
     # the given mode.
     expected_method_name = signature_constants.SUPERVISED_TRAIN_METHOD_NAME
-    if mode == model_fn_lib.ModeKeys.EVAL:
+    if mode == ModeKeys.EVAL:
       expected_method_name = signature_constants.SUPERVISED_EVAL_METHOD_NAME
     if method_name != expected_method_name:
       raise RuntimeError(

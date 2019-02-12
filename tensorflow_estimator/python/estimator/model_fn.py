@@ -36,24 +36,7 @@ from tensorflow.python.util import function_utils
 from tensorflow.python.util import nest
 from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator.export import export_output as export_output_lib
-
-
-@estimator_export(v1=['estimator.ModeKeys'])
-class ModeKeys(object):
-  """Use mode_keys.ModeKeysV2 instead.
-
-  Standard names for model modes.
-
-  The following standard keys are defined:
-
-  * `TRAIN`: training mode.
-  * `EVAL`: evaluation mode.
-  * `PREDICT`: inference mode.
-  """
-
-  TRAIN = 'train'
-  EVAL = 'eval'
-  PREDICT = 'infer'
+from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 
 
 LOSS_METRIC_KEY = 'loss'

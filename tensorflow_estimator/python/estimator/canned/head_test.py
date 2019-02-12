@@ -46,6 +46,7 @@ from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.canned import prediction_keys
 from tensorflow_estimator.python.estimator.canned.v1 import dnn_testing_utils_v1
 from tensorflow_estimator.python.estimator.inputs import numpy_io
+from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 
 
 _DEFAULT_SERVING_KEY = signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY
@@ -107,7 +108,7 @@ class CreateEstimatorSpecTest(test.TestCase):
                                    optimizer=None, train_op_fn=None,
                                    regularization_losses=None):
       return model_fn._TPUEstimatorSpec(
-          mode=model_fn.ModeKeys.EVAL,
+          mode=ModeKeys.EVAL,
           loss=constant_op.constant(0.0, dtype=dtypes.float32))
 
   class _HeadWithOutTPUSupport(head_lib._Head):
@@ -126,7 +127,7 @@ class CreateEstimatorSpecTest(test.TestCase):
                               optimizer=None, train_op_fn=None,
                               regularization_losses=None):
       return model_fn.EstimatorSpec(
-          mode=model_fn.ModeKeys.EVAL,
+          mode=ModeKeys.EVAL,
           loss=constant_op.constant(0.0, dtype=dtypes.float32))
 
   class _InvalidHead(head_lib._Head):
@@ -254,14 +255,14 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
     with self.assertRaisesRegexp(ValueError, 'logits shape'):
       head.create_estimator_spec(
           features={'x': np.array(((30.,), (42.,),))},
-          mode=model_fn.ModeKeys.PREDICT,
+          mode=ModeKeys.PREDICT,
           logits=logits_2x2)
 
     # Dynamic shape.
     logits_placeholder = array_ops.placeholder(dtype=dtypes.float32)
     spec = head.create_estimator_spec(
         features={'x': np.array(((30.,), (42.,),))},
-        mode=model_fn.ModeKeys.PREDICT,
+        mode=ModeKeys.PREDICT,
         logits=logits_placeholder)
     with self.cached_session():
       with self.assertRaisesRegexp(errors.OpError, 'logits shape'):
@@ -284,7 +285,7 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
     with self.assertRaisesRegexp(ValueError, 'Mismatched label shape'):
       head.create_loss(
           features=features,
-          mode=model_fn.ModeKeys.EVAL,
+          mode=ModeKeys.EVAL,
           logits=logits_2x3,
           labels=labels_2x2)
 
@@ -293,7 +294,7 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
     logits_placeholder = array_ops.placeholder(dtype=dtypes.float32)
     training_loss = head.create_loss(
         features=features,
-        mode=model_fn.ModeKeys.EVAL,
+        mode=ModeKeys.EVAL,
         logits=logits_placeholder,
         labels=labels_placeholder)[0]
     with self.cached_session():
@@ -320,7 +321,7 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
     with self.assertRaisesRegexp(ValueError, 'Labels dtype'):
       head.create_loss(
           features=features,
-          mode=model_fn.ModeKeys.EVAL,
+          mode=ModeKeys.EVAL,
           logits=logits_2x3,
           labels=labels_2x1)
 
@@ -330,7 +331,7 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
     with self.assertRaisesRegexp(ValueError, 'Labels dtype'):
       head.create_loss(
           features=features,
-          mode=model_fn.ModeKeys.EVAL,
+          mode=ModeKeys.EVAL,
           logits=logits_placeholder,
           labels=labels_placeholder)
 
@@ -347,7 +348,7 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
     logits_placeholder = array_ops.placeholder(dtype=dtypes.float32)
     training_loss = head.create_loss(
         features={'x': np.array(((42.,),))},
-        mode=model_fn.ModeKeys.EVAL,
+        mode=ModeKeys.EVAL,
         logits=logits_placeholder,
         labels=labels_placeholder)[0]
     with self.cached_session():
@@ -379,7 +380,7 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
         ValueError, 'SparseTensor labels are not supported.'):
       head.create_loss(
           features={'x': np.array(((42.,),))},
-          mode=model_fn.ModeKeys.EVAL,
+          mode=ModeKeys.EVAL,
           logits=logits_2x3,
           labels=labels_2x1)
 
@@ -404,7 +405,7 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
     ):
       head.create_loss(
           features=features,
-          mode=model_fn.ModeKeys.EVAL,
+          mode=ModeKeys.EVAL,
           logits=values_2x3,
           labels=values_3x1)
 
@@ -413,7 +414,7 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
     logits_placeholder = array_ops.placeholder(dtype=dtypes.float32)
     training_loss = head.create_loss(
         features=features,
-        mode=model_fn.ModeKeys.EVAL,
+        mode=ModeKeys.EVAL,
         logits=logits_placeholder,
         labels=labels_placeholder)[0]
     with self.cached_session():
@@ -444,7 +445,7 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
 
     spec = head.create_estimator_spec(
         features={'x': np.array(((42,),), dtype=np.int32)},
-        mode=model_fn.ModeKeys.PREDICT,
+        mode=ModeKeys.PREDICT,
         logits=logits)
 
     self.assertItemsEqual(
@@ -484,7 +485,7 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
 
     spec = head.create_estimator_spec(
         features={'x': np.array(((42,),), dtype=np.int32)},
-        mode=model_fn.ModeKeys.PREDICT,
+        mode=ModeKeys.PREDICT,
         logits=logits)
 
     with self.cached_session() as sess:
@@ -510,7 +511,7 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
             'x': np.array(((42,),), dtype=np.int32),
             'label_weights': weights_2x1,
         },
-        mode=model_fn.ModeKeys.PREDICT,
+        mode=ModeKeys.PREDICT,
         logits=logits)
 
     with self.cached_session() as sess:
@@ -534,7 +535,7 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
     # Create loss.
     training_loss = head.create_loss(
         features=features,
-        mode=model_fn.ModeKeys.EVAL,
+        mode=ModeKeys.EVAL,
         logits=logits,
         labels=labels)[0]
     with self.cached_session():
@@ -561,7 +562,7 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
 
     actual_training_loss = head.create_loss(
         features={'x': np.array(((42,),), dtype=np.int32)},
-        mode=model_fn.ModeKeys.EVAL,
+        mode=ModeKeys.EVAL,
         logits=logits_input,
         labels=labels_input)[0]
     with self.cached_session():
@@ -581,7 +582,7 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
     labels = np.array([[1], [2]], dtype=np.int64)
     actual_training_loss = head.create_loss(
         features={'x': np.array(((42,),), dtype=np.int32)},
-        mode=model_fn.ModeKeys.EVAL,
+        mode=ModeKeys.EVAL,
         logits=logits,
         labels=labels)[0]
     with self.cached_session():
@@ -601,7 +602,7 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
         ValueError, r'You must provide a labels Tensor\. Given: None\.'):
       head.create_estimator_spec(
           features={'x': np.array(((42,),), dtype=np.int32)},
-          mode=model_fn.ModeKeys.EVAL,
+          mode=ModeKeys.EVAL,
           logits=np.array(((10, 0, 0), (0, 10, 0),), dtype=np.float32),
           labels=None)
 
@@ -616,7 +617,7 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
     # Create estimator spec.
     spec = head.create_estimator_spec(
         features=features,
-        mode=model_fn.ModeKeys.EVAL,
+        mode=ModeKeys.EVAL,
         logits=logits,
         labels=labels)
 
@@ -660,7 +661,7 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
     # Create estimator spec.
     spec = head.create_estimator_spec(
         features=features,
-        mode=model_fn.ModeKeys.EVAL,
+        mode=ModeKeys.EVAL,
         logits=logits,
         labels=labels)
 
@@ -687,7 +688,7 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
     # Create estimator spec.
     spec = head.create_estimator_spec(
         features=features,
-        mode=model_fn.ModeKeys.EVAL,
+        mode=ModeKeys.EVAL,
         logits=logits,
         labels=labels,
         regularization_losses=regularization_losses)
@@ -727,7 +728,7 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
     expected_training_loss = 10.
     training_loss = head.create_loss(
         features=features,
-        mode=model_fn.ModeKeys.EVAL,
+        mode=ModeKeys.EVAL,
         logits=logits,
         labels=labels)[0]
     with self.cached_session():
@@ -747,7 +748,7 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
     expected_loss = 10.
     spec = head.create_estimator_spec(
         features=features,
-        mode=model_fn.ModeKeys.EVAL,
+        mode=ModeKeys.EVAL,
         logits=logits,
         labels=labels)
 
@@ -787,7 +788,7 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
             'x': np.array(((42,),), dtype=np.int32),
             'label_weights': weights_3x1,
         },
-        mode=model_fn.ModeKeys.EVAL,
+        mode=ModeKeys.EVAL,
         logits=logits,
         labels=labels)
 
@@ -836,7 +837,7 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
     expected_training_loss = 10.
     training_loss, unreduced_loss, actual_weights, _ = head.create_loss(
         features=features,
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels)
     tol = 1e-2
@@ -865,7 +866,7 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
     expected_training_loss = 10. / 2.
     training_loss, unreduced_loss, actual_weights, _ = head.create_loss(
         features=features,
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels)
     tol = 1e-2
@@ -889,7 +890,7 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
         ValueError, r'You must provide a labels Tensor\. Given: None\.'):
       head.create_estimator_spec(
           features={'x': np.array(((42,),), dtype=np.int32)},
-          mode=model_fn.ModeKeys.TRAIN,
+          mode=ModeKeys.TRAIN,
           logits=np.array(((10, 0, 0), (0, 10, 0),), dtype=np.float32),
           labels=None,
           train_op_fn=_no_op_train_fn)
@@ -911,7 +912,7 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
     expected_loss = 10.
     spec = head.create_estimator_spec(
         features=features,
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
         train_op_fn=_train_op_fn)
@@ -959,7 +960,7 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
     expected_loss = 10.
     spec = head.create_estimator_spec(
         features=features,
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
         optimizer=_Optimizer())
@@ -990,7 +991,7 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
 
       spec = head.create_estimator_spec(
           features={'x': np.array(((42,),), dtype=np.int32)},
-          mode=model_fn.ModeKeys.TRAIN,
+          mode=ModeKeys.TRAIN,
           logits=np.array(((10, 0, 0), (0, 10, 0),), dtype=np.float32),
           labels=np.array(((1,), (1,)), dtype=np.int64),
           train_op_fn=_train_op_fn)
@@ -1019,7 +1020,7 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
 
     spec = head.create_estimator_spec(
         features=features,
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
         train_op_fn=_train_op_fn)
@@ -1059,7 +1060,7 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
     expected_loss = 7.
     spec = head.create_estimator_spec(
         features=features,
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
         train_op_fn=_train_op_fn,
@@ -1103,7 +1104,7 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
     expected_training_loss = 30.
     training_loss, unreduced_loss, actual_weights, _ = head.create_loss(
         features=features,
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels_rank_1)
     tol = 1e-2
@@ -1143,7 +1144,7 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
     }
     spec = head.create_estimator_spec(
         features=features,
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels_rank_1,
         train_op_fn=_train_op_fn)
@@ -1183,7 +1184,7 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
     expected_training_loss = 10.
     training_loss = head.create_loss(
         features=features,
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels)[0]
     with self.cached_session():
@@ -1208,7 +1209,7 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
     expected_loss = 10.
     spec = head.create_estimator_spec(
         features=features,
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
         train_op_fn=_train_op_fn)
@@ -1243,7 +1244,7 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
             'x': np.array(((42,),), dtype=np.float32),
             'label_weights': weights_3x1,
         },
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
         train_op_fn=_train_op_fn)
@@ -1291,7 +1292,7 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
     expected_training_loss = 55.5
     training_loss, unreduced_loss, actual_weights, _ = head.create_loss(
         features={'weights': weights},
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels)
     tol = 1e-2
@@ -1323,7 +1324,7 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
     expected_loss = 55.5
     spec = head.create_estimator_spec(
         features={'weights': weights},
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
         train_op_fn=_train_op_fn)
@@ -1352,7 +1353,7 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
 
     spec = head.create_estimator_spec(
         features={'weights': weights},
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
         train_op_fn=_no_op_train_fn)
@@ -1379,7 +1380,7 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
 
     spec = head.create_estimator_spec(
         features={'weights': weights_placeholder},
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
         train_op_fn=_no_op_train_fn)
@@ -1404,7 +1405,7 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
     # Create estimator spec.
     spec = head.create_estimator_spec(
         features={'weights': weights},
-        mode=model_fn.ModeKeys.EVAL,
+        mode=ModeKeys.EVAL,
         logits=logits,
         labels=labels)
 
@@ -1501,14 +1502,14 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
     with self.assertRaisesRegexp(ValueError, 'logits shape'):
       head.create_estimator_spec(
           features={'x': np.array(((42.,),))},
-          mode=model_fn.ModeKeys.PREDICT,
+          mode=ModeKeys.PREDICT,
           logits=logits_2x2)
 
     # Dynamic shape.
     logits_placeholder = array_ops.placeholder(dtype=dtypes.float32)
     spec = head.create_estimator_spec(
         features={'x': np.array(((42.,),))},
-        mode=model_fn.ModeKeys.PREDICT,
+        mode=ModeKeys.PREDICT,
         logits=logits_placeholder)
     with self.cached_session():
       with self.assertRaisesRegexp(errors.OpError, 'logits shape'):
@@ -1528,7 +1529,7 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
     with self.assertRaisesRegexp(ValueError, 'Mismatched label shape'):
       head.create_loss(
           features={'x': np.array(((42.,),))},
-          mode=model_fn.ModeKeys.EVAL,
+          mode=ModeKeys.EVAL,
           logits=logits_2x1,
           labels=labels_2x2)
 
@@ -1537,7 +1538,7 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
     logits_placeholder = array_ops.placeholder(dtype=dtypes.float32)
     training_loss = head.create_loss(
         features={'x': np.array(((42.,),))},
-        mode=model_fn.ModeKeys.EVAL,
+        mode=ModeKeys.EVAL,
         logits=logits_placeholder,
         labels=labels_placeholder)[0]
     with self.cached_session():
@@ -1562,14 +1563,14 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
         ValueError, 'logits and labels must have the same shape'):
       head.create_loss(
           features={'x': values_2x1},
-          mode=model_fn.ModeKeys.EVAL,
+          mode=ModeKeys.EVAL,
           logits=values_2x1,
           labels=values_3x1)
     with self.assertRaisesRegexp(
         ValueError, 'logits and labels must have the same shape'):
       head.create_loss(
           features={'x': values_2x1},
-          mode=model_fn.ModeKeys.EVAL,
+          mode=ModeKeys.EVAL,
           logits=values_3x1,
           labels=values_2x1)
 
@@ -1578,7 +1579,7 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
     logits_placeholder = array_ops.placeholder(dtype=dtypes.float32)
     training_loss = head.create_loss(
         features={'x': values_2x1},
-        mode=model_fn.ModeKeys.EVAL,
+        mode=ModeKeys.EVAL,
         logits=logits_placeholder,
         labels=labels_placeholder)[0]
     with self.cached_session():
@@ -1616,7 +1617,7 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
     expected_export_classes = [[b'0', b'1']] * 2
     spec = head.create_estimator_spec(
         features={'x': np.array(((42,),), dtype=np.int32)},
-        mode=model_fn.ModeKeys.PREDICT,
+        mode=ModeKeys.PREDICT,
         logits=logits)
 
     # Assert spec contains expected tensors.
@@ -1661,7 +1662,7 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
 
     spec = head.create_estimator_spec(
         features={'x': np.array(((42,),), dtype=np.int32)},
-        mode=model_fn.ModeKeys.PREDICT,
+        mode=ModeKeys.PREDICT,
         logits=logits)
 
     with self.cached_session() as sess:
@@ -1681,7 +1682,7 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
     # Create loss.
     training_loss = head.create_loss(
         features=features,
-        mode=model_fn.ModeKeys.EVAL,
+        mode=ModeKeys.EVAL,
         logits=logits,
         labels=labels)[0]
     with self.cached_session():
@@ -1697,7 +1698,7 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
         ValueError, r'You must provide a labels Tensor\. Given: None\.'):
       head.create_estimator_spec(
           features={'x': np.array(((42,),), dtype=np.int32)},
-          mode=model_fn.ModeKeys.EVAL,
+          mode=ModeKeys.EVAL,
           logits=np.array(((45,), (-41,),), dtype=np.float32),
           labels=None)
 
@@ -1710,7 +1711,7 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
     # Create estimator spec.
     spec = head.create_estimator_spec(
         features=features,
-        mode=model_fn.ModeKeys.EVAL,
+        mode=ModeKeys.EVAL,
         logits=logits,
         labels=labels)
 
@@ -1758,7 +1759,7 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
     # Create estimator spec.
     spec = head.create_estimator_spec(
         features=features,
-        mode=model_fn.ModeKeys.EVAL,
+        mode=ModeKeys.EVAL,
         logits=logits,
         labels=labels)
 
@@ -1792,7 +1793,7 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
     # Create estimator spec.
     spec = head.create_estimator_spec(
         features=features,
-        mode=model_fn.ModeKeys.EVAL,
+        mode=ModeKeys.EVAL,
         logits=logits,
         labels=labels,
         regularization_losses=regularization_losses)
@@ -1833,7 +1834,7 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
     # Create loss.
     training_loss = head.create_loss(
         features=features,
-        mode=model_fn.ModeKeys.EVAL,
+        mode=ModeKeys.EVAL,
         logits=logits,
         labels=labels)[0]
     with self.cached_session():
@@ -1849,7 +1850,7 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
     # Create estimator spec.
     spec = head.create_estimator_spec(
         features=features,
-        mode=model_fn.ModeKeys.EVAL,
+        mode=ModeKeys.EVAL,
         logits=logits,
         labels=labels)
 
@@ -1878,7 +1879,7 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
     # Create loss.
     training_loss = head.create_loss(
         features=features,
-        mode=model_fn.ModeKeys.EVAL,
+        mode=ModeKeys.EVAL,
         logits=logits,
         labels=labels)[0]
     with self.cached_session():
@@ -1897,7 +1898,7 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
     # Create estimator spec.
     spec = head.create_estimator_spec(
         features=features,
-        mode=model_fn.ModeKeys.EVAL,
+        mode=ModeKeys.EVAL,
         logits=logits,
         labels=labels)
 
@@ -1958,7 +1959,7 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
     # Create loss.
     training_loss, unreduced_loss, actual_weights, _ = head.create_loss(
         features=features,
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels)
     with self.cached_session():
@@ -1984,7 +1985,7 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
     # Create loss.
     training_loss, unreduced_loss, actual_weights, _ = head.create_loss(
         features=features,
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels)
     with self.cached_session():
@@ -2012,7 +2013,7 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
 
     actual_training_loss = head.create_loss(
         features={'x': np.array(((42,),), dtype=np.int32)},
-        mode=model_fn.ModeKeys.EVAL,
+        mode=ModeKeys.EVAL,
         logits=logits_input,
         labels=labels_input)[0]
     with self.cached_session():
@@ -2032,7 +2033,7 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
     labels = np.array([[1], [0]], dtype=np.int64)
     actual_training_loss = head.create_loss(
         features={'x': np.array(((42,),), dtype=np.int32)},
-        mode=model_fn.ModeKeys.EVAL,
+        mode=ModeKeys.EVAL,
         logits=logits,
         labels=labels)[0]
     with self.cached_session():
@@ -2054,7 +2055,7 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
         ValueError, r'You must provide a labels Tensor\. Given: None\.'):
       head.create_estimator_spec(
           features={'x': np.array(((42,),), dtype=np.int32)},
-          mode=model_fn.ModeKeys.TRAIN,
+          mode=ModeKeys.TRAIN,
           logits=np.array(((45,), (-41,),), dtype=np.float32),
           labels=None,
           train_op_fn=_no_op_train_fn)
@@ -2077,7 +2078,7 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
     # Create estimator spec.
     spec = head.create_estimator_spec(
         features=features,
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
         train_op_fn=_train_op_fn)
@@ -2125,7 +2126,7 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
     # Create estimator spec.
     spec = head.create_estimator_spec(
         features=features,
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
         optimizer=_Optimizer())
@@ -2152,7 +2153,7 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
 
       spec = head.create_estimator_spec(
           features={'x': np.array(((42,),), dtype=np.int32)},
-          mode=model_fn.ModeKeys.TRAIN,
+          mode=ModeKeys.TRAIN,
           logits=np.array(((45,), (-41,),), dtype=np.float32),
           labels=np.array(((1,), (1,),), dtype=np.float64),
           train_op_fn=_train_op_fn)
@@ -2181,7 +2182,7 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
     # Create estimator spec.
     spec = head.create_estimator_spec(
         features=features,
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
         train_op_fn=_train_op_fn)
@@ -2224,7 +2225,7 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
     # Create estimator spec.
     spec = head.create_estimator_spec(
         features=features,
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
         train_op_fn=_train_op_fn,
@@ -2252,7 +2253,7 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
     features = {'x': np.array([[42]], dtype=np.float32)}
     training_loss = head.create_loss(
         features=features,
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels)[0]
     with self.assertRaisesRegexp(
@@ -2278,7 +2279,7 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
     # Create loss.
     training_loss = head.create_loss(
         features=features,
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels)[0]
     with self.cached_session():
@@ -2307,7 +2308,7 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
     # Create estimator spec.
     spec = head.create_estimator_spec(
         features=features,
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
         train_op_fn=_train_op_fn)
@@ -2335,7 +2336,7 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
     # Create loss.
     training_loss = head.create_loss(
         features=features,
-        mode=model_fn.ModeKeys.EVAL,
+        mode=ModeKeys.EVAL,
         logits=logits,
         labels=labels)[0]
     with self.cached_session():
@@ -2352,7 +2353,7 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
     # Create estimator spec.
     spec = head.create_estimator_spec(
         features=features,
-        mode=model_fn.ModeKeys.EVAL,
+        mode=ModeKeys.EVAL,
         logits=logits,
         labels=labels)
 
@@ -2385,7 +2386,7 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
             'x': np.array(((42,), (43,), (44,)), dtype=np.int32),
             'label_weights': np.array(((1.,), (.1,), (1.5,)), dtype=np.float32),
         },
-        mode=model_fn.ModeKeys.PREDICT,
+        mode=ModeKeys.PREDICT,
         logits=logits)
 
     # Assert predictions, loss, and metrics.
@@ -2418,7 +2419,7 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
             'x': np.array(((42,), (43,), (44,)), dtype=np.int32),
             'label_weights': np.array(((1.,), (.1,), (1.5,)), dtype=np.float32),
         },
-        mode=model_fn.ModeKeys.EVAL,
+        mode=ModeKeys.EVAL,
         logits=logits,
         labels=np.array(((1,), (1,), (0,)), dtype=np.int32))
 
@@ -2484,7 +2485,7 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
     # Create loss.
     training_loss, unreduced_loss, actual_weights, _ = head.create_loss(
         features=features,
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels_rank_1)
     with self.cached_session():
@@ -2525,7 +2526,7 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
 
     spec = head.create_estimator_spec(
         features=features,
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels_rank_1,
         train_op_fn=_train_op_fn)
@@ -2571,7 +2572,7 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
             'x': np.array(((42.,), (43.,), (44.,)), dtype=np.float32),
             'label_weights': np.array(((1.,), (.1,), (1.5,)), dtype=np.float64),
         },
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=np.array(((1.,), (1.,), (0.,))),
         train_op_fn=_train_op_fn)
@@ -2612,7 +2613,7 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
     # Create loss.
     training_loss, unreduced_loss, actual_weights, _ = head.create_loss(
         features={'weights': weights},
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels)
     tol = 1e-2
@@ -2646,7 +2647,7 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
     # Create estimator spec.
     spec = head.create_estimator_spec(
         features={'weights': weights},
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
         train_op_fn=_train_op_fn)
@@ -2675,7 +2676,7 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
 
     spec = head.create_estimator_spec(
         features={'weights': weights},
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
         train_op_fn=_no_op_train_fn)
@@ -2700,7 +2701,7 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
 
     spec = head.create_estimator_spec(
         features={'weights': weights_placeholder},
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
         train_op_fn=_no_op_train_fn)
@@ -2728,7 +2729,7 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
     # Create estimator spec.
     spec = head.create_estimator_spec(
         features={'weights': weights},
-        mode=model_fn.ModeKeys.EVAL,
+        mode=ModeKeys.EVAL,
         logits=logits,
         labels=labels)
 
@@ -2821,14 +2822,14 @@ class RegressionHead(test.TestCase):
     with self.assertRaisesRegexp(ValueError, 'logits shape'):
       head.create_estimator_spec(
           features={'x': np.array(((42.,),))},
-          mode=model_fn.ModeKeys.PREDICT,
+          mode=ModeKeys.PREDICT,
           logits=logits_1d)
 
     # Dynamic shape.
     logits_placeholder = array_ops.placeholder(dtype=dtypes.float32)
     spec = head.create_estimator_spec(
         features={'x': np.array(((42.,),))},
-        mode=model_fn.ModeKeys.PREDICT,
+        mode=ModeKeys.PREDICT,
         logits=logits_placeholder)
     with self.cached_session():
       with self.assertRaisesRegexp(errors.OpError, 'logits shape'):
@@ -2846,20 +2847,20 @@ class RegressionHead(test.TestCase):
     with self.assertRaisesRegexp(ValueError, 'Mismatched label shape'):
       head.create_loss(
           features={'x': values_1d},
-          mode=model_fn.ModeKeys.EVAL,
+          mode=ModeKeys.EVAL,
           logits=values_3d,
           labels=values_1d)
     with self.assertRaisesRegexp(ValueError, 'logits shape'):
       head.create_estimator_spec(
           features={'x': values_3d}, labels=values_3d,
-          mode=model_fn.ModeKeys.EVAL, logits=values_1d, train_op_fn=None)
+          mode=ModeKeys.EVAL, logits=values_1d, train_op_fn=None)
 
     # Dynamic shape.
     labels_placeholder = array_ops.placeholder(dtype=dtypes.float32)
     logits_placeholder = array_ops.placeholder(dtype=dtypes.float32)
     spec = head.create_estimator_spec(
         features={'x': values_1d},
-        mode=model_fn.ModeKeys.EVAL,
+        mode=ModeKeys.EVAL,
         logits=logits_placeholder,
         labels=labels_placeholder)
     with self.cached_session():
@@ -2870,7 +2871,7 @@ class RegressionHead(test.TestCase):
         })
     training_loss = head.create_loss(
         features={'x': values_1d},
-        mode=model_fn.ModeKeys.EVAL,
+        mode=ModeKeys.EVAL,
         logits=logits_placeholder,
         labels=labels_placeholder)[0]
     with self.cached_session():
@@ -2892,14 +2893,14 @@ class RegressionHead(test.TestCase):
     with self.assertRaisesRegexp(ValueError, 'Mismatched label shape'):
       head.create_loss(
           features={'x': values_1d},
-          mode=model_fn.ModeKeys.TRAIN,
+          mode=ModeKeys.TRAIN,
           logits=values_3d,
           labels=values_1d)
 
     with self.assertRaisesRegexp(ValueError, 'logits shape'):
       head.create_estimator_spec(
           features={'x': values_3d},
-          mode=model_fn.ModeKeys.TRAIN,
+          mode=ModeKeys.TRAIN,
           logits=values_1d,
           labels=values_3d,
           train_op_fn=lambda x: x)
@@ -2909,7 +2910,7 @@ class RegressionHead(test.TestCase):
     logits_placeholder = array_ops.placeholder(dtype=dtypes.float32)
     spec = head.create_estimator_spec(
         features={'x': values_1d},
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits_placeholder,
         labels=labels_placeholder,
         train_op_fn=lambda x: x)
@@ -2921,7 +2922,7 @@ class RegressionHead(test.TestCase):
         })
     training_loss = head.create_loss(
         features={'x': values_1d},
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits_placeholder,
         labels=labels_placeholder)[0]
     with self.cached_session():
@@ -2945,7 +2946,7 @@ class RegressionHead(test.TestCase):
     logits = np.array(((45,), (41,),), dtype=np.int32)
     spec = head.create_estimator_spec(
         features={'x': np.array(((42.,),), dtype=np.int32)},
-        mode=model_fn.ModeKeys.PREDICT,
+        mode=ModeKeys.PREDICT,
         logits=logits)
 
     # Assert spec contains expected tensors.
@@ -2982,7 +2983,7 @@ class RegressionHead(test.TestCase):
     expected_predictions = np.array(((35,), (31,),), dtype=np.int32)
     spec = head.create_estimator_spec(
         features={'x': np.array(((42.,),), dtype=np.int32)},
-        mode=model_fn.ModeKeys.PREDICT,
+        mode=ModeKeys.PREDICT,
         logits=logits)
 
     # Assert spec contains expected tensors.
@@ -3021,7 +3022,7 @@ class RegressionHead(test.TestCase):
     # Create loss.
     training_loss = head.create_loss(
         features=features,
-        mode=model_fn.ModeKeys.EVAL,
+        mode=ModeKeys.EVAL,
         logits=logits,
         labels=labels)[0]
     with self.cached_session():
@@ -3047,7 +3048,7 @@ class RegressionHead(test.TestCase):
 
     actual_training_loss = head.create_loss(
         features={'x': np.array(((42,),), dtype=np.int32)},
-        mode=model_fn.ModeKeys.EVAL,
+        mode=ModeKeys.EVAL,
         logits=logits_input,
         labels=labels_input)[0]
     with self.cached_session():
@@ -3066,7 +3067,7 @@ class RegressionHead(test.TestCase):
     labels = np.array([[1., 0.], [2., -1.]], dtype=np.float32)
     actual_training_loss = head.create_loss(
         features={'x': np.array(((42,),), dtype=np.int32)},
-        mode=model_fn.ModeKeys.EVAL,
+        mode=ModeKeys.EVAL,
         logits=logits,
         labels=labels)[0]
     with self.cached_session():
@@ -3085,7 +3086,7 @@ class RegressionHead(test.TestCase):
         ValueError, r'You must provide a labels Tensor\. Given: None\.'):
       head.create_estimator_spec(
           features={'x': np.array(((42,),), dtype=np.int32)},
-          mode=model_fn.ModeKeys.EVAL,
+          mode=ModeKeys.EVAL,
           logits=np.array(((45,), (41,),), dtype=np.float32),
           labels=None)
 
@@ -3099,7 +3100,7 @@ class RegressionHead(test.TestCase):
     # Create estimator spec.
     spec = head.create_estimator_spec(
         features=features,
-        mode=model_fn.ModeKeys.EVAL,
+        mode=ModeKeys.EVAL,
         logits=logits,
         labels=labels)
 
@@ -3141,7 +3142,7 @@ class RegressionHead(test.TestCase):
     # Create estimator spec.
     spec = head.create_estimator_spec(
         features=features,
-        mode=model_fn.ModeKeys.EVAL,
+        mode=ModeKeys.EVAL,
         logits=logits,
         labels=labels)
 
@@ -3171,7 +3172,7 @@ class RegressionHead(test.TestCase):
     # Create estimator spec.
     spec = head.create_estimator_spec(
         features=features,
-        mode=model_fn.ModeKeys.EVAL,
+        mode=ModeKeys.EVAL,
         logits=logits,
         labels=labels,
         regularization_losses=regularization_losses)
@@ -3214,7 +3215,7 @@ class RegressionHead(test.TestCase):
     # Create loss.
     training_loss, unreduced_loss, actual_weights, _ = head.create_loss(
         features=features,
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels)
     with self.cached_session():
@@ -3239,7 +3240,7 @@ class RegressionHead(test.TestCase):
     # Create loss.
     training_loss, unreduced_loss, actual_weights, _ = head.create_loss(
         features=features,
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels)
     with self.cached_session():
@@ -3259,7 +3260,7 @@ class RegressionHead(test.TestCase):
         ValueError, r'You must provide a labels Tensor\. Given: None\.'):
       head.create_estimator_spec(
           features={'x': np.array(((42,),), dtype=np.int32)},
-          mode=model_fn.ModeKeys.TRAIN,
+          mode=ModeKeys.TRAIN,
           logits=np.array(((45,), (41,),), dtype=np.float32),
           labels=None,
           train_op_fn=_no_op_train_fn)
@@ -3283,7 +3284,7 @@ class RegressionHead(test.TestCase):
 
     spec = head.create_estimator_spec(
         features=features,
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
         train_op_fn=_train_op_fn)
@@ -3337,7 +3338,7 @@ class RegressionHead(test.TestCase):
 
     spec = head.create_estimator_spec(
         features=features,
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
         optimizer=_Optimizer())
@@ -3364,7 +3365,7 @@ class RegressionHead(test.TestCase):
 
       spec = head.create_estimator_spec(
           features={'x': np.array(((42,),), dtype=np.int32)},
-          mode=model_fn.ModeKeys.TRAIN,
+          mode=ModeKeys.TRAIN,
           logits=np.array(((45,), (41,),), dtype=np.float32),
           labels=np.array(((43.,), (44.,),), dtype=np.float64),
           train_op_fn=_train_op_fn)
@@ -3393,7 +3394,7 @@ class RegressionHead(test.TestCase):
 
     spec = head.create_estimator_spec(
         features=features,
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
         train_op_fn=_train_op_fn)
@@ -3439,7 +3440,7 @@ class RegressionHead(test.TestCase):
 
     spec = head.create_estimator_spec(
         features=features,
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
         train_op_fn=_train_op_fn,
@@ -3474,7 +3475,7 @@ class RegressionHead(test.TestCase):
             'x': np.array(((42,), (43,), (44,)), dtype=np.int32),
             'label_weights': np.array(((1.,), (.1,), (1.5,)), dtype=np.float32),
         },
-        mode=model_fn.ModeKeys.EVAL,
+        mode=ModeKeys.EVAL,
         logits=logits,
         labels=np.array(((35,), (42,), (45,)), dtype=np.int32))
 
@@ -3523,7 +3524,7 @@ class RegressionHead(test.TestCase):
             'label_weights':
                 np.array(((0.,), (-0.9,), (0.5,)), dtype=np.float32),
         },
-        mode=model_fn.ModeKeys.EVAL,
+        mode=ModeKeys.EVAL,
         logits=logits,
         labels=np.array(((35,), (42,), (45,)), dtype=np.int32))
 
@@ -3554,7 +3555,7 @@ class RegressionHead(test.TestCase):
             'x': np.array(((42,), (43,), (44,)), dtype=np.float32),
             'label_weights': np.array(((1.,), (.1,), (1.5,)), dtype=np.float64),
         },
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=np.array(((35.,), (42.,), (45.,)), dtype=np.float32),
         train_op_fn=_train_op_fn)
@@ -3602,7 +3603,7 @@ class RegressionHead(test.TestCase):
     # Create loss.
     training_loss, unreduced_loss, actual_weights, _ = head.create_loss(
         features=features,
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels_rank_1)
     with self.cached_session():
@@ -3637,7 +3638,7 @@ class RegressionHead(test.TestCase):
 
     spec = head.create_estimator_spec(
         features=features,
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels_rank_1,
         train_op_fn=_train_op_fn)
@@ -3681,7 +3682,7 @@ class RegressionHead(test.TestCase):
     # Create loss.
     training_loss = head.create_loss(
         features=features,
-        mode=model_fn.ModeKeys.EVAL,
+        mode=ModeKeys.EVAL,
         logits=logits,
         labels=labels)[0]
     with self.cached_session():
@@ -3705,7 +3706,7 @@ class RegressionHead(test.TestCase):
     # Create estimator spec.
     spec = head.create_estimator_spec(
         features=features,
-        mode=model_fn.ModeKeys.EVAL,
+        mode=ModeKeys.EVAL,
         logits=logits,
         labels=labels)
 
@@ -3752,7 +3753,7 @@ class RegressionHead(test.TestCase):
     # Create loss.
     training_loss = head.create_loss(
         features=features,
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels)[0]
     with self.cached_session():
@@ -3785,7 +3786,7 @@ class RegressionHead(test.TestCase):
     # Create estimator spec.
     spec = head.create_estimator_spec(
         features=features,
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
         train_op_fn=_train_op_fn)
@@ -3840,7 +3841,7 @@ class RegressionHead(test.TestCase):
     batched_logits = batched_features.pop('logits')
     spec = head.create_estimator_spec(
         features=batched_features,
-        mode=model_fn.ModeKeys.EVAL,
+        mode=ModeKeys.EVAL,
         logits=batched_logits,
         labels=batched_labels,
         train_op_fn=None)
@@ -3911,7 +3912,7 @@ class RegressionHead(test.TestCase):
     batched_logits = batched_features.pop('logits')
     spec = head.create_estimator_spec(
         features=batched_features,
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=batched_logits,
         labels=batched_labels,
         train_op_fn=lambda loss: loss * -7.)
@@ -3957,7 +3958,7 @@ class RegressionHead(test.TestCase):
     # Create loss.
     training_loss, unreduced_loss, actual_weights, _ = head.create_loss(
         features={'label_weights': weights},
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels)
     with self.cached_session():
@@ -3989,7 +3990,7 @@ class RegressionHead(test.TestCase):
 
     spec = head.create_estimator_spec(
         features=features,
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
         train_op_fn=_train_op_fn)
@@ -4014,7 +4015,7 @@ class RegressionHead(test.TestCase):
 
     spec = head.create_estimator_spec(
         features=features,
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
         train_op_fn=_no_op_train_fn)
@@ -4043,7 +4044,7 @@ class RegressionHead(test.TestCase):
 
     spec = head.create_estimator_spec(
         features=features,
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
         train_op_fn=_no_op_train_fn)

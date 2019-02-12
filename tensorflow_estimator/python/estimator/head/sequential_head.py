@@ -24,9 +24,6 @@ import collections
 import six
 
 from tensorflow.python.eager import context
-from tensorflow_estimator.python.estimator import model_fn
-from tensorflow_estimator.python.estimator.head import base_head
-from tensorflow_estimator.python.estimator.head import multi_head
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import sparse_tensor
@@ -34,6 +31,9 @@ from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import check_ops
 from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import sparse_ops
+from tensorflow_estimator.python.estimator.head import base_head
+from tensorflow_estimator.python.estimator.head import multi_head
+from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 
 
 class _SequentialHead(base_head.Head):
@@ -301,7 +301,7 @@ class SequentialHeadWrapper(_SequentialHead):
     Returns:
       `EstimatorSpec`.
     """
-    if mode == model_fn.ModeKeys.PREDICT:
+    if mode == ModeKeys.PREDICT:
       spec = self._static_head.create_estimator_spec(
           features=features, mode=mode, logits=logits)
       spec.predictions[self.input_sequence_mask_key] = features[

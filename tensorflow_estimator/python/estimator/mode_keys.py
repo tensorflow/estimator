@@ -19,22 +19,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+from tensorflow.python.saved_model.model_utils.mode_keys import EstimatorModeKeys as ModeKeys
 from tensorflow.python.util.tf_export import estimator_export
 
 
-# TODO(kathywu): use mode keys defined in saved_model/model_utils/mode_keys,
-# and combine ModeKeys and ModeKeysV2.
-@estimator_export('estimator.ModeKeys', v1=[])
-class ModeKeysV2(object):
-  """Standard names for model modes.
-
-  The following standard keys are defined:
-
-  * `TRAIN`: training/fitting mode.
-  * `EVAL`: testing/evaluation mode.
-  * `PREDICT`: predication/inference mode.
-  """
-
-  TRAIN = 'train'
-  EVAL = 'eval'
-  PREDICT = 'infer'
+estimator_export('estimator.ModeKeys')(ModeKeys)

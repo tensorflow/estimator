@@ -47,6 +47,7 @@ from tensorflow_estimator.python.estimator import run_config
 from tensorflow_estimator.python.estimator.canned import boosted_trees
 from tensorflow_estimator.python.estimator.export import export
 from tensorflow_estimator.python.estimator.inputs import numpy_io
+from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 
 NUM_FEATURES = 3
 
@@ -169,7 +170,7 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
         export_dir, input_receiver_fn, as_text=True, strip_default_attrs=True)
 
     # Restore, to validate that the export was well-formed.
-    tag_set = model_fn.EXPORT_TAG_MAP[model_fn.ModeKeys.PREDICT]
+    tag_set = model_fn.EXPORT_TAG_MAP[ModeKeys.PREDICT]
     with ops.Graph().as_default() as graph:
       with session.Session(graph=graph) as sess:
         loader.load(sess, tag_set, export_dir)
@@ -2750,7 +2751,7 @@ class ModelFnTests(test_util.TensorFlowTestCase):
     estimator_spec = boosted_trees._bt_model_fn(  # pylint:disable=protected-access
         features=features,
         labels=labels,
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         head=head,
         feature_columns=columns,
         tree_hparams=tree_hparams,

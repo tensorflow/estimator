@@ -82,6 +82,7 @@ from tensorflow_estimator.python.estimator import run_config
 from tensorflow_estimator.python.estimator.export import export
 from tensorflow_estimator.python.estimator.export import export_output
 from tensorflow_estimator.python.estimator.inputs import numpy_io
+from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 
 
 _TMP_DIR = '/tmp'
@@ -421,7 +422,7 @@ class EstimatorTrainTest(test.TestCase):
         test_self.assertItemsEqual(expected_features.keys(), features.keys())
         return _estimator_spec(
             expected_features, expected_labels, features, labels,
-            model_fn_lib.ModeKeys.TRAIN)
+            ModeKeys.TRAIN)
 
     with self.assertRaisesRegexp(ValueError, 'does not include params'):
       estimator.EstimatorV2(model_fn=ModelFn(), params={'a': 'b'})
@@ -433,7 +434,7 @@ class EstimatorTrainTest(test.TestCase):
     self.assertEqual(1, model_fn_call_count[0])
 
   def test_callable_input_fn(self):
-    expected_mode = model_fn_lib.ModeKeys.TRAIN
+    expected_mode = ModeKeys.TRAIN
     expected_params = {'batch_size': 10}
     expected_config = run_config.RunConfig().replace(tf_random_seed=4321)
     input_fn_call_count = [0]
@@ -483,7 +484,7 @@ class EstimatorTrainTest(test.TestCase):
     est.train(_input_fn, steps=4)
 
   def test_input_fn_args(self):
-    expected_mode = model_fn_lib.ModeKeys.TRAIN
+    expected_mode = ModeKeys.TRAIN
     expected_params = {'batch_size': 10}
     expected_config = run_config.RunConfig().replace(tf_random_seed=4321)
     input_fn_call_count = [0]
@@ -572,7 +573,7 @@ class EstimatorTrainTest(test.TestCase):
     def _model_fn(mode, params, features, labels, config):
       model_fn_call_count[0] += 1
       self.assertItemsEqual(expected_features.keys(), features.keys())
-      self.assertEqual(model_fn_lib.ModeKeys.TRAIN, mode)
+      self.assertEqual(ModeKeys.TRAIN, mode)
       self.assertEqual(expected_params, params)
       self.assertTrue(config.i_am_test)
       return _estimator_spec(
@@ -603,7 +604,7 @@ class EstimatorTrainTest(test.TestCase):
       self.assertEqual(expected_foo, foo)
       self.assertEqual(expected_bar, bar)
       self.assertItemsEqual(expected_features.keys(), features.keys())
-      self.assertEqual(model_fn_lib.ModeKeys.TRAIN, mode)
+      self.assertEqual(ModeKeys.TRAIN, mode)
       self.assertEqual(expected_params, params)
       self.assertTrue(config.i_am_test)
       return _estimator_spec(
@@ -925,7 +926,7 @@ class EstimatorTrainTest(test.TestCase):
     est.train(_input_fn, steps=1)
     self.assertEqual(given_features, self.features)
     self.assertEqual(given_labels, self.labels)
-    self.assertEqual(model_fn_lib.ModeKeys.TRAIN, self.mode)
+    self.assertEqual(ModeKeys.TRAIN, self.mode)
 
   def test_graph_initialization_global_step_and_random_seed(self):
     expected_random_seed = run_config.RunConfig().tf_random_seed
@@ -1273,7 +1274,7 @@ class EstimatorEvaluateTest(test.TestCase):
     self.assertEqual(expected_eval_dir_name, est.eval_dir('a_name'))
 
   def test_input_fn_args(self):
-    expected_mode = model_fn_lib.ModeKeys.EVAL
+    expected_mode = ModeKeys.EVAL
     expected_params = {'batch_size': 10}
     expected_config = run_config.RunConfig().replace(tf_random_seed=4321)
     input_fn_call_count = [0]
@@ -1299,7 +1300,7 @@ class EstimatorEvaluateTest(test.TestCase):
   def test_model_fn_must_return_estimator_spec(self):
     def _model_fn(features, labels, mode):
       _, _ = features, labels
-      if mode == model_fn_lib.ModeKeys.EVAL:
+      if mode == ModeKeys.EVAL:
         return 'NotGoodNotGood'
       return model_fn_lib.EstimatorSpec(
           mode,
@@ -1580,7 +1581,7 @@ class EstimatorEvaluateTest(test.TestCase):
     est.evaluate(_input_fn, steps=1)
     self.assertEqual(given_features, self.features)
     self.assertEqual(given_labels, self.labels)
-    self.assertEqual(model_fn_lib.ModeKeys.EVAL, self.mode)
+    self.assertEqual(ModeKeys.EVAL, self.mode)
 
   def test_graph_initialization_global_step_and_random_seed(self):
     expected_random_seed = run_config.RunConfig().tf_random_seed
@@ -1710,7 +1711,7 @@ class EstimatorEvaluateTest(test.TestCase):
 class EstimatorPredictTest(test.TestCase):
 
   def test_input_fn_args(self):
-    expected_mode = model_fn_lib.ModeKeys.PREDICT
+    expected_mode = ModeKeys.PREDICT
     expected_params = {'batch_size': 10}
     expected_config = run_config.RunConfig().replace(tf_random_seed=4321)
     input_fn_call_count = [0]
@@ -2147,7 +2148,7 @@ class EstimatorPredictTest(test.TestCase):
     next(est.predict(_input_fn))
     self.assertEqual(given_features, self.features)
     self.assertIsNone(self.labels)
-    self.assertEqual(model_fn_lib.ModeKeys.PREDICT, self.mode)
+    self.assertEqual(ModeKeys.PREDICT, self.mode)
 
   def test_graph_initialization_global_step_and_random_seed(self):
     expected_random_seed = run_config.RunConfig().tf_random_seed
@@ -2194,7 +2195,7 @@ def _model_fn_with_x_y(features, labels, mode):
   variables.VariableV1(1., name='weight')
   scores = constant_op.constant([3.])
   classes = constant_op.constant(['wumpus'])
-  if mode == model_fn_lib.ModeKeys.PREDICT:
+  if mode == ModeKeys.PREDICT:
     variables.VariableV1(36., name='name_collision')
     return model_fn_lib.EstimatorSpec(
         mode,
@@ -2202,7 +2203,7 @@ def _model_fn_with_x_y(features, labels, mode):
         export_outputs={
             'test': export_output.ClassificationOutput(scores, classes)})
   else:
-    prefix = 'eval_' if mode == model_fn_lib.ModeKeys.EVAL else ''
+    prefix = 'eval_' if mode == ModeKeys.EVAL else ''
 
     multiplied = math_ops.multiply(
         features['x'], features['y'], name='{}multiplied'.format(prefix))
@@ -2285,15 +2286,15 @@ class EstimatorExportTest(test.TestCase):
 
   def test_export_saved_model_train(self):
     self._test_export_saved_model_for_mode(
-        _get_supervised_input_receiver_fn(), model_fn_lib.ModeKeys.TRAIN)
+        _get_supervised_input_receiver_fn(), ModeKeys.TRAIN)
 
   def test_export_saved_model_eval(self):
     self._test_export_saved_model_for_mode(
-        _get_supervised_input_receiver_fn(), model_fn_lib.ModeKeys.EVAL)
+        _get_supervised_input_receiver_fn(), ModeKeys.EVAL)
 
   def test_export_saved_model_predict(self):
     self._test_export_saved_model_for_mode(
-        _get_serving_input_receiver_fn(), model_fn_lib.ModeKeys.PREDICT)
+        _get_serving_input_receiver_fn(), ModeKeys.PREDICT)
 
   def _test_export_saved_model_for_mode(self, input_receiver_fn, mode):
     tmpdir = tempfile.mkdtemp()
@@ -2324,7 +2325,7 @@ class EstimatorExportTest(test.TestCase):
 
   def test_export_all_saved_models_proto_roundtrip_receiver_map(self):
     input_receiver_fn_map = {
-        model_fn_lib.ModeKeys.PREDICT: _get_serving_input_receiver_fn()
+        ModeKeys.PREDICT: _get_serving_input_receiver_fn()
     }
     export_dir, tmpdir = self._test_export_all_saved_models(
         input_receiver_fn_map)
@@ -2343,7 +2344,7 @@ class EstimatorExportTest(test.TestCase):
 
   def test_export_all_saved_models_proto_roundtrip_train_only(self):
     input_receiver_fn_map = {
-        model_fn_lib.ModeKeys.TRAIN: _get_supervised_input_receiver_fn(),
+        ModeKeys.TRAIN: _get_supervised_input_receiver_fn(),
     }
     export_dir, tmpdir = self._test_export_all_saved_models(
         input_receiver_fn_map)
@@ -2363,7 +2364,7 @@ class EstimatorExportTest(test.TestCase):
 
   def test_export_all_saved_models_proto_roundtrip_eval_only(self):
     input_receiver_fn_map = {
-        model_fn_lib.ModeKeys.EVAL: _get_supervised_input_receiver_fn()
+        ModeKeys.EVAL: _get_supervised_input_receiver_fn()
     }
     export_dir, tmpdir = self._test_export_all_saved_models(
         input_receiver_fn_map)
@@ -2383,8 +2384,8 @@ class EstimatorExportTest(test.TestCase):
 
   def test_export_all_saved_models_proto_roundtrip_no_serving(self):
     input_receiver_fn_map = {
-        model_fn_lib.ModeKeys.TRAIN: _get_supervised_input_receiver_fn(),
-        model_fn_lib.ModeKeys.EVAL: _get_supervised_input_receiver_fn()
+        ModeKeys.TRAIN: _get_supervised_input_receiver_fn(),
+        ModeKeys.EVAL: _get_supervised_input_receiver_fn()
     }
     export_dir, tmpdir = self._test_export_all_saved_models(
         input_receiver_fn_map)
@@ -2413,9 +2414,9 @@ class EstimatorExportTest(test.TestCase):
 
   def test_export_all_saved_models_proto_roundtrip_three_defs(self):
     input_receiver_fn_map = {
-        model_fn_lib.ModeKeys.TRAIN: _get_supervised_input_receiver_fn(),
-        model_fn_lib.ModeKeys.EVAL: _get_supervised_input_receiver_fn(),
-        model_fn_lib.ModeKeys.PREDICT: _get_serving_input_receiver_fn()
+        ModeKeys.TRAIN: _get_supervised_input_receiver_fn(),
+        ModeKeys.EVAL: _get_supervised_input_receiver_fn(),
+        ModeKeys.PREDICT: _get_serving_input_receiver_fn()
     }
     export_dir, tmpdir = self._test_export_all_saved_models(
         input_receiver_fn_map)
@@ -2435,8 +2436,8 @@ class EstimatorExportTest(test.TestCase):
 
   def test_export_all_saved_models_proto_roundtrip_all_vars(self):
     input_receiver_fn_map = {
-        model_fn_lib.ModeKeys.TRAIN: _get_supervised_input_receiver_fn(),
-        model_fn_lib.ModeKeys.PREDICT: _get_serving_input_receiver_fn()
+        ModeKeys.TRAIN: _get_supervised_input_receiver_fn(),
+        ModeKeys.PREDICT: _get_serving_input_receiver_fn()
     }
     export_dir, tmpdir = self._test_export_all_saved_models(
         input_receiver_fn_map)
@@ -2460,8 +2461,8 @@ class EstimatorExportTest(test.TestCase):
 
   def test_export_all_saved_models_name_collision(self):
     input_receiver_fn_map = {
-        model_fn_lib.ModeKeys.TRAIN: _get_supervised_input_receiver_fn(),
-        model_fn_lib.ModeKeys.PREDICT: _get_serving_input_receiver_fn()
+        ModeKeys.TRAIN: _get_supervised_input_receiver_fn(),
+        ModeKeys.PREDICT: _get_serving_input_receiver_fn()
     }
     export_dir, tmpdir = self._test_export_all_saved_models(
         input_receiver_fn_map)
@@ -2529,14 +2530,14 @@ class EstimatorExportTest(test.TestCase):
 
   def test_export_all_saved_models_var_not_found(self):
     input_receiver_fn_map = {
-        model_fn_lib.ModeKeys.TRAIN: _get_supervised_input_receiver_fn(),
-        model_fn_lib.ModeKeys.EVAL: _get_supervised_input_receiver_fn(),
-        model_fn_lib.ModeKeys.PREDICT: _get_serving_input_receiver_fn()
+        ModeKeys.TRAIN: _get_supervised_input_receiver_fn(),
+        ModeKeys.EVAL: _get_supervised_input_receiver_fn(),
+        ModeKeys.PREDICT: _get_serving_input_receiver_fn()
     }
 
     def _model_fn_with_predict_only_vars(features, labels, mode):
       _, _ = features, labels
-      if mode == model_fn_lib.ModeKeys.PREDICT:
+      if mode == ModeKeys.PREDICT:
         variables.VariableV1(1., name='only_in_predict')
       else:
         variables.VariableV1(1., name='otherwise')
@@ -2591,7 +2592,7 @@ class EstimatorExportTest(test.TestCase):
         compat.as_bytes(tmpdir), compat.as_bytes('metric_operation_export'))
 
     input_receiver_fn_map = {
-        model_fn_lib.ModeKeys.EVAL: _get_supervised_input_receiver_fn()}
+        ModeKeys.EVAL: _get_supervised_input_receiver_fn()}
 
     export_dir = est.experimental_export_all_saved_models(
         export_dir_base, input_receiver_fn_map)
@@ -2601,7 +2602,7 @@ class EstimatorExportTest(test.TestCase):
       with session.Session(graph=graph) as sess:
         meta_graph = loader.load(sess, [tag_constants.EVAL], export_dir)
         sig_outputs = meta_graph.signature_def[
-            model_fn_lib.ModeKeys.EVAL].outputs
+            ModeKeys.EVAL].outputs
         self.assertTrue(sig_outputs['metrics1/update_op'].name.startswith(
             'metric_op_wrapper'))
         self.assertTrue(sig_outputs['metrics2/update_op'].name.startswith(
@@ -2847,10 +2848,10 @@ class EstimatorExportTest(test.TestCase):
       variables.VariableV1(1., name='weight')
 
       scores = constant_op.constant([3.])
-      if mode == model_fn_lib.ModeKeys.PREDICT:
+      if mode == ModeKeys.PREDICT:
         savers['predict_saver'] = get_mock_saver()
         scaffold = training.Scaffold(saver=savers['predict_saver'])
-      elif mode == model_fn_lib.ModeKeys.TRAIN:
+      elif mode == ModeKeys.TRAIN:
         savers['train_saver'] = get_mock_saver()
         scaffold = training.Scaffold(saver=savers['train_saver'])
       else:
@@ -2866,9 +2867,9 @@ class EstimatorExportTest(test.TestCase):
     est = estimator.EstimatorV2(model_fn=_model_fn_scaffold)
     est.train(dummy_input_fn, steps=1)
     input_receiver_fn_map = {
-        model_fn_lib.ModeKeys.TRAIN: _get_supervised_input_receiver_fn(),
-        model_fn_lib.ModeKeys.EVAL: _get_supervised_input_receiver_fn(),
-        model_fn_lib.ModeKeys.PREDICT: _get_serving_input_receiver_fn()
+        ModeKeys.TRAIN: _get_supervised_input_receiver_fn(),
+        ModeKeys.EVAL: _get_supervised_input_receiver_fn(),
+        ModeKeys.PREDICT: _get_serving_input_receiver_fn()
     }
 
     # Perform the export.
@@ -2946,7 +2947,7 @@ class EstimatorExportTest(test.TestCase):
         assign_op = state_ops.assign(my_int, 12345)
 
       custom_local_init_op = None
-      if mode == model_fn_lib.ModeKeys.PREDICT:
+      if mode == ModeKeys.PREDICT:
         # local_initSop must be an Operation, not a Tensor.
         custom_local_init_op = control_flow_ops.group(assign_op)
 
@@ -2961,9 +2962,9 @@ class EstimatorExportTest(test.TestCase):
     est = estimator.EstimatorV2(model_fn=_model_fn_scaffold)
     est.train(dummy_input_fn, steps=1)
     input_receiver_fn_map = {
-        model_fn_lib.ModeKeys.TRAIN: _get_supervised_input_receiver_fn(),
-        model_fn_lib.ModeKeys.EVAL: _get_supervised_input_receiver_fn(),
-        model_fn_lib.ModeKeys.PREDICT: _get_serving_input_receiver_fn()
+        ModeKeys.TRAIN: _get_supervised_input_receiver_fn(),
+        ModeKeys.EVAL: _get_supervised_input_receiver_fn(),
+        ModeKeys.PREDICT: _get_serving_input_receiver_fn()
     }
 
     # Perform the export.
@@ -3010,7 +3011,7 @@ class EstimatorExportTest(test.TestCase):
     est.export_saved_model(tempfile.mkdtemp(), serving_input_receiver_fn)
     self.assertEqual(given_features, self.features)
     self.assertIsNone(self.labels)
-    self.assertEqual(model_fn_lib.ModeKeys.PREDICT, self.mode)
+    self.assertEqual(ModeKeys.PREDICT, self.mode)
 
   def test_graph_initialization_global_step_and_random_seed(self):
     expected_random_seed = run_config.RunConfig().tf_random_seed
@@ -3259,7 +3260,7 @@ class EstimatorIntegrationTest(test.TestCase):
           'predictions': export_output.RegressionOutput(predictions)
       }
 
-      if mode == model_fn_lib.ModeKeys.PREDICT:
+      if mode == ModeKeys.PREDICT:
         return model_fn_lib.EstimatorSpec(
             mode, predictions=predictions, export_outputs=export_outputs)
 

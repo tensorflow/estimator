@@ -31,6 +31,7 @@ from tensorflow_estimator.python.estimator import model_fn
 from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.export import export_output
 from tensorflow_estimator.python.estimator.head import base_head
+from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 
 
 def _no_op_train_fn(loss):
@@ -373,26 +374,26 @@ class MultiHead(base_head.Head):
                 train_op_fn=_no_op_train_fn))
       # Predict.
       predictions = self.predictions(logits)
-      if mode == model_fn.ModeKeys.PREDICT:
+      if mode == ModeKeys.PREDICT:
         export_outputs = self._merge_predict_export_outputs(all_estimator_spec)
         return model_fn.EstimatorSpec(
-            mode=model_fn.ModeKeys.PREDICT,
+            mode=ModeKeys.PREDICT,
             predictions=predictions,
             export_outputs=export_outputs)
       loss = self.loss(logits, labels, features, mode, regularization_losses)
       # Eval.
-      if mode == model_fn.ModeKeys.EVAL:
+      if mode == ModeKeys.EVAL:
         eval_metrics = self.metrics(regularization_losses=regularization_losses)
         updated_metrics = self.update_metrics(
             eval_metrics, features, logits, labels,
             regularization_losses=regularization_losses)
         return model_fn.EstimatorSpec(
-            mode=model_fn.ModeKeys.EVAL,
+            mode=ModeKeys.EVAL,
             predictions=predictions,
             loss=loss,
             eval_metric_ops=updated_metrics)
       # Train.
-      if mode == model_fn.ModeKeys.TRAIN:
+      if mode == ModeKeys.TRAIN:
         # train_op.
         if optimizer is not None:
           if train_op_fn is not None:
@@ -411,7 +412,7 @@ class MultiHead(base_head.Head):
           eval_metrics.update(spec.eval_metric_ops or {})
         # predictions can be used to access the logits in `TRAIN` mode
         return model_fn.EstimatorSpec(
-            mode=model_fn.ModeKeys.TRAIN,
+            mode=ModeKeys.TRAIN,
             loss=loss,
             train_op=train_op,
             predictions=predictions,

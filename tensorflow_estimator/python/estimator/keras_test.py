@@ -27,7 +27,6 @@ import numpy as np
 from tensorflow.core.protobuf import config_pb2
 from tensorflow.python import keras
 from tensorflow.python.data.ops import dataset_ops
-from tensorflow.python.eager import context
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import test_util
 from tensorflow.python.keras import testing_utils
@@ -42,8 +41,8 @@ from tensorflow.python.training import rmsprop
 from tensorflow.python.training import session_run_hook
 from tensorflow.python.training import training_util
 from tensorflow_estimator.python.estimator import keras as keras_lib
-from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
 from tensorflow_estimator.python.estimator import run_config as run_config_lib
+from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 
 
 try:
@@ -756,7 +755,7 @@ class TestKerasEstimator(test_util.TensorFlowTestCase):
       keras_model_fn = keras_lib._create_keras_model_fn(keras_model)
       global_step = training_util.create_global_step()
       features, labels = train_input_fn().make_one_shot_iterator().get_next()
-      spec = keras_model_fn(features, labels, mode=model_fn_lib.ModeKeys.TRAIN)
+      spec = keras_model_fn(features, labels, mode=ModeKeys.TRAIN)
 
       sess.run(variables.global_variables_initializer())
       sess.run(variables.local_variables_initializer())

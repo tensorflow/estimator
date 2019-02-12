@@ -34,11 +34,11 @@ from tensorflow.python.ops.losses import losses
 from tensorflow.python.summary import summary
 from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator import estimator
-from tensorflow_estimator.python.estimator import model_fn
 from tensorflow_estimator.python.estimator.canned import head as head_lib
 from tensorflow_estimator.python.estimator.canned import optimizers
 from tensorflow_estimator.python.estimator.head import head_utils
 from tensorflow_estimator.python.estimator.head import regression_head
+from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 
 # The default learning rate of 0.05 is a historical artifact of the initial
 # implementation, but seems a reasonable choice.
@@ -182,7 +182,7 @@ class _DNNModel(training.Model):
     self._input_layer_partitioner = input_layer_partitioner
 
   def call(self, features, mode):
-    is_training = mode == model_fn.ModeKeys.TRAIN
+    is_training = mode == ModeKeys.TRAIN
     # The Keras training.Model adds a name_scope with the name of the model
     # which modifies the constructed graph. Hence we add another name_scope
     # here which is the one before the training.Model one was applied.

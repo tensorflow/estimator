@@ -39,6 +39,7 @@ from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
 from tensorflow_estimator.python.estimator.canned import saved_model_estimator
 from tensorflow_estimator.python.estimator.export import export
 from tensorflow_estimator.python.estimator.export import export_output
+from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 
 
 def dummy_input_fn():
@@ -68,13 +69,13 @@ def model_fn_diff_modes(features, labels, mode):
   v = variables.Variable(21, name='some_var')
   train_op = None
   loss = constant_op.constant(104)
-  if mode == model_fn_lib.ModeKeys.TRAIN:
+  if mode == ModeKeys.TRAIN:
     loss = constant_op.constant(105)
     predictions = constant_op.constant([501])
     train_op = control_flow_ops.group(
         state_ops.assign_add(training.get_global_step(), 1),
         state_ops.assign_add(v, 3))
-  elif mode == model_fn_lib.ModeKeys.EVAL:
+  elif mode == ModeKeys.EVAL:
     loss = constant_op.constant(106)
     predictions = constant_op.constant([502])
   else:
@@ -116,13 +117,13 @@ class SavedModelEstimatorTest(test.TestCase):
 
     input_receiver_fn_map = {}
     if train:
-      input_receiver_fn_map[model_fn_lib.ModeKeys.TRAIN] = (
+      input_receiver_fn_map[ModeKeys.TRAIN] = (
           dummy_supervised_receiver_fn())
     if evaluate:
-      input_receiver_fn_map[model_fn_lib.ModeKeys.EVAL] = (
+      input_receiver_fn_map[ModeKeys.EVAL] = (
           dummy_supervised_receiver_fn())
     if predict:
-      input_receiver_fn_map[model_fn_lib.ModeKeys.PREDICT] = (
+      input_receiver_fn_map[ModeKeys.PREDICT] = (
           dummy_serving_receiver_fn())
 
     export_base_path = self._get_tmp_dir()
@@ -250,9 +251,9 @@ class SavedModelEstimatorTest(test.TestCase):
 
     # Export SavedModel for all modes
     input_receiver_fn_map = {
-        model_fn_lib.ModeKeys.TRAIN: dummy_supervised_receiver_fn(),
-        model_fn_lib.ModeKeys.EVAL: dummy_supervised_receiver_fn(),
-        model_fn_lib.ModeKeys.PREDICT: dummy_serving_receiver_fn()}
+        ModeKeys.TRAIN: dummy_supervised_receiver_fn(),
+        ModeKeys.EVAL: dummy_supervised_receiver_fn(),
+        ModeKeys.PREDICT: dummy_serving_receiver_fn()}
     sme_export_dir = sme.experimental_export_all_saved_models(
         self._get_tmp_dir(), input_receiver_fn_map)
 

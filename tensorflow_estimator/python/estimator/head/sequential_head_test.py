@@ -24,6 +24,13 @@ from absl.testing import parameterized
 import numpy as np
 
 from tensorflow.python.eager import context
+from tensorflow.python.framework import constant_op
+from tensorflow.python.framework import errors_impl
+from tensorflow.python.framework import ops
+from tensorflow.python.framework import sparse_tensor
+from tensorflow.python.framework import test_util
+from tensorflow.python.ops.losses import losses
+from tensorflow.python.platform import test
 from tensorflow_estimator.python.estimator import model_fn
 from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.canned import prediction_keys
@@ -32,13 +39,7 @@ from tensorflow_estimator.python.estimator.head import head_utils
 from tensorflow_estimator.python.estimator.head import multi_class_head as multi_head_lib
 from tensorflow_estimator.python.estimator.head import multi_head
 from tensorflow_estimator.python.estimator.head import sequential_head as seq_head_lib
-from tensorflow.python.framework import constant_op
-from tensorflow.python.framework import errors_impl
-from tensorflow.python.framework import ops
-from tensorflow.python.framework import sparse_tensor
-from tensorflow.python.framework import test_util
-from tensorflow.python.ops.losses import losses
-from tensorflow.python.platform import test
+from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 
 
 def _convert_to_tensor(features):
@@ -264,7 +265,7 @@ class TestSequentialHead(test.TestCase):
       return
 
     spec = head.create_estimator_spec(
-        features=features, mode=model_fn.ModeKeys.PREDICT, logits=logits)
+        features=features, mode=ModeKeys.PREDICT, logits=logits)
     self.assertIn('sequence_mask', spec.predictions)
     with self.cached_session() as sess:
       self.assertAllEqual(sess.run(spec.predictions['sequence_mask']),
@@ -322,7 +323,7 @@ class TestSequentialHead(test.TestCase):
         'logits': [[1], [2], [3]],
         'labels': [[0], [1], [0]],
         'features': {'weights': [[0.3], [0.2], [0.5]]},
-        'mode': model_fn.ModeKeys.TRAIN,
+        'mode': ModeKeys.TRAIN,
         'regularization_losses': 123,
         'optimizer': 'my-opt',
         'train_op_fn': 'my-train-op'
@@ -331,7 +332,7 @@ class TestSequentialHead(test.TestCase):
         logits=_convert_to_tensor(logits),
         labels=_convert_to_tensor(labels),
         features=_convert_to_tensor(features),
-        mode=model_fn.ModeKeys.TRAIN,
+        mode=ModeKeys.TRAIN,
         optimizer='my-opt',
         train_op_fn='my-train-op',
         regularization_losses=123)
@@ -396,7 +397,7 @@ class TestSequentialHead(test.TestCase):
       loss = head.loss(logits=logits, labels=labels, features=features)
     else:
       spec = head.create_estimator_spec(
-          features, model_fn.ModeKeys.TRAIN, logits, labels,
+          features, ModeKeys.TRAIN, logits, labels,
           optimizer=_Optimizer())
       with self.cached_session() as sess:
         loss = sess.run(spec.loss)
@@ -457,7 +458,7 @@ class TestSequentialHead(test.TestCase):
       return
 
     spec = head.create_estimator_spec(
-        features=features, mode=model_fn.ModeKeys.EVAL, logits=logits,
+        features=features, mode=ModeKeys.EVAL, logits=logits,
         labels=labels, regularization_losses=regularization_losses)
 
     with self.cached_session() as sess:

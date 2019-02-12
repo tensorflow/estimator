@@ -22,8 +22,7 @@ from __future__ import print_function
 from tensorflow.python.util import function_utils
 from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator import estimator as estimator_lib
-from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
-
+from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 
 _VALID_METRIC_FN_ARGS = set(['features', 'labels', 'predictions', 'config'])
 
@@ -86,7 +85,7 @@ def add_metrics(estimator, metric_fn):
 
   def new_model_fn(features, labels, mode, config):
     spec = estimator.model_fn(features, labels, mode, config)
-    if mode != model_fn_lib.ModeKeys.EVAL:
+    if mode != ModeKeys.EVAL:
       return spec
     new_metrics = _call_metric_fn(metric_fn, features, labels, spec.predictions,
                                   config)

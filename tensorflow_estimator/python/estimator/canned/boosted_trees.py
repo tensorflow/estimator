@@ -46,9 +46,9 @@ from tensorflow.python.training import session_run_hook
 from tensorflow.python.training import training_util
 from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator import estimator
-from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
 from tensorflow_estimator.python.estimator.canned import boosted_trees_utils
 from tensorflow_estimator.python.estimator.canned import head as head_lib
+from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 
 # TODO(nponomareva): Reveal pruning params here.
 _TreeHParams = collections.namedtuple('TreeHParams', [
@@ -1008,7 +1008,7 @@ def _bt_model_fn(
         sorted_feature_columns, num_quantiles)
 
     # Create logits.
-    if mode != model_fn_lib.ModeKeys.TRAIN:
+    if mode != ModeKeys.TRAIN:
       input_feature_list = _get_transformed_features(
           features, sorted_feature_columns, bucket_boundaries_dict)
       logits = boosted_trees_ops.predict(
@@ -1373,7 +1373,7 @@ def _bt_explanations_fn(features,
   Raises:
     ValueError: mode or params are invalid, or features has the wrong type.
   """
-  mode = model_fn_lib.ModeKeys.PREDICT
+  mode = ModeKeys.PREDICT
   with ops.name_scope(name) as name:
     # Create Ensemble resources.
     tree_ensemble = boosted_trees_ops.TreeEnsemble(name=name)

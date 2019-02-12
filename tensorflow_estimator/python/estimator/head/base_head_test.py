@@ -32,6 +32,7 @@ from tensorflow.python.platform import test
 from tensorflow.python.saved_model import signature_constants
 from tensorflow_estimator.python.estimator import model_fn
 from tensorflow_estimator.python.estimator.head import base_head
+from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 
 _DEFAULT_SERVING_KEY = signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY
 
@@ -89,7 +90,7 @@ class CreateEstimatorSpecTest(test.TestCase):
                                    optimizer=None, train_op_fn=None,
                                    regularization_losses=None):
       return model_fn._TPUEstimatorSpec(
-          mode=model_fn.ModeKeys.EVAL,
+          mode=ModeKeys.EVAL,
           loss=constant_op.constant(0.0, dtype=dtypes.float32))
 
   class _HeadWithOutTPUSupport(base_head.Head):
@@ -121,7 +122,7 @@ class CreateEstimatorSpecTest(test.TestCase):
                               optimizer=None, train_op_fn=None,
                               regularization_losses=None):
       return model_fn.EstimatorSpec(
-          mode=model_fn.ModeKeys.EVAL,
+          mode=ModeKeys.EVAL,
           loss=constant_op.constant(0.0, dtype=dtypes.float32))
 
   class _InvalidHead(base_head.Head):
