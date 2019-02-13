@@ -40,6 +40,7 @@ py_library(
         ":regression_head",
         ":run_config",
         ":saved_model_estimator",
+        ":sequential_head",
         ":session_run_hook",
         ":training",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
