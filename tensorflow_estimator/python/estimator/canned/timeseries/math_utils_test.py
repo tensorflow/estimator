@@ -61,7 +61,8 @@ class InputStatisticsTests(test.TestCase):
           # statistics.
           self.evaluate(statistics.total_observation_count)
         self.assertAllClose(
-            range(num_features) + math_ops.reduce_mean(data_length_range)[None],
+            math_ops.range(num_features, dtype=dtype) +
+            math_ops.reduce_mean(data_length_range)[None],
             self.evaluate(statistics.series_start_moments.mean),
             rtol=rtol)
         self.assertAllClose(
