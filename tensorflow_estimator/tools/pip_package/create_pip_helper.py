@@ -60,8 +60,13 @@ def create_init_files(pip_root):
 
   Args:
     pip_root: Root directory of code being pacakaged into pip.
+
+  Returns:
+    True: contrib code is included in pip.
   """
+  has_contrib = False
   for path, subdirs, _ in os.walk(pip_root):
+    has_contrib = has_contrib or "/contrib/" in path
     for subdir in subdirs:
       init_file_path = os.path.join(path, subdir, '__init__.py')
       if any(excluded_path in init_file_path
@@ -70,19 +75,23 @@ def create_init_files(pip_root):
       if not os.path.exists(init_file_path):
         # Create empty file
         open(init_file_path, 'w').close()
+  return has_contrib
 
 
-def verify_python_files_in_pip(pip_root, bazel_root):
+def verify_python_files_in_pip(pip_root, bazel_root, has_contrib):
   """Verifies all expected files are packaged into Pip.
 
   Args:
     pip_root: Root directory of code being pacakaged into pip.
     bazel_root: Root directory of Estimator Bazel workspace.
+    has_contrib: Code from contrib/ should be included in pip.
 
   Raises:
     PipPackagingError: Missing file in pip.
   """
   for path, _, files in os.walk(bazel_root):
+    if not has_contrib and "/contrib/" in path:
+      continue
     for f in files:
       if fnmatch.fnmatch(f, '*[!_test].py'):
         pip_path = os.path.join(pip_root, os.path.relpath(path, bazel_root), f)
@@ -113,8 +122,8 @@ def main():
       help='Root directory of code being packaged into pip.')
 
   args = parser.parse_args()
-  create_init_files(args.pip_root)
-  verify_python_files_in_pip(args.pip_root, args.bazel_root)
+  has_contrib = create_init_files(args.pip_root)
+  verify_python_files_in_pip(args.pip_root, args.bazel_root, has_contrib)
 
 if __name__ == '__main__':
   main()
