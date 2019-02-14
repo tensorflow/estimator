@@ -1078,7 +1078,7 @@ class EstimatorV2(object):
       kwargs['config'] = self.config
     if input_context and 'input_context' in input_fn_args:
       logging.info('`input_context` has been detected in `input_fn`.'
-                   'Placement willi be taken over by DistributionStrategy.')
+                   'Placement will be taken over by DistributionStrategy.')
       kwargs['input_context'] = input_context
       return input_fn(**kwargs)
     else:
