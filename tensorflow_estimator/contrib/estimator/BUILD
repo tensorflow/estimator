@@ -122,6 +122,7 @@ py_test(
     name = "extenders_test",
     size = "medium",
     srcs = ["python/estimator/extenders_test.py"],
+    shard_count = 2,
     srcs_version = "PY2AND3",
     tags = ["notsan"],  # b/62863147
     deps = [
