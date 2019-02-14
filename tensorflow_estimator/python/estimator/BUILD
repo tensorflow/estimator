@@ -43,6 +43,7 @@ py_library(
         ":sequential_head",
         ":session_run_hook",
         ":training",
+        "//tensorflow_estimator/python/estimator:expect_tensorboard_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
         "//tensorflow_estimator/python/estimator/canned/timeseries:estimators",
@@ -1742,6 +1743,14 @@ py_library(
     # This is a dummy rule used as a numpy dependency in open-source.
     # We expect six to already be installed on the system, e.g. via
     # `pip install six`
+    visibility = ["//visibility:public"],
+)
+
+py_library(
+    name = "expect_tensorboard_installed",
+    # This is a dummy rule used as a tensorboard dependency in open-source.
+    # We expect tensorboard to already be installed on the system, e.g. via
+    # `pip install tensorboard`.
     visibility = ["//visibility:public"],
 )
 
