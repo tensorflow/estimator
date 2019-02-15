@@ -21,7 +21,6 @@ from __future__ import print_function
 from tensorflow.python.eager import context
 from tensorflow.python.framework import ops
 from tensorflow.python.keras import metrics
-from tensorflow.python.keras.utils import metrics_utils
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import lookup_ops
@@ -312,8 +311,7 @@ class BinaryClassHead(base_head.Head):
           metrics.Mean(name=keys.ACCURACY_BASELINE))
       # The default summation_method is "interpolation" in the AUC metric.
       eval_metrics[self._auc_key] = metrics.AUC(name=keys.AUC)
-      eval_metrics[self._auc_pr_key] = metrics.AUC(
-          curve=metrics_utils.AUCCurve.PR, name=keys.AUC_PR)
+      eval_metrics[self._auc_pr_key] = metrics.AUC(curve='PR', name=keys.AUC_PR)
       if regularization_losses is not None:
         eval_metrics[self._loss_regularization_key] = metrics.Mean(
             name=keys.LOSS_REGULARIZATION)

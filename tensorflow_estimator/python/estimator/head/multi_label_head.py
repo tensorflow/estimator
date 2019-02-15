@@ -25,7 +25,6 @@ from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import sparse_tensor
 from tensorflow.python.keras import metrics
-from tensorflow.python.keras.utils import metrics_utils
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import lookup_ops
 from tensorflow.python.ops import math_ops
@@ -389,8 +388,7 @@ class MultiLabelHead(base_head.Head):
       eval_metrics[self._loss_mean_key] = metrics.Mean(name=keys.LOSS_MEAN)
       # The default summation_method is "interpolation" in the AUC metric.
       eval_metrics[self._auc_key] = metrics.AUC(name=keys.AUC)
-      eval_metrics[self._auc_pr_key] = metrics.AUC(
-          curve=metrics_utils.AUCCurve.PR, name=keys.AUC_PR)
+      eval_metrics[self._auc_pr_key] = metrics.AUC(curve='PR', name=keys.AUC_PR)
       if regularization_losses is not None:
         eval_metrics[self._loss_regularization_key] = metrics.Mean(
             name=keys.LOSS_REGULARIZATION)
@@ -406,7 +404,7 @@ class MultiLabelHead(base_head.Head):
         eval_metrics[self._prob_keys[i]] = metrics.Mean(name=self._prob_keys[i])
         eval_metrics[self._auc_keys[i]] = metrics.AUC(name=self._auc_keys[i])
         eval_metrics[self._auc_pr_keys[i]] = metrics.AUC(
-            curve=metrics_utils.AUCCurve.PR, name=self._auc_pr_keys[i])
+            curve='PR', name=self._auc_pr_keys[i])
     return eval_metrics
 
   def update_metrics(self, eval_metrics, features, logits, labels,
