@@ -1077,13 +1077,11 @@ class EstimatorV2(object):
     if 'config' in input_fn_args:
       kwargs['config'] = self.config
     if input_context and 'input_context' in input_fn_args:
-      logging.info('`input_context` has been detected in `input_fn`.'
-                   'Placement will be taken over by DistributionStrategy.')
+      logging.info('The `input_fn` accepts an `input_context` which will '
+                   'be given by DistributionStrategy')
       kwargs['input_context'] = input_context
+    with ops.device('/cpu:0'):
       return input_fn(**kwargs)
-    else:
-      with ops.device('/cpu:0'):
-        return input_fn(**kwargs)
 
   def _call_model_fn(self, features, labels, mode, config):
     """Calls model function.
