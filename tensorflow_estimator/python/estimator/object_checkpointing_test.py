@@ -34,10 +34,15 @@ from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import variables as variables_lib
 from tensorflow.python.platform import test
+# pylint: disable=g-import-not-at-top
+try:
+  from tensorflow.python.training.tracking import util
+except ImportError:
+  # TODO(allenl): Remove this after cl/229814711 syncs
+  from tensorflow.python.training.checkpointable import util
 from tensorflow.python.training import checkpoint_management
 from tensorflow.python.training import monitored_session
 from tensorflow.python.training import training_util
-from tensorflow.python.training.checkpointable import util
 
 from tensorflow_estimator.python.estimator import estimator as estimator_lib
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
