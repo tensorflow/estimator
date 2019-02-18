@@ -3314,6 +3314,51 @@ class EstimatorIntegrationTest(test.TestCase):
                                        serving_input_receiver_fn)
     self.assertTrue(gfile.Exists(export_dir))
 
+class EstimatorInputContextTest(test.TestCase):
+
+  def test_with_input_fn(self):
+    total_batch_size = 10
+    num_shards = 2
+
+    def _input_with_context(input_context):
+      batch_size = total_batch_size // num_shards
+      self.assertEqual('DummyInputContext', input_context.name)
+      self.assertEqual(batch_size, input_context.batch_size)
+      return dataset_ops.Dataset.from_tensors(([1.], [2.]))
+
+    def _input_without_context():
+      return dataset_ops.Dataset.from_tensors(([1.], [2.]))
+
+    class DummyInputContext(object):
+      def __init__(self, n_shards, total_bs):
+        self._name = "DummyInputContext"
+        self._num_shards = n_shards
+        self._total_batch_size = total_bs
+
+      @property
+      def name(self):
+        return self._name
+
+      @property
+      def batch_size(self):
+        return self._total_batch_size // self._num_shards
+
+    # This class is the mock for DistributionStrategy. It only overrides
+    # the make_input_fn_iterator method.
+    class DummyDistributionStrategy(object):
+
+      def __init__(self, n_shards):
+        self._num_shards = n_shards
+
+      def make_input_fn_iterator(self, input_fn):
+        input_context = DummyInputContext(num_shards, total_batch_size)
+        return input_fn(input_context)
+
+    distribution = DummyDistributionStrategy(num_shards)
+    est = estimator.EstimatorV2(model_fn=dummy_model_fn)
+    # We only test the `input_fn` instead of calling `Estimator.train`
+    est._get_iterator_from_input_fn(_input_with_context, None, distribution)  # pylint: disable=protected-access
+    est._get_iterator_from_input_fn(_input_without_context, None, distribution)  # pylint: disable=protected-access
 
 if __name__ == '__main__':
   test.main()
