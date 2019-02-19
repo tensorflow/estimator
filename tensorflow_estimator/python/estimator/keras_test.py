@@ -374,8 +374,6 @@ class TestKerasEstimator(test_util.TensorFlowTestCase):
       after_eval_results = est_keras.evaluate(input_fn=eval_input_fn, steps=1)
       self.assertLess(after_eval_results['loss'], before_eval_results['loss'])
 
-  # TODO(b/122760282)
-  @test_util.deprecated_graph_mode_only
   def test_evaluate(self):
     keras_model, (x_train, y_train), (
         x_test, y_test), _, eval_input_fn = get_resource_for_simple_model(
@@ -417,8 +415,6 @@ class TestKerasEstimator(test_util.TensorFlowTestCase):
           msg='%s mismatch, keras model: %s, estimator: %s' %
           (metric_name, keras_eval[i], est_eval[metric_name]))
 
-  # TODO(b/122760282)
-  @test_util.deprecated_graph_mode_only
   def test_predict(self):
     # Check that predict on a pretrained model yield the same result.
     keras_model, (x_train, y_train), (
@@ -520,8 +516,6 @@ class TestKerasEstimator(test_util.TensorFlowTestCase):
     self.assertLess(eval_results['loss'], baseline_eval_results['loss'])
     est_keras.predict(input_fn=pred_input_fn)
 
-  # TODO(b/122760282)
-  @test_util.deprecated_graph_mode_only
   def test_init_from_file(self):
     if h5py is None:
       return  # Skip test if models cannot be saved.

@@ -82,6 +82,8 @@ def _any_weight_initialized(keras_model):
   """
   if keras_model is None:
     return False
+  if ops.executing_eagerly_outside_functions():
+    return True
   for layer in keras_model.layers:
     for weight in layer.weights:
       if hasattr(weight, '_keras_initialized'):
