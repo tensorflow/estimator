@@ -1002,7 +1002,7 @@ class _BinaryLogisticHeadWithSigmoidCrossEntropyLoss(_Head):
                loss_fn=None,
                name=None):
     self._weight_column = weight_column
-    self._thresholds = thresholds
+    self._thresholds = tuple(thresholds) if thresholds else tuple()
     self._label_vocabulary = label_vocabulary
     self._loss_reduction = loss_reduction
     self._loss_fn = loss_fn
