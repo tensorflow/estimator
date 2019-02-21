@@ -28,26 +28,17 @@ from tensorflow.python.framework import ops
 from tensorflow.python.framework import tensor_shape
 from tensorflow.python.keras.metrics import Metric
 from tensorflow.python.ops import array_ops
-from tensorflow.python.saved_model import signature_constants
-from tensorflow.python.saved_model import tag_constants
 from tensorflow.python.training import monitored_session
 from tensorflow.python.training import session_run_hook
 from tensorflow.python.util import function_utils
 from tensorflow.python.util import nest
 from tensorflow.python.util.tf_export import estimator_export
-from tensorflow_estimator.python.estimator.export import export_output as export_output_lib
+from tensorflow_estimator.python.estimator.export import export_lib
 from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 
 
 LOSS_METRIC_KEY = 'loss'
 AVERAGE_LOSS_METRIC_KEY = 'average_loss'
-
-# Mapping of the modes to appropriate tag_constants that are used for saving.
-EXPORT_TAG_MAP = {
-    ModeKeys.PREDICT: [tag_constants.SERVING],
-    ModeKeys.TRAIN: [tag_constants.TRAINING],
-    ModeKeys.EVAL: [tag_constants.EVAL],
-}
 
 
 @estimator_export('estimator.EstimatorSpec')
@@ -201,70 +192,6 @@ class EstimatorSpec(
         raise ValueError('mode of EstimatorSpec cannot be changed.')
     new_fields = map(kwds.pop, self._fields, list(self))
     return EstimatorSpec(*new_fields)
-
-
-def _get_export_outputs(export_outputs, predictions):
-  """Validate export_outputs or create default export_outputs.
-
-  Args:
-    export_outputs: Describes the output signatures to be exported to
-      `SavedModel` and used during serving. Should be a dict or None.
-    predictions:  Predictions `Tensor` or dict of `Tensor`.
-
-  Returns:
-    Valid export_outputs dict
-
-  Raises:
-    TypeError: if export_outputs is not a dict or its values are not
-      ExportOutput instances.
-  """
-  if export_outputs is None:
-    default_output = export_output_lib.PredictOutput(predictions)
-    export_outputs = {
-        signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY: default_output}
-
-  if not isinstance(export_outputs, dict):
-    raise TypeError('export_outputs must be dict, given: {}'.format(
-        export_outputs))
-  for v in six.itervalues(export_outputs):
-    if not isinstance(v, export_output_lib.ExportOutput):
-      raise TypeError(
-          'Values in export_outputs must be ExportOutput objects. '
-          'Given: {}'.format(export_outputs))
-
-  _maybe_add_default_serving_output(export_outputs)
-
-  return export_outputs
-
-
-def _maybe_add_default_serving_output(export_outputs):
-  """Add a default serving output to the export_outputs if not present.
-
-  Args:
-    export_outputs: Describes the output signatures to be exported to
-      `SavedModel` and used during serving. Should be a dict.
-
-  Returns:
-    export_outputs dict with default serving signature added if necessary
-
-  Raises:
-    ValueError: if multiple export_outputs were provided without a default
-      serving key.
-  """
-  if len(export_outputs) == 1:
-    (key, value), = export_outputs.items()
-    if key != signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY:
-      export_outputs[
-          signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY] = value
-  if len(export_outputs) > 1:
-    if (signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY
-        not in export_outputs):
-      raise ValueError(
-          'Multiple export_outputs were provided, but none of them is '
-          'specified as the default.  Do this by naming one of them with '
-          'signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY.')
-
-  return export_outputs
 
 
 class _TPUEstimatorSpec(
@@ -485,7 +412,7 @@ def _validate_estimator_spec_export_outputs(export_outputs, predictions, mode):
                not instances of type `ExportOutput`.
   """
   if mode == ModeKeys.PREDICT:
-    export_outputs = _get_export_outputs(export_outputs, predictions)
+    export_outputs = export_lib.get_export_outputs(export_outputs, predictions)
   return export_outputs
 
 
@@ -620,47 +547,6 @@ def _check_is_tensor(x, tensor_name):
   if not ops.is_dense_tensor_like(x):
     raise TypeError('{} must be Tensor, given: {}'.format(tensor_name, x))
   return x
-
-
-def export_outputs_for_mode(
-    mode, serving_export_outputs=None, predictions=None, loss=None,
-    metrics=None):
-  """Util function for constructing a `ExportOutput` dict given a mode.
-
-  The returned dict can be directly passed to `build_all_signature_defs` helper
-  function as the `export_outputs` argument, used for generating a SignatureDef
-  map.
-
-  Args:
-    mode: A `ModeKeys` specifying the mode.
-    serving_export_outputs: Describes the output signatures to be exported to
-      `SavedModel` and used during serving. Should be a dict or None.
-    predictions: A dict of Tensors or single Tensor representing model
-        predictions. This argument is only used if serving_export_outputs is not
-        set.
-    loss: A dict of Tensors or single Tensor representing calculated loss.
-    metrics: A dict of (metric_value, update_op) tuples, or a single tuple.
-      metric_value must be a Tensor, and update_op must be a Tensor or Op
-
-  Returns:
-    Dictionary mapping the a key to an `tf.estimator.export.ExportOutput` object
-    The key is the expected SignatureDef key for the mode.
-
-  Raises:
-    ValueError: if an appropriate ExportOutput cannot be found for the mode.
-  """
-  # TODO(b/113185250): move all model export helper functions into an util file.
-  if mode == ModeKeys.PREDICT:
-    return _get_export_outputs(serving_export_outputs, predictions)
-  elif mode == ModeKeys.TRAIN:
-    return {mode: export_output_lib.TrainOutput(
-        loss=loss, predictions=predictions, metrics=metrics)}
-  elif mode == ModeKeys.EVAL:
-    return {mode: export_output_lib.EvalOutput(
-        loss=loss, predictions=predictions, metrics=metrics)}
-  else:
-    raise ValueError(
-        'Export output type not found for mode: {}'.format(mode))
 
 
 @estimator_export('estimator.experimental.call_logit_fn')

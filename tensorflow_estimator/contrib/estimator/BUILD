@@ -147,23 +147,6 @@ py_library(
     ],
 )
 
-py_test(
-    name = "export_test",
-    size = "medium",
-    srcs = ["python/estimator/export_test.py"],
-    srcs_version = "PY2AND3",
-    tags = ["notsan"],  # b/62863147
-    deps = [
-        ":export",
-        "//tensorflow_estimator/python/estimator",
-        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
-        "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
-        "//tensorflow_estimator/python/estimator:export_export",
-        "//tensorflow_estimator/python/estimator:export_output",
-        "//tensorflow_estimator/python/estimator:model_fn",
-    ],
-)
-
 py_library(
     name = "exporter",
     srcs = [
@@ -420,31 +403,6 @@ py_library(
     name = "saved_model_estimator",
     srcs = ["python/estimator/saved_model_estimator.py"],
     deps = [
-        ":export",
         "//tensorflow_estimator/python/estimator",
-        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
-        "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
-        "//tensorflow_estimator/python/estimator:export",
-        "//tensorflow_estimator/python/estimator:model_fn",
-    ],
-)
-
-py_test(
-    name = "saved_model_estimator_test",
-    size = "medium",
-    srcs = ["python/estimator/saved_model_estimator_test.py"],
-    srcs_version = "PY2AND3",
-    tags = [
-        "notsan",
-    ],
-    deps = [
-        ":export",
-        ":saved_model_estimator",
-        "//tensorflow_estimator/python/estimator",
-        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
-        "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
-        "//tensorflow_estimator/python/estimator:export_export",
-        "//tensorflow_estimator/python/estimator:export_output",
-        "//tensorflow_estimator/python/estimator:model_fn",
     ],
 )

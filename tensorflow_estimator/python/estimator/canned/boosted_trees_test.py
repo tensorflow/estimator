@@ -45,7 +45,7 @@ from tensorflow.python.training import session_run_hook
 from tensorflow_estimator.python.estimator import model_fn
 from tensorflow_estimator.python.estimator import run_config
 from tensorflow_estimator.python.estimator.canned import boosted_trees
-from tensorflow_estimator.python.estimator.export import export
+from tensorflow_estimator.python.estimator.export import export_lib
 from tensorflow_estimator.python.estimator.inputs import numpy_io
 from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 
@@ -164,13 +164,13 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
     est.train(input_fn, steps=10)
     tmpdir = tempfile.mkdtemp()
     export_dir = os.path.join(tmpdir, 'saved_model')
-    input_receiver_fn = export.build_supervised_input_receiver_fn_from_input_fn(
-        input_fn)
+    input_receiver_fn = (
+        export_lib.build_supervised_input_receiver_fn_from_input_fn(input_fn))
     export_dir = est.export_savedmodel(
         export_dir, input_receiver_fn, as_text=True, strip_default_attrs=True)
 
     # Restore, to validate that the export was well-formed.
-    tag_set = model_fn.EXPORT_TAG_MAP[ModeKeys.PREDICT]
+    tag_set = export_lib.EXPORT_TAG_MAP[ModeKeys.PREDICT]
     with ops.Graph().as_default() as graph:
       with session.Session(graph=graph) as sess:
         loader.load(sess, tag_set, export_dir)

@@ -37,8 +37,7 @@ from tensorflow.python.training import training
 from tensorflow_estimator.python.estimator import estimator
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
 from tensorflow_estimator.python.estimator.canned import saved_model_estimator
-from tensorflow_estimator.python.estimator.export import export
-from tensorflow_estimator.python.estimator.export import export_output
+from tensorflow_estimator.python.estimator.export import export_lib
 from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 
 
@@ -57,11 +56,12 @@ def dummy_input_fn_features_only():
 
 
 def dummy_supervised_receiver_fn():
-  return export.build_supervised_input_receiver_fn_from_input_fn(dummy_input_fn)
+  return export_lib.build_supervised_input_receiver_fn_from_input_fn(
+      dummy_input_fn)
 
 
 def dummy_serving_receiver_fn():
-  return export.build_raw_serving_input_receiver_fn(_serving_feature_dict())
+  return export_lib.build_raw_serving_input_receiver_fn(_serving_feature_dict())
 
 
 def model_fn_diff_modes(features, labels, mode):
@@ -278,14 +278,14 @@ class SavedModelEstimatorTest(test.TestCase):
           loss=constant_op.constant([103]),
           train_op=state_ops.assign_add(training.get_global_step(), 1),
           predictions=constant_op.constant([502]),
-          export_outputs={'test': export_output.ClassificationOutput(
+          export_outputs={'test': export_lib.ClassificationOutput(
               constant_op.constant([[32.]]))})
 
     est = estimator.Estimator(model_fn, self._get_tmp_dir())
     est.train(input_fn=dummy_input_fn, steps=10)
 
     def serving_input_receiver_fn():
-      return export.ServingInputReceiver(
+      return export_lib.ServingInputReceiver(
           {'test-features': constant_op.constant([[1], [1]])},
           array_ops.placeholder(dtype=dtypes.string))
 

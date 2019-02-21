@@ -33,8 +33,7 @@ from tensorflow.python.training import training_util
 from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator import estimator as estimator_lib
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
-from tensorflow_estimator.python.estimator.export import export as export_lib
-from tensorflow_estimator.python.estimator.export import export_output
+from tensorflow_estimator.python.estimator.export import export_lib
 from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 
 
@@ -185,7 +184,7 @@ class SavedModelEstimator(estimator_lib.EstimatorV2):
                          'mode has been exported.' % mode)
 
   def _get_meta_graph_def_for_mode(self, mode):
-    tags = model_fn_lib.EXPORT_TAG_MAP[mode]
+    tags = export_lib.EXPORT_TAG_MAP[mode]
     return self.saved_model_loader.get_meta_graph_def_from_tags(tags)
 
   def _get_signature_def_for_mode(self, mode):
@@ -239,7 +238,7 @@ class SavedModelEstimator(estimator_lib.EstimatorV2):
 
     # Load the graph. `output_tensors` contains output `Tensors` in the same
     # same order as the `output_tensor_names` list.
-    tags = model_fn_lib.EXPORT_TAG_MAP[mode]
+    tags = export_lib.EXPORT_TAG_MAP[mode]
     _, output_tensors = self.saved_model_loader.load_graph(
         g, tags, input_map=input_map, return_elements=output_tensor_names)
 
@@ -309,12 +308,13 @@ def _generate_input_map(signature_def, features, labels):
     ValueError: if SignatureDef inputs are not completely mapped by the input
       features and labels.
   """
-  # pylint: disable=protected-access
-  if not isinstance(features, dict):
-    features = {export_lib._SINGLE_FEATURE_DEFAULT_NAME: features}
-  if labels is not None and not isinstance(labels, dict):
-    labels = {export_lib._SINGLE_LABEL_DEFAULT_NAME: labels}
-  # pylint: enable=protected-access
+  # Ensure that features and labels are dictionaries. If not, convert each to
+  # a dictionary with a single item. The default keys are different for features
+  # and labels.
+  features = export_lib.wrap_and_check_input_tensors(features, 'feature')
+  if labels is not None:
+    # Unlike features, labels may be None (in prediction mode)
+    labels = export_lib.wrap_and_check_input_tensors(labels, 'label')
 
   inputs = signature_def.inputs
   input_map = {}
@@ -384,7 +384,7 @@ def _extract_eval_metrics(output_dict):
   """
   # pylint: disable=protected-access
   metric_ops = {}
-  separator_char = export_output._SupervisedOutput._SEPARATOR_CHAR
+  separator_char = export_lib._SupervisedOutput._SEPARATOR_CHAR
 
   for key, tensor in six.iteritems(output_dict):
     split_key = key.split(separator_char)
@@ -392,13 +392,13 @@ def _extract_eval_metrics(output_dict):
     # The metric name may contain the separator character, so recreate its name.
     metric_name = separator_char.join(split_key[:-1])
 
-    if split_key[0] == export_output._SupervisedOutput.METRICS_NAME:
+    if split_key[0] == export_lib._SupervisedOutput.METRICS_NAME:
       # If the key ends with the value suffix, and there is a corresponding
       # key ending with the update_op suffix, then add tensors to metrics dict.
-      if split_key[-1] == export_output._SupervisedOutput.METRIC_VALUE_SUFFIX:
+      if split_key[-1] == export_lib._SupervisedOutput.METRIC_VALUE_SUFFIX:
         update_op = ''.join(
             [metric_name, separator_char,
-             export_output._SupervisedOutput.METRIC_UPDATE_SUFFIX])
+             export_lib._SupervisedOutput.METRIC_UPDATE_SUFFIX])
         if update_op in output_dict:
           update_op_tensor = output_dict[update_op]
           metric_ops[metric_name] = (tensor, update_op_tensor)
@@ -440,16 +440,16 @@ def _validate_and_extract_outputs(mode, output_dict, method_name):
       raise RuntimeError(
           'Invalid SignatureDef method name for mode %s.\n\tExpected: %s\n\t'
           'Got: %s\nPlease ensure that the SavedModel was exported with '
-          '`tf.contrib.estimator.export_all_saved_models()`.' %
+          '`tf.estimator.experimental_export_all_saved_models()`.' %
           (mode, expected_method_name, method_name))
 
     # Extract loss, metrics and predictions from the output dict.
-    loss = output_dict[export_output._SupervisedOutput.LOSS_NAME]
+    loss = output_dict[export_lib._SupervisedOutput.LOSS_NAME]
     metrics = _extract_eval_metrics(output_dict)
     predictions = {
         key: value for key, value in six.iteritems(output_dict)
-        if key.split(export_output._SupervisedOutput._SEPARATOR_CHAR)[0] == (
-            export_output._SupervisedOutput.PREDICTIONS_NAME)}
+        if key.split(export_lib._SupervisedOutput._SEPARATOR_CHAR)[0] == (
+            export_lib._SupervisedOutput.PREDICTIONS_NAME)}
 
   # pylint: enable=protected-access
   return loss, predictions, metrics

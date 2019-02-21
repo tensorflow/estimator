@@ -66,7 +66,7 @@ from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
 from tensorflow_estimator.python.estimator import run_config
 from tensorflow_estimator.python.estimator import util as estimator_util
-from tensorflow_estimator.python.estimator.export import export as export_helpers
+from tensorflow_estimator.python.estimator.export import export_lib
 from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 
 
@@ -808,8 +808,8 @@ class EstimatorV2(object):
           raise ValueError("Couldn't find trained model at {}.".format(
               self._model_dir))
 
-      export_dir = export_helpers.get_timestamped_export_dir(export_dir_base)
-      temp_export_dir = export_helpers.get_temp_export_dir(export_dir)
+      export_dir = export_lib.get_timestamped_export_dir(export_dir_base)
+      temp_export_dir = export_lib.get_temp_export_dir(export_dir)
 
       builder = saved_model_builder.SavedModelBuilder(temp_export_dir)
 
@@ -887,7 +887,7 @@ class EstimatorV2(object):
       ValueError: if `save_variables` is `True` and `check_variable` is `False`.
     """
     if export_tags is None:
-      export_tags = model_fn_lib.EXPORT_TAG_MAP[mode]
+      export_tags = export_lib.EXPORT_TAG_MAP[mode]
     input_receiver_fn = input_receiver_fn_map[mode]
 
     with ops.Graph().as_default() as g:
@@ -903,7 +903,7 @@ class EstimatorV2(object):
           mode=mode,
           config=self.config)
 
-      export_outputs = model_fn_lib.export_outputs_for_mode(
+      export_outputs = export_lib.export_outputs_for_mode(
           mode=estimator_spec.mode,
           serving_export_outputs=estimator_spec.export_outputs,
           predictions=estimator_spec.predictions,
@@ -911,7 +911,7 @@ class EstimatorV2(object):
           metrics=estimator_spec.eval_metric_ops)
 
       # Build the SignatureDefs from receivers and all outputs
-      signature_def_map = export_helpers.build_all_signature_defs(
+      signature_def_map = export_lib.build_all_signature_defs(
           input_receiver.receiver_tensors,
           export_outputs,
           getattr(input_receiver, 'receiver_tensors_alternatives', None),

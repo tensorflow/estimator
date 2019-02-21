@@ -154,7 +154,7 @@ py_library(
     srcs = ["model_fn.py"],
     srcs_version = "PY2AND3",
     deps = [
-        ":export_output",
+        ":export",
         ":mode_keys",
         "//tensorflow_estimator/python/estimator:expect_six_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
@@ -859,7 +859,7 @@ py_library(
     ],
     srcs_version = "PY2AND3",
     deps = [
-        ":export_export",
+        ":export",
         ":mode_keys",
         ":model_fn",
         ":run_config",
@@ -879,8 +879,7 @@ py_test(
     tags = ["notsan"],  # b/67510291
     deps = [
         ":estimator",
-        ":export_export",
-        ":export_output",
+        ":export",
         ":mode_keys",
         ":model_fn",
         ":numpy_io",
@@ -921,21 +920,7 @@ py_library(
     srcs = ["export/export_output.py"],
     srcs_version = "PY2AND3",
     deps = [
-        "//tensorflow_estimator/python/estimator:expect_six_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
-        "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
-    ],
-)
-
-py_test(
-    name = "export_output_test",
-    size = "small",
-    srcs = ["export/export_output_test.py"],
-    srcs_version = "PY2AND3",
-    deps = [
-        ":export_output",
-        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
-        "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
     ],
 )
 
@@ -947,9 +932,7 @@ py_library(
     srcs_version = "PY2AND3",
     deps = [
         ":export_export",
-        ":export_output",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
-        "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
     ],
 )
 
@@ -963,7 +946,6 @@ py_library(
         ":util",
         "//tensorflow_estimator/python/estimator:expect_six_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
-        "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
     ],
 )
 
@@ -974,8 +956,6 @@ py_test(
     srcs_version = "PY2AND3",
     deps = [
         ":export_export",
-        ":export_output",
-        ":util",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
     ],
@@ -1594,7 +1574,7 @@ py_library(
     srcs_version = "PY2AND3",
     deps = [
         ":estimator",
-        ":export_export",
+        ":export",
         ":mode_keys",
         ":model_fn",
         ":run_config",

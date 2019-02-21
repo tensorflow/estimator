@@ -43,8 +43,8 @@ from tensorflow.python.training import optimizer as tf_optimizer_module
 from tensorflow.python.training import saver as saver_lib
 from tensorflow.python.training import training_util
 from tensorflow_estimator.python.estimator import estimator as estimator_lib
-from tensorflow_estimator.python.estimator import export as export_lib
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
+from tensorflow_estimator.python.estimator.export import export_lib
 from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 
 
@@ -324,7 +324,7 @@ def _create_keras_model_fn(keras_model, custom_objects=None):
         eval_metric_ops=eval_metric_ops,
         export_outputs={
             _DEFAULT_SERVING_KEY:
-            export_lib.export_output.PredictOutput(predictions)
+            export_lib.PredictOutput(predictions)
         })
 
   return model_fn

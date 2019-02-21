@@ -80,8 +80,7 @@ from tensorflow.python.util import function_utils
 from tensorflow_estimator.python.estimator import estimator
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
 from tensorflow_estimator.python.estimator import run_config
-from tensorflow_estimator.python.estimator.export import export
-from tensorflow_estimator.python.estimator.export import export_output
+from tensorflow_estimator.python.estimator.export import export_lib
 from tensorflow_estimator.python.estimator.inputs import numpy_io
 from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 
@@ -705,7 +704,7 @@ class EstimatorTrainTest(test.TestCase):
             predictions={'y': constant_op.constant(1.0)},
             loss=constant_op.constant(1.),
             train_op=state_ops.assign_add(global_step, 1),
-            export_outputs={'test': export_output.ClassificationOutput(
+            export_outputs={'test': export_lib.ClassificationOutput(
                 constant_op.constant([4.2]), constant_op.constant(['label']))})
       return _variable_creating_and_export_model_fn
 
@@ -713,8 +712,8 @@ class EstimatorTrainTest(test.TestCase):
     est.train(dummy_input_fn, steps=10)
     feature_spec = {'x': parsing_ops.VarLenFeature(dtype=dtypes.int64),
                     'y': parsing_ops.VarLenFeature(dtype=dtypes.int64)}
-    serving_input_receiver_fn = export.build_parsing_serving_input_receiver_fn(
-        feature_spec)
+    serving_input_receiver_fn = (
+        export_lib.build_parsing_serving_input_receiver_fn(feature_spec))
     tmpdir = tempfile.mkdtemp()
     export_dir_base = os.path.join(
         compat.as_bytes(tmpdir), compat.as_bytes('export'))
@@ -1354,7 +1353,7 @@ class EstimatorEvaluateTest(test.TestCase):
             train_op=state_ops.assign_add(global_step, 1),
             export_outputs={
                 'test':
-                    export_output.ClassificationOutput(
+                    export_lib.ClassificationOutput(
                         constant_op.constant([4.2]),
                         constant_op.constant(['label']))
             })
@@ -1365,8 +1364,8 @@ class EstimatorEvaluateTest(test.TestCase):
     first_est.train(dummy_input_fn, steps=10)
     feature_spec = {'x': parsing_ops.VarLenFeature(dtype=dtypes.int64),
                     'y': parsing_ops.VarLenFeature(dtype=dtypes.int64)}
-    serving_input_receiver_fn = export.build_parsing_serving_input_receiver_fn(
-        feature_spec)
+    serving_input_receiver_fn = (
+        export_lib.build_parsing_serving_input_receiver_fn(feature_spec))
     tmpdir = tempfile.mkdtemp()
     export_dir_base = os.path.join(
         compat.as_bytes(tmpdir), compat.as_bytes('export'))
@@ -1761,7 +1760,7 @@ class EstimatorPredictTest(test.TestCase):
             predictions=math_ops.add(x_var, 1.),
             loss=constant_op.constant(1.),
             train_op=state_ops.assign_add(training.get_global_step(), 1),
-            export_outputs={'test': export_output.ClassificationOutput(
+            export_outputs={'test': export_lib.ClassificationOutput(
                 constant_op.constant([4.2]),
                 constant_op.constant(['label']))})
       return _variable_creating_and_export_model_fn
@@ -1770,8 +1769,8 @@ class EstimatorPredictTest(test.TestCase):
     first_est.train(dummy_input_fn, steps=10)
     feature_spec = {'x': parsing_ops.VarLenFeature(dtype=dtypes.int64),
                     'y': parsing_ops.VarLenFeature(dtype=dtypes.int64)}
-    serving_input_receiver_fn = export.build_parsing_serving_input_receiver_fn(
-        feature_spec)
+    serving_input_receiver_fn = (
+        export_lib.build_parsing_serving_input_receiver_fn(feature_spec))
     tmpdir = tempfile.mkdtemp()
     export_dir_base = os.path.join(
         compat.as_bytes(tmpdir), compat.as_bytes('export'))
@@ -2182,7 +2181,7 @@ def _model_fn_for_export_tests(features, labels, mode):
       loss=constant_op.constant(1.),
       train_op=train_op,
       export_outputs={
-          'test': export_output.ClassificationOutput(scores, classes)})
+          'test': export_lib.ClassificationOutput(scores, classes)})
 
 
 def _x_y_input_fn():
@@ -2202,7 +2201,7 @@ def _model_fn_with_x_y(features, labels, mode):
         mode,
         predictions=constant_op.constant(10.),
         export_outputs={
-            'test': export_output.ClassificationOutput(scores, classes)})
+            'test': export_lib.ClassificationOutput(scores, classes)})
   else:
     prefix = 'eval_' if mode == ModeKeys.EVAL else ''
 
@@ -2240,17 +2239,18 @@ def _model_fn_with_saveables_for_export_tests(features, labels, mode):
       loss=constant_op.constant(1.),
       train_op=train_op,
       export_outputs={
-          'test': export_output.PredictOutput({'prediction': prediction})})
+          'test': export_lib.PredictOutput({'prediction': prediction})})
 
 
 def _get_serving_input_receiver_fn():
   feature_spec = {'x': parsing_ops.VarLenFeature(dtype=dtypes.int64),
                   'y': parsing_ops.VarLenFeature(dtype=dtypes.int64)}
-  return export.build_parsing_serving_input_receiver_fn(feature_spec)
+  return export_lib.build_parsing_serving_input_receiver_fn(feature_spec)
 
 
 def _get_supervised_input_receiver_fn():
-  return export.build_supervised_input_receiver_fn_from_input_fn(_x_y_input_fn)
+  return export_lib.build_supervised_input_receiver_fn_from_input_fn(
+      _x_y_input_fn)
 
 
 _VOCAB_FILE_CONTENT = 'emerson\nlake\npalmer\n'
@@ -2313,7 +2313,7 @@ class EstimatorExportTest(test.TestCase):
     self._validate_exported_files(export_dir)
 
     # Restore, to validate that the export was well-formed.
-    tag_set = model_fn_lib.EXPORT_TAG_MAP[mode]
+    tag_set = export_lib.EXPORT_TAG_MAP[mode]
     with ops.Graph().as_default() as graph:
       with session.Session(graph=graph) as sess:
         loader.load(sess, tag_set, export_dir)
@@ -2423,7 +2423,7 @@ class EstimatorExportTest(test.TestCase):
         input_receiver_fn_map)
 
     # Restore, to validate that the export was well-formed.
-    for tag_set in model_fn_lib.EXPORT_TAG_MAP.values():
+    for tag_set in export_lib.EXPORT_TAG_MAP.values():
       with ops.Graph().as_default() as graph:
         with session.Session(graph=graph) as sess:
           loader.load(sess, tag_set, export_dir)
@@ -2550,7 +2550,7 @@ class EstimatorExportTest(test.TestCase):
           loss=constant_op.constant(1.),
           train_op=state_ops.assign_add(training.get_global_step(), 1),
           export_outputs={
-              'test': export_output.PredictOutput({'prediction': prediction})
+              'test': export_lib.PredictOutput({'prediction': prediction})
           })
 
     tmpdir = tempfile.mkdtemp()
@@ -2616,8 +2616,8 @@ class EstimatorExportTest(test.TestCase):
     est.train(input_fn=dummy_input_fn, steps=1)
     feature_spec = {'x': parsing_ops.VarLenFeature(dtype=dtypes.int64),
                     'y': parsing_ops.VarLenFeature(dtype=dtypes.int64)}
-    serving_input_receiver_fn = export.build_parsing_serving_input_receiver_fn(
-        feature_spec)
+    serving_input_receiver_fn = (
+        export_lib.build_parsing_serving_input_receiver_fn(feature_spec))
 
     # Perform the export.
     export_dir_base = os.path.join(
@@ -2660,8 +2660,8 @@ class EstimatorExportTest(test.TestCase):
     est.train(input_fn=dummy_input_fn, steps=1)
     feature_spec = {'x': parsing_ops.VarLenFeature(dtype=dtypes.int64),
                     'y': parsing_ops.VarLenFeature(dtype=dtypes.int64)}
-    serving_input_receiver_fn = export.build_parsing_serving_input_receiver_fn(
-        feature_spec)
+    serving_input_receiver_fn = (
+        export_lib.build_parsing_serving_input_receiver_fn(feature_spec))
 
     # Create a fake asset.
     vocab_file_name = os.path.join(
@@ -2680,7 +2680,7 @@ class EstimatorExportTest(test.TestCase):
       ops.add_to_collection(ops.GraphKeys.ASSET_FILEPATHS, filename)
       features['bogus_filename'] = filename
 
-      return export.ServingInputReceiver(features, receiver_tensor)
+      return export_lib.ServingInputReceiver(features, receiver_tensor)
 
     # Perform the export.
     export_dir_base = os.path.join(
@@ -2722,8 +2722,8 @@ class EstimatorExportTest(test.TestCase):
     est.train(input_fn=dummy_input_fn, steps=1)
     feature_spec = {'x': parsing_ops.VarLenFeature(dtype=dtypes.int64),
                     'y': parsing_ops.VarLenFeature(dtype=dtypes.int64)}
-    serving_input_receiver_fn = export.build_parsing_serving_input_receiver_fn(
-        feature_spec)
+    serving_input_receiver_fn = (
+        export_lib.build_parsing_serving_input_receiver_fn(feature_spec))
 
     # Create a fake asset.
     extra_file_name = os.path.join(
@@ -2780,12 +2780,12 @@ class EstimatorExportTest(test.TestCase):
           loss=constant_op.constant(1.),
           train_op=state_ops.assign_add(training.get_global_step(), 1),
           export_outputs={
-              'test': export_output.PredictOutput({'prediction': prediction})
+              'test': export_lib.PredictOutput({'prediction': prediction})
           })
 
     def _serving_input_receiver_fn():
       feat = array_ops.placeholder(dtype=dtypes.float32)
-      return export.TensorServingInputReceiver(
+      return export_lib.TensorServingInputReceiver(
           features=feat, receiver_tensors=feat)
 
     est = estimator.EstimatorV2(model_fn=_model_fn_tensor_features)
@@ -2822,14 +2822,14 @@ class EstimatorExportTest(test.TestCase):
           loss=constant_op.constant(0.),
           train_op=state_ops.assign_add(training.get_global_step(), 1),
           scaffold=training.Scaffold(saver=self.mock_saver),
-          export_outputs={'test': export_output.ClassificationOutput(scores)})
+          export_outputs={'test': export_lib.ClassificationOutput(scores)})
 
     est = estimator.EstimatorV2(model_fn=_model_fn_scaffold)
     est.train(dummy_input_fn, steps=1)
     feature_spec = {'x': parsing_ops.VarLenFeature(dtype=dtypes.int64),
                     'y': parsing_ops.VarLenFeature(dtype=dtypes.int64)}
-    serving_input_receiver_fn = export.build_parsing_serving_input_receiver_fn(
-        feature_spec)
+    serving_input_receiver_fn = (
+        export_lib.build_parsing_serving_input_receiver_fn(feature_spec))
 
     # Perform the export.
     export_dir_base = os.path.join(
@@ -2863,7 +2863,7 @@ class EstimatorExportTest(test.TestCase):
           loss=constant_op.constant(0.),
           train_op=state_ops.assign_add(training.get_global_step(), 1),
           scaffold=scaffold,
-          export_outputs={'test': export_output.ClassificationOutput(scores)})
+          export_outputs={'test': export_lib.ClassificationOutput(scores)})
 
     est = estimator.EstimatorV2(model_fn=_model_fn_scaffold)
     est.train(dummy_input_fn, steps=1)
@@ -2910,14 +2910,14 @@ class EstimatorExportTest(test.TestCase):
           loss=constant_op.constant(0.),
           train_op=state_ops.assign_add(training.get_global_step(), 1),
           scaffold=training.Scaffold(local_init_op=custom_local_init_op),
-          export_outputs={'test': export_output.ClassificationOutput(scores)})
+          export_outputs={'test': export_lib.ClassificationOutput(scores)})
 
     est = estimator.EstimatorV2(model_fn=_model_fn_scaffold)
     est.train(dummy_input_fn, steps=1)
     feature_spec = {'x': parsing_ops.VarLenFeature(dtype=dtypes.int64),
                     'y': parsing_ops.VarLenFeature(dtype=dtypes.int64)}
-    serving_input_receiver_fn = export.build_parsing_serving_input_receiver_fn(
-        feature_spec)
+    serving_input_receiver_fn = (
+        export_lib.build_parsing_serving_input_receiver_fn(feature_spec))
 
     # Perform the export.
     export_dir_base = os.path.join(
@@ -2958,7 +2958,7 @@ class EstimatorExportTest(test.TestCase):
           loss=constant_op.constant(0.),
           train_op=state_ops.assign_add(training.get_global_step(), 1),
           scaffold=training.Scaffold(local_init_op=custom_local_init_op),
-          export_outputs={'test': export_output.ClassificationOutput(scores)})
+          export_outputs={'test': export_lib.ClassificationOutput(scores)})
 
     est = estimator.EstimatorV2(model_fn=_model_fn_scaffold)
     est.train(dummy_input_fn, steps=1)
@@ -2992,7 +2992,7 @@ class EstimatorExportTest(test.TestCase):
     given_features = {'test-features': constant_op.constant([[1], [1]])}
 
     def serving_input_receiver_fn():
-      return export.ServingInputReceiver(
+      return export_lib.ServingInputReceiver(
           given_features, array_ops.placeholder(dtype=dtypes.string))
 
     def _model_fn(features, labels, mode):
@@ -3003,7 +3003,7 @@ class EstimatorExportTest(test.TestCase):
           train_op=state_ops.assign_add(training.get_global_step(), 1),
           predictions=constant_op.constant([[0.]]),
           export_outputs={
-              'test': export_output.ClassificationOutput(
+              'test': export_lib.ClassificationOutput(
                   constant_op.constant([[0.]]))
           })
 
@@ -3026,12 +3026,12 @@ class EstimatorExportTest(test.TestCase):
           train_op=state_ops.assign_add(training.get_global_step(), 1),
           predictions=constant_op.constant([[0.]]),
           export_outputs={
-              'test': export_output.ClassificationOutput(
+              'test': export_lib.ClassificationOutput(
                   constant_op.constant([[0.]]))
           })
 
     def serving_input_receiver_fn():
-      return export.ServingInputReceiver(
+      return export_lib.ServingInputReceiver(
           {'test-features': constant_op.constant([[1], [1]])},
           array_ops.placeholder(dtype=dtypes.string))
 
@@ -3062,7 +3062,7 @@ class EstimatorExportTest(test.TestCase):
           loss=constant_op.constant(1.),
           train_op=train_op,
           export_outputs={
-              'test': export_output.PredictOutput({
+              'test': export_lib.PredictOutput({
                   'prediction': prediction
               })
           })
@@ -3072,8 +3072,8 @@ class EstimatorExportTest(test.TestCase):
     est.train(input_fn=dummy_input_fn, steps=1)
     feature_spec = {'x': parsing_ops.VarLenFeature(dtype=dtypes.int64),
                     'y': parsing_ops.VarLenFeature(dtype=dtypes.int64)}
-    serving_input_receiver_fn = export.build_parsing_serving_input_receiver_fn(
-        feature_spec)
+    serving_input_receiver_fn = (
+        export_lib.build_parsing_serving_input_receiver_fn(feature_spec))
     export_dir_base = os.path.join(
         compat.as_bytes(tmpdir), compat.as_bytes('export'))
 
@@ -3118,8 +3118,8 @@ class EstimatorExportTest(test.TestCase):
     est.train(input_fn=dummy_input_fn, steps=1)
     feature_spec = {'x': parsing_ops.VarLenFeature(dtype=dtypes.int64),
                     'y': parsing_ops.VarLenFeature(dtype=dtypes.int64)}
-    serving_input_receiver_fn = export.build_parsing_serving_input_receiver_fn(
-        feature_spec)
+    serving_input_receiver_fn = (
+        export_lib.build_parsing_serving_input_receiver_fn(feature_spec))
 
     # Perform the export, and obtain the MetaGraphDefs
     tmpdir = tempfile.mkdtemp()
@@ -3281,7 +3281,7 @@ class EstimatorIntegrationTest(test.TestCase):
       predictions = layers.dense(
           features['x'], 1, kernel_initializer=init_ops.zeros_initializer())
       export_outputs = {
-          'predictions': export_output.RegressionOutput(predictions)
+          'predictions': export_lib.RegressionOutput(predictions)
       }
 
       if mode == ModeKeys.PREDICT:
@@ -3333,8 +3333,8 @@ class EstimatorIntegrationTest(test.TestCase):
 
     # EXPORT
     feature_spec = {'x': parsing_ops.FixedLenFeature([1], dtypes.float32)}
-    serving_input_receiver_fn = export.build_parsing_serving_input_receiver_fn(
-        feature_spec)
+    serving_input_receiver_fn = (
+        export_lib.build_parsing_serving_input_receiver_fn(feature_spec))
     export_dir = est.export_saved_model(tempfile.mkdtemp(),
                                        serving_input_receiver_fn)
     self.assertTrue(gfile.Exists(export_dir))
