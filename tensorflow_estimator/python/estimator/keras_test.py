@@ -67,7 +67,7 @@ def simple_sequential_model():
 
 
 def simple_functional_model(activation='relu'):
-  a = keras.layers.Input(shape=_INPUT_SIZE)
+  a = keras.layers.Input(shape=_INPUT_SIZE, name='input_layer')
   b = keras.layers.Dense(16, activation=activation)(a)
   b = keras.layers.Dropout(0.1)(b)
   b = keras.layers.Dense(_NUM_CLASS, activation='softmax')(b)
@@ -302,16 +302,15 @@ class TestKerasEstimator(test_util.TensorFlowTestCase):
         optimizer=rmsprop.RMSPropOptimizer(1e-3),
         metrics=['mse', keras.metrics.CategoricalAccuracy()])
     my_hook = MyHook()
-    with self.cached_session():
-      keras_model.fit(x_train, y_train, epochs=1)
+    keras_model.fit(x_train, y_train, epochs=1)
 
-      keras_est = keras_lib.model_to_estimator(
-          keras_model=keras_model, config=self._config)
-      before_eval_results = keras_est.evaluate(input_fn=eval_input_fn)
-      keras_est.train(input_fn=train_input_fn, hooks=[my_hook],
-                      steps=_TRAIN_SIZE / 16)
-      after_eval_results = keras_est.evaluate(input_fn=eval_input_fn, steps=1)
-      self.assertLess(after_eval_results['loss'], before_eval_results['loss'])
+    keras_est = keras_lib.model_to_estimator(
+        keras_model=keras_model, config=self._config)
+    before_eval_results = keras_est.evaluate(input_fn=eval_input_fn)
+    keras_est.train(input_fn=train_input_fn, hooks=[my_hook],
+                    steps=_TRAIN_SIZE / 16)
+    after_eval_results = keras_est.evaluate(input_fn=eval_input_fn, steps=1)
+    self.assertLess(after_eval_results['loss'], before_eval_results['loss'])
 
   def test_train_with_tf_optimizer(self):
     for model_type in ['sequential', 'functional']:
@@ -359,44 +358,41 @@ class TestKerasEstimator(test_util.TensorFlowTestCase):
         optimizer=rmsprop.RMSPropOptimizer(1e-3),
         metrics=['mse', keras.metrics.CategoricalAccuracy()])
 
-    with self.cached_session():
-      # Create state
-      keras_model.train_on_batch(np.random.random((10,) + _INPUT_SIZE),
-                                 np.random.random((10, _NUM_CLASS)))
-      original_preds = keras_model.predict(np.ones((10,) + _INPUT_SIZE))
+    # Create state
+    keras_model.train_on_batch(np.random.random((10,) + _INPUT_SIZE),
+                               np.random.random((10, _NUM_CLASS)))
+    _ = keras_model.predict(np.ones((10,) + _INPUT_SIZE))
 
-      est_keras = keras_lib.model_to_estimator(
-          keras_model=keras_model, config=self._config)
-      est_keras.train(input_fn=train_input_fn, steps=_TRAIN_SIZE / 16)
-      before_eval_results = est_keras.evaluate(
-          input_fn=eval_input_fn, steps=1)
-      est_keras.train(input_fn=train_input_fn, steps=_TRAIN_SIZE / 16)
-      after_eval_results = est_keras.evaluate(input_fn=eval_input_fn, steps=1)
-      self.assertLess(after_eval_results['loss'], before_eval_results['loss'])
+    est_keras = keras_lib.model_to_estimator(
+        keras_model=keras_model, config=self._config)
+    est_keras.train(input_fn=train_input_fn, steps=_TRAIN_SIZE / 16)
+    before_eval_results = est_keras.evaluate(
+        input_fn=eval_input_fn, steps=1)
+    est_keras.train(input_fn=train_input_fn, steps=_TRAIN_SIZE / 16)
+    after_eval_results = est_keras.evaluate(input_fn=eval_input_fn, steps=1)
+    self.assertLess(after_eval_results['loss'], before_eval_results['loss'])
 
   def test_evaluate(self):
     keras_model, (x_train, y_train), (
         x_test, y_test), _, eval_input_fn = get_resource_for_simple_model(
             model_type='functional', is_evaluate=True)
 
-    with self.cached_session():
-      metrics = [
-          'binary_accuracy', 'binary_crossentropy', 'categorical_accuracy',
-          'categorical_crossentropy', 'cosine_proximity', 'hinge',
-          'kullback_leibler_divergence', 'mean_absolute_error',
-          'mean_absolute_percentage_error', 'mean_squared_error',
-          'mean_squared_logarithmic_error', 'poisson', 'squared_hinge',
-          'top_k_categorical_accuracy'
-      ]
-      keras_model.compile(
-          loss='categorical_crossentropy', optimizer='adam', metrics=metrics)
-      keras_model.fit(x_train, y_train, epochs=1)
-      keras_eval = keras_model.evaluate(x_test, y_test, batch_size=32)
+    metrics = [
+        'binary_accuracy', 'binary_crossentropy', 'categorical_accuracy',
+        'categorical_crossentropy', 'cosine_proximity', 'hinge',
+        'kullback_leibler_divergence', 'mean_absolute_error',
+        'mean_absolute_percentage_error', 'mean_squared_error',
+        'mean_squared_logarithmic_error', 'poisson', 'squared_hinge',
+        'top_k_categorical_accuracy'
+    ]
+    keras_model.compile(
+        loss='categorical_crossentropy', optimizer='adam', metrics=metrics)
+    keras_model.fit(x_train, y_train, epochs=1)
+    keras_eval = keras_model.evaluate(x_test, y_test, batch_size=32)
 
-    with self.cached_session():
-      keras_est = keras_lib.model_to_estimator(
-          keras_model=keras_model, config=self._config)
-      est_eval = keras_est.evaluate(input_fn=eval_input_fn)
+    keras_est = keras_lib.model_to_estimator(
+        keras_model=keras_model, config=self._config)
+    est_eval = keras_est.evaluate(input_fn=eval_input_fn)
 
     metrics = ['loss'] + metrics
 
@@ -421,21 +417,19 @@ class TestKerasEstimator(test_util.TensorFlowTestCase):
         x_test, _), _, pred_input_fn = get_resource_for_simple_model(
             model_type='sequential', is_evaluate=False)
 
-    with self.cached_session():
-      keras_model.compile(
-          loss='categorical_crossentropy',
-          optimizer='adam',
-          metrics=['accuracy'])
-      keras_model.fit(x_train, y_train, epochs=1)
-      keras_pred = [np.argmax(y) for y in keras_model.predict(x_test)]
+    keras_model.compile(
+        loss='categorical_crossentropy',
+        optimizer='adam',
+        metrics=['accuracy'])
+    keras_model.fit(x_train, y_train, epochs=1)
+    keras_pred = [np.argmax(y) for y in keras_model.predict(x_test)]
 
-    with self.cached_session():
-      keras_est = keras_lib.model_to_estimator(
-          keras_model=keras_model, config=self._config)
-      est_pred = [
-          np.argmax(y[keras_model.output_names[0]])
-          for y in keras_est.predict(input_fn=pred_input_fn)
-      ]
+    keras_est = keras_lib.model_to_estimator(
+        keras_model=keras_model, config=self._config)
+    est_pred = [
+        np.argmax(y[keras_model.output_names[0]])
+        for y in keras_est.predict(input_fn=pred_input_fn)
+    ]
     self.assertAllEqual(est_pred, keras_pred)
 
   def test_multi_inputs_multi_outputs_with_input_fn_as_dict(self):
@@ -524,23 +518,21 @@ class TestKerasEstimator(test_util.TensorFlowTestCase):
         x_test, _), _, pred_input_fn = get_resource_for_simple_model(
             model_type='functional', is_evaluate=False)
 
-    with self.cached_session():
-      keras_model.compile(
-          loss='categorical_crossentropy',
-          optimizer='rmsprop',
-          metrics=['categorical_accuracy'])
-      keras_model.fit(x_train, y_train, epochs=1)
-      keras_pred = [np.argmax(y) for y in keras_model.predict(x_test)]
-      fname = os.path.join(self._base_dir, 'keras_model.h5')
-      keras.models.save_model(keras_model, fname)
+    keras_model.compile(
+        loss='categorical_crossentropy',
+        optimizer='rmsprop',
+        metrics=['categorical_accuracy'])
+    keras_model.fit(x_train, y_train, epochs=1)
+    keras_pred = [np.argmax(y) for y in keras_model.predict(x_test)]
+    fname = os.path.join(self._base_dir, 'keras_model.h5')
+    keras.models.save_model(keras_model, fname)
 
-    with self.cached_session():
-      keras_est = keras_lib.model_to_estimator(
-          keras_model_path=fname, config=self._config)
-      est_pred = [
-          np.argmax(y[keras_model.output_names[0]])
-          for y in keras_est.predict(input_fn=pred_input_fn)
-      ]
+    keras_est = keras_lib.model_to_estimator(
+        keras_model_path=fname, config=self._config)
+    est_pred = [
+        np.argmax(y[keras_model.output_names[0]])
+        for y in keras_est.predict(input_fn=pred_input_fn)
+    ]
     self.assertAllEqual(est_pred, keras_pred)
 
   def test_keras_model_init_error(self):
@@ -570,7 +562,7 @@ class TestKerasEstimator(test_util.TensorFlowTestCase):
       return input_dict, y_train
 
     def invald_output_name_input_fn():
-      input_dict = {'input_1': x_train}
+      input_dict = {'input_layer': x_train}
       output_dict = {'invalid_output_name': y_train}
       return input_dict, output_dict
     model = simple_functional_model()
@@ -655,13 +647,12 @@ class TestKerasEstimator(test_util.TensorFlowTestCase):
       gpu_options = config_pb2.GPUOptions(per_process_gpu_memory_fraction=0.3)
       sess_config = config_pb2.ConfigProto(gpu_options=gpu_options)
       self._config._session_config = sess_config
-      with self.cached_session():
-        keras_lib.model_to_estimator(
-            keras_model=keras_model, config=self._config)
-        self.assertEqual(
-            keras.backend.get_session()
-            ._config.gpu_options.per_process_gpu_memory_fraction,
-            gpu_options.per_process_gpu_memory_fraction)
+      keras_lib.model_to_estimator(
+          keras_model=keras_model, config=self._config)
+      self.assertEqual(
+          keras.backend.get_session()
+          ._config.gpu_options.per_process_gpu_memory_fraction,
+          gpu_options.per_process_gpu_memory_fraction)
 
   def test_with_empty_config(self):
     keras_model, _, _, _, _ = get_resource_for_simple_model(
