@@ -1614,6 +1614,7 @@ py_test(
         "notsan",  # b/67510291
     ],
     deps = [
+        ":export",
         ":keras",
         ":mode_keys",
         ":numpy_io",

@@ -27,21 +27,26 @@ import numpy as np
 from tensorflow.core.protobuf import config_pb2
 from tensorflow.python import keras
 from tensorflow.python.data.ops import dataset_ops
+from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import test_util
 from tensorflow.python.keras import testing_utils
 from tensorflow.python.keras.optimizers import SGD
+from tensorflow.python.ops import parsing_ops
 from tensorflow.python.ops import variable_scope
 from tensorflow.python.ops import variables
 from tensorflow.python.ops.parsing_ops import gen_parsing_ops
 from tensorflow.python.platform import gfile
 from tensorflow.python.platform import test
+from tensorflow.python.saved_model import utils_impl as saved_model_utils
 from tensorflow.python.summary.writer import writer_cache
 from tensorflow.python.training import rmsprop
 from tensorflow.python.training import session_run_hook
+from tensorflow.python.training import training
 from tensorflow.python.training import training_util
 from tensorflow_estimator.python.estimator import keras as keras_lib
 from tensorflow_estimator.python.estimator import run_config as run_config_lib
+from tensorflow_estimator.python.estimator.export import export_lib
 from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 
 
@@ -756,6 +761,45 @@ class TestKerasEstimator(test_util.TensorFlowTestCase):
   @test_util.run_v1_only('training_util.create_global_step is v1 only.')
   def test_model_fn_increments_global_step_keras_optimizer(self):
     self.assert_increasing_global_step('rmsprop')
+
+  def test_export_keras_estimator(self):
+    keras_model, (x_train, y_train), (
+        _, _), train_input_fn, _ = get_resource_for_simple_model(
+            model_type='sequential', is_evaluate=False)
+
+    keras_model.compile(
+        loss='categorical_crossentropy',
+        optimizer='adam',
+        metrics=['accuracy'])
+    keras_model.fit(x_train, y_train, epochs=1)
+    bias_value = keras.backend.get_value(keras_model.layers[0].bias)
+
+    est_keras = keras_lib.model_to_estimator(
+        keras_model=keras_model,
+        model_dir=tempfile.mkdtemp(dir=self._base_dir))
+
+    def serving_input_receiver_fn():
+      feature_spec = {
+          'dense_input': parsing_ops.FixedLenFeature([1],
+                                                     dtype=dtypes.float32)}
+      return export_lib.build_parsing_serving_input_receiver_fn(feature_spec)
+
+    # Try immediately exporting, testing that (1) exported values are the same,
+    # and (2) estimator can be exported without saving a checkpoint into the
+    # model directory.
+    saved_model_dir = est_keras.export_saved_model(
+        tempfile.mkdtemp(dir=self._base_dir), serving_input_receiver_fn())
+    variable_dir = saved_model_utils.get_variables_path(saved_model_dir)
+    self.assertAllClose(
+        bias_value, training.load_variable(variable_dir, 'dense/bias'))
+
+    # Export the estimator after training a bit.
+    est_keras.train(input_fn=train_input_fn, steps=_TRAIN_SIZE / 16)
+    saved_model_dir = est_keras.export_saved_model(
+        tempfile.mkdtemp(dir=self._base_dir), serving_input_receiver_fn())
+    variable_dir = saved_model_utils.get_variables_path(saved_model_dir)
+    self.assertNotAllClose(
+        bias_value, training.load_variable(variable_dir, 'dense/bias'))
 
 
 if __name__ == '__main__':

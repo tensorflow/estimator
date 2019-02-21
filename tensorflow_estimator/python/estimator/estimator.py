@@ -799,7 +799,14 @@ class EstimatorV2(object):
         checkpoint_path = checkpoint_management.latest_checkpoint(
             self._model_dir)
       if not checkpoint_path:
-        raise ValueError("Couldn't find trained model at %s." % self._model_dir)
+        if self._warm_start_settings:
+          checkpoint_path = self._warm_start_settings.ckpt_to_initialize_from
+          if gfile.IsDirectory(checkpoint_path):
+            checkpoint_path = checkpoint_management.latest_checkpoint(
+                checkpoint_path)
+        else:
+          raise ValueError("Couldn't find trained model at {}.".format(
+              self._model_dir))
 
       export_dir = export_helpers.get_timestamped_export_dir(export_dir_base)
       temp_export_dir = export_helpers.get_temp_export_dir(export_dir)
@@ -865,8 +872,7 @@ class EstimatorV2(object):
         `input_receiver_fn` mappings, where the `input_receiver_fn` is a
         function that takes no argument and returns the appropriate subclass of
         `InputReceiver`.
-      checkpoint_path: The checkpoint path to export.  If `None` (the default),
-        the most recent checkpoint found within the model directory is chosen.
+      checkpoint_path: The checkpoint path to export.
       save_variables: bool, whether variables should be saved. If `False`, just
         the `tf.MetaGraphDef` will be saved. Note that `save_variables` should
         only be `True` for the first call to this function, and the

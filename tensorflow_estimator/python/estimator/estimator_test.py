@@ -64,6 +64,7 @@ from tensorflow.python.saved_model import loader
 from tensorflow.python.saved_model import loader_impl
 from tensorflow.python.saved_model import signature_constants
 from tensorflow.python.saved_model import tag_constants
+from tensorflow.python.saved_model import utils_impl as saved_model_utils
 from tensorflow.python.summary import summary
 from tensorflow.python.summary import summary_iterator
 from tensorflow.python.summary.writer import writer_cache
@@ -1370,7 +1371,7 @@ class EstimatorEvaluateTest(test.TestCase):
     export_dir_base = os.path.join(
         compat.as_bytes(tmpdir), compat.as_bytes('export'))
     exported_path = first_est.export_saved_model(export_dir_base,
-                                                serving_input_receiver_fn)
+                                                 serving_input_receiver_fn)
 
     # Test that we can pass either warm_start_from as an external checkpoint
     # or an exported SavedModel.
@@ -3206,6 +3207,29 @@ class EstimatorExportTest(test.TestCase):
         sig_outputs = sig_def[
             signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY].outputs
         self.assertEqual(sig_outputs['output'].name, 'Const:0')
+
+  def test_export_from_warm_start(self):
+    def _make_model_fn(x):
+      def _variable_creating_model_fn(features, labels, mode):
+        _, _ = features, labels
+        variable_scope.get_variable('x', initializer=x)
+        global_step = training.get_global_step()
+        return model_fn_lib.EstimatorSpec(
+            mode,
+            predictions=constant_op.constant(1.),
+            loss=constant_op.constant(1.),
+            train_op=state_ops.assign_add(global_step, 1))
+      return _variable_creating_model_fn
+
+    est = estimator.EstimatorV2(model_fn=_make_model_fn(42.))
+    est.train(dummy_input_fn, steps=10)
+
+    warm_started_est = estimator.EstimatorV2(
+        model_fn=_make_model_fn(36.), warm_start_from=est.model_dir)
+    saved_model_dir = warm_started_est.export_saved_model(
+        tempfile.mkdtemp(), _get_serving_input_receiver_fn())
+    variable_dir = saved_model_utils.get_variables_path(saved_model_dir)
+    self.assertEqual(42., training.load_variable(variable_dir, 'x'))
 
 
 class EstimatorHookOrderingTest(test.TestCase):
