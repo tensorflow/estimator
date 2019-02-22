@@ -21,7 +21,6 @@ from __future__ import print_function
 # pylint: disable=unused-import,line-too-long,wildcard-import
 from tensorflow_estimator.contrib.estimator.python.estimator.boosted_trees import *
 from tensorflow_estimator.contrib.estimator.python.estimator.dnn_with_layer_annotations import *
-from tensorflow_estimator.contrib.estimator.python.estimator.early_stopping import *
 from tensorflow_estimator.contrib.estimator.python.estimator.export import *
 from tensorflow_estimator.contrib.estimator.python.estimator.extenders import *
 from tensorflow_estimator.contrib.estimator.python.estimator.head import *
@@ -59,12 +58,6 @@ _allowed_symbols = [
     'RNNEstimator',
     'export_saved_model_for_mode',
     'export_all_saved_models',
-    'make_early_stopping_hook',
-    'read_eval_metrics',
-    'stop_if_lower_hook',
-    'stop_if_higher_hook',
-    'stop_if_no_increase_hook',
-    'stop_if_no_decrease_hook',
     'build_raw_supervised_input_receiver_fn',
     'build_supervised_input_receiver_fn_from_input_fn',
     'SavedModelEstimator',

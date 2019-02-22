@@ -17,7 +17,6 @@ py_library(
     deps = [
         ":boosted_trees",
         ":dnn_with_layer_annotations",
-        ":early_stopping",
         ":export",
         ":exporter",
         ":extenders",
@@ -372,30 +371,6 @@ py_test(
         "//tensorflow_estimator/python/estimator:numpy_io",
         "//tensorflow_estimator/python/estimator:parsing_utils",
         "//tensorflow_estimator/python/estimator:sequential_head",
-    ],
-)
-
-py_library(
-    name = "early_stopping",
-    srcs = ["python/estimator/early_stopping.py"],
-    srcs_version = "PY2AND3",
-    deps = [
-        "//tensorflow_estimator/python/estimator",
-        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
-        "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
-    ],
-)
-
-py_test(
-    name = "early_stopping_test",
-    srcs = ["python/estimator/early_stopping_test.py"],
-    srcs_version = "PY2AND3",
-    deps = [
-        ":early_stopping",
-        "//tensorflow_estimator/python/estimator",
-        "//tensorflow_estimator/python/estimator:expect_absl_installed",
-        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
-        "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
     ],
 )
 
