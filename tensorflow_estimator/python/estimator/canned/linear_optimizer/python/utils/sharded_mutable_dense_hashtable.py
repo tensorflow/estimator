@@ -98,13 +98,13 @@ class _MutableDenseHashTable(lookup_ops.LookupInterface):
     self._shared_name = shared_name
     super(_MutableDenseHashTable, self).__init__(key_dtype, value_dtype)
 
-    self._resource_handle = self.create_resource()
+    self._resource_handle = self._create_resource()
     if checkpoint:
       saveable = _MutableDenseHashTable._Saveable(self, name)
       if not context.executing_eagerly():
         ops.add_to_collection(ops.GraphKeys.SAVEABLE_OBJECTS, saveable)
 
-  def create_resource(self):
+  def _create_resource(self):
     # The table must be shared if checkpointing is requested for multi-worker
     # training to work correctly. Use the node name if no shared_name has been
     # explicitly specified.
