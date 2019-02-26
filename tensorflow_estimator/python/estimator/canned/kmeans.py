@@ -22,6 +22,8 @@ from __future__ import print_function
 
 import time
 
+import numpy as np
+
 from tensorflow.python.feature_column import feature_column_lib as fc
 from tensorflow.python.framework import ops
 from tensorflow.python.ops import array_ops
@@ -35,6 +37,7 @@ from tensorflow.python.saved_model import signature_constants
 from tensorflow.python.summary import summary
 from tensorflow.python.training import session_run_hook
 from tensorflow.python.training import training_util
+from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator import estimator
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
 from tensorflow_estimator.python.estimator.export import export_output
@@ -137,14 +140,14 @@ def _parse_features_if_necessary(features, feature_columns):
 class _ModelFn(object):
   """Model function for the estimator."""
 
-  def __init__(self, num_clusters, initial_clusters, distance_metric,
-               random_seed, use_mini_batch, mini_batch_steps_per_iteration,
+  def __init__(self, num_clusters, initial_clusters, distance_metric, seed,
+               use_mini_batch, mini_batch_steps_per_iteration,
                kmeans_plus_plus_num_retries, relative_tolerance,
                feature_columns):
     self._num_clusters = num_clusters
     self._initial_clusters = initial_clusters
     self._distance_metric = distance_metric
-    self._random_seed = random_seed
+    self._seed = seed
     self._use_mini_batch = use_mini_batch
     self._mini_batch_steps_per_iteration = mini_batch_steps_per_iteration
     self._kmeans_plus_plus_num_retries = kmeans_plus_plus_num_retries
@@ -201,7 +204,7 @@ class _ModelFn(object):
          distance_metric=self._distance_metric,
          use_mini_batch=self._use_mini_batch,
          mini_batch_steps_per_iteration=self._mini_batch_steps_per_iteration,
-         random_seed=self._random_seed,
+         random_seed=self._seed,
          kmeans_plus_plus_num_retries=self._kmeans_plus_plus_num_retries
      ).training_graph()
 
@@ -242,6 +245,7 @@ class _ModelFn(object):
 
 
 # TODO(agarwal,ands): support sharded input.
+@estimator_export('estimator.experimental.KMeans')
 class KMeansClustering(estimator.Estimator):
   """An Estimator for K-Means clustering.
 
@@ -259,7 +263,7 @@ class KMeansClustering(estimator.Estimator):
         tf.convert_to_tensor(points, dtype=tf.float32), num_epochs=1)
 
   num_clusters = 5
-  kmeans = tf.contrib.factorization.KMeansClustering(
+  kmeans = tf.estimator.experimental.KMeans(
       num_clusters=num_clusters, use_mini_batch=False)
 
   # train
@@ -308,7 +312,7 @@ class KMeansClustering(estimator.Estimator):
   SCORE = 'score'
 
   # Keys returned by predict().
-  # ALL_DISTANCES: The distance from each input  point to each cluster center.
+  # ALL_DISTANCES: The distance from each input point to each cluster center.
   # CLUSTER_INDEX: The index of the closest cluster center for each input point.
   CLUSTER_INDEX = 'cluster_index'
   ALL_DISTANCES = 'all_distances'
@@ -321,14 +325,14 @@ class KMeansClustering(estimator.Estimator):
                model_dir=None,
                initial_clusters=RANDOM_INIT,
                distance_metric=SQUARED_EUCLIDEAN_DISTANCE,
-               random_seed=0,
+               seed=None,
                use_mini_batch=True,
                mini_batch_steps_per_iteration=1,
                kmeans_plus_plus_num_retries=2,
                relative_tolerance=None,
                config=None,
                feature_columns=None):
-    """Creates an Estimator for running KMeans training and inference.
+    r"""Creates an Estimator for running KMeans training and inference.
 
     This Estimator implements the following variants of the K-means algorithm:
 
@@ -342,8 +346,11 @@ class KMeansClustering(estimator.Estimator):
     composed of `mini_batch_steps_per_iteration` steps. Each training step
     accumulates the contribution from one mini-batch into temporary storage.
     Every `mini_batch_steps_per_iteration` steps, the cluster centers are
-    updated and the temporary storage cleared for the next iteration. Note
-    that:
+    updated and the temporary storage cleared for the next iteration.
+    For example: the entire dataset contains 64k examples, where the batch size
+    is 64. User can choose mini_batch_steps_per_iteration = 100 to run 10% of
+    the entire data every iteration in order to update the cluster centers.
+    Note that:
       * If `mini_batch_steps_per_iteration=1`, the algorithm reduces to the
         standard K-means mini-batch algorithm.
       * If `mini_batch_steps_per_iteration = num_inputs / batch_size`, the
@@ -358,27 +365,26 @@ class KMeansClustering(estimator.Estimator):
         argument is ignored if `initial_clusters` is a tensor or numpy array.
       model_dir: The directory to save the model results and log files.
       initial_clusters: Specifies how the initial cluster centers are chosen.
-        One of the following:
-        * a tensor or numpy array with the initial cluster centers.
-        * a callable `f(inputs, k)` that selects and returns up to `k` centers
-              from an input batch. `f` is free to return any number of centers
-              from `0` to `k`. It will be invoked on successive input batches
-              as necessary until all `num_clusters` centers are chosen.
+        One of the following: * a tensor or numpy array with the initial cluster
+          centers. * a callable `f(inputs, k)` that selects and returns up to
+          `k` centers from an input batch. `f` is free to return any number of
+          centers from `0` to `k`. It will be invoked on successive input
+          batches as necessary until all `num_clusters` centers are chosen.
         * `KMeansClustering.RANDOM_INIT`: Choose centers randomly from an input
-              batch. If the batch size is less than `num_clusters` then the
-              entire batch is chosen to be initial cluster centers and the
-              remaining centers are chosen from successive input batches.
+          batch. If the batch size is less than `num_clusters` then the entire
+          batch is chosen to be initial cluster centers and the remaining
+          centers are chosen from successive input batches.
         * `KMeansClustering.KMEANS_PLUS_PLUS_INIT`: Use kmeans++ to choose
-              centers from the first input batch. If the batch size is less
-              than `num_clusters`, a TensorFlow runtime error occurs.
+          centers from the first input batch. If the batch size is less than
+          `num_clusters`, a TensorFlow runtime error occurs.
       distance_metric: The distance metric used for clustering. One of:
         * `KMeansClustering.SQUARED_EUCLIDEAN_DISTANCE`: Euclidean distance
-             between vectors `u` and `v` is defined as \\(||u - v||_2\\)
-             which is the square root of the sum of the absolute squares of
-             the elements' difference.
+          between vectors `u` and `v` is defined as \\(||u - v||_2\\) which is
+          the square root of the sum of the absolute squares of the elements'
+          difference.
         * `KMeansClustering.COSINE_DISTANCE`: Cosine distance between vectors
-             `u` and `v` is defined as \\(1 - (u . v) / (||u||_2 ||v||_2)\\).
-      random_seed: Python integer. Seed for PRNG used to initialize centers.
+          `u` and `v` is defined as \\(1 - (u . v) / (||u||_2 ||v||_2)\\).
+      seed: Python integer. Seed for PRNG used to initialize centers.
       use_mini_batch: A boolean specifying whether to use the mini-batch k-means
         algorithm. See explanation above.
       mini_batch_steps_per_iteration: The number of steps after which the
@@ -413,12 +419,12 @@ class KMeansClustering(estimator.Estimator):
         KMeansClustering.COSINE_DISTANCE
     ]:
       raise ValueError("Unsupported distance metric '%s'" % distance_metric)
+    self._distance_metric = distance_metric
     super(KMeansClustering, self).__init__(
-        model_fn=_ModelFn(
-            num_clusters, initial_clusters, distance_metric, random_seed,
-            use_mini_batch, mini_batch_steps_per_iteration,
-            kmeans_plus_plus_num_retries, relative_tolerance,
-            feature_columns).model_fn,
+        model_fn=_ModelFn(num_clusters, initial_clusters, distance_metric, seed,
+                          use_mini_batch, mini_batch_steps_per_iteration,
+                          kmeans_plus_plus_num_retries, relative_tolerance,
+                          feature_columns).model_fn,
         model_dir=model_dir,
         config=config)
 
@@ -471,7 +477,10 @@ class KMeansClustering(estimator.Estimator):
     """
     for distances in self._predict_one_key(input_fn,
                                            KMeansClustering.ALL_DISTANCES):
-      yield distances
+      if self._distance_metric == KMeansClustering.SQUARED_EUCLIDEAN_DISTANCE:
+        yield np.sqrt(distances)
+      else:
+        yield distances
 
   def cluster_centers(self):
     """Returns the cluster centers."""

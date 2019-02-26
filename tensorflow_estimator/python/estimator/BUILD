@@ -450,7 +450,7 @@ py_test(
     name = "kmeans_test",
     size = "medium",
     srcs = ["canned/kmeans_test.py"],
-    shard_count = 4,
+    shard_count = 8,
     srcs_version = "PY2AND3",
     deps = [
         ":inputs",

@@ -157,7 +157,7 @@ class KMeansTest(KMeansTestBase):
         distance_metric=kmeans_lib.KMeansClustering.SQUARED_EUCLIDEAN_DISTANCE,
         use_mini_batch=self.use_mini_batch,
         mini_batch_steps_per_iteration=self.mini_batch_steps_per_iteration,
-        random_seed=24,
+        seed=24,
         relative_tolerance=relative_tolerance)
 
   @test_util.run_v1_only('b/123230084')
@@ -190,7 +190,7 @@ class KMeansTest(KMeansTestBase):
         use_mini_batch=self.use_mini_batch,
         mini_batch_steps_per_iteration=self.mini_batch_steps_per_iteration,
         config=self.config(14),
-        random_seed=12,
+        seed=12,
         relative_tolerance=1e-4)
 
     kmeans.train(
@@ -214,11 +214,12 @@ class KMeansTest(KMeansTestBase):
 
     # Test transform
     transform = list(kmeans.transform(input_fn))
-    true_transform = np.maximum(
-        0,
-        np.sum(np.square(points), axis=1, keepdims=True) -
-        2 * np.dot(points, np.transpose(clusters)) + np.transpose(
-            np.sum(np.square(clusters), axis=1, keepdims=True)))
+    true_transform = np.sqrt(
+        np.maximum(
+            0,
+            np.sum(np.square(points), axis=1, keepdims=True) -
+            2 * np.dot(points, np.transpose(clusters)) +
+            np.transpose(np.sum(np.square(clusters), axis=1, keepdims=True))))
     self.assertAllClose(transform, true_transform, rtol=0.05, atol=10)
 
   @test_util.run_v1_only('b/123230084')
@@ -285,7 +286,7 @@ class KMeansTestMultiStageInit(KMeansTestBase):
         distance_metric=kmeans_lib.KMeansClustering.SQUARED_EUCLIDEAN_DISTANCE,
         use_mini_batch=True,
         mini_batch_steps_per_iteration=100,
-        random_seed=24,
+        seed=24,
         relative_tolerance=None)
     kmeans.train(
         input_fn=self.input_fn(batch_size=1, points=points, randomize=False),
@@ -302,7 +303,7 @@ class KMeansTestMultiStageInit(KMeansTestBase):
         distance_metric=kmeans_lib.KMeansClustering.SQUARED_EUCLIDEAN_DISTANCE,
         use_mini_batch=True,
         mini_batch_steps_per_iteration=100,
-        random_seed=24,
+        seed=24,
         relative_tolerance=None)
     kmeans.train(
         input_fn=self.input_fn(batch_size=1, points=points, randomize=False),
@@ -320,7 +321,7 @@ class KMeansTestMultiStageInit(KMeansTestBase):
         distance_metric=kmeans_lib.KMeansClustering.SQUARED_EUCLIDEAN_DISTANCE,
         use_mini_batch=True,
         mini_batch_steps_per_iteration=100,
-        random_seed=24,
+        seed=24,
         relative_tolerance=None)
     with self.assertRaisesOpError(AssertionError):
       kmeans.train(
@@ -577,7 +578,7 @@ class TensorflowKMeansBenchmark(KMeansBenchmark):
           self.num_clusters,
           initial_clusters=kmeans_lib.KMeansClustering.KMEANS_PLUS_PLUS_INIT,
           kmeans_plus_plus_num_retries=int(math.log(self.num_clusters) + 2),
-          random_seed=i * 42,
+          seed=i * 42,
           relative_tolerance=1e-6,
           config=self.config(3))
       tf_kmeans.train(

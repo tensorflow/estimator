@@ -31,6 +31,7 @@ from tensorflow_estimator.python.estimator.canned.dnn import DNNRegressor
 from tensorflow_estimator.python.estimator.canned.dnn_linear_combined import DNNLinearCombinedClassifier
 from tensorflow_estimator.python.estimator.canned.dnn_linear_combined import DNNLinearCombinedEstimator
 from tensorflow_estimator.python.estimator.canned.dnn_linear_combined import DNNLinearCombinedRegressor
+from tensorflow_estimator.python.estimator.canned.kmeans import KMeansClustering
 from tensorflow_estimator.python.estimator.canned.linear import linear_logit_fn_builder
 from tensorflow_estimator.python.estimator.canned.linear import LinearClassifier
 from tensorflow_estimator.python.estimator.canned.linear import LinearEstimator
