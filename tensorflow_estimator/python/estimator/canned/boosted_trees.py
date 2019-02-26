@@ -935,7 +935,6 @@ def _bt_model_fn(
     closed_form_grad_and_hess_fn=None,
     example_id_column_name=None,
     weight_column=None,
-    # TODO(youngheek): replace this later using other options.
     train_in_memory=False,
     name='boosted_trees'):
   """Gradient Boosted Trees model_fn.
@@ -965,8 +964,9 @@ def _bt_model_fn(
       `_NumericColumn`, raw tensor is fetched by key `weight_column.key`, then
       weight_column.normalizer_fn is applied on it to get weight tensor.
     train_in_memory: `bool`, when true, it assumes the dataset is in memory,
-      i.e., input_fn should return the entire dataset as a single batch, and
-      also n_batches_per_layer should be set as 1.
+      i.e., input_fn should return the entire dataset as a single batch,
+      n_batches_per_layer should be set as 1, num_worker_replicas should be 1,
+      and num_ps_replicas should be 0 in `tf.Estimator.RunConfig`.
     name: Name to use for the model.
 
   Returns:
@@ -1062,7 +1062,7 @@ def _bt_model_fn(
             other_columns.append(fc)
         return cat_columns, other_columns
       # Split columns into categorical and other columns.
-      cat_columns, other_columns = _split_into_cat_and_other_columns()     
+      cat_columns, other_columns = _split_into_cat_and_other_columns()
 
       input_feature_list, input_cache_op = _cache_transformed_features(
           features, sorted_feature_columns, cat_columns, other_columns,
@@ -1643,7 +1643,8 @@ class BoostedTreesClassifier(_BoostedTreesBase):
                config=None,
                center_bias=False,
                pruning_mode='none',
-               quantile_sketch_epsilon=0.01):
+               quantile_sketch_epsilon=0.01,
+               train_in_memory=False):
     """Initializes a `BoostedTreesClassifier` instance.
 
     Example:
@@ -1674,6 +1675,12 @@ class BoostedTreesClassifier(_BoostedTreesBase):
       return dataset
 
     metrics = classifier.evaluate(input_fn=input_fn_eval)
+
+    when train_in_memory = True, make sure the input fn is not batched:
+    def input_fn_train():
+      return tf.data.Dataset.zip(
+        (tf.data.Dataset.from_tensors({'f1': f1_array, ...}),
+         tf.data.Dataset.from_tensors(label_array)))
     ```
 
     Args:
@@ -1729,6 +1736,10 @@ class BoostedTreesClassifier(_BoostedTreesBase):
       quantile_sketch_epsilon: float between 0 and 1. Error bound for quantile
         computation. This is only used for float feature columns, and the number
         of buckets generated per float feature is 1/quantile_sketch_epsilon.
+      train_in_memory: `bool`, when true, it assumes the dataset is in memory,
+        i.e., input_fn should return the entire dataset as a single batch,
+        n_batches_per_layer should be set as 1, num_worker_replicas should be 1,
+        and num_ps_replicas should be 0 in `tf.Estimator.RunConfig`.
 
     Raises:
       ValueError: when wrong arguments are given or unsupported functionalities
@@ -1756,7 +1767,8 @@ class BoostedTreesClassifier(_BoostedTreesBase):
           n_batches_per_layer,
           config,
           closed_form_grad_and_hess_fn=closed_form,
-          weight_column=weight_column)
+          weight_column=weight_column,
+          train_in_memory=train_in_memory)
 
     super(BoostedTreesClassifier, self).__init__(
         model_fn=_model_fn,
@@ -1797,7 +1809,8 @@ class BoostedTreesRegressor(_BoostedTreesBase):
                config=None,
                center_bias=False,
                pruning_mode='none',
-               quantile_sketch_epsilon=0.01):
+               quantile_sketch_epsilon=0.01,
+               train_in_memory=False):
     """Initializes a `BoostedTreesRegressor` instance.
 
     Example:
@@ -1876,6 +1889,10 @@ class BoostedTreesRegressor(_BoostedTreesBase):
       quantile_sketch_epsilon: float between 0 and 1. Error bound for quantile
         computation. This is only used for float feature columns, and the number
         of buckets generated per float feature is 1/quantile_sketch_epsilon.
+      train_in_memory: `bool`, when true, it assumes the dataset is in memory,
+        i.e., input_fn should return the entire dataset as a single batch,
+        n_batches_per_layer should be set as 1, num_worker_replicas should be 1,
+        and num_ps_replicas should be 0 in `tf.Estimator.RunConfig`.
 
     Raises:
       ValueError: when wrong arguments are given or unsupported functionalities
@@ -1902,7 +1919,8 @@ class BoostedTreesRegressor(_BoostedTreesBase):
           tree_hparams,
           n_batches_per_layer,
           config,
-          weight_column=weight_column)
+          weight_column=weight_column,
+          train_in_memory=train_in_memory)
 
     super(BoostedTreesRegressor, self).__init__(
         model_fn=_model_fn,
