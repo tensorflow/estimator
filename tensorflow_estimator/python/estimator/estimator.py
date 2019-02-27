@@ -803,7 +803,8 @@ class EstimatorV2(object):
       final_export_dir = export_helpers.get_timestamped_export_dir(export_dir_base)
       if gfile.NeedsTempLocation(final_export_dir):
         current_export_dir = export_helpers.get_temp_export_dir(final_export_dir)
-
+      else:
+        current_export_dir = final_export_dir
       builder = saved_model_builder.SavedModelBuilder(current_export_dir)
 
       save_variables = True
