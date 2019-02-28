@@ -147,25 +147,6 @@ py_library(
     ],
 )
 
-# py_library(
-#     name = "test_utils",
-#     srcs = [
-#         "test_utils.py",
-#     ],
-#     srcs_version = "PY2AND3",
-#     tags = [
-#         "no_oss",
-#         "no_pip",
-#     ],
-#     deps = [
-#         ":estimators",
-#         ":feature_keys",
-#         ":state_management",
-#         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
-#         "//third_party/tensorflow/contrib/timeseries/python/timeseries:input_pipeline",
-#     ],
-# )
-
 py_library(
     name = "ar_model",
     srcs = [
@@ -180,27 +161,21 @@ py_library(
     ],
 )
 
-# py_test(
-#     name = "ar_model_test",
-#     timeout = "long",  # Moderate but for asan
-#     srcs = [
-#         "ar_model_test.py",
-#     ],
-#     srcs_version = "PY2AND3",
-#     tags = [
-#         "no_oss",
-#         "notsan",
-#     ],
-#     deps = [
-#         ":ar_model",
-#         ":estimators",
-#         ":feature_keys",
-#         ":test_utils",
-#         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
-#         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
-#         "//third_party/tensorflow/contrib/timeseries/python/timeseries:input_pipeline",
-#     ],
-# )
+py_test(
+    name = "ar_model_test",
+    srcs = [
+        "ar_model_test.py",
+    ],
+    shard_count = 4,
+    srcs_version = "PY2AND3",
+    deps = [
+        ":ar_model",
+        ":estimators",
+        ":feature_keys",
+        "//tensorflow_estimator/python/estimator:estimator_py",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
 
 py_library(
     name = "math_utils",
