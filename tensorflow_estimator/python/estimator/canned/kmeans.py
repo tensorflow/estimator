@@ -245,7 +245,7 @@ class _ModelFn(object):
 
 
 # TODO(agarwal,ands): support sharded input.
-@estimator_export('estimator.experimental.KMeans')
+@estimator_export(v1=['estimator.experimental.KMeans'])
 class KMeansClustering(estimator.Estimator):
   """An Estimator for K-Means clustering.
 
