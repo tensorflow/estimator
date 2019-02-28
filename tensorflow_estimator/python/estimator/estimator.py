@@ -1289,6 +1289,35 @@ class EstimatorV2(object):
                                                hooks, global_step_tensor,
                                                saving_listeners)
 
+  def _train_with_estimator_spec_distributed(self, estimator_spec, worker_hooks,
+                                             saving_listener):
+    """Train a model with the given Estimator Spec and Distribution Strategy."""
+    if saving_listener:
+      raise ValueError('Saving listenor is not supported by the current '
+                       'Distribution Strategies.')
+    with training.MonitoredTrainingSession(
+        master=self._config.master,
+        is_chief=self._config.is_chief,
+        checkpoint_dir=self._model_dir,
+        scaffold=estimator_spec.scaffold,
+        hooks=worker_hooks,
+        chief_only_hooks=(tuple(worker_hooks) +
+                          tuple(estimator_spec.training_chief_hooks)),
+        save_checkpoint_secs=self._config.save_checkpoints_secs,
+        save_checkpoint_steps=self._config.save_checkpoints_steps,
+        save_summaries_steps=self._config.save_summary_steps,
+        config=self._session_config,
+        log_step_count_steps=self._config.log_step_count_steps) as mon_sess:
+      loss = None
+      any_step_done = False
+      while not mon_sess.should_stop():
+        _, loss = mon_sess.run([estimator_spec.train_op, estimator_spec.loss])
+        any_step_done = True
+    if not any_step_done:
+      logging.warning('Training with estimator made no steps. '
+                      'Perhaps input is empty or misspecified.')
+    return loss
+
   def _train_with_estimator_spec(self, estimator_spec, worker_hooks, hooks,
                                  global_step_tensor, saving_listeners):
     """Train a model with the given Estimator Spec."""
@@ -1330,6 +1359,12 @@ class EstimatorV2(object):
                   self._config.keep_checkpoint_every_n_hours),
               defer_build=True,
               save_relative_paths=True))
+
+    if (self._config.cluster_spec and type(
+        self._train_distribution).__name__ in ('CollectiveAllReduceStrategy',
+                                               'MultiWorkerMirroredStrategy')):
+      return self._train_with_estimator_spec_distributed(
+          estimator_spec, worker_hooks, saving_listeners)
 
     chief_hooks = []
     all_hooks = worker_hooks + list(estimator_spec.training_chief_hooks)

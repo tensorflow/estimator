@@ -32,6 +32,8 @@ from google.protobuf import text_format
 from tensorflow.core.protobuf import rewriter_config_pb2
 from tensorflow.python.client import session
 from tensorflow.python.data.ops import dataset_ops
+from tensorflow.python.distribute import collective_all_reduce_strategy
+from tensorflow.python.distribute import distribute_coordinator as dc
 from tensorflow.python.eager import context
 from tensorflow.python.framework import constant_op
 from tensorflow.python.framework import dtypes
@@ -1109,6 +1111,50 @@ class EstimatorTrainTest(test.TestCase):
               for hook in mock_sess.call_args[1]['hooks']))
       self.assertEqual(100, mock_sess.call_args[1]['save_summaries_steps'])
       self.assertEqual(200, mock_sess.call_args[1]['log_step_count_steps'])
+
+  def test_hooks_with_distributed_collective_ops(self):
+    tf_config = json.dumps({
+        'cluster': {
+            run_config.TaskType.WORKER: ['', ''],
+        },
+        'task': {
+            'type': run_config.TaskType.WORKER,
+            'index': 0
+        }
+    })
+    with test.mock.patch.dict('os.environ', {'TF_CONFIG': tf_config}):
+      strategy = collective_all_reduce_strategy.CollectiveAllReduceStrategy()
+      config = run_config.RunConfig(
+          train_distribute=strategy,
+          save_summary_steps=1000,
+          save_checkpoints_steps=500)
+      config._distribute_coordinator_mode = None  # Skip distribute coordintor.
+      est = estimator.EstimatorV2(
+          model_fn=model_fn_global_step_incrementer, config=config)
+
+    def input_fn():
+      return dataset_ops.Dataset.from_tensors(({
+          'x': constant_op.constant([[1], [1]])
+      }, constant_op.constant([[1], [1]])))
+
+    with test.mock.patch.object(training,
+                                'MonitoredTrainingSession') as mock_sess:
+      est.train(input_fn, steps=1)
+      self.assertFalse(
+          any(
+              isinstance(hook, basic_session_run_hooks.SummarySaverHook)
+              for hook in mock_sess.call_args[1]['hooks']))
+      self.assertFalse(
+          any(
+              isinstance(hook, basic_session_run_hooks.StepCounterHook)
+              for hook in mock_sess.call_args[1]['hooks']))
+      self.assertFalse(
+          any(
+              isinstance(hook, basic_session_run_hooks.CheckpointSaverHook)
+              for hook in mock_sess.call_args[1]['hooks']))
+      self.assertEqual(1000, mock_sess.call_args[1]['save_summaries_steps'])
+      self.assertEqual(500, mock_sess.call_args[1]['save_checkpoint_steps'])
+      self.assertEqual(100, mock_sess.call_args[1]['log_step_count_steps'])
 
 
 def _model_fn_with_eval_metric_ops(features, labels, mode, params):
