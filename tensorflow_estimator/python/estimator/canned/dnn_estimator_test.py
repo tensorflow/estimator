@@ -58,6 +58,15 @@ def _dnn_estimator_classifier_fn(n_classes=3, **kwargs):
       **kwargs)
 
 
+class DNNLogitFnBuilderTest(test.TestCase):
+
+  def testLongInPy2(self):
+    if six.PY2:
+      ret = dnn.dnn_logit_fn_builder(long(1), None, None, None,
+                                     None, None, None)
+      self.assertTrue(callable(ret))
+
+
 class DNNEstimatorEvaluateTest(dnn_testing_utils.BaseDNNRegressorEvaluateTest,
                                test.TestCase):
 

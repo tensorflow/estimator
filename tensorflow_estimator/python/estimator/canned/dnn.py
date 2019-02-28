@@ -73,7 +73,7 @@ def dnn_logit_fn_builder(units, hidden_units, feature_columns, activation_fn,
   Raises:
     ValueError: If units is not an int.
   """
-  if not isinstance(units, int):
+  if not isinstance(units, six.integer_types):
     raise ValueError('units must be an int.  Given type: {}'.format(
         type(units)))
 
