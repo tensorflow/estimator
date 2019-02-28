@@ -985,7 +985,7 @@ class EstimatorV2(object):
   def _get_iterator_from_input_fn(self, input_fn, mode, distribution=None):
     if distribution is not None:
       iterator = distribution.make_input_fn_iterator(
-          lambda _: self._call_input_fn(input_fn, mode))
+          lambda input_context: self._call_input_fn(input_fn, mode, input_context))
       input_hooks = [
           estimator_util.DistributedIteratorInitializerHook(iterator)]
     else:
@@ -1054,7 +1054,7 @@ class EstimatorV2(object):
     assert step.dtype.is_integer
     return step
 
-  def _call_input_fn(self, input_fn, mode):
+  def _call_input_fn(self, input_fn, mode, input_context=None):
     """Calls the input function.
 
     Args:
@@ -1083,6 +1083,10 @@ class EstimatorV2(object):
       kwargs['params'] = self.params
     if 'config' in input_fn_args:
       kwargs['config'] = self.config
+    if input_context and 'input_context' in input_fn_args:
+      logging.info('The `input_fn` accepts an `input_context` which will '
+                   'be given by DistributionStrategy')
+      kwargs['input_context'] = input_context
     with ops.device('/cpu:0'):
       return input_fn(**kwargs)
 
