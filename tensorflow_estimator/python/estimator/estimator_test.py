@@ -1122,8 +1122,16 @@ class EstimatorTrainTest(test.TestCase):
             'index': 0
         }
     })
+    # We let it skip setting eager context in multi-worker path by creating a
+    # single-worker strategy and then passing cluster info into it.
+    strategy = collective_all_reduce_strategy.CollectiveAllReduceStrategy()
+    strategy.configure(
+        cluster_spec={
+            run_config.TaskType.WORKER: ['', ''],
+        },
+        task_type=run_config.TaskType.WORKER,
+        task_id=0)
     with test.mock.patch.dict('os.environ', {'TF_CONFIG': tf_config}):
-      strategy = collective_all_reduce_strategy.CollectiveAllReduceStrategy()
       config = run_config.RunConfig(
           train_distribute=strategy,
           save_summary_steps=1000,
