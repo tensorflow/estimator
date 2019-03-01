@@ -983,9 +983,12 @@ class EstimatorV2(object):
                       'This is probably a mistake.')
 
   def _get_iterator_from_input_fn(self, input_fn, mode, distribution=None):
+    """Calls `input_fn` and returns an iterator."""
     if distribution is not None:
+      # pylint: disable=g-long-lambda
       iterator = distribution.make_input_fn_iterator(
-          lambda input_context: self._call_input_fn(input_fn, mode, input_context))
+          lambda input_context: self._call_input_fn(input_fn, mode,
+                                                    input_context))
       input_hooks = [
           estimator_util.DistributedIteratorInitializerHook(iterator)]
     else:
