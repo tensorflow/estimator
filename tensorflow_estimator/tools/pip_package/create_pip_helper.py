@@ -22,7 +22,7 @@ import argparse
 import fnmatch
 import os
 
-PIP_EXCLUDED_FILES = [
+PIP_EXCLUDED_FILES = set([
     'tensorflow_estimator/python/estimator/canned/optimizers_test_v2.py',
     'tensorflow_estimator/python/estimator/canned/dnn_test_fc_v2.py',
     'tensorflow_estimator/python/estimator/canned/dnn_test_fc_v1.py',
@@ -38,12 +38,12 @@ PIP_EXCLUDED_FILES = [
     'tensorflow_estimator/python/estimator/api/create_python_api_wrapper.py',
     'tensorflow_estimator/tools/pip_package/setup.py',
     'tensorflow_estimator/tools/pip_package/create_pip_helper.py',
-]
+])
 
 # Directories that should not have __init__.py files generated within them.
-EXCLUDED_INIT_FILE_DIRECTORIES = [
+EXCLUDED_INIT_FILE_DIRECTORIES = set([
     'tensorflow_estimator/tools'
-]
+])
 
 
 class PipPackagingError(Exception):
@@ -90,22 +90,26 @@ def verify_python_files_in_pip(pip_root, bazel_root, has_contrib):
     PipPackagingError: Missing file in pip.
   """
   for path, _, files in os.walk(bazel_root):
-    if not has_contrib and "/contrib/" in path:
+    if not has_contrib and '/contrib/' in path:
       continue
+    python_files = set(fnmatch.filter(files, '*.py'))
+    python_test_files = set(fnmatch.filter(files, '*test.py'))
+    # We only care about python files in the pip package, see create_init_files.
+    files = python_files - python_test_files
     for f in files:
-      if fnmatch.fnmatch(f, '*[!_test].py'):
-        pip_path = os.path.join(pip_root, os.path.relpath(path, bazel_root), f)
-        file_name = os.path.join(path, f)
-        if (not os.path.exists(pip_path) and
-            file_name.lstrip('./') not in PIP_EXCLUDED_FILES):
-          raise PipPackagingError(
-              ('Pip package missing the file %s. If this is expected, add it '
-               'to PIP_EXCLUDED_FILES in create_pip_helper.py. Otherwise, '
-               'make sure it is a build dependency of the pip package')
-              % file_name)
-        if os.path.exists(pip_path) and file_name in PIP_EXCLUDED_FILES:
-          raise PipPackagingError(
-              ('File in PIP_EXCLUDED_FILES included in pip. %s' % file_name))
+      pip_path = os.path.join(pip_root, os.path.relpath(path, bazel_root), f)
+      file_name = os.path.join(path, f)
+      path_exists = os.path.exists(pip_path)
+      file_excluded = file_name.lstrip('./') in PIP_EXCLUDED_FILES
+      if not path_exists and not file_excluded:
+        raise PipPackagingError(
+            ('Pip package missing the file %s. If this is expected, add it '
+             'to PIP_EXCLUDED_FILES in create_pip_helper.py. Otherwise, '
+             'make sure it is a build dependency of the pip package')
+            % file_name)
+      if path_exists and file_excluded:
+        raise PipPackagingError(
+            ('File in PIP_EXCLUDED_FILES included in pip. %s' % file_name))
 
 
 def main():
