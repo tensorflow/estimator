@@ -1,4 +1,4 @@
-# Copyright 2018 The TensorFlow Authors. All Rights Reserved.
+# Copyright 2019 The TensorFlow Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -193,7 +193,8 @@ def _local_variable(initial_value, name=None):
       initial_value=initial_value,
       trainable=False,
       validate_shape=False,
-      name=name
+      name=name,
+      use_resource=False
   )
   if isinstance(initial_value, ops.Tensor):
     # Match the resulting variable's shape if the initial_value is a Tensor.
@@ -1045,7 +1046,7 @@ def _bt_model_fn(
         initial_value=are_boundaries_ready_initial,
         name='are_boundaries_ready',
         trainable=False,
-        use_resource=True)
+        use_resource=False)
 
     if train_in_memory:
       # cache transformed features as well for in-memory training.
@@ -1128,7 +1129,7 @@ def _bt_model_fn(
     # Variable that determines whether bias centering is needed.
     center_bias_var = variable_scope.variable(
         initial_value=center_bias, name='center_bias_needed', trainable=False,
-        use_resource=True)
+        use_resource=False)
     if weight_column is None:
       weights = array_ops.constant(1., shape=[1])
     else:
