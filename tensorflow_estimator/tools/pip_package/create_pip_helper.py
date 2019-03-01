@@ -59,7 +59,7 @@ def create_init_files(pip_root):
   init files.
 
   Args:
-    pip_root: Root directory of code being pacakaged into pip.
+    pip_root: Root directory of code being packaged into pip.
 
   Returns:
     True: contrib code is included in pip.
@@ -82,7 +82,7 @@ def verify_python_files_in_pip(pip_root, bazel_root, has_contrib):
   """Verifies all expected files are packaged into Pip.
 
   Args:
-    pip_root: Root directory of code being pacakaged into pip.
+    pip_root: Root directory of code being packaged into pip.
     bazel_root: Root directory of Estimator Bazel workspace.
     has_contrib: Code from contrib/ should be included in pip.
 
