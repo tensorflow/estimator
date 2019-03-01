@@ -1308,8 +1308,7 @@ class EstimatorV2(object):
         checkpoint_dir=self._model_dir,
         scaffold=estimator_spec.scaffold,
         hooks=worker_hooks,
-        chief_only_hooks=(tuple(worker_hooks) +
-                          tuple(estimator_spec.training_chief_hooks)),
+        chief_only_hooks=tuple(estimator_spec.training_chief_hooks),
         save_checkpoint_secs=self._config.save_checkpoints_secs,
         save_checkpoint_steps=self._config.save_checkpoints_steps,
         save_summaries_steps=self._config.save_summary_steps,
