@@ -177,6 +177,22 @@ py_test(
     ],
 )
 
+py_test(
+    name = "ar_model_training_test",
+    srcs = [
+        "ar_model_training_test.py",
+    ],
+    shard_count = 4,
+    srcs_version = "PY2AND3",
+    deps = [
+        ":ar_model",
+        ":estimators",
+        ":feature_keys",
+        "//tensorflow_estimator/python/estimator:estimator_py",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
 py_library(
     name = "math_utils",
     srcs = [
