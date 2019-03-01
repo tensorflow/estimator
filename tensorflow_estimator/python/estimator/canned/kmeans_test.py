@@ -160,14 +160,12 @@ class KMeansTest(KMeansTestBase):
         seed=24,
         relative_tolerance=relative_tolerance)
 
-  @test_util.run_v1_only('b/123230084')
   def test_clusters(self):
     kmeans = self._kmeans()
     kmeans.train(input_fn=self.input_fn(), steps=1)
     clusters = kmeans.cluster_centers()
     self.assertAllEqual(list(clusters.shape), [self.num_centers, self.num_dims])
 
-  @test_util.run_v1_only('b/123230084')
   def test_fit(self):
     kmeans = self._kmeans()
     kmeans.train(input_fn=self.input_fn(), steps=1)
@@ -178,7 +176,6 @@ class KMeansTest(KMeansTestBase):
     self.assertTrue(score1 > score2)
     self.assertNear(self.true_score, score2, self.true_score * 0.05)
 
-  @test_util.run_v1_only('b/123230084')
   def test_monitor(self):
     if self.use_mini_batch:
       # We don't test for use_mini_batch case since the loss value can be noisy.
@@ -222,7 +219,6 @@ class KMeansTest(KMeansTestBase):
             np.transpose(np.sum(np.square(clusters), axis=1, keepdims=True))))
     self.assertAllClose(transform, true_transform, rtol=0.05, atol=10)
 
-  @test_util.run_v1_only('b/123230084')
   def test_infer(self):
     kmeans = self._kmeans()
     # Make a call to fit to initialize the cluster centers.
@@ -276,7 +272,6 @@ class KMeansTest(KMeansTestBase):
 @test_util.run_all_in_graph_and_eager_modes
 class KMeansTestMultiStageInit(KMeansTestBase):
 
-  @test_util.run_v1_only('b/123230084')
   def test_random(self):
     points = np.array(
         [[1, 2], [3, 4], [5, 6], [7, 8], [9, 0]], dtype=np.float32)
@@ -294,7 +289,6 @@ class KMeansTestMultiStageInit(KMeansTestBase):
     clusters = kmeans.cluster_centers()
     self.assertAllEqual(points, clusters)
 
-  @test_util.run_v1_only('b/123230084')
   def test_kmeans_plus_plus_batch_just_right(self):
     points = np.array([[1, 2]], dtype=np.float32)
     kmeans = kmeans_lib.KMeansClustering(
@@ -311,7 +305,6 @@ class KMeansTestMultiStageInit(KMeansTestBase):
     clusters = kmeans.cluster_centers()
     self.assertAllEqual(points, clusters)
 
-  @test_util.run_v1_only('b/123230084')
   def test_kmeans_plus_plus_batch_too_small(self):
     points = np.array(
         [[1, 2], [3, 4], [5, 6], [7, 8], [9, 0]], dtype=np.float32)
@@ -389,7 +382,6 @@ class KMeansCosineDistanceTest(KMeansTestBase):
         mini_batch_steps_per_iteration=self.mini_batch_steps_per_iteration,
         config=self.config(3))
 
-  @test_util.run_v1_only('b/123230084')
   def test_fit(self):
     max_steps = 10 * self.num_points // self.batch_size
     self.kmeans.train(input_fn=self.input_fn(), max_steps=max_steps)
@@ -398,7 +390,6 @@ class KMeansCosineDistanceTest(KMeansTestBase):
     true_centers = self.true_centers[self.true_centers[:, 0].argsort()]
     self.assertAllClose(centers, true_centers, atol=0.04)
 
-  @test_util.run_v1_only('b/123230084')
   def test_transform(self):
     self.kmeans.train(input_fn=self.input_fn(), steps=10)
     centers = normalize(self.kmeans.cluster_centers())
@@ -408,7 +399,6 @@ class KMeansCosineDistanceTest(KMeansTestBase):
             input_fn=self.input_fn(batch_size=self.num_points, num_epochs=1)))
     self.assertAllClose(transform, true_transform, atol=1e-3)
 
-  @test_util.run_v1_only('b/123230084')
   def test_predict(self):
     max_steps = 10 * self.num_points // self.batch_size
     self.kmeans.train(input_fn=self.input_fn(), max_steps=max_steps)
@@ -429,7 +419,6 @@ class KMeansCosineDistanceTest(KMeansTestBase):
         input_fn=self.input_fn(batch_size=self.num_points))
     self.assertAllClose(score, self.true_score, atol=1e-2)
 
-  @test_util.run_v1_only('b/123230084')
   def test_predict_kmeans_plus_plus(self):
     # Most points are concentrated near one center. KMeans++ is likely to find
     # the less populated centers.
@@ -624,7 +613,6 @@ class KMeansTestQueues(test.TestCase):
 
     return _fn
 
-  @test_util.run_v1_only('b/123230084')
   # This test makes sure that there are no deadlocks when using a QueueRunner.
   # Note that since cluster initialization is dependent on inputs, if input
   # is generated using a QueueRunner, one has to make sure that these runners
