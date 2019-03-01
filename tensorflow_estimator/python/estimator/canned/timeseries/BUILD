@@ -51,6 +51,7 @@ py_library(
         ":feature_keys",
         ":head",
         ":math_utils",
+        ":saved_model_utils",
         ":state_management",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
     ],
