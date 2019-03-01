@@ -4,10 +4,6 @@ package(default_visibility = ["//tensorflow_estimator:__subpackages__"])
 
 licenses(["notice"])  # Apache 2.0
 
-# TODO(b/112597278): Investigate and remove stale BUILD tags.
-# The no_oss tag was added as the estimator Kokoro test fails on certain
-# core TF imports.
-
 py_library(
     name = "feature_keys",
     srcs = [
@@ -17,20 +13,19 @@ py_library(
     deps = ["//tensorflow_estimator/python/estimator:expect_tensorflow_installed"],
 )
 
-# py_library(
-#     name = "saved_model_utils",
-#     srcs = [
-#         "saved_model_utils.py",
-#     ],
-#     srcs_version = "PY2AND3",
-#     deps = [
-#         ":feature_keys",
-#         ":head",
-#         ":model_utils",
-#         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
-#         "//third_party/tensorflow/contrib/timeseries/python/timeseries:input_pipeline",
-#     ],
-# )
+py_library(
+    name = "saved_model_utils",
+    srcs = [
+        "saved_model_utils.py",
+    ],
+    srcs_version = "PY2AND3",
+    deps = [
+        ":feature_keys",
+        ":head",
+        ":model_utils",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
 
 py_library(
     name = "model",
@@ -61,31 +56,22 @@ py_library(
     ],
 )
 
-# py_test(
-#     name = "estimators_test",
-#     timeout = "long",
-#     srcs = [
-#         "estimators_test.py",
-#     ],
-#     shard_count = 3,
-#     srcs_version = "PY2AND3",
-#     tags = [
-#         "no_mac",
-#         "no_oss",
-#         "nomsan",  # Takes too long to run.
-#         "notsan",  # b/67865658
-#         "optonly",  # Takes too long to run without optimization.
-#     ],
-#     deps = [
-#         ":ar_model",
-#         ":estimators",
-#         ":feature_keys",
-#         ":saved_model_utils",
-#         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
-#         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
-#         "//third_party/tensorflow/contrib/timeseries/python/timeseries:input_pipeline",
-#     ],
-# )
+py_test(
+    name = "estimators_test",
+    srcs = [
+        "estimators_test.py",
+    ],
+    srcs_version = "PY2AND3",
+    deps = [
+        ":ar_model",
+        ":estimators",
+        ":feature_keys",
+        ":saved_model_utils",
+        "//tensorflow_estimator/python/estimator:estimator_py",
+        "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
 
 py_library(
     name = "head",
