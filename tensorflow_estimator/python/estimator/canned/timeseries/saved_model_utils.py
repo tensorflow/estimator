@@ -137,7 +137,6 @@ def _colate_features_to_feeds_and_fetches(signature, features, graph,
       for output_key, output_value in signature.outputs.items()
   }
   feed_dict = {}
-  print("ASDF0", input_feed_tensors_by_name)
   for state_key, state_value in state_values.items():
     feed_dict[input_feed_tensors_by_name[state_key]] = state_value
   for feature_key, feature_value in features.items():
