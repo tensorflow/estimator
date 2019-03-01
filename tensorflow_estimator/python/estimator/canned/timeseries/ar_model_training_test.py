@@ -175,7 +175,7 @@ class ARModelTrainingTest(test.TestCase):
     # Test training
     # Note that most models will require many more steps to fully converge. We
     # have used a small number of steps here to keep the running time small.
-    estimator.train(input_fn=input_fn_builder.train_input_fn, steps=300)
+    estimator.train(input_fn=input_fn_builder.train_input_fn, steps=75)
     test_evaluation = estimator.evaluate(
         input_fn=input_fn_builder.test_input_fn, steps=1)
     test_loss = test_evaluation["loss"]
