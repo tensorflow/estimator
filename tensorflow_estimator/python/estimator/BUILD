@@ -1028,6 +1028,14 @@ py_test(
     size = "small",
     srcs = ["head/base_head_test.py"],
     srcs_version = "PY2AND3",
+    deps = [":base_head_test_lib"],
+)
+
+py_library(
+    name = "base_head_test_lib",
+    testonly = True,
+    srcs = ["head/base_head_test.py"],
+    srcs_version = "PY2AND3",
     deps = [
         ":base_head",
         ":mode_keys",
