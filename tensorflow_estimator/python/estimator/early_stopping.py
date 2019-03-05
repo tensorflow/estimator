@@ -333,7 +333,7 @@ def read_eval_metrics(eval_dir):
   Returns:
     A `dict` with global steps mapping to `dict` of metric names and values.
   """
-  eval_metrics_dict = {}
+  eval_metrics_dict = collections.defaultdict(dict)
   for event in _summaries(eval_dir):
     if not event.HasField('summary'):
       continue
@@ -342,7 +342,7 @@ def read_eval_metrics(eval_dir):
       if value.HasField('simple_value'):
         metrics[value.tag] = value.simple_value
     if metrics:
-      eval_metrics_dict[event.step] = metrics
+      eval_metrics_dict[event.step].update(metrics)
   return collections.OrderedDict(
       sorted(eval_metrics_dict.items(), key=lambda t: t[0]))
 
