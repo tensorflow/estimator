@@ -43,6 +43,16 @@ function build_wheel() {
   python tensorflow_estimator/tools/pip_package/create_pip_helper.py --pip-root "${TMPDIR}/tensorflow_estimator/" --bazel-root "./tensorflow_estimator"
 
   pushd ${TMPDIR} > /dev/null
+
+  # Setup needed to make sure estimator depends on tensorflow_core package not tensorflow
+  pushd tensorflow_estimator > /dev/null
+  for f in `find . -name "*.py"`; do
+    sed -i -e "/import/ s/tensorflow/tensorflow_core/" $f
+    # Make sure not to only change the main tensorflow import
+    sed -i -e "/import/ s/tensorflow_core_/tensorflow_/" $f
+  done
+  popd > /dev/null
+
   echo $(date) : "=== Building wheel"
   "${PYTHON_BIN_PATH:-python}" setup.py bdist_wheel --universal --project_name $PROJECT_NAME
   mkdir -p ${DEST}
