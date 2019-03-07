@@ -20,6 +20,7 @@ from __future__ import print_function
 
 from tensorflow.python.framework import ops
 from tensorflow.python.keras import metrics
+from tensorflow.python.keras.utils import losses_utils
 from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import nn
 from tensorflow.python.ops.losses import losses
@@ -111,15 +112,14 @@ class RegressionHead(base_head.Head):
       suffixed by `"/" + name`. Also used as `name_scope` when creating ops.
   """
 
-  def __init__(
-      self,
-      label_dimension=1,
-      weight_column=None,
-      loss_reduction=losses.Reduction.SUM_OVER_BATCH_SIZE,
-      loss_fn=None,
-      update_ops=None,
-      inverse_link_fn=None,
-      name=None):
+  def __init__(self,
+               label_dimension=1,
+               weight_column=None,
+               loss_reduction=losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE,
+               loss_fn=None,
+               update_ops=None,
+               inverse_link_fn=None,
+               name=None):
     if label_dimension < 1:
       raise ValueError('Invalid label_dimension {}.'.format(label_dimension))
     base_head.validate_loss_reduction(loss_reduction)
@@ -186,8 +186,10 @@ class RegressionHead(base_head.Head):
       labels = self._processed_labels(logits, labels)
       unweighted_loss, weights = self._unweighted_loss_and_weights(
           logits, labels, features)
-      training_loss = losses.compute_weighted_loss(
-          unweighted_loss, weights=weights, reduction=self._loss_reduction)
+      training_loss = losses_utils.compute_weighted_loss(
+          unweighted_loss,
+          sample_weight=weights,
+          reduction=self._loss_reduction)
       regularization_loss = math_ops.add_n(
           regularization_losses) if regularization_losses is not None else None
       regularized_training_loss = (
@@ -414,7 +416,7 @@ class PoissonRegressionHead(RegressionHead):
   def __init__(self,
                label_dimension=1,
                weight_column=None,
-               loss_reduction=losses.Reduction.SUM_OVER_BATCH_SIZE,
+               loss_reduction=losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE,
                compute_full_loss=True,
                name=None):
     self._compute_full_loss = compute_full_loss
@@ -507,7 +509,7 @@ class LogisticRegressionHead(RegressionHead):
 
   def __init__(self,
                weight_column=None,
-               loss_reduction=losses.Reduction.SUM_OVER_BATCH_SIZE,
+               loss_reduction=losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE,
                name=None):
     super(LogisticRegressionHead, self).__init__(
         label_dimension=1,

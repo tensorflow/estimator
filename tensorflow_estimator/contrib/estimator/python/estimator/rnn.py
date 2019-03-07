@@ -38,9 +38,8 @@ from tensorflow.python.training import optimizer as optimizer_lib
 from tensorflow.python.training import training_util
 from tensorflow_estimator.contrib.estimator.python.estimator import extenders
 from tensorflow_estimator.python.estimator import estimator
+from tensorflow_estimator.python.estimator.canned import head as head_lib
 from tensorflow_estimator.python.estimator.canned import optimizers
-from tensorflow_estimator.python.estimator.head import binary_class_head as binary_head_lib
-from tensorflow_estimator.python.estimator.head import multi_class_head as multi_head_lib
 from tensorflow_estimator.python.estimator.head import sequential_head as seq_head_lib
 
 # The defaults are historical artifacts of the initial implementation, but seem
@@ -485,17 +484,8 @@ class RNNClassifier(estimator.Estimator):
     """
     rnn_cell_fn = _assert_rnn_cell_fn(rnn_cell_fn, num_units, cell_type)
 
-    if n_classes == 2:
-      head = binary_head_lib.BinaryClassHead(
-          weight_column=weight_column,
-          label_vocabulary=label_vocabulary,
-          loss_reduction=loss_reduction)
-    else:
-      head = multi_head_lib.MultiClassHead(
-          n_classes=n_classes,
-          weight_column=weight_column,
-          label_vocabulary=label_vocabulary,
-          loss_reduction=loss_reduction)
+    head = head_lib._binary_logistic_or_multi_class_head(  # pylint: disable=protected-access
+        n_classes, weight_column, label_vocabulary, loss_reduction)
 
     def _model_fn(features, labels, mode, config):
       return _rnn_model_fn(

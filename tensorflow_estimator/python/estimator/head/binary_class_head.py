@@ -21,6 +21,7 @@ from __future__ import print_function
 from tensorflow.python.eager import context
 from tensorflow.python.framework import ops
 from tensorflow.python.keras import metrics
+from tensorflow.python.keras.utils import losses_utils
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import lookup_ops
@@ -28,7 +29,6 @@ from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import nn
 from tensorflow.python.ops import string_ops
 from tensorflow.python.ops import weights_broadcast_ops
-from tensorflow.python.ops.losses import losses
 from tensorflow_estimator.python.estimator import model_fn
 from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.canned import prediction_keys
@@ -95,7 +95,7 @@ class BinaryClassHead(base_head.Head):
                weight_column=None,
                thresholds=None,
                label_vocabulary=None,
-               loss_reduction=losses.Reduction.SUM_OVER_BATCH_SIZE,
+               loss_reduction=losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE,
                loss_fn=None,
                update_ops=None,
                name=None):
@@ -235,8 +235,10 @@ class BinaryClassHead(base_head.Head):
       labels = self._processed_labels(logits, labels)
       unweighted_loss, weights = self._unweighted_loss_and_weights(
           logits, labels, features)
-      training_loss = losses.compute_weighted_loss(
-          unweighted_loss, weights=weights, reduction=self._loss_reduction)
+      training_loss = losses_utils.compute_weighted_loss(
+          unweighted_loss,
+          sample_weight=weights,
+          reduction=self._loss_reduction)
       regularization_loss = math_ops.add_n(
           regularization_losses) if regularization_losses is not None else None
       regularized_training_loss = (

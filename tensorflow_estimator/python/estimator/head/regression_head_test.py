@@ -28,17 +28,16 @@ from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import errors
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import test_util
+from tensorflow.python.keras.utils import losses_utils
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import check_ops
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import variables
-from tensorflow.python.ops.losses import losses
 from tensorflow.python.platform import test
 from tensorflow.python.saved_model import signature_constants
 from tensorflow.python.training import monitored_session
 from tensorflow.python.training import queue_runner_impl
-from tensorflow_estimator.python.estimator import model_fn
 from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.canned import prediction_keys
 from tensorflow_estimator.python.estimator.head import head_utils as test_lib
@@ -61,7 +60,7 @@ class RegressionHead(test.TestCase):
       head_lib.RegressionHead(loss_reduction='invalid_loss_reduction')
     with self.assertRaisesRegexp(
         ValueError, r'Invalid loss_reduction: none'):
-      head_lib.RegressionHead(loss_reduction=losses.Reduction.NONE)
+      head_lib.RegressionHead(loss_reduction=losses_utils.ReductionV2.NONE)
 
   def test_loss_fn_arg_labels_missing(self):
     def _loss_fn(logits):
@@ -535,13 +534,12 @@ class RegressionHead(test.TestCase):
 
   def test_train_create_loss_loss_reduction(self):
     """Tests create_loss with loss_reduction."""
-    head = head_lib.RegressionHead(
-        loss_reduction=losses.Reduction.SUM_BY_NONZERO_WEIGHTS)
+    head = head_lib.RegressionHead(loss_reduction=losses_utils.ReductionV2.SUM)
     logits = np.array(((45,), (41,),), dtype=np.float32)
     labels = np.array(((43,), (44,),), dtype=np.int32)
     features = {'x': np.array(((42,),), dtype=np.float32)}
-    # training_loss = (1 * 4 + 1 * 9) / num_nonzero_weights
-    expected_training_loss = 13. / 2.
+    # training_loss = (1 * 4 + 1 * 9)
+    expected_training_loss = 13.
     # Create loss.
     training_loss = head.loss(
         logits=logits,

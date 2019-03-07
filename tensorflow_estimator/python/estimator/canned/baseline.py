@@ -53,6 +53,7 @@ import six
 
 from tensorflow.python.feature_column import feature_column as feature_column_lib
 from tensorflow.python.framework import ops
+from tensorflow.python.keras.utils import losses_utils
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import check_ops
 from tensorflow.python.ops import init_ops
@@ -241,7 +242,7 @@ class BaselineClassifierV2(estimator.EstimatorV2):
                label_vocabulary=None,
                optimizer='Ftrl',
                config=None,
-               loss_reduction=losses.Reduction.SUM_OVER_BATCH_SIZE):
+               loss_reduction=losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE):
     """Initializes a BaselineClassifier instance.
 
     Args:
@@ -484,7 +485,7 @@ class BaselineRegressorV2(estimator.EstimatorV2):
                weight_column=None,
                optimizer='Ftrl',
                config=None,
-               loss_reduction=losses.Reduction.SUM_OVER_BATCH_SIZE):
+               loss_reduction=losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE):
     """Initializes a BaselineRegressor instance.
 
     Args:

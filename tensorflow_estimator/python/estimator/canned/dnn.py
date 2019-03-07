@@ -24,6 +24,7 @@ from tensorflow.python.feature_column import feature_column
 from tensorflow.python.feature_column import feature_column_lib
 from tensorflow.python.framework import ops
 from tensorflow.python.keras.engine import training
+from tensorflow.python.keras.utils import losses_utils
 from tensorflow.python.layers import core as core_layers
 from tensorflow.python.layers import normalization
 from tensorflow.python.ops import init_ops
@@ -495,7 +496,7 @@ class DNNClassifierV2(estimator.EstimatorV2):
       input_layer_partitioner=None,
       config=None,
       warm_start_from=None,
-      loss_reduction=losses.Reduction.SUM_OVER_BATCH_SIZE,
+      loss_reduction=losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE,
       batch_norm=False,
   ):
     """Initializes a `DNNClassifier` instance.
@@ -912,7 +913,7 @@ class DNNRegressorV2(estimator.EstimatorV2):
       input_layer_partitioner=None,
       config=None,
       warm_start_from=None,
-      loss_reduction=losses.Reduction.SUM_OVER_BATCH_SIZE,
+      loss_reduction=losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE,
       batch_norm=False,
   ):
     """Initializes a `DNNRegressor` instance.

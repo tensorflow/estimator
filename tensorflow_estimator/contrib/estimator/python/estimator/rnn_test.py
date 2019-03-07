@@ -51,6 +51,7 @@ from tensorflow.python.training import optimizer as optimizer_lib
 from tensorflow.python.training import training_util
 from tensorflow_estimator.contrib.estimator.python.estimator import rnn
 from tensorflow_estimator.python.estimator import model_fn
+from tensorflow_estimator.python.estimator.canned import head as head_lib
 from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.canned import parsing_utils
 from tensorflow_estimator.python.estimator.canned import prediction_keys
@@ -684,7 +685,7 @@ class RNNClassifierTrainingTest(test.TestCase):
         'Provided head must be a `_SequentialHead` object when '
         '`return_sequences` is set to True.'):
       rnn.RNNEstimator(
-          head=multi_head_lib.MultiClassHead(n_classes=3),
+          head=head_lib._multi_class_head_with_softmax_cross_entropy_loss(3),  # pylint: disable=protected-access
           sequence_feature_columns=[embed],
           return_sequences=True)
 
@@ -1264,7 +1265,8 @@ class RNNClassifierIntegrationTest(BaseRNNClassificationIntegrationTest,
 
 def _rnn_estimator_fn(feature_columns, n_classes, cell_units, model_dir):
   return rnn.RNNEstimator(
-      head=multi_head_lib.MultiClassHead(n_classes=n_classes),
+      head=head_lib._multi_class_head_with_softmax_cross_entropy_loss(
+          n_classes),  # pylint: disable=protected-access
       num_units=cell_units,
       sequence_feature_columns=feature_columns,
       model_dir=model_dir)
@@ -1278,8 +1280,7 @@ class RNNEstimatorIntegrationTest(BaseRNNClassificationIntegrationTest,
     BaseRNNClassificationIntegrationTest.__init__(self, _rnn_estimator_fn)
 
 
-class _MockSeqHead(seq_head_lib._SequentialHead,
-                   multi_head_lib.MultiClassHead):
+class _MockSeqHead(seq_head_lib._SequentialHead, multi_head_lib.MultiClassHead):
   """Used to test that the sequence mask is properly passed to the head."""
 
   @property

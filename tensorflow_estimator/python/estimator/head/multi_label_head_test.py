@@ -29,16 +29,15 @@ from tensorflow.python.framework import errors
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import sparse_tensor
 from tensorflow.python.framework import test_util
+from tensorflow.python.keras.utils import losses_utils
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import nn
 from tensorflow.python.ops import string_ops
 from tensorflow.python.ops import variables
-from tensorflow.python.ops.losses import losses
 from tensorflow.python.platform import test
 from tensorflow.python.training import monitored_session
-from tensorflow_estimator.python.estimator import model_fn
 from tensorflow_estimator.python.estimator.canned import dnn
 from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.canned import prediction_keys
@@ -104,7 +103,7 @@ class MultiLabelHead(test.TestCase):
     with self.assertRaisesRegexp(
         ValueError, r'Invalid loss_reduction: none'):
       head_lib.MultiLabelHead(
-          n_classes=3, loss_reduction=losses.Reduction.NONE)
+          n_classes=3, loss_reduction=losses_utils.ReductionV2.NONE)
 
   def test_loss_fn_arg_labels_missing(self):
     def _loss_fn(logits):
@@ -481,8 +480,7 @@ class MultiLabelHead(test.TestCase):
 
   def test_eval_with_regularization_losses(self):
     n_classes = 2
-    head = head_lib.MultiLabelHead(
-        n_classes, loss_reduction=losses.Reduction.SUM_OVER_BATCH_SIZE)
+    head = head_lib.MultiLabelHead(n_classes)
     logits = np.array([[-1., 1.], [-1.5, 1.5]], dtype=np.float32)
     labels = np.array([[1, 0], [1, 1]], dtype=np.int64)
     regularization_losses = [1.5, 0.5]
@@ -754,8 +752,9 @@ class MultiLabelHead(test.TestCase):
     """Tests head.create_loss with loss_reduction."""
     n_classes = 2
     head = head_lib.MultiLabelHead(
-        n_classes, weight_column='example_weights',
-        loss_reduction=losses.Reduction.SUM_BY_NONZERO_WEIGHTS)
+        n_classes,
+        weight_column='example_weights',
+        loss_reduction=losses_utils.ReductionV2.SUM)
 
     logits = np.array([[-10., 10.], [-15., 10.]], dtype=np.float32)
     labels = np.array([[1, 0], [1, 1]], dtype=np.int64)
@@ -767,7 +766,7 @@ class MultiLabelHead(test.TestCase):
     #        (1 - labels) * (logits > 0) * logits
     # expected_unreduced_loss = [[(10. + 10.) / 2.], [(15. + 0.) / 2.]]
     # expected_weights = [[1.], [2.]]
-    expected_training_loss = (1. * (10. + 10.) / 2. + 2. * (15. + 0.) / 2.) / 2.
+    expected_training_loss = (1. * (10. + 10.) + 2. * (15. + 0.)) / 2.
     training_loss = head.loss(
         logits=logits,
         labels=labels,
@@ -1000,8 +999,7 @@ class MultiLabelHead(test.TestCase):
           train_result)
 
   def test_train_with_regularization_losses(self):
-    head = head_lib.MultiLabelHead(
-        n_classes=2, loss_reduction=losses.Reduction.SUM_OVER_BATCH_SIZE)
+    head = head_lib.MultiLabelHead(n_classes=2)
     logits = np.array([[-10., 10.], [-15., 10.]], dtype=np.float32)
     labels = np.array([[1, 0], [1, 1]], dtype=np.int64)
     regularization_losses = [1.5, 0.5]

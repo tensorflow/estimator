@@ -29,9 +29,8 @@ from tensorflow.python.framework import errors_impl
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import sparse_tensor
 from tensorflow.python.framework import test_util
-from tensorflow.python.ops.losses import losses
+from tensorflow.python.keras.utils import losses_utils
 from tensorflow.python.platform import test
-from tensorflow_estimator.python.estimator import model_fn
 from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.canned import prediction_keys
 from tensorflow_estimator.python.estimator.head import binary_class_head as binary_head_lib
@@ -343,14 +342,12 @@ class TestSequentialHead(test.TestCase):
   def test_head_properties(self):
     """Tests that the head's properties are correcly implemented."""
     static_head = binary_head_lib.BinaryClassHead(
-        loss_reduction=losses.Reduction.SUM_OVER_NONZERO_WEIGHTS,
-        name='a_static_head')
+        loss_reduction=losses_utils.ReductionV2.SUM, name='a_static_head')
     head = seq_head_lib.SequentialHeadWrapper(
         static_head, 'a_sequence_mask_col')
     self.assertEqual(head.name, 'a_static_head_sequential')
     self.assertEqual(head.logits_dimension, 1)
-    self.assertEqual(head.loss_reduction,
-                     losses.Reduction.SUM_OVER_NONZERO_WEIGHTS)
+    self.assertEqual(head.loss_reduction, losses_utils.ReductionV2.SUM)
     self.assertEqual(head.input_sequence_mask_key, 'a_sequence_mask_col')
     self.assertEqual(head.static_head.name, 'a_static_head')
 

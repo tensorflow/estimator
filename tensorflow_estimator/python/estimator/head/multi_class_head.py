@@ -22,6 +22,7 @@ from tensorflow.python.eager import context
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
 from tensorflow.python.keras import metrics
+from tensorflow.python.keras.utils import losses_utils
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import lookup_ops
 from tensorflow.python.ops import math_ops
@@ -118,7 +119,7 @@ class MultiClassHead(base_head.Head):
                n_classes,
                weight_column=None,
                label_vocabulary=None,
-               loss_reduction=losses.Reduction.SUM_OVER_BATCH_SIZE,
+               loss_reduction=losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE,
                loss_fn=None,
                update_ops=None,
                name=None):
@@ -252,8 +253,10 @@ class MultiClassHead(base_head.Head):
       label_ids = self._processed_labels(logits, labels)
       unweighted_loss, weights = self._unweighted_loss_and_weights(
           logits, label_ids, features)
-      training_loss = losses.compute_weighted_loss(
-          unweighted_loss, weights=weights, reduction=self._loss_reduction)
+      training_loss = losses_utils.compute_weighted_loss(
+          unweighted_loss,
+          sample_weight=weights,
+          reduction=self._loss_reduction)
       regularization_loss = math_ops.add_n(
           regularization_losses) if regularization_losses is not None else None
       regularized_training_loss = (

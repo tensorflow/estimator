@@ -27,6 +27,7 @@ from tensorflow.python.feature_column import feature_column_lib
 from tensorflow.python.framework import constant_op
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
+from tensorflow.python.keras.utils import losses_utils
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import math_ops
@@ -664,7 +665,7 @@ class LinearClassifierV2(estimator.EstimatorV2):
                config=None,
                partitioner=None,
                warm_start_from=None,
-               loss_reduction=losses.Reduction.SUM_OVER_BATCH_SIZE,
+               loss_reduction=losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE,
                sparse_combiner='sum'):
     """Construct a `LinearClassifier` estimator object.
 
@@ -1085,7 +1086,7 @@ class LinearRegressorV2(estimator.EstimatorV2):
                config=None,
                partitioner=None,
                warm_start_from=None,
-               loss_reduction=losses.Reduction.SUM_OVER_BATCH_SIZE,
+               loss_reduction=losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE,
                sparse_combiner='sum'):
     """Initializes a `LinearRegressor` instance.
 

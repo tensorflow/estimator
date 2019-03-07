@@ -29,13 +29,12 @@ from tensorflow.python.client import session as tf_session
 from tensorflow.python.feature_column import feature_column_lib
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
-from tensorflow.python.framework import test_util
+from tensorflow.python.keras.utils import losses_utils
 from tensorflow.python.ops import check_ops
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import state_ops
 from tensorflow.python.ops import variables
-from tensorflow.python.ops.losses import losses
 from tensorflow.python.platform import gfile
 from tensorflow.python.platform import test
 from tensorflow.python.summary.writer import writer_cache
@@ -81,7 +80,7 @@ def _baseline_estimator_fn(weight_column=None,
       head=regression_head.RegressionHead(
           weight_column=weight_column,
           label_dimension=label_dimension,
-          loss_reduction=losses.Reduction.SUM_OVER_BATCH_SIZE),
+          loss_reduction=losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE),
       **kwargs)
 
 

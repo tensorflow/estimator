@@ -29,6 +29,7 @@ import six
 from tensorflow.python.feature_column import feature_column as feature_column_lib
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
+from tensorflow.python.keras.utils import losses_utils
 from tensorflow.python.layers import core as core_layers
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import check_ops
@@ -38,7 +39,6 @@ from tensorflow.python.ops import partitioned_variables
 from tensorflow.python.ops import rnn
 from tensorflow.python.ops import rnn_cell
 from tensorflow.python.ops import variable_scope
-from tensorflow.python.ops.losses import losses
 from tensorflow.python.summary import summary
 from tensorflow.python.training import optimizer as optimizer_lib
 from tensorflow.python.training import training_util
@@ -429,7 +429,7 @@ class RNNClassifier(estimator.Estimator):
                weight_column=None,
                label_vocabulary=None,
                optimizer='Adagrad',
-               loss_reduction=losses.Reduction.SUM_OVER_BATCH_SIZE,
+               loss_reduction=losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE,
                input_layer_partitioner=None,
                config=None):
     """Initializes a `RNNClassifier` instance.

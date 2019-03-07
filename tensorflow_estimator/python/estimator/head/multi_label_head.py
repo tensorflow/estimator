@@ -25,6 +25,7 @@ from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import sparse_tensor
 from tensorflow.python.keras import metrics
+from tensorflow.python.keras.utils import losses_utils
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import lookup_ops
 from tensorflow.python.ops import math_ops
@@ -137,7 +138,7 @@ class MultiLabelHead(base_head.Head):
                weight_column=None,
                thresholds=None,
                label_vocabulary=None,
-               loss_reduction=losses.Reduction.SUM_OVER_BATCH_SIZE,
+               loss_reduction=losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE,
                loss_fn=None,
                update_ops=None,
                classes_for_class_based_metrics=None,
@@ -320,7 +321,8 @@ class MultiLabelHead(base_head.Head):
           expected_loss_dim=1)
     else:
       unweighted_loss = losses.sigmoid_cross_entropy(
-          multi_class_labels=processed_labels, logits=logits,
+          multi_class_labels=processed_labels,
+          logits=logits,
           reduction=losses.Reduction.NONE)
       # Averages loss over classes.
       unweighted_loss = math_ops.reduce_mean(
@@ -341,8 +343,10 @@ class MultiLabelHead(base_head.Head):
       processed_labels = self._processed_labels(logits, labels)
       unweighted_loss, weights = self._unweighted_loss_and_weights(
           logits, processed_labels, features)
-      training_loss = losses.compute_weighted_loss(
-          unweighted_loss, weights=weights, reduction=self._loss_reduction)
+      training_loss = losses_utils.compute_weighted_loss(
+          unweighted_loss,
+          sample_weight=weights,
+          reduction=self._loss_reduction)
       regularization_loss = math_ops.add_n(
           regularization_losses) if regularization_losses is not None else None
       regularized_training_loss = (

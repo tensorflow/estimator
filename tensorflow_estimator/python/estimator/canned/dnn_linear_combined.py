@@ -23,6 +23,7 @@ import math
 import six
 
 from tensorflow.python.framework import ops
+from tensorflow.python.keras.utils import losses_utils
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import nn
 from tensorflow.python.ops import partitioned_variables
@@ -347,7 +348,7 @@ class DNNLinearCombinedClassifierV2(estimator.EstimatorV2):
                input_layer_partitioner=None,
                config=None,
                warm_start_from=None,
-               loss_reduction=losses.Reduction.SUM_OVER_BATCH_SIZE,
+               loss_reduction=losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE,
                batch_norm=False,
                linear_sparse_combiner='sum'):
     """Initializes a DNNLinearCombinedClassifier instance.
@@ -856,7 +857,7 @@ class DNNLinearCombinedRegressorV2(estimator.EstimatorV2):
                input_layer_partitioner=None,
                config=None,
                warm_start_from=None,
-               loss_reduction=losses.Reduction.SUM_OVER_BATCH_SIZE,
+               loss_reduction=losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE,
                batch_norm=False,
                linear_sparse_combiner='sum'):
     """Initializes a DNNLinearCombinedRegressor instance.

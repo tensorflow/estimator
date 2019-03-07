@@ -29,15 +29,14 @@ from tensorflow.python.framework import errors
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import sparse_tensor
 from tensorflow.python.framework import test_util
+from tensorflow.python.keras.utils import losses_utils
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import string_ops
 from tensorflow.python.ops import variables
-from tensorflow.python.ops.losses import losses
 from tensorflow.python.platform import test
 from tensorflow.python.training import monitored_session
-from tensorflow_estimator.python.estimator import model_fn
 from tensorflow_estimator.python.estimator.canned import dnn
 from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.canned import prediction_keys
@@ -63,7 +62,7 @@ class MultiClassHead(test.TestCase):
           n_classes=3, loss_reduction='invalid_loss_reduction')
     with self.assertRaisesRegexp(ValueError, r'Invalid loss_reduction: none'):
       head_lib.MultiClassHead(
-          n_classes=3, loss_reduction=losses.Reduction.NONE)
+          n_classes=3, loss_reduction=losses_utils.ReductionV2.NONE)
 
   def test_loss_fn_arg_labels_missing(self):
 
@@ -908,7 +907,7 @@ class MultiClassHead(test.TestCase):
   def test_train_create_loss_loss_reduction(self):
     """Tests create_loss with loss_reduction."""
     head = head_lib.MultiClassHead(
-        n_classes=3, loss_reduction=losses.Reduction.SUM_BY_NONZERO_WEIGHTS)
+        n_classes=3, loss_reduction=losses_utils.ReductionV2.SUM)
 
     logits = np.array((
         (10, 0, 0),
@@ -921,8 +920,8 @@ class MultiClassHead(test.TestCase):
     expected_unreduced_loss = [[10.], [0.]]
     # Weights default to 1.
     expected_weights = 1.
-    # training_loss = 1 * 10 + 1 * 0 / num_nonzero_weights
-    expected_training_loss = 10. / 2.
+    # training_loss = 1 * 10 + 1 * 0
+    expected_training_loss = 10.
     tol = 1e-2
     if context.executing_eagerly():
       training_loss = head.loss(logits, labels, features)

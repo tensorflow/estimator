@@ -29,13 +29,13 @@ from tensorflow.python.feature_column.feature_column import _NumericColumn
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import sparse_tensor
 from tensorflow.python.framework import tensor_util
+from tensorflow.python.keras.utils import losses_utils
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import check_ops
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import string_ops
 from tensorflow.python.ops import weights_broadcast_ops
-from tensorflow.python.ops.losses import losses
 from tensorflow.python.saved_model import signature_constants
 from tensorflow.python.summary import summary
 from tensorflow.python.training import training_util
@@ -601,8 +601,8 @@ def validate_loss_fn_args(loss_fn):
 
 
 def validate_loss_reduction(loss_reduction):
-  if (loss_reduction not in losses.Reduction.all() or
-      loss_reduction == losses.Reduction.NONE):
+  if (loss_reduction not in losses_utils.ReductionV2.all() or
+      loss_reduction == losses_utils.ReductionV2.NONE):
     raise ValueError(
         'Invalid loss_reduction: {}. See `tf.losses.Reduction` for valid '
         'options.'.format(loss_reduction))
