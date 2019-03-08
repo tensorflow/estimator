@@ -37,6 +37,7 @@ from tensorflow.python.framework import test_util
 from tensorflow.python.keras import layers as keras_layers
 from tensorflow.python.lib.io import python_io
 from tensorflow.python.ops import check_ops
+from tensorflow.python.ops import init_ops
 from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import state_ops
 from tensorflow.python.ops import variables as variables_lib
@@ -194,31 +195,74 @@ class RNNLayerFnTest(test.TestCase, parameterized.TestCase):
         cell='custom-cell', return_sequences='return-seq-value')
 
 
+def _mock_rnn_cell(kernel, recurrent, bias):
+  """Sets initialization values to `SimpleRNNCell` layers used in context."""
+
+  class _MockRNNCell(keras_layers.SimpleRNNCell):
+
+    def __init__(self, units):
+      super(_MockRNNCell, self).__init__(
+          units=units,
+          kernel_initializer=init_ops.Constant(kernel),
+          recurrent_initializer=init_ops.Constant(recurrent),
+          bias_initializer=init_ops.Constant(bias))
+
+  return test.mock.patch.object(keras_layers, 'SimpleRNNCell', _MockRNNCell)
+
+
+def _mock_logits_layer(kernel, bias):
+  """Sets initialization values to dense `logits` layers used in context."""
+
+  class _MockDenseLayer(keras_layers.Dense):
+
+    def __init__(self, units, name):
+      kwargs = {}
+      if name == 'logits':
+        kwargs = {
+            'kernel_initializer': init_ops.Constant(kernel),
+            'bias_initializer': init_ops.Constant(bias)}
+
+      super(_MockDenseLayer, self).__init__(
+          units=units, name=name, **kwargs)
+
+  return test.mock.patch.object(keras_layers, 'Dense', _MockDenseLayer)
+
+
 @test_util.run_all_in_graph_and_eager_modes
 class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
   """Tests correctness of logits calculated from _rnn_logit_fn_builder."""
+
+  def setUp(self):
+    # Sets layers default weights for testing purpose.
+    self.kernel = [[.1, -.2]]
+    self.recurrent = [[.2, -.3], [.3, -.4]]
+    self.bias = [.2, .5]
+    self.dense_kernel = [[-1.], [1.]]
+    self.dense_bias = [0.3]
+    super(RNNLogitFnTest, self).setUp()
+
+  def _mock_rnn_cell(self):
+    return _mock_rnn_cell(self.kernel, recurrent=self.recurrent, bias=self.bias)
+
+  def _mock_logits_layer(self):
+    return _mock_logits_layer(self.dense_kernel, bias=self.dense_bias)
 
   def _test_logits(self, mode, rnn_units, logits_dimension, features_fn,
                    sequence_feature_columns, context_feature_columns,
                    expected_logits, return_sequences=False):
     """Tests that the expected logits are calculated."""
-    with ops.Graph().as_default():
-      # Global step needed for MonitoredSession, which is in turn used to
-      # explicitly set variable weights through a checkpoint.
-      training_util.create_global_step()
-      logit_fn = rnn._rnn_logit_fn_builder(
-          output_units=logits_dimension,
-          rnn_layer_fn=rnn._make_rnn_layer_fn(
-              units=rnn_units, return_sequences=return_sequences,
-              cell_type=rnn.USE_DEFAULT, rnn_cell_fn=None),
-          sequence_feature_columns=sequence_feature_columns,
-          context_feature_columns=context_feature_columns)
-      # Features are constructed within this function, otherwise the Tensors
-      # containing the features would be defined outside this graph.
-      logits = logit_fn(features=features_fn(), mode=mode)
-      with monitored_session.MonitoredTrainingSession(
-          checkpoint_dir=self.get_temp_dir()) as sess:
-        self.assertAllClose(expected_logits, sess.run(logits), atol=1e-4)
+    logit_fn = rnn._rnn_logit_fn_builder(
+        output_units=logits_dimension,
+        rnn_layer_fn=rnn._make_rnn_layer_fn(
+            units=rnn_units, cell_type=rnn.USE_DEFAULT,
+            return_sequences=return_sequences, rnn_cell_fn=None),
+        sequence_feature_columns=sequence_feature_columns,
+        context_feature_columns=context_feature_columns)
+    # Features are constructed within this function, otherwise the Tensors
+    # containing the features would be defined outside this graph.
+    logits = logit_fn(features=features_fn(), mode=mode)
+    self.evaluate(variables_lib.global_variables_initializer())
+    self.assertAllClose(expected_logits, self.evaluate(logits), atol=1e-4)
 
   @parameterized.named_parameters(
       {'testcase_name': 'Static',
@@ -249,15 +293,6 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
       expected_logits: An array with expected logits result.
     """
     expected_mask = [[1, 1]]
-    base_global_step = 100
-    create_checkpoint(
-        kernel=[[.1, -.2]],
-        recurrent_kernel=[[.2, -.3], [.3, -.4]],
-        rnn_biases=[.2, .5],
-        logits_weights=[[-1.], [1.]],
-        logits_biases=[0.3],
-        global_step=base_global_step,
-        model_dir=self.get_temp_dir())
 
     def features_fn():
       return {
@@ -271,19 +306,22 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
     sequence_feature_columns = [
         seq_fc.sequence_numeric_column('price', shape=(1,))]
     context_feature_columns = []
-    for mode in [
-        model_fn.ModeKeys.TRAIN, model_fn.ModeKeys.EVAL,
-        model_fn.ModeKeys.PREDICT
-    ]:
-      self._test_logits(
-          mode,
-          rnn_units=[2],
-          logits_dimension=1,
-          features_fn=features_fn,
-          sequence_feature_columns=sequence_feature_columns,
-          context_feature_columns=context_feature_columns,
-          expected_logits=(expected_logits, expected_mask),
-          return_sequences=return_sequences)
+
+    with self._mock_rnn_cell():
+      with self._mock_logits_layer():
+        for mode in [
+            model_fn.ModeKeys.TRAIN, model_fn.ModeKeys.EVAL,
+            model_fn.ModeKeys.PREDICT
+        ]:
+          self._test_logits(
+              mode,
+              rnn_units=[2],
+              logits_dimension=1,
+              features_fn=features_fn,
+              sequence_feature_columns=sequence_feature_columns,
+              context_feature_columns=context_feature_columns,
+              expected_logits=(expected_logits, expected_mask),
+              return_sequences=return_sequences)
 
   @parameterized.named_parameters(
       {'testcase_name': 'Static',
@@ -322,15 +360,6 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
       expected_logits: An array with expected logits result.
     """
     expected_mask = [[1, 1]]
-    base_global_step = 100
-    create_checkpoint(
-        kernel=[[.1, -.2]],
-        recurrent_kernel=[[.2, -.3], [.3, -.4]],
-        rnn_biases=[.2, .5],
-        logits_weights=[[-1., 0.5, 0.2], [1., -0.3, 0.1]],
-        logits_biases=[0.3, 0.4, 0.5],
-        global_step=base_global_step,
-        model_dir=self.get_temp_dir())
 
     def features_fn():
       return {
@@ -345,19 +374,23 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
         seq_fc.sequence_numeric_column('price', shape=(1,))]
     context_feature_columns = []
 
-    for mode in [
-        model_fn.ModeKeys.TRAIN, model_fn.ModeKeys.EVAL,
-        model_fn.ModeKeys.PREDICT
-    ]:
-      self._test_logits(
-          mode,
-          rnn_units=[2],
-          logits_dimension=3,
-          features_fn=features_fn,
-          sequence_feature_columns=sequence_feature_columns,
-          context_feature_columns=context_feature_columns,
-          expected_logits=(expected_logits, expected_mask),
-          return_sequences=return_sequences)
+    self.dense_kernel = [[-1., 0.5, 0.2], [1., -0.3, 0.1]]
+    self.dense_bias = [0.3, 0.4, 0.5]
+    with self._mock_rnn_cell():
+      with self._mock_logits_layer():
+        for mode in [
+            model_fn.ModeKeys.TRAIN, model_fn.ModeKeys.EVAL,
+            model_fn.ModeKeys.PREDICT
+        ]:
+          self._test_logits(
+              mode,
+              rnn_units=[2],
+              logits_dimension=3,
+              features_fn=features_fn,
+              sequence_feature_columns=sequence_feature_columns,
+              context_feature_columns=context_feature_columns,
+              expected_logits=(expected_logits, expected_mask),
+              return_sequences=return_sequences)
 
   @parameterized.named_parameters(
       {'testcase_name': 'Static',
@@ -408,15 +441,6 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
       expected_logits: An array with expected logits result.
     """
     expected_mask = [[1, 1], [1, 1]]
-    base_global_step = 100
-    create_checkpoint(
-        kernel=[[.1, -.2]],
-        recurrent_kernel=[[.2, -.3], [.3, -.4]],
-        rnn_biases=[.2, .5],
-        logits_weights=[[-1., 0.5, 0.2], [1., -0.3, 0.1]],
-        logits_biases=[0.3, 0.4, 0.5],
-        global_step=base_global_step,
-        model_dir=self.get_temp_dir())
 
     def features_fn():
       return {
@@ -432,19 +456,23 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
     ]
     context_feature_columns = []
 
-    for mode in [
-        model_fn.ModeKeys.TRAIN, model_fn.ModeKeys.EVAL,
-        model_fn.ModeKeys.PREDICT
-    ]:
-      self._test_logits(
-          mode,
-          rnn_units=[2],
-          logits_dimension=3,
-          features_fn=features_fn,
-          sequence_feature_columns=sequence_feature_columns,
-          context_feature_columns=context_feature_columns,
-          expected_logits=(expected_logits, expected_mask),
-          return_sequences=return_sequences)
+    self.dense_kernel = [[-1., 0.5, 0.2], [1., -0.3, 0.1]]
+    self.dense_bias = [0.3, 0.4, 0.5]
+    with self._mock_rnn_cell():
+      with self._mock_logits_layer():
+        for mode in [
+            model_fn.ModeKeys.TRAIN, model_fn.ModeKeys.EVAL,
+            model_fn.ModeKeys.PREDICT
+        ]:
+          self._test_logits(
+              mode,
+              rnn_units=[2],
+              logits_dimension=3,
+              features_fn=features_fn,
+              sequence_feature_columns=sequence_feature_columns,
+              context_feature_columns=context_feature_columns,
+              expected_logits=(expected_logits, expected_mask),
+              return_sequences=return_sequences)
 
   @parameterized.named_parameters(
       {'testcase_name': 'Static',
@@ -483,15 +511,6 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
       expected_logits: An array with expected logits result.
     """
     expected_mask = [[1, 1], [1, 0]]
-    base_global_step = 100
-    create_checkpoint(
-        kernel=[[.1, -.2]],
-        recurrent_kernel=[[.2, -.3], [.3, -.4]],
-        rnn_biases=[.2, .5],
-        logits_weights=[[-1.], [1.]],
-        logits_biases=[0.3],
-        global_step=base_global_step,
-        model_dir=self.get_temp_dir())
 
     def features_fn():
       return {
@@ -506,19 +525,21 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
         seq_fc.sequence_numeric_column('price', shape=(1,))]
     context_feature_columns = []
 
-    for mode in [
-        model_fn.ModeKeys.TRAIN, model_fn.ModeKeys.EVAL,
-        model_fn.ModeKeys.PREDICT
-    ]:
-      self._test_logits(
-          mode,
-          rnn_units=[2],
-          logits_dimension=1,
-          features_fn=features_fn,
-          sequence_feature_columns=sequence_feature_columns,
-          context_feature_columns=context_feature_columns,
-          expected_logits=(expected_logits, expected_mask),
-          return_sequences=return_sequences)
+    with self._mock_rnn_cell():
+      with self._mock_logits_layer():
+        for mode in [
+            model_fn.ModeKeys.TRAIN, model_fn.ModeKeys.EVAL,
+            model_fn.ModeKeys.PREDICT
+        ]:
+          self._test_logits(
+              mode,
+              rnn_units=[2],
+              logits_dimension=1,
+              features_fn=features_fn,
+              sequence_feature_columns=sequence_feature_columns,
+              context_feature_columns=context_feature_columns,
+              expected_logits=(expected_logits, expected_mask),
+              return_sequences=return_sequences)
 
   def testMultiExamplesWithContext(self):
     """Tests multiple examples with context features.
@@ -541,16 +562,6 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
            = [[-0.3662], [0.1414]]
     """
     expected_mask = [[1, 1], [1, 0]]
-    base_global_step = 100
-    create_checkpoint(
-        # Context features weights are inserted between input and state weights.
-        kernel=[[.1, -.2], [1., 0.9]],
-        recurrent_kernel=[[.2, -.3], [.3, -.4]],
-        rnn_biases=[.2, .5],
-        logits_weights=[[-1.], [1.]],
-        logits_biases=[0.3],
-        global_step=base_global_step,
-        model_dir=self.get_temp_dir())
 
     def features_fn():
       return {
@@ -566,18 +577,21 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
         seq_fc.sequence_numeric_column('price', shape=(1,))]
     context_feature_columns = [fc.numeric_column('context', shape=(1,))]
 
-    for mode in [
-        model_fn.ModeKeys.TRAIN, model_fn.ModeKeys.EVAL,
-        model_fn.ModeKeys.PREDICT
-    ]:
-      self._test_logits(
-          mode,
-          rnn_units=[2],
-          logits_dimension=1,
-          features_fn=features_fn,
-          sequence_feature_columns=sequence_feature_columns,
-          context_feature_columns=context_feature_columns,
-          expected_logits=([[-0.3662], [0.1414]], expected_mask))
+    self.kernel = [[.1, -.2], [1., 0.9]]
+    with self._mock_rnn_cell():
+      with self._mock_logits_layer():
+        for mode in [
+            model_fn.ModeKeys.TRAIN, model_fn.ModeKeys.EVAL,
+            model_fn.ModeKeys.PREDICT
+        ]:
+          self._test_logits(
+              mode,
+              rnn_units=[2],
+              logits_dimension=1,
+              features_fn=features_fn,
+              sequence_feature_columns=sequence_feature_columns,
+              context_feature_columns=context_feature_columns,
+              expected_logits=([[-0.3662], [0.1414]], expected_mask))
 
   def testMultiExamplesMultiFeatures(self):
     """Tests examples with multiple sequential feature columns.
@@ -600,17 +614,6 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
            = [[-1.5056], [-0.7962]]
     """
     expected_mask = [[1, 1], [1, 0]]
-    base_global_step = 100
-    create_checkpoint(
-        # FeatureColumns are sorted alphabetically, so on_sale weights are
-        # inserted before price.
-        kernel=[[.5, -.5], [1., -1.], [.1, -.2]],
-        recurrent_kernel=[[.2, -.3], [.3, -.4]],
-        rnn_biases=[.2, .5],
-        logits_weights=[[-1.], [1.]],
-        logits_biases=[0.3],
-        global_step=base_global_step,
-        model_dir=self.get_temp_dir())
 
     def features_fn():
       return {
@@ -633,18 +636,21 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
     sequence_feature_columns = [price_column, on_sale_column]
     context_feature_columns = []
 
-    for mode in [
-        model_fn.ModeKeys.TRAIN, model_fn.ModeKeys.EVAL,
-        model_fn.ModeKeys.PREDICT
-    ]:
-      self._test_logits(
-          mode,
-          rnn_units=[2],
-          logits_dimension=1,
-          features_fn=features_fn,
-          sequence_feature_columns=sequence_feature_columns,
-          context_feature_columns=context_feature_columns,
-          expected_logits=([[-1.5056], [-0.7962]], expected_mask))
+    self.kernel = [[.5, -.5], [1., -1.], [.1, -.2]]
+    with self._mock_rnn_cell():
+      with self._mock_logits_layer():
+        for mode in [
+            model_fn.ModeKeys.TRAIN, model_fn.ModeKeys.EVAL,
+            model_fn.ModeKeys.PREDICT
+        ]:
+          self._test_logits(
+              mode,
+              rnn_units=[2],
+              logits_dimension=1,
+              features_fn=features_fn,
+              sequence_feature_columns=sequence_feature_columns,
+              context_feature_columns=context_feature_columns,
+              expected_logits=([[-1.5056], [-0.7962]], expected_mask))
 
   @parameterized.parameters([
       (model_fn.ModeKeys.TRAIN, True),
