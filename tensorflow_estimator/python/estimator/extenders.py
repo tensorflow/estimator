@@ -47,7 +47,7 @@ def add_metrics(estimator, metric_fn):
   Example usage of custom metric which uses features:
 
   ```python
-    def my_auc(labels, predictions):
+    def my_auc(labels, predictions, features):
       auc_metric = tf.keras.metrics.AUC(name="my_auc")
       auc_metric.update_state(y_true=labels, y_pred=predictions['logistic'],
                               sample_weight=features['weight'])
