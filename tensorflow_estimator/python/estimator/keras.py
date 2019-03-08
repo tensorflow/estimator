@@ -21,7 +21,6 @@ from __future__ import print_function
 
 import os
 import re
-import six
 
 from tensorflow.python.client import session
 from tensorflow.python.distribute import distribution_strategy_context
@@ -30,7 +29,6 @@ from tensorflow.python.framework import random_seed
 from tensorflow.python.framework import sparse_tensor as sparse_tensor_lib
 from tensorflow.python.framework import tensor_util
 from tensorflow.python.keras import backend as K
-from tensorflow.python.keras import metrics as metrics_module
 from tensorflow.python.keras import models
 from tensorflow.python.keras import optimizers
 from tensorflow.python.ops import check_ops
@@ -215,46 +213,16 @@ def _convert_keras_metrics_to_estimator(model):
     Dictionary mapping metric names to tuples of (value, update) ops. May return
     `None` if the model does not contain any metrics.
   """
-  if not getattr(model, 'metrics', None):
+  if not getattr(model, '_compile_metrics', None):
     return None
 
-  eval_metric_ops = {}
-
-  def get_metric_name(metric):
-    if isinstance(metric, metrics_module.Metric):
-      return metric.name
-    if callable(metric):
-      return metric.__name__
-    assert isinstance(metric, six.string_types)
-    return metric
-
-  # When each metric maps to an output
-  if isinstance(model.metrics, dict):
-    for i, output_name in enumerate(model.metrics.keys()):
-      # `metric` is the user given metric value in `compile`. This can be
-      # metric name (`acc`), metric function (binary_accuracy) or a metric
-      # object (BinaryAccuracy()).
-      metric = model.metrics[output_name]
-      metric_name = get_metric_name(metric)
-      # When some outputs use the same metric
-      if list(model.metrics.values()).count(metric_name) > 1:
-        metric_name += '_' + output_name
-      if isinstance(metric, metrics_module.Metric):
-        eval_metric_ops[metric_name] = metric
-      else:
-        mean = metrics_module.Mean()
-        mean.update_state(model.metrics_tensors[i - len(model.metrics)])
-        eval_metric_ops[metric_name] = mean
-  else:
-    for i, metric in enumerate(model.metrics):
-      metric_name = get_metric_name(metric)
-      if isinstance(metric, metrics_module.Metric):
-        eval_metric_ops[metric_name] = metric
-      else:
-        mean = metrics_module.Mean()
-        mean.update_state(model.metrics_tensors[i])
-        eval_metric_ops[metric_name] = mean
-  return eval_metric_ops
+  # We are not using model.metrics here because we want to exclude the metrics
+  # added using `add_metric` API.
+  # TODO(psv): Remove this condition here after
+  # _compile_stateful_metric_functions becomes obsolete with the Estimator repo.
+  if hasattr(model, '_compile_stateful_metric_functions'):
+    return {m.name: m for m in model._compile_stateful_metric_functions}
+  return {m.name: m for m in model._compile_metric_functions}
 
 
 def _create_keras_model_fn(keras_model, custom_objects=None):
