@@ -1,0 +1,16 @@
+# editor files
+*.swp
+*~
+.vscode/
+.DS_Store
+
+# bazel
+/.bazelrc.user
+/bazel-*
+
+# python
+*.pyc
+*.pyo
+__pycache__
+*.whl
+.ipynb_checkpoints
