@@ -38,7 +38,6 @@ from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import init_ops
 from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import nn
-from tensorflow.python.ops import partitioned_variables
 from tensorflow.python.ops import state_ops
 from tensorflow.python.ops import variable_scope
 from tensorflow.python.ops import variables as variables_lib
@@ -155,13 +154,14 @@ def create_checkpoint(weights_and_biases,
 
 def mock_head(testcase, hidden_units, logits_dimension, expected_logits):
   """Returns a mock head that validates logits values and variable names."""
-  hidden_weights_names = [(HIDDEN_WEIGHTS_NAME_PATTERN + '/part_0:0') % i
+  hidden_weights_names = [(HIDDEN_WEIGHTS_NAME_PATTERN + ':0') % i
                           for i in range(len(hidden_units))]
-  hidden_biases_names = [(HIDDEN_BIASES_NAME_PATTERN + '/part_0:0') % i
-                         for i in range(len(hidden_units))]
+  hidden_biases_names = [
+      (HIDDEN_BIASES_NAME_PATTERN + ':0') % i for i in range(len(hidden_units))
+  ]
   expected_var_names = (
       hidden_weights_names + hidden_biases_names +
-      [LOGITS_WEIGHTS_NAME + '/part_0:0', LOGITS_BIASES_NAME + '/part_0:0'])
+      [LOGITS_WEIGHTS_NAME + ':0', LOGITS_BIASES_NAME + ':0'])
 
   def _create_tpu_estimator_spec(
       features, mode, logits, labels, train_op_fn=None, optimizer=None):
@@ -216,13 +216,14 @@ def mock_optimizer(testcase, hidden_units, expected_loss=None):
   Returns:
     A mock Optimizer.
   """
-  hidden_weights_names = [(HIDDEN_WEIGHTS_NAME_PATTERN + '/part_0:0') % i
+  hidden_weights_names = [(HIDDEN_WEIGHTS_NAME_PATTERN + ':0') % i
                           for i in range(len(hidden_units))]
-  hidden_biases_names = [(HIDDEN_BIASES_NAME_PATTERN + '/part_0:0') % i
-                         for i in range(len(hidden_units))]
+  hidden_biases_names = [
+      (HIDDEN_BIASES_NAME_PATTERN + ':0') % i for i in range(len(hidden_units))
+  ]
   expected_var_names = (
       hidden_weights_names + hidden_biases_names +
-      [LOGITS_WEIGHTS_NAME + '/part_0:0', LOGITS_BIASES_NAME + '/part_0:0'])
+      [LOGITS_WEIGHTS_NAME + ':0', LOGITS_BIASES_NAME + ':0'])
 
   def _minimize(loss, global_step=None, var_list=None):
     """Mock of optimizer.minimize."""
@@ -603,9 +604,6 @@ class BaseDNNLogitFnTest(object):
       # Use a variable scope here with 'dnn', emulating the dnn model_fn, so
       # the checkpoint naming is shared.
       with variable_scope.variable_scope('dnn'):
-        input_layer_partitioner = (
-            partitioned_variables.min_max_variable_partitioner(
-                max_partitions=0, min_slice_size=64 << 20))
         logit_fn = self._dnn_logit_fn_builder(
             units=logits_dimension,
             hidden_units=hidden_units,
@@ -615,7 +613,6 @@ class BaseDNNLogitFnTest(object):
             ],
             activation_fn=nn.relu,
             dropout=None,
-            input_layer_partitioner=input_layer_partitioner,
             batch_norm=batch_norm)
         logits = logit_fn(
             features={'age': constant_op.constant(inputs)}, mode=mode)
@@ -848,9 +845,6 @@ class BaseDNNLogitFnTest(object):
         # Use a variable scope here with 'dnn', emulating the dnn model_fn, so
         # the checkpoint naming is shared.
         with variable_scope.variable_scope('dnn'):
-          input_layer_partitioner = (
-              partitioned_variables.min_max_variable_partitioner(
-                  max_partitions=0, min_slice_size=64 << 20))
           logit_fn = self._dnn_logit_fn_builder(
               units=logits_dimension,
               hidden_units=hidden_units,
@@ -860,7 +854,6 @@ class BaseDNNLogitFnTest(object):
               ],
               activation_fn=nn.relu,
               dropout=None,
-              input_layer_partitioner=input_layer_partitioner,
               batch_norm=False)
           logits = logit_fn(
               features={
@@ -902,9 +895,6 @@ class BaseDNNLogitFnTest(object):
         # Use a variable scope here with 'dnn', emulating the dnn model_fn, so
         # the checkpoint naming is shared.
         with variable_scope.variable_scope('dnn'):
-          input_layer_partitioner = (
-              partitioned_variables.min_max_variable_partitioner(
-                  max_partitions=0, min_slice_size=64 << 20))
           logit_fn = self._dnn_logit_fn_builder(
               units=logits_dimension,
               hidden_units=hidden_units,
@@ -914,7 +904,6 @@ class BaseDNNLogitFnTest(object):
               ],
               activation_fn=nn.relu,
               dropout=None,
-              input_layer_partitioner=input_layer_partitioner,
               batch_norm=False)
           logits = logit_fn(
               features={
@@ -1079,8 +1068,8 @@ class BaseDNNWarmStartingTest(object):
             dnn_classifier.get_variable_value(variable_name),
             warm_started_dnn_classifier.get_variable_value(variable_name))
 
-  def test_warm_starting_with_vocab_remapping_and_partitioning(self):
-    """Tests warm-starting with vocab remapping and partitioning."""
+  def test_warm_starting_with_vocab_remapping(self):
+    """Tests warm-starting with vocab remapping."""
     vocab_list = ['doctor', 'lawyer', 'consultant']
     vocab_file = os.path.join(self._ckpt_and_vocab_dir, 'occupation_vocab')
     with open(vocab_file, 'w') as f:
@@ -1093,14 +1082,12 @@ class BaseDNNWarmStartingTest(object):
         dimension=2)
 
     # Create a DNNClassifier and train to save a checkpoint.
-    partitioner = partitioned_variables.fixed_size_partitioner(num_shards=2)
     dnn_classifier = self._dnn_classifier_fn(
         hidden_units=[256, 128],
         feature_columns=[occupation],
         model_dir=self._ckpt_and_vocab_dir,
         n_classes=4,
-        optimizer='SGD',
-        input_layer_partitioner=partitioner)
+        optimizer='SGD')
     dnn_classifier.train(input_fn=self._input_fn, max_steps=1)
 
     # Create a second DNNClassifier, warm-started from the first.  Use a
@@ -1143,8 +1130,7 @@ class BaseDNNWarmStartingTest(object):
             # Explicitly providing None here will only warm-start variables
             # referenced in var_name_to_vocab_info (no hidden weights will be
             # warmstarted).
-            vars_to_warm_start=None),
-        input_layer_partitioner=partitioner)
+            vars_to_warm_start=None))
 
     warm_started_dnn_classifier.train(input_fn=self._input_fn, max_steps=1)
     # 'doctor' was ID-0 and still ID-0.

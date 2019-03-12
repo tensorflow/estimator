@@ -64,7 +64,7 @@ class DNNModelFnV2Test(dnn_testing_utils.BaseDNNModelFnTest, test.TestCase):
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
     test.TestCase.__init__(self, methodName)
     dnn_testing_utils.BaseDNNModelFnTest.__init__(
-        self, dnn._dnn_model_fn_v2, fc_impl=feature_column_v2)
+        self, dnn.dnn_model_fn_v2, fc_impl=feature_column_v2)
 
 
 class DNNLogitFnV2Test(dnn_testing_utils.BaseDNNLogitFnTest, test.TestCase):
@@ -72,7 +72,7 @@ class DNNLogitFnV2Test(dnn_testing_utils.BaseDNNLogitFnTest, test.TestCase):
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
     test.TestCase.__init__(self, methodName)
     dnn_testing_utils.BaseDNNLogitFnTest.__init__(
-        self, dnn.dnn_logit_fn_builder, fc_impl=feature_column_v2)
+        self, dnn.dnn_logit_fn_builder_v2, fc_impl=feature_column_v2)
 
 
 class DNNWarmStartingV2Test(dnn_testing_utils.BaseDNNWarmStartingTest,

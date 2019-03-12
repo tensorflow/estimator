@@ -41,9 +41,7 @@ from tensorflow.python.ops import data_flow_ops
 from tensorflow.python.ops import init_ops
 from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import parsing_ops
-from tensorflow.python.ops import partitioned_variables
 from tensorflow.python.ops import state_ops
-from tensorflow.python.ops import variable_scope
 from tensorflow.python.ops import variables as variables_lib
 from tensorflow.python.platform import gfile
 from tensorflow.python.platform import test
@@ -54,9 +52,7 @@ from tensorflow.python.training import input as input_lib
 from tensorflow.python.training import optimizer as optimizer_lib
 from tensorflow.python.training import queue_runner
 from tensorflow.python.training import saver
-from tensorflow.python.training import session_run_hook
 from tensorflow_estimator.python.estimator import estimator
-from tensorflow_estimator.python.estimator import run_config
 from tensorflow_estimator.python.estimator.canned import linear
 from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.export import export
@@ -136,107 +132,6 @@ def sorted_key_dict(unsorted_dict):
 
 def sigmoid(x):
   return 1 / (1 + np.exp(-1.0 * x))
-
-
-class CheckPartitionerVarHook(session_run_hook.SessionRunHook):
-  """A `SessionRunHook` to check a partitioned variable."""
-
-  def __init__(self, test_case, var_name, var_dim, partitions):
-    self._test_case = test_case
-    self._var_name = var_name
-    self._var_dim = var_dim
-    self._partitions = partitions
-
-  def begin(self):
-    with variable_scope.variable_scope(
-        variable_scope.get_variable_scope()) as scope:
-      scope.reuse_variables()
-      partitioned_weight = variable_scope.get_variable(
-          self._var_name, shape=(self._var_dim, 1))
-      self._test_case.assertTrue(
-          isinstance(partitioned_weight, variables_lib.PartitionedVariable))
-      for part in partitioned_weight:
-        self._test_case.assertEqual(self._var_dim // self._partitions,
-                                    part.get_shape()[0])
-
-
-class BaseLinearRegressorPartitionerTest(object):
-
-  def __init__(self, linear_regressor_fn, fc_lib=feature_column):
-    self._linear_regressor_fn = linear_regressor_fn
-    self._fc_lib = fc_lib
-
-  def setUp(self):
-    self._model_dir = tempfile.mkdtemp()
-
-  def tearDown(self):
-    if self._model_dir:
-      writer_cache.FileWriterCache.clear()
-      shutil.rmtree(self._model_dir)
-
-  def testPartitioner(self):
-    x_dim = 64
-    partitions = 4
-
-    def _partitioner(shape, dtype):
-      del dtype  # unused; required by Fn signature.
-      # Only partition the embedding tensor.
-      return [partitions, 1] if shape[0] == x_dim else [1]
-
-    regressor = self._linear_regressor_fn(
-        feature_columns=(self._fc_lib.categorical_column_with_hash_bucket(
-            'language', hash_bucket_size=x_dim),),
-        partitioner=_partitioner,
-        model_dir=self._model_dir)
-
-    def _input_fn():
-      return {
-          'language':
-              sparse_tensor.SparseTensor(
-                  values=['english', 'spanish'],
-                  indices=[[0, 0], [0, 1]],
-                  dense_shape=[1, 2])
-      }, [[10.]]
-
-    hook = CheckPartitionerVarHook(self, LANGUAGE_WEIGHT_NAME, x_dim,
-                                   partitions)
-    regressor.train(input_fn=_input_fn, steps=1, hooks=[hook])
-
-  def testDefaultPartitionerWithMultiplePsReplicas(self):
-    partitions = 2
-    # This results in weights larger than the default partition size of 64M,
-    # so partitioned weights are created (each weight uses 4 bytes).
-    x_dim = 32 << 20
-
-    class FakeRunConfig(run_config.RunConfig):
-
-      @property
-      def num_ps_replicas(self):
-        return partitions
-
-    # Mock the device setter as ps is not available on test machines.
-    with test.mock.patch.object(
-        estimator,
-        '_get_replica_device_setter',
-        return_value=lambda _: '/cpu:0'):
-      linear_regressor = self._linear_regressor_fn(
-          feature_columns=(self._fc_lib.categorical_column_with_hash_bucket(
-              'language', hash_bucket_size=x_dim),),
-          config=FakeRunConfig(),
-          model_dir=self._model_dir)
-
-      def _input_fn():
-        return {
-            'language':
-                sparse_tensor.SparseTensor(
-                    values=['english', 'spanish'],
-                    indices=[[0, 0], [0, 1]],
-                    dense_shape=[1, 2])
-        }, [[10.]]
-
-      hook = CheckPartitionerVarHook(self, LANGUAGE_WEIGHT_NAME, x_dim,
-                                     partitions)
-      linear_regressor.train(input_fn=_input_fn, steps=1, hooks=[hook])
 
 
 # TODO(b/36813849): Add tests with dynamic shape inputs using placeholders.
@@ -818,10 +713,7 @@ class BaseLinearRegressorTrainingTest(object):
       shutil.rmtree(self._model_dir)
 
   def _mock_optimizer(self, expected_loss=None):
-    expected_var_names = [
-        '%s/part_0:0' % AGE_WEIGHT_NAME,
-        '%s/part_0:0' % BIAS_NAME
-    ]
+    expected_var_names = ['%s:0' % AGE_WEIGHT_NAME, '%s:0' % BIAS_NAME]
 
     def _minimize(loss, global_step=None, var_list=None):
       trainable_vars = var_list or ops.get_collection(
@@ -1044,10 +936,7 @@ class BaseLinearClassifierTrainingTest(object):
       shutil.rmtree(self._model_dir)
 
   def _mock_optimizer(self, expected_loss=None):
-    expected_var_names = [
-        '%s/part_0:0' % AGE_WEIGHT_NAME,
-        '%s/part_0:0' % BIAS_NAME
-    ]
+    expected_var_names = ['%s:0' % AGE_WEIGHT_NAME, '%s:0' % BIAS_NAME]
 
     def _minimize(loss, global_step):
       trainable_vars = ops.get_collection(ops.GraphKeys.TRAINABLE_VARIABLES)
@@ -2267,13 +2156,11 @@ class BaseLinearWarmStartingTest(object):
         vocabulary_size=len(vocab_list))
 
     # Create a LinearClassifier and train to save a checkpoint.
-    partitioner = partitioned_variables.fixed_size_partitioner(num_shards=2)
     linear_classifier = self._linear_classifier_fn(
         feature_columns=[occupation],
         model_dir=self._ckpt_and_vocab_dir,
         n_classes=4,
-        optimizer='SGD',
-        partitioner=partitioner)
+        optimizer='SGD')
     linear_classifier.train(input_fn=self._input_fn, max_steps=1)
 
     # Create a second LinearClassifier, warm-started from the first.  Use a
@@ -2313,8 +2200,7 @@ class BaseLinearWarmStartingTest(object):
             # Explicitly providing None here will only warm-start variables
             # referenced in var_name_to_vocab_info (the bias will not be
             # warm-started).
-            vars_to_warm_start=None),
-        partitioner=partitioner)
+            vars_to_warm_start=None))
 
     warm_started_linear_classifier.train(input_fn=self._input_fn, max_steps=1)
     # 'doctor' was ID-0 and still ID-0.

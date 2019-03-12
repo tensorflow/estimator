@@ -486,6 +486,69 @@ class _SDCAUpdateWeightsHook(session_run_hook.SessionRunHook):
     return session_run_hook.SessionRunArgs(self._update_op)
 
 
+def _linear_model_fn_v2(features,
+                        labels,
+                        mode,
+                        head,
+                        feature_columns,
+                        optimizer,
+                        config,
+                        sparse_combiner='sum'):
+  """A model_fn for linear models that use a gradient-based optimizer.
+
+  Args:
+    features: dict of `Tensor`.
+    labels: `Tensor` of shape `[batch_size, logits_dimension]`.
+    mode: Defines whether this is training, evaluation or prediction. See
+      `ModeKeys`.
+    head: A `Head` instance.
+    feature_columns: An iterable containing all the feature columns used by the
+      model.
+    optimizer: string, `Optimizer` object, or callable that defines the
+      optimizer to use for training. If `None`, will use a FTRL optimizer.
+    config: `RunConfig` object to configure the runtime settings.
+    sparse_combiner: A string specifying how to reduce if a categorical column
+      is multivalent.  One of "mean", "sqrtn", and "sum".
+
+  Returns:
+    An `EstimatorSpec` instance.
+
+  Raises:
+    ValueError: mode or params are invalid, or features has the wrong type.
+  """
+  if not isinstance(features, dict):
+    raise ValueError('features should be a dictionary of `Tensor`s. '
+                     'Given type: {}'.format(type(features)))
+
+  del config
+
+  with variable_scope.variable_scope(
+      'linear', values=tuple(six.itervalues(features))):
+
+    if isinstance(optimizer, LinearSDCA):
+      assert sparse_combiner == 'sum'
+      return _sdca_model_fn(features, labels, mode, head, feature_columns,
+                            optimizer)
+    else:
+      logit_fn = linear_logit_fn_builder(
+          units=head.logits_dimension,
+          feature_columns=feature_columns,
+          sparse_combiner=sparse_combiner,
+      )
+      logits = logit_fn(features=features)
+
+      optimizer = optimizers.get_optimizer_instance(
+          optimizer or _get_default_optimizer(feature_columns),
+          learning_rate=_LEARNING_RATE)
+
+      return head.create_estimator_spec(
+          features=features,
+          mode=mode,
+          labels=labels,
+          optimizer=optimizer,
+          logits=logits)
+
+
 def _linear_model_fn(features, labels, mode, head, feature_columns, optimizer,
                      partitioner, config, sparse_combiner='sum'):
   """A model_fn for linear models that use a gradient-based optimizer.
@@ -663,7 +726,6 @@ class LinearClassifierV2(estimator.EstimatorV2):
                label_vocabulary=None,
                optimizer='Ftrl',
                config=None,
-               partitioner=None,
                warm_start_from=None,
                loss_reduction=losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE,
                sparse_combiner='sum'):
@@ -699,7 +761,6 @@ class LinearClassifierV2(estimator.EstimatorV2):
         also be a string (one of 'Adagrad', 'Adam', 'Ftrl', 'RMSProp', 'SGD'),
         or callable. Defaults to FTRL optimizer.
       config: `RunConfig` object to configure the runtime settings.
-      partitioner: Optional. Partitioner for input layer.
       warm_start_from: A string filepath to a checkpoint to warm-start from, or
         a `WarmStartSettings` object to fully configure warm-starting.  If the
         string filepath is provided instead of a `WarmStartSettings`, then all
@@ -732,14 +793,13 @@ class LinearClassifierV2(estimator.EstimatorV2):
 
     def _model_fn(features, labels, mode, config):
       """Call the defined shared _linear_model_fn."""
-      return _linear_model_fn(
+      return _linear_model_fn_v2(
           features=features,
           labels=labels,
           mode=mode,
           head=head,
           feature_columns=tuple(feature_columns or []),
           optimizer=optimizer,
-          partitioner=partitioner,
           config=config,
           sparse_combiner=sparse_combiner)
 
@@ -883,7 +943,6 @@ class LinearEstimatorV2(estimator.EstimatorV2):
                model_dir=None,
                optimizer='Ftrl',
                config=None,
-               partitioner=None,
                sparse_combiner='sum'):
     """Initializes a `LinearEstimator` instance.
 
@@ -900,7 +959,6 @@ class LinearEstimatorV2(estimator.EstimatorV2):
         be a string (one of 'Adagrad', 'Adam', 'Ftrl', 'RMSProp', 'SGD'), or
         callable. Defaults to FTRL optimizer.
       config: `RunConfig` object to configure the runtime settings.
-      partitioner: Optional. Partitioner for input layer.
       sparse_combiner: A string specifying how to reduce if a categorical column
         is multivalent.  One of "mean", "sqrtn", and "sum" -- these are
         effectively different ways to do example-level normalization, which can
@@ -908,14 +966,13 @@ class LinearEstimatorV2(estimator.EstimatorV2):
         `tf.feature_column.linear_model`.
     """
     def _model_fn(features, labels, mode, config):
-      return _linear_model_fn(
+      return _linear_model_fn_v2(
           features=features,
           labels=labels,
           mode=mode,
           head=head,
           feature_columns=tuple(feature_columns or []),
           optimizer=optimizer,
-          partitioner=partitioner,
           config=config,
           sparse_combiner=sparse_combiner)
     super(LinearEstimatorV2, self).__init__(
@@ -1084,7 +1141,6 @@ class LinearRegressorV2(estimator.EstimatorV2):
                weight_column=None,
                optimizer='Ftrl',
                config=None,
-               partitioner=None,
                warm_start_from=None,
                loss_reduction=losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE,
                sparse_combiner='sum'):
@@ -1112,7 +1168,6 @@ class LinearRegressorV2(estimator.EstimatorV2):
         be a string (one of 'Adagrad', 'Adam', 'Ftrl', 'RMSProp', 'SGD'), or
         callable. Defaults to FTRL optimizer.
       config: `RunConfig` object to configure the runtime settings.
-      partitioner: Optional. Partitioner for input layer.
       warm_start_from: A string filepath to a checkpoint to warm-start from, or
         a `WarmStartSettings` object to fully configure warm-starting.  If the
         string filepath is provided instead of a `WarmStartSettings`, then all
@@ -1139,14 +1194,13 @@ class LinearRegressorV2(estimator.EstimatorV2):
 
     def _model_fn(features, labels, mode, config):
       """Call the defined shared _linear_model_fn."""
-      return _linear_model_fn(
+      return _linear_model_fn_v2(
           features=features,
           labels=labels,
           mode=mode,
           head=head,
           feature_columns=tuple(feature_columns or []),
           optimizer=optimizer,
-          partitioner=partitioner,
           config=config,
           sparse_combiner=sparse_combiner)
 

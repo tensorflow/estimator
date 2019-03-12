@@ -49,7 +49,6 @@ def _dnn_only_estimator_fn(
     optimizer='Adagrad',
     activation_fn=nn.relu,
     dropout=None,
-    input_layer_partitioner=None,
     config=None):
   return dnn_linear_combined.DNNLinearCombinedEstimatorV2(
       head=regression_head.RegressionHead(
@@ -63,7 +62,6 @@ def _dnn_only_estimator_fn(
       dnn_hidden_units=hidden_units,
       dnn_activation_fn=activation_fn,
       dnn_dropout=dropout,
-      input_layer_partitioner=input_layer_partitioner,
       config=config)
 
 
@@ -101,7 +99,6 @@ def _linear_only_estimator_fn(
     weight_column=None,
     optimizer='Ftrl',
     config=None,
-    partitioner=None,
     sparse_combiner='sum'):
   return dnn_linear_combined.DNNLinearCombinedEstimatorV2(
       head=regression_head.RegressionHead(
@@ -112,7 +109,6 @@ def _linear_only_estimator_fn(
       model_dir=model_dir,
       linear_feature_columns=feature_columns,
       linear_optimizer=optimizer,
-      input_layer_partitioner=partitioner,
       config=config,
       linear_sparse_combiner=sparse_combiner)
 

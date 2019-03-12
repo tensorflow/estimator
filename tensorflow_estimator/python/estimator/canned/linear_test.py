@@ -44,24 +44,6 @@ def _linear_classifier_fn(*args, **kwargs):
 # Tests for Linear Regressor.
 
 
-class LinearRegressorPartitionerTest(
-    linear_testing_utils.BaseLinearRegressorPartitionerTest, test.TestCase):
-
-  def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
-    linear_testing_utils.BaseLinearRegressorPartitionerTest.__init__(
-        self, _linear_regressor_fn, fc_lib=feature_column)
-
-
-class LinearRegressorPartitionerV2Test(
-    linear_testing_utils.BaseLinearRegressorPartitionerTest, test.TestCase):
-
-  def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
-    linear_testing_utils.BaseLinearRegressorPartitionerTest.__init__(
-        self, _linear_regressor_fn, fc_lib=feature_column_v2)
-
-
 class LinearRegressorEvaluationTest(
     linear_testing_utils.BaseLinearRegressorEvaluationTest, test.TestCase):
 

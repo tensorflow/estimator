@@ -87,9 +87,8 @@ class DNNOnlyModelFnTest(dnn_testing_utils.BaseDNNModelFnTest, test.TestCase):
                          optimizer='Adagrad',
                          activation_fn=nn.relu,
                          dropout=None,
-                         input_layer_partitioner=None,
                          config=None):
-    return dnn_linear_combined._dnn_linear_combined_model_fn(
+    return dnn_linear_combined._dnn_linear_combined_model_fn_v2(
         features=features,
         labels=labels,
         mode=mode,
@@ -100,7 +99,6 @@ class DNNOnlyModelFnTest(dnn_testing_utils.BaseDNNModelFnTest, test.TestCase):
         dnn_optimizer=optimizer,
         dnn_activation_fn=activation_fn,
         dnn_dropout=dropout,
-        input_layer_partitioner=input_layer_partitioner,
         config=config)
 
 
@@ -111,7 +109,6 @@ def _linear_regressor_fn(feature_columns,
                          weight_column=None,
                          optimizer='Ftrl',
                          config=None,
-                         partitioner=None,
                          sparse_combiner='sum'):
   return dnn_linear_combined.DNNLinearCombinedRegressorV2(
       model_dir=model_dir,
@@ -119,27 +116,8 @@ def _linear_regressor_fn(feature_columns,
       linear_optimizer=optimizer,
       label_dimension=label_dimension,
       weight_column=weight_column,
-      input_layer_partitioner=partitioner,
       config=config,
       linear_sparse_combiner=sparse_combiner)
-
-
-class LinearOnlyRegressorPartitionerTest(
-    linear_testing_utils.BaseLinearRegressorPartitionerTest, test.TestCase):
-
-  def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
-    linear_testing_utils.BaseLinearRegressorPartitionerTest.__init__(
-        self, _linear_regressor_fn, fc_lib=feature_column)
-
-
-class LinearOnlyRegressorPartitionerV2Test(
-    linear_testing_utils.BaseLinearRegressorPartitionerTest, test.TestCase):
-
-  def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
-    linear_testing_utils.BaseLinearRegressorPartitionerTest.__init__(
-        self, _linear_regressor_fn, fc_lib=feature_column_v2)
 
 
 class LinearOnlyRegressorEvaluationTest(
@@ -221,7 +199,6 @@ def _linear_classifier_fn(feature_columns,
                           label_vocabulary=None,
                           optimizer='Ftrl',
                           config=None,
-                          partitioner=None,
                           sparse_combiner='sum'):
   return dnn_linear_combined.DNNLinearCombinedClassifierV2(
       model_dir=model_dir,
@@ -230,7 +207,6 @@ def _linear_classifier_fn(feature_columns,
       n_classes=n_classes,
       weight_column=weight_column,
       label_vocabulary=label_vocabulary,
-      input_layer_partitioner=partitioner,
       config=config,
       linear_sparse_combiner=sparse_combiner)
 
@@ -567,8 +543,7 @@ def _dnn_classifier_fn(hidden_units,
                        weight_column=None,
                        label_vocabulary=None,
                        optimizer='Adagrad',
-                       config=None,
-                       input_layer_partitioner=None):
+                       config=None):
   return dnn_linear_combined.DNNLinearCombinedClassifierV2(
       model_dir=model_dir,
       dnn_hidden_units=hidden_units,
@@ -577,7 +552,6 @@ def _dnn_classifier_fn(hidden_units,
       n_classes=n_classes,
       weight_column=weight_column,
       label_vocabulary=label_vocabulary,
-      input_layer_partitioner=input_layer_partitioner,
       config=config)
 
 
@@ -642,8 +616,7 @@ def _dnn_regressor_fn(hidden_units,
                       label_dimension=1,
                       weight_column=None,
                       optimizer='Adagrad',
-                      config=None,
-                      input_layer_partitioner=None):
+                      config=None):
   return dnn_linear_combined.DNNLinearCombinedRegressorV2(
       model_dir=model_dir,
       dnn_hidden_units=hidden_units,
@@ -651,7 +624,6 @@ def _dnn_regressor_fn(hidden_units,
       dnn_optimizer=optimizer,
       label_dimension=label_dimension,
       weight_column=weight_column,
-      input_layer_partitioner=input_layer_partitioner,
       config=config)
 
 
@@ -707,7 +679,6 @@ class DNNOnlyRegressorTrainV2Test(dnn_testing_utils.BaseDNNRegressorTrainTest,
     test.TestCase.__init__(self, methodName)
     dnn_testing_utils.BaseDNNRegressorTrainTest.__init__(
         self, _dnn_regressor_fn, fc_impl=feature_column_v2)
-
 
 
 @parameterized.parameters((feature_column,), (feature_column_v2,))

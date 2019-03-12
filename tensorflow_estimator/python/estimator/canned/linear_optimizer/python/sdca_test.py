@@ -289,7 +289,7 @@ class SDCAClassifierTest(test.TestCase):
     optimizer = linear.LinearSDCA(
         example_id_column='example_id', symmetric_l2_regularization=0.01)
 
-    classifier = linear.LinearClassifierV2(
+    classifier = linear.LinearClassifier(
         feature_columns=[price, sq_footage_bucket, country, sq_footage_country],
         weight_column='weights',
         partitioner=partitioned_variables.fixed_size_partitioner(
@@ -401,7 +401,7 @@ class SDCARegressorTest(test.TestCase):
     optimizer = linear.LinearSDCA(
         example_id_column='example_id', symmetric_l2_regularization=0.1)
 
-    regressor = linear.LinearRegressorV2(
+    regressor = linear.LinearRegressor(
         feature_columns=[price, sq_footage_bucket, country, sq_footage_country],
         weight_column='weights',
         partitioner=partitioned_variables.fixed_size_partitioner(

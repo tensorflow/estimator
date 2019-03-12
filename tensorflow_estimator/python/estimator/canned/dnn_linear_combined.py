@@ -91,6 +91,149 @@ def _validate_feature_columns(linear_feature_columns, dnn_feature_columns):
   return feature_columns
 
 
+def _dnn_linear_combined_model_fn_v2(features,
+                                     labels,
+                                     mode,
+                                     head,
+                                     linear_feature_columns=None,
+                                     linear_optimizer='Ftrl',
+                                     dnn_feature_columns=None,
+                                     dnn_optimizer='Adagrad',
+                                     dnn_hidden_units=None,
+                                     dnn_activation_fn=nn.relu,
+                                     dnn_dropout=None,
+                                     config=None,
+                                     batch_norm=False,
+                                     linear_sparse_combiner='sum'):
+  """Deep Neural Net and Linear combined model_fn.
+
+  Args:
+    features: dict of `Tensor`.
+    labels: `Tensor` of shape [batch_size, 1] or [batch_size] labels of dtype
+      `int32` or `int64` in the range `[0, n_classes)`.
+    mode: Defines whether this is training, evaluation or prediction. See
+      `ModeKeys`.
+    head: A `Head` instance.
+    linear_feature_columns: An iterable containing all the feature columns used
+      by the Linear model.
+    linear_optimizer: string, `Optimizer` object, or callable that defines the
+      optimizer to use for training the Linear model. Defaults to the Ftrl
+      optimizer.
+    dnn_feature_columns: An iterable containing all the feature columns used by
+      the DNN model.
+    dnn_optimizer: string, `Optimizer` object, or callable that defines the
+      optimizer to use for training the DNN model. Defaults to the Adagrad
+      optimizer.
+    dnn_hidden_units: List of hidden units per DNN layer.
+    dnn_activation_fn: Activation function applied to each DNN layer. If `None`,
+      will use `tf.nn.relu`.
+    dnn_dropout: When not `None`, the probability we will drop out a given DNN
+      coordinate.
+    config: `RunConfig` object to configure the runtime settings.
+    batch_norm: Whether to use batch normalization after each hidden layer.
+    linear_sparse_combiner: A string specifying how to reduce the linear model
+      if a categorical column is multivalent.  One of "mean", "sqrtn", and
+      "sum".
+
+  Returns:
+    An `EstimatorSpec` instance.
+
+  Raises:
+    ValueError: If both `linear_feature_columns` and `dnn_features_columns`
+      are empty at the same time, or `input_layer_partitioner` is missing,
+      or features has the wrong type.
+  """
+  if not isinstance(features, dict):
+    raise ValueError('features should be a dictionary of `Tensor`s. '
+                     'Given type: {}'.format(type(features)))
+  if not linear_feature_columns and not dnn_feature_columns:
+    raise ValueError(
+        'Either linear_feature_columns or dnn_feature_columns must be defined.')
+
+  del config
+
+  # Build DNN Logits.
+  dnn_parent_scope = 'dnn'
+
+  if not dnn_feature_columns:
+    dnn_logits = None
+  else:
+    dnn_optimizer = optimizers.get_optimizer_instance(
+        dnn_optimizer, learning_rate=_DNN_LEARNING_RATE)
+    _check_no_sync_replicas_optimizer(dnn_optimizer)
+    if not dnn_hidden_units:
+      raise ValueError(
+          'dnn_hidden_units must be defined when dnn_feature_columns is '
+          'specified.')
+    with variable_scope.variable_scope(
+        dnn_parent_scope, values=tuple(six.itervalues(features))) as scope:
+      dnn_absolute_scope = scope.name
+      dnn_logit_fn = dnn.dnn_logit_fn_builder_v2(
+          units=head.logits_dimension,
+          hidden_units=dnn_hidden_units,
+          feature_columns=dnn_feature_columns,
+          activation_fn=dnn_activation_fn,
+          dropout=dnn_dropout,
+          batch_norm=batch_norm)
+      dnn_logits = dnn_logit_fn(features=features, mode=mode)
+
+  linear_parent_scope = 'linear'
+
+  if not linear_feature_columns:
+    linear_logits = None
+  else:
+    linear_optimizer = optimizers.get_optimizer_instance(
+        linear_optimizer,
+        learning_rate=_linear_learning_rate(len(linear_feature_columns)))
+    _check_no_sync_replicas_optimizer(linear_optimizer)
+    with variable_scope.variable_scope(
+        linear_parent_scope, values=tuple(six.itervalues(features))) as scope:
+      linear_absolute_scope = scope.name
+      logit_fn = linear.linear_logit_fn_builder(
+          units=head.logits_dimension,
+          feature_columns=linear_feature_columns,
+          sparse_combiner=linear_sparse_combiner)
+      linear_logits = logit_fn(features=features)
+      _add_layer_summary(linear_logits, scope.name)
+
+  # Combine logits and build full model.
+  if dnn_logits is not None and linear_logits is not None:
+    logits = dnn_logits + linear_logits
+  elif dnn_logits is not None:
+    logits = dnn_logits
+  else:
+    logits = linear_logits
+
+  def _train_op_fn(loss):
+    """Returns the op to optimize the loss."""
+    train_ops = []
+    global_step = training_util.get_global_step()
+    if dnn_logits is not None:
+      train_ops.append(
+          dnn_optimizer.minimize(
+              loss,
+              var_list=ops.get_collection(
+                  ops.GraphKeys.TRAINABLE_VARIABLES, scope=dnn_absolute_scope)))
+    if linear_logits is not None:
+      train_ops.append(
+          linear_optimizer.minimize(
+              loss,
+              var_list=ops.get_collection(
+                  ops.GraphKeys.TRAINABLE_VARIABLES,
+                  scope=linear_absolute_scope)))
+
+    train_op = control_flow_ops.group(*train_ops)
+    with ops.control_dependencies([train_op]):
+      return state_ops.assign_add(global_step, 1).op
+
+  return head.create_estimator_spec(
+      features=features,
+      mode=mode,
+      labels=labels,
+      train_op_fn=_train_op_fn,
+      logits=logits)
+
+
 def _dnn_linear_combined_model_fn(features,
                                   labels,
                                   mode,
@@ -345,7 +488,6 @@ class DNNLinearCombinedClassifierV2(estimator.EstimatorV2):
                n_classes=2,
                weight_column=None,
                label_vocabulary=None,
-               input_layer_partitioner=None,
                config=None,
                warm_start_from=None,
                loss_reduction=losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE,
@@ -393,8 +535,6 @@ class DNNLinearCombinedClassifierV2(estimator.EstimatorV2):
         encoded as integer values in {0, 1,..., n_classes-1} for `n_classes`>2 .
         Also there will be errors if vocabulary is not provided and labels are
         string.
-      input_layer_partitioner: Partitioner for input layer. Defaults to
-        `min_max_variable_partitioner` with `min_slice_size` 64 << 20.
       config: RunConfig object to configure the runtime settings.
       warm_start_from: A string filepath to a checkpoint to warm-start from, or
         a `WarmStartSettings` object to fully configure warm-starting.  If the
@@ -425,7 +565,7 @@ class DNNLinearCombinedClassifierV2(estimator.EstimatorV2):
 
     def _model_fn(features, labels, mode, config):
       """Call the _dnn_linear_combined_model_fn."""
-      return _dnn_linear_combined_model_fn(
+      return _dnn_linear_combined_model_fn_v2(
           features=features,
           labels=labels,
           mode=mode,
@@ -437,7 +577,6 @@ class DNNLinearCombinedClassifierV2(estimator.EstimatorV2):
           dnn_hidden_units=dnn_hidden_units,
           dnn_activation_fn=dnn_activation_fn,
           dnn_dropout=dnn_dropout,
-          input_layer_partitioner=input_layer_partitioner,
           config=config,
           batch_norm=batch_norm,
           linear_sparse_combiner=linear_sparse_combiner)
@@ -641,7 +780,6 @@ class DNNLinearCombinedEstimatorV2(estimator.EstimatorV2):
                dnn_hidden_units=None,
                dnn_activation_fn=nn.relu,
                dnn_dropout=None,
-               input_layer_partitioner=None,
                config=None,
                linear_sparse_combiner='sum'):
     """Initializes a DNNLinearCombinedEstimator instance.
@@ -672,8 +810,6 @@ class DNNLinearCombinedEstimatorV2(estimator.EstimatorV2):
         will use `tf.nn.relu`.
       dnn_dropout: When not None, the probability we will drop out
         a given coordinate.
-      input_layer_partitioner: Partitioner for input layer. Defaults to
-        `min_max_variable_partitioner` with `min_slice_size` 64 << 20.
       config: RunConfig object to configure the runtime settings.
       linear_sparse_combiner: A string specifying how to reduce the linear model
         if a categorical column is multivalent.  One of "mean", "sqrtn", and
@@ -691,7 +827,7 @@ class DNNLinearCombinedEstimatorV2(estimator.EstimatorV2):
 
     def _model_fn(features, labels, mode, config):
       """Call the _dnn_linear_combined_model_fn."""
-      return _dnn_linear_combined_model_fn(
+      return _dnn_linear_combined_model_fn_v2(
           features=features,
           labels=labels,
           mode=mode,
@@ -703,7 +839,6 @@ class DNNLinearCombinedEstimatorV2(estimator.EstimatorV2):
           dnn_hidden_units=dnn_hidden_units,
           dnn_activation_fn=dnn_activation_fn,
           dnn_dropout=dnn_dropout,
-          input_layer_partitioner=input_layer_partitioner,
           config=config,
           linear_sparse_combiner=linear_sparse_combiner)
 
@@ -854,7 +989,6 @@ class DNNLinearCombinedRegressorV2(estimator.EstimatorV2):
                dnn_dropout=None,
                label_dimension=1,
                weight_column=None,
-               input_layer_partitioner=None,
                config=None,
                warm_start_from=None,
                loss_reduction=losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE,
@@ -896,8 +1030,6 @@ class DNNLinearCombinedRegressorV2(estimator.EstimatorV2):
         used as a key to fetch weight tensor from the `features`. If it is a
         `_NumericColumn`, raw tensor is fetched by key `weight_column.key`,
         then weight_column.normalizer_fn is applied on it to get weight tensor.
-      input_layer_partitioner: Partitioner for input layer. Defaults to
-        `min_max_variable_partitioner` with `min_slice_size` 64 << 20.
       config: RunConfig object to configure the runtime settings.
       warm_start_from: A string filepath to a checkpoint to warm-start from, or
         a `WarmStartSettings` object to fully configure warm-starting.  If the
@@ -928,7 +1060,7 @@ class DNNLinearCombinedRegressorV2(estimator.EstimatorV2):
 
     def _model_fn(features, labels, mode, config):
       """Call the _dnn_linear_combined_model_fn."""
-      return _dnn_linear_combined_model_fn(
+      return _dnn_linear_combined_model_fn_v2(
           features=features,
           labels=labels,
           mode=mode,
@@ -940,7 +1072,6 @@ class DNNLinearCombinedRegressorV2(estimator.EstimatorV2):
           dnn_hidden_units=dnn_hidden_units,
           dnn_activation_fn=dnn_activation_fn,
           dnn_dropout=dnn_dropout,
-          input_layer_partitioner=input_layer_partitioner,
           config=config,
           batch_norm=batch_norm,
           linear_sparse_combiner=linear_sparse_combiner)
