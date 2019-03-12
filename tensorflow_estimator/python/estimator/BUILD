@@ -400,6 +400,7 @@ py_test(
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
+        "//third_party/tensorflow/python:framework_test_lib",
     ],
 )
 
