@@ -149,8 +149,9 @@ class RNNLayerFnTest(test.TestCase, parameterized.TestCase):
     self.assertIsInstance(layer, keras_layers.RNN)
     self.assertIsInstance(layer.cell, keras_layers.SimpleRNNCell)
 
-  @parameterized.parameters([('gru', keras_layers.UnifiedGRU),
-                             ('lstm', keras_layers.UnifiedLSTM)])
+  # TODO(scottzhu): Change to recurrent_v2 once the change reaches HEAD.
+  @parameterized.parameters([('gru', keras_layers.GRU),
+                             ('lstm', keras_layers.LSTM)])
   def testSpecificLayerTypeProvided(self, cell_type, layer_type):
     """Tests specific layer type for GRU and LSTM."""
     layer = _make_rnn_layer(cell_type=cell_type, units=[1])

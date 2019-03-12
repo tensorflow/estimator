@@ -52,8 +52,9 @@ _LSTM_KEY = 'lstm'
 _GRU_KEY = 'gru'
 
 _LAYER_TYPES = {
-    _LSTM_KEY: keras_layers.UnifiedLSTM,
-    _GRU_KEY: keras_layers.UnifiedGRU}
+    # TODO(scottzhu): Change to recurrent_v2 once the change reaches HEAD.
+    _LSTM_KEY: keras_layers.LSTM,
+    _GRU_KEY: keras_layers.GRU}
 
 
 # Indicates no value was provided by the user to a kwarg.

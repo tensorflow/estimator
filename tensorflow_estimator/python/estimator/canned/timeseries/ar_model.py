@@ -64,9 +64,10 @@ class LSTMPredictionModel(training.Model):
       num_units: The number of units in the encoder and decoder LSTM cells.
     """
     super(LSTMPredictionModel, self).__init__()
-    self._encoder = recurrent.UnifiedLSTM(
+    # TODO(scottzhu): Change to recurrent_v2.LSTM once the change reaches HEAD.
+    self._encoder = recurrent.LSTM(
         num_units, name="encoder", dtype=self.dtype, return_state=True)
-    self._decoder = recurrent.UnifiedLSTM(
+    self._decoder = recurrent.LSTM(
         num_units, name="decoder", dtype=self.dtype, return_sequences=True)
     self._mean_transform = core.Dense(num_features,
                                       name="mean_transform")
