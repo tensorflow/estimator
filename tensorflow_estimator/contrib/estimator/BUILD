@@ -338,7 +338,6 @@ py_library(
         ":extenders",
         "//tensorflow_estimator/python/estimator",
         "//tensorflow_estimator/python/estimator:binary_class_head",
-        "//tensorflow_estimator/python/estimator:expect_six_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
         "//tensorflow_estimator/python/estimator:multi_class_head",

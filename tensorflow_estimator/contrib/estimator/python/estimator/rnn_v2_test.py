@@ -25,7 +25,6 @@ from absl.testing import parameterized
 import numpy as np
 import six
 
-from tensorflow.contrib.feature_column.python.feature_column import sequence_feature_column as seq_fc
 from tensorflow.core.example import example_pb2
 from tensorflow.core.example import feature_pb2
 from tensorflow.python.data.experimental.ops import readers
@@ -229,6 +228,16 @@ def _mock_logits_layer(kernel, bias):
   return test.mock.patch.object(keras_layers, 'Dense', _MockDenseLayer)
 
 
+def _default_features_fn():
+  return {
+      'price':
+          sparse_tensor.SparseTensor(
+              values=[10., 5.],
+              indices=[[0, 0], [0, 1]],
+              dense_shape=[1, 2]),
+  }
+
+
 @test_util.run_all_in_graph_and_eager_modes
 class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
   """Tests correctness of logits calculated from _rnn_logit_fn_builder."""
@@ -240,6 +249,9 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
     self.bias = [.2, .5]
     self.dense_kernel = [[-1.], [1.]]
     self.dense_bias = [0.3]
+    self.sequence_feature_columns = [
+        fc.sequence_numeric_column('price', shape=(1,))]
+    self.context_feature_columns = []
     super(RNNLogitFnTest, self).setUp()
 
   def _mock_rnn_cell(self):
@@ -249,7 +261,6 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
     return _mock_logits_layer(self.dense_kernel, bias=self.dense_bias)
 
   def _test_logits(self, mode, rnn_units, logits_dimension, features_fn,
-                   sequence_feature_columns, context_feature_columns,
                    expected_logits, return_sequences=False):
     """Tests that the expected logits are calculated."""
     logit_fn = rnn._rnn_logit_fn_builder(
@@ -257,8 +268,8 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
         rnn_layer_fn=rnn._make_rnn_layer_fn(
             units=rnn_units, cell_type=rnn.USE_DEFAULT,
             return_sequences=return_sequences, rnn_cell_fn=None),
-        sequence_feature_columns=sequence_feature_columns,
-        context_feature_columns=context_feature_columns)
+        sequence_feature_columns=self.sequence_feature_columns,
+        context_feature_columns=self.context_feature_columns)
     # Features are constructed within this function, otherwise the Tensors
     # containing the features would be defined outside this graph.
     logits = logit_fn(features=features_fn(), mode=mode)
@@ -295,19 +306,6 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
     """
     expected_mask = [[1, 1]]
 
-    def features_fn():
-      return {
-          'price':
-              sparse_tensor.SparseTensor(
-                  values=[10., 5.],
-                  indices=[[0, 0], [0, 1]],
-                  dense_shape=[1, 2]),
-      }
-
-    sequence_feature_columns = [
-        seq_fc.sequence_numeric_column('price', shape=(1,))]
-    context_feature_columns = []
-
     with self._mock_rnn_cell():
       with self._mock_logits_layer():
         for mode in [
@@ -318,9 +316,7 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
               mode,
               rnn_units=[2],
               logits_dimension=1,
-              features_fn=features_fn,
-              sequence_feature_columns=sequence_feature_columns,
-              context_feature_columns=context_feature_columns,
+              features_fn=_default_features_fn,
               expected_logits=(expected_logits, expected_mask),
               return_sequences=return_sequences)
 
@@ -362,19 +358,6 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
     """
     expected_mask = [[1, 1]]
 
-    def features_fn():
-      return {
-          'price':
-              sparse_tensor.SparseTensor(
-                  values=[10., 5.],
-                  indices=[[0, 0], [0, 1]],
-                  dense_shape=[1, 2]),
-      }
-
-    sequence_feature_columns = [
-        seq_fc.sequence_numeric_column('price', shape=(1,))]
-    context_feature_columns = []
-
     self.dense_kernel = [[-1., 0.5, 0.2], [1., -0.3, 0.1]]
     self.dense_bias = [0.3, 0.4, 0.5]
     with self._mock_rnn_cell():
@@ -387,9 +370,7 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
               mode,
               rnn_units=[2],
               logits_dimension=3,
-              features_fn=features_fn,
-              sequence_feature_columns=sequence_feature_columns,
-              context_feature_columns=context_feature_columns,
+              features_fn=_default_features_fn,
               expected_logits=(expected_logits, expected_mask),
               return_sequences=return_sequences)
 
@@ -452,11 +433,6 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
                   dense_shape=[2, 2]),
       }
 
-    sequence_feature_columns = [
-        seq_fc.sequence_numeric_column('price', shape=(1,))
-    ]
-    context_feature_columns = []
-
     self.dense_kernel = [[-1., 0.5, 0.2], [1., -0.3, 0.1]]
     self.dense_bias = [0.3, 0.4, 0.5]
     with self._mock_rnn_cell():
@@ -470,8 +446,6 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
               rnn_units=[2],
               logits_dimension=3,
               features_fn=features_fn,
-              sequence_feature_columns=sequence_feature_columns,
-              context_feature_columns=context_feature_columns,
               expected_logits=(expected_logits, expected_mask),
               return_sequences=return_sequences)
 
@@ -522,10 +496,6 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
                   dense_shape=[2, 2]),
       }
 
-    sequence_feature_columns = [
-        seq_fc.sequence_numeric_column('price', shape=(1,))]
-    context_feature_columns = []
-
     with self._mock_rnn_cell():
       with self._mock_logits_layer():
         for mode in [
@@ -537,8 +507,6 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
               rnn_units=[2],
               logits_dimension=1,
               features_fn=features_fn,
-              sequence_feature_columns=sequence_feature_columns,
-              context_feature_columns=context_feature_columns,
               expected_logits=(expected_logits, expected_mask),
               return_sequences=return_sequences)
 
@@ -574,9 +542,7 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
           'context': [[-0.5], [0.8]],
       }
 
-    sequence_feature_columns = [
-        seq_fc.sequence_numeric_column('price', shape=(1,))]
-    context_feature_columns = [fc.numeric_column('context', shape=(1,))]
+    self.context_feature_columns = [fc.numeric_column('context', shape=(1,))]
 
     self.kernel = [[.1, -.2], [1., 0.9]]
     with self._mock_rnn_cell():
@@ -590,8 +556,6 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
               rnn_units=[2],
               logits_dimension=1,
               features_fn=features_fn,
-              sequence_feature_columns=sequence_feature_columns,
-              context_feature_columns=context_feature_columns,
               expected_logits=([[-0.3662], [0.1414]], expected_mask))
 
   def testMultiExamplesMultiFeatures(self):
@@ -630,12 +594,10 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
                   dense_shape=[2, 2]),
       }
 
-    price_column = seq_fc.sequence_numeric_column('price', shape=(1,))
+    price_column = fc.sequence_numeric_column('price', shape=(1,))
     on_sale_column = fc.indicator_column(
-        seq_fc.sequence_categorical_column_with_identity(
-            'on_sale', num_buckets=2))
-    sequence_feature_columns = [price_column, on_sale_column]
-    context_feature_columns = []
+        fc.sequence_categorical_column_with_identity('on_sale', num_buckets=2))
+    self.sequence_feature_columns = [price_column, on_sale_column]
 
     self.kernel = [[.5, -.5], [1., -1.], [.1, -.2]]
     with self._mock_rnn_cell():
@@ -649,8 +611,6 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
               rnn_units=[2],
               logits_dimension=1,
               features_fn=features_fn,
-              sequence_feature_columns=sequence_feature_columns,
-              context_feature_columns=context_feature_columns,
               expected_logits=([[-1.5056], [-0.7962]], expected_mask))
 
   @parameterized.parameters([
@@ -659,8 +619,6 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
       (model_fn.ModeKeys.PREDICT, False)])
   def testTrainingMode(self, mode, expected_training_mode):
     """Tests that `training` argument is properly used."""
-    sequence_feature_columns = [
-        seq_fc.sequence_numeric_column('price', shape=(1,))]
 
     class _MockRNNCell(keras_layers.SimpleRNNCell):
       """Used to test that `training` argument is properly used."""
@@ -681,7 +639,7 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
             units=None,
             cell_type=rnn.USE_DEFAULT,
             return_sequences=False),
-        sequence_feature_columns=sequence_feature_columns,
+        sequence_feature_columns=self.sequence_feature_columns,
         context_feature_columns=None)
     features = {
         'price':
@@ -695,6 +653,11 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
 
 @test_util.run_all_in_graph_and_eager_modes
 class RNNClassifierTrainingTest(test.TestCase):
+
+  def setUp(self):
+    self.sequence_feature_columns = [
+        fc.sequence_numeric_column('price', shape=(1,))]
+    super(RNNClassifierTrainingTest, self).setUp()
 
   def _assert_checkpoint(
       self, n_classes, input_units, cell_units, expected_global_step):
@@ -760,7 +723,7 @@ class RNNClassifierTrainingTest(test.TestCase):
     return mock_optimizer
 
   def testConflictingRNNCellFn(self):
-    col = seq_fc.sequence_categorical_column_with_hash_bucket(
+    col = fc.sequence_categorical_column_with_hash_bucket(
         'tokens', hash_bucket_size=10)
     embed = fc.embedding_column(col, dimension=2)
     cell_units = [4, 2]
@@ -800,7 +763,7 @@ class RNNClassifierTrainingTest(test.TestCase):
                   dense_shape=[1, 3]),
       }, [[1]]
 
-    col = seq_fc.sequence_categorical_column_with_hash_bucket(
+    col = fc.sequence_categorical_column_with_hash_bucket(
         'tokens', hash_bucket_size=10)
     embed = fc.embedding_column(col, dimension=2)
     input_units = 2
@@ -833,7 +796,7 @@ class RNNClassifierTrainingTest(test.TestCase):
                   dense_shape=[1, 3]),
       }, [[1]]
 
-    col = seq_fc.sequence_categorical_column_with_hash_bucket(
+    col = fc.sequence_categorical_column_with_hash_bucket(
         'tokens', hash_bucket_size=10)
     embed = fc.embedding_column(col, dimension=2)
     input_units = 2
@@ -866,7 +829,7 @@ class RNNClassifierTrainingTest(test.TestCase):
           'w': [[1], [2]],
       }, [[1], [0]]
 
-    col = seq_fc.sequence_categorical_column_with_hash_bucket(
+    col = fc.sequence_categorical_column_with_hash_bucket(
         'tokens', hash_bucket_size=10)
     embed = fc.embedding_column(col, dimension=2)
     input_units = 2
@@ -914,11 +877,9 @@ class RNNClassifierTrainingTest(test.TestCase):
     # See that test for loss calculation.
     mock_optimizer = self._mock_optimizer(expected_loss=0.559831)
 
-    sequence_feature_columns = [
-        seq_fc.sequence_numeric_column('price', shape=(1,))]
     est = rnn.RNNClassifier(
         units=[2],
-        sequence_feature_columns=sequence_feature_columns,
+        sequence_feature_columns=self.sequence_feature_columns,
         n_classes=2,
         optimizer=mock_optimizer,
         model_dir=self.get_temp_dir())
@@ -950,11 +911,9 @@ class RNNClassifierTrainingTest(test.TestCase):
     # See that test for loss calculation.
     mock_optimizer = self._mock_optimizer(expected_loss=1.331465)
 
-    sequence_feature_columns = [
-        seq_fc.sequence_numeric_column('price', shape=(1,))]
     est = rnn.RNNClassifier(
         units=[2],
-        sequence_feature_columns=sequence_feature_columns,
+        sequence_feature_columns=self.sequence_feature_columns,
         n_classes=3,
         optimizer=mock_optimizer,
         model_dir=self.get_temp_dir())
@@ -969,6 +928,11 @@ def sorted_key_dict(unsorted_dict):
 
 @test_util.run_all_in_graph_and_eager_modes
 class RNNClassifierEvaluationTest(test.TestCase):
+
+  def setUp(self):
+    self.sequence_feature_columns = [
+        fc.sequence_numeric_column('price', shape=(1,))]
+    super(RNNClassifierEvaluationTest, self).setUp()
 
   def testBinaryClassEvaluationMetrics(self):
     global_step = 100
@@ -990,12 +954,9 @@ class RNNClassifierEvaluationTest(test.TestCase):
                   dense_shape=[2, 2]),
       }, [[0], [1]]
 
-    sequence_feature_columns = [
-        seq_fc.sequence_numeric_column('price', shape=(1,))]
-
     est = rnn.RNNClassifier(
         units=[2],
-        sequence_feature_columns=sequence_feature_columns,
+        sequence_feature_columns=self.sequence_feature_columns,
         n_classes=2,
         model_dir=self.get_temp_dir())
     eval_metrics = est.evaluate(eval_input_fn, steps=1)
@@ -1056,12 +1017,9 @@ class RNNClassifierEvaluationTest(test.TestCase):
                   dense_shape=[2, 2]),
       }, [[0], [1]]
 
-    sequence_feature_columns = [
-        seq_fc.sequence_numeric_column('price', shape=(1,))]
-
     est = rnn.RNNClassifier(
         units=[2],
-        sequence_feature_columns=sequence_feature_columns,
+        sequence_feature_columns=self.sequence_feature_columns,
         n_classes=3,
         model_dir=self.get_temp_dir())
     eval_metrics = est.evaluate(eval_input_fn, steps=1)
@@ -1093,6 +1051,11 @@ class RNNClassifierEvaluationTest(test.TestCase):
 @test_util.run_all_in_graph_and_eager_modes
 class RNNClassifierPredictionTest(test.TestCase):
 
+  def setUp(self):
+    self.sequence_feature_columns = [
+        fc.sequence_numeric_column('price', shape=(1,))]
+    super(RNNClassifierPredictionTest, self).setUp()
+
   def testBinaryClassPredictions(self):
     create_checkpoint(
         kernel=[[.1, -.2]],
@@ -1103,22 +1066,11 @@ class RNNClassifierPredictionTest(test.TestCase):
         global_step=0,
         model_dir=self.get_temp_dir())
 
-    def predict_input_fn():
-      return {
-          'price':
-              sparse_tensor.SparseTensor(
-                  values=[10., 5.],
-                  indices=[[0, 0], [0, 1]],
-                  dense_shape=[1, 2]),
-      }
-
-    sequence_feature_columns = [
-        seq_fc.sequence_numeric_column('price', shape=(1,))]
     label_vocabulary = ['class_0', 'class_1']
 
     est = rnn.RNNClassifier(
         units=[2],
-        sequence_feature_columns=sequence_feature_columns,
+        sequence_feature_columns=self.sequence_feature_columns,
         n_classes=2,
         label_vocabulary=label_vocabulary,
         model_dir=self.get_temp_dir())
@@ -1128,7 +1080,7 @@ class RNNClassifierPredictionTest(test.TestCase):
     # logistic = exp(-0.6033) / (1 + exp(-0.6033)) = [0.353593]
     # probabilities = [0.646407, 0.353593]
     # class_ids = argmax(probabilities) = [0]
-    predictions = next(est.predict(predict_input_fn))
+    predictions = next(est.predict(_default_features_fn))
     self.assertAllClose([-0.603282],
                         predictions[prediction_keys.PredictionKeys.LOGITS])
     self.assertAllClose([0.353593],
@@ -1151,22 +1103,11 @@ class RNNClassifierPredictionTest(test.TestCase):
         global_step=0,
         model_dir=self.get_temp_dir())
 
-    def predict_input_fn():
-      return {
-          'price':
-              sparse_tensor.SparseTensor(
-                  values=[10., 5.],
-                  indices=[[0, 0], [0, 1]],
-                  dense_shape=[1, 2]),
-      }
-
-    sequence_feature_columns = [
-        seq_fc.sequence_numeric_column('price', shape=(1,))]
     label_vocabulary = ['class_0', 'class_1', 'class_2']
 
     est = rnn.RNNClassifier(
         units=[2],
-        sequence_feature_columns=sequence_feature_columns,
+        sequence_feature_columns=self.sequence_feature_columns,
         n_classes=3,
         label_vocabulary=label_vocabulary,
         model_dir=self.get_temp_dir())
@@ -1177,7 +1118,7 @@ class RNNClassifierPredictionTest(test.TestCase):
     # softmax_probabilities = logits_exp / logits_exp.sum()
     #                       = [0.121793, 0.484596, 0.393611]
     # class_ids = argmax(probabilities) = [1]
-    predictions = next(est.predict(predict_input_fn))
+    predictions = next(est.predict(_default_features_fn))
     self.assertAllClose([-0.603282, 0.777708, 0.569756],
                         predictions[prediction_keys.PredictionKeys.LOGITS])
     self.assertAllClose(
@@ -1191,13 +1132,20 @@ class RNNClassifierPredictionTest(test.TestCase):
 
 class BaseRNNClassificationIntegrationTest(object):
 
+  def setUp(self):
+    col = fc.sequence_categorical_column_with_hash_bucket(
+        'tokens', hash_bucket_size=10)
+    embed = fc.embedding_column(col, dimension=2)
+    self.feature_columns = [embed]
+    super(BaseRNNClassificationIntegrationTest, self).setUp()
+
   def __init__(self, _create_estimator_fn):
     self._create_estimator_fn = _create_estimator_fn
 
-  def _test_complete_flow(self, feature_columns, train_input_fn, eval_input_fn,
+  def _test_complete_flow(self, train_input_fn, eval_input_fn,
                           predict_input_fn, n_classes, batch_size):
     cell_units = [4, 2]
-    est = self._create_estimator_fn(feature_columns, n_classes, cell_units,
+    est = self._create_estimator_fn(self.feature_columns, n_classes, cell_units,
                                     self.get_temp_dir())
 
     # TRAIN
@@ -1218,7 +1166,7 @@ class BaseRNNClassificationIntegrationTest(object):
 
     # EXPORT
     feature_spec = parsing_utils.classifier_parse_example_spec(
-        feature_columns,
+        self.feature_columns,
         label_key='label',
         label_dtype=dtypes.int64)
     serving_input_receiver_fn = export.build_parsing_serving_input_receiver_fn(
@@ -1260,13 +1208,7 @@ class BaseRNNClassificationIntegrationTest(object):
         batch_size=batch_size,
         shuffle=False)
 
-    col = seq_fc.sequence_categorical_column_with_hash_bucket(
-        'tokens', hash_bucket_size=10)
-    embed = fc.embedding_column(col, dimension=2)
-    feature_columns = [embed]
-
     self._test_complete_flow(
-        feature_columns=feature_columns,
         train_input_fn=train_input_fn,
         eval_input_fn=eval_input_fn,
         predict_input_fn=predict_input_fn,
@@ -1297,12 +1239,8 @@ class BaseRNNClassificationIntegrationTest(object):
       writer.write(example.SerializeToString())
     writer.close()
 
-    col = seq_fc.sequence_categorical_column_with_hash_bucket(
-        'tokens', hash_bucket_size=10)
-    embed = fc.embedding_column(col, dimension=2)
-    feature_columns = [embed]
     feature_spec = parsing_utils.classifier_parse_example_spec(
-        feature_columns,
+        self.feature_columns,
         label_key='label',
         label_dtype=dtypes.int64)
 
@@ -1323,7 +1261,6 @@ class BaseRNNClassificationIntegrationTest(object):
       return dataset.map(features_fn)
 
     self._test_complete_flow(
-        feature_columns=feature_columns,
         train_input_fn=_train_input_fn,
         eval_input_fn=_eval_input_fn,
         predict_input_fn=_predict_input_fn,
@@ -1418,8 +1355,7 @@ class ModelFnTest(test.TestCase):
       features['sequence_mask'] = ops.convert_to_tensor(mask)
     expected_mask = mask or [[1, 1], [1, 0]]
 
-    sequence_feature_columns = [
-        seq_fc.sequence_numeric_column('price', shape=(1,))]
+    sequence_feature_columns = [fc.sequence_numeric_column('price', shape=(1,))]
 
     passed_features = rnn._rnn_model_fn(
         features=features,

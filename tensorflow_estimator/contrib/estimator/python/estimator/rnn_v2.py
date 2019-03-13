@@ -24,13 +24,11 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from tensorflow.python.feature_column import feature_column as feature_column_lib
-from tensorflow.python.framework import dtypes
+from tensorflow.python.feature_column import feature_column_lib as fc
 from tensorflow.python.framework import ops
 from tensorflow.python.keras import layers as keras_layers
 from tensorflow.python.keras.utils import losses_utils
 from tensorflow.python.ops import array_ops
-from tensorflow.python.ops import check_ops
 from tensorflow.python.summary import summary
 from tensorflow.python.training import optimizer as optimizer_lib
 from tensorflow.python.training import training_util
@@ -96,56 +94,6 @@ def _make_rnn_cell_fn(units, cell_type=_SIMPLE_RNN_KEY):
   return rnn_cell_fn
 
 
-# TODO(aarg): Use `concatenate_context_input` from sequence feature columns.
-def _concatenate_context_input(sequence_input, context_input):
-  """Replicates `context_input` across all timesteps of `sequence_input`.
-
-  Expands dimension 1 of `context_input` then tiles it `sequence_length` times.
-  This value is appended to `sequence_input` on dimension 2 and the result is
-  returned.
-
-  Args:
-    sequence_input: A `Tensor` of dtype `float32` and shape `[batch_size,
-      padded_length, d0]`.
-    context_input: A `Tensor` of dtype `float32` and shape `[batch_size, d1]`.
-
-  Returns:
-    A `Tensor` of dtype `float32` and shape `[batch_size, padded_length,
-    d0 + d1]`.
-
-  Raises:
-    ValueError: If `sequence_input` does not have rank 3 or `context_input` does
-      not have rank 2.
-  """
-  seq_rank_check = check_ops.assert_rank(
-      sequence_input,
-      3,
-      message='sequence_input must have rank 3',
-      data=[array_ops.shape(sequence_input)])
-  seq_type_check = check_ops.assert_type(
-      sequence_input,
-      dtypes.float32,
-      message='sequence_input must have dtype float32; got {}.'.format(
-          sequence_input.dtype))
-  ctx_rank_check = check_ops.assert_rank(
-      context_input,
-      2,
-      message='context_input must have rank 2',
-      data=[array_ops.shape(context_input)])
-  ctx_type_check = check_ops.assert_type(
-      context_input,
-      dtypes.float32,
-      message='context_input must have dtype float32; got {}.'.format(
-          context_input.dtype))
-  with ops.control_dependencies(
-      [seq_rank_check, seq_type_check, ctx_rank_check, ctx_type_check]):
-    padded_length = array_ops.shape(sequence_input)[1]
-    tiled_context_input = array_ops.tile(
-        array_ops.expand_dims(context_input, 1),
-        array_ops.concat([[1], [padded_length], [1]], 0))
-  return array_ops.concat([sequence_input, tiled_context_input], 2)
-
-
 def _rnn_logit_fn_builder(output_units, rnn_layer_fn, sequence_feature_columns,
                           context_feature_columns):
   """Function builder for a rnn logit_fn.
@@ -182,21 +130,15 @@ def _rnn_logit_fn_builder(output_units, rnn_layer_fn, sequence_feature_columns,
       A tuple of `Tensor` objects representing the logits and the sequence
       length mask.
     """
-    # Can't import from tf.contrib at the module level, otherwise you
-    # can hit a circular import issue if tf_estimator.contrib is
-    # imported before tf.contrib.
-    from tensorflow.contrib.feature_column.python.feature_column import sequence_feature_column as seq_fc  # pylint: disable=g-import-not-at-top
     with ops.name_scope('sequence_input_layer'):
-      sequence_input, sequence_length = seq_fc.sequence_input_layer(
-          features=features, feature_columns=sequence_feature_columns)
+      sequence_input, sequence_length = fc.SequenceFeatures(
+          sequence_feature_columns)(features)
       summary.histogram('sequence_length', sequence_length)
 
       if context_feature_columns:
-        context_input = feature_column_lib.input_layer(
-            features=features,
-            feature_columns=context_feature_columns)
-        sequence_input = _concatenate_context_input(sequence_input,
-                                                    context_input)
+        context_input = fc.DenseFeatures(context_feature_columns)(features)
+        sequence_input = fc.concatenate_context_input(
+            context_input, sequence_input=sequence_input)
 
     # Ignore output state.
     sequence_length_mask = array_ops.sequence_mask(sequence_length)
