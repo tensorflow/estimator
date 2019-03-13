@@ -34,6 +34,7 @@ from tensorflow.python.framework import ops
 from tensorflow.python.framework import sparse_tensor
 from tensorflow.python.framework import test_util
 from tensorflow.python.keras import layers as keras_layers
+from tensorflow.python.keras.utils import losses_utils
 from tensorflow.python.lib.io import python_io
 from tensorflow.python.ops import check_ops
 from tensorflow.python.ops import init_ops
@@ -79,26 +80,25 @@ def _assert_close(expected, actual, rtol=1e-04, name='assert_close'):
         name=scope)
 
 
-def create_checkpoint(kernel, recurrent_kernel, rnn_biases, logits_weights,
-                      logits_biases, global_step, model_dir):
+def create_checkpoint(kernel, recurrent, bias, dense_kernel, dense_bias,
+                      global_step, model_dir):
   """Create checkpoint file with provided model weights.
 
   Args:
     kernel: Iterable of values of input weights for the RNN cell.
-    recurrent_kernel: Iterable of values of recurrent weights for the RNN cell.
-    rnn_biases: Iterable of values of biases for the RNN cell.
-    logits_weights: Iterable of values for matrix connecting RNN output to
-      logits.
-    logits_biases: Iterable of values for logits bias term.
+    recurrent: Iterable of values of recurrent weights for the RNN cell.
+    bias: Iterable of values of biases for the RNN cell.
+    dense_kernel: Iterable of values for matrix connecting RNN output to logits.
+    dense_bias: Iterable of values for logits bias term.
     global_step: Initial global step to save in checkpoint.
     model_dir: Directory into which checkpoint is saved.
   """
   model_weights = {}
   model_weights[CELL_KERNEL_NAME] = kernel
-  model_weights[CELL_RECURRENT_KERNEL_NAME] = recurrent_kernel
-  model_weights[CELL_BIAS_NAME] = rnn_biases
-  model_weights[LOGITS_WEIGHTS_NAME] = logits_weights
-  model_weights[LOGITS_BIAS_NAME] = logits_biases
+  model_weights[CELL_RECURRENT_KERNEL_NAME] = recurrent
+  model_weights[CELL_BIAS_NAME] = bias
+  model_weights[LOGITS_WEIGHTS_NAME] = dense_kernel
+  model_weights[LOGITS_BIAS_NAME] = dense_bias
 
   with ops.Graph().as_default():
     # Create model variables.
@@ -652,9 +652,52 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
 
 
 @test_util.run_all_in_graph_and_eager_modes
+class RNNEstimatorInitTest(test.TestCase):
+
+  def setUp(self):
+    col = fc.sequence_categorical_column_with_hash_bucket(
+        'tokens', hash_bucket_size=10)
+    self.feature_columns = [fc.embedding_column(col, dimension=2)]
+    self.cell_units = [4, 2]
+    super(RNNEstimatorInitTest, self).setUp()
+
+  def testConflictingRNNCellFn(self):
+    with self.assertRaisesRegexp(
+        ValueError,
+        'units and cell_type must not be specified when using rnn_cell_fn'):
+      rnn.RNNClassifier(
+          sequence_feature_columns=self.feature_columns,
+          rnn_cell_fn=lambda: 'mock-cell',
+          units=self.cell_units)
+
+    with self.assertRaisesRegexp(
+        ValueError,
+        'units and cell_type must not be specified when using rnn_cell_fn'):
+      rnn.RNNClassifier(
+          sequence_feature_columns=self.feature_columns,
+          rnn_cell_fn=lambda: 'mock-cell',
+          cell_type='lstm')
+
+  def testNonSequentialHeadProvided(self):
+    with self.assertRaisesRegexp(
+        ValueError,
+        'Provided head must be a `_SequentialHead` object when '
+        '`return_sequences` is set to True.'):
+      rnn.RNNEstimator(
+          head=multi_head_lib.MultiClassHead(n_classes=3),
+          sequence_feature_columns=self.feature_columns,
+          return_sequences=True)
+
+
+@test_util.run_all_in_graph_and_eager_modes
 class RNNClassifierTrainingTest(test.TestCase):
 
   def setUp(self):
+    self.kernel = [[.1, -.2]]
+    self.recurrent = [[.2, -.3], [.3, -.4]]
+    self.bias = [.2, .5]
+    self.dense_kernel = [[-1.], [1.]]
+    self.dense_bias = [0.3]
     self.sequence_feature_columns = [
         fc.sequence_numeric_column('price', shape=(1,))]
     super(RNNClassifierTrainingTest, self).setUp()
@@ -721,37 +764,6 @@ class RNNClassifierTrainingTest(test.TestCase):
     # So, return mock_optimizer itself for deepcopy.
     mock_optimizer.__deepcopy__ = lambda _: mock_optimizer
     return mock_optimizer
-
-  def testConflictingRNNCellFn(self):
-    col = fc.sequence_categorical_column_with_hash_bucket(
-        'tokens', hash_bucket_size=10)
-    embed = fc.embedding_column(col, dimension=2)
-    cell_units = [4, 2]
-
-    with self.assertRaisesRegexp(
-        ValueError,
-        'units and cell_type must not be specified when using rnn_cell_fn'):
-      rnn.RNNClassifier(
-          sequence_feature_columns=[embed],
-          rnn_cell_fn=lambda: 'mock-cell',
-          units=cell_units)
-
-    with self.assertRaisesRegexp(
-        ValueError,
-        'units and cell_type must not be specified when using rnn_cell_fn'):
-      rnn.RNNClassifier(
-          sequence_feature_columns=[embed],
-          rnn_cell_fn=lambda: 'mock-cell',
-          cell_type='lstm')
-
-    with self.assertRaisesRegexp(
-        ValueError,
-        'Provided head must be a `_SequentialHead` object when '
-        '`return_sequences` is set to True.'):
-      rnn.RNNEstimator(
-          head=multi_head_lib.MultiClassHead(n_classes=3),
-          sequence_feature_columns=[embed],
-          return_sequences=True)
 
   def _testFromScratchWithDefaultOptimizer(self, n_classes):
     def train_input_fn():
@@ -853,17 +865,30 @@ class RNNClassifierTrainingTest(test.TestCase):
   def testMultiClassWithExampleWeight(self):
     self._testExampleWeight(n_classes=4)
 
-  def testBinaryClassFromCheckpoint(self):
-    initial_global_step = 100
+  def _testFromCheckpoint(self, input_fn, expected_loss, **kwargs):
+    """Loads classifier from checkpoint, runs training and checks loss."""
     create_checkpoint(
-        kernel=[[.1, -.2]],
-        recurrent_kernel=[[.2, -.3], [.3, -.4]],
-        rnn_biases=[.2, .5],
-        logits_weights=[[-1.], [1.]],
-        logits_biases=[0.3],
-        global_step=initial_global_step,
+        kernel=self.kernel,
+        recurrent=self.recurrent,
+        bias=self.bias,
+        dense_kernel=self.dense_kernel,
+        dense_bias=self.dense_bias,
+        global_step=100,
         model_dir=self.get_temp_dir())
 
+    mock_optimizer = self._mock_optimizer(expected_loss=expected_loss)
+
+    est = rnn.RNNClassifier(
+        units=[2],
+        sequence_feature_columns=self.sequence_feature_columns,
+        optimizer=mock_optimizer,
+        model_dir=self.get_temp_dir(),
+        **kwargs)
+    self.assertEqual(0, mock_optimizer.minimize.call_count)
+    est.train(input_fn=input_fn, steps=10)
+    self.assertEqual(1, mock_optimizer.minimize.call_count)
+
+  def testBinaryClassFromCheckpoint(self):
     def train_input_fn():
       return {
           'price':
@@ -875,29 +900,9 @@ class RNNClassifierTrainingTest(test.TestCase):
 
     # Uses same checkpoint and examples as testBinaryClassEvaluationMetrics.
     # See that test for loss calculation.
-    mock_optimizer = self._mock_optimizer(expected_loss=0.559831)
-
-    est = rnn.RNNClassifier(
-        units=[2],
-        sequence_feature_columns=self.sequence_feature_columns,
-        n_classes=2,
-        optimizer=mock_optimizer,
-        model_dir=self.get_temp_dir())
-    self.assertEqual(0, mock_optimizer.minimize.call_count)
-    est.train(input_fn=train_input_fn, steps=10)
-    self.assertEqual(1, mock_optimizer.minimize.call_count)
+    self._testFromCheckpoint(train_input_fn, expected_loss=0.559831)
 
   def testMultiClassFromCheckpoint(self):
-    initial_global_step = 100
-    create_checkpoint(
-        kernel=[[.1, -.2]],
-        recurrent_kernel=[[.2, -.3], [.3, -.4]],
-        rnn_biases=[.2, .5],
-        logits_weights=[[-1., 0.5, 0.2], [1., -0.3, 0.1]],
-        logits_biases=[0.3, 0.4, 0.5],
-        global_step=initial_global_step,
-        model_dir=self.get_temp_dir())
-
     def train_input_fn():
       return {
           'price':
@@ -909,17 +914,67 @@ class RNNClassifierTrainingTest(test.TestCase):
 
     # Uses same checkpoint and examples as testMultiClassEvaluationMetrics.
     # See that test for loss calculation.
-    mock_optimizer = self._mock_optimizer(expected_loss=1.331465)
+    self.dense_kernel = [[-1., 0.5, 0.2], [1., -0.3, 0.1]]
+    self.dense_bias = [0.3, 0.4, 0.5]
+    self._testFromCheckpoint(
+        train_input_fn, expected_loss=1.331465, n_classes=3)
 
-    est = rnn.RNNClassifier(
-        units=[2],
-        sequence_feature_columns=self.sequence_feature_columns,
-        n_classes=3,
-        optimizer=mock_optimizer,
-        model_dir=self.get_temp_dir())
-    self.assertEqual(0, mock_optimizer.minimize.call_count)
-    est.train(input_fn=train_input_fn, steps=10)
-    self.assertEqual(1, mock_optimizer.minimize.call_count)
+  def testBinaryClassFromCheckpointSequential(self):
+    def train_input_fn():
+      return {
+          'price':
+              sparse_tensor.SparseTensor(
+                  values=[10., 5., 2.],
+                  indices=[[0, 0], [0, 1], [1, 0]],
+                  dense_shape=[2, 2]),
+      }, sparse_tensor.SparseTensor(
+          values=[0, 1, 0],
+          indices=[[0, 0], [0, 1], [1, 0]],
+          dense_shape=[2, 2])
+
+    # Same example as testBinaryClassEvaluationMetricsSequential.
+    # logits = [[[-1.4388], [-0.6033]],
+    #            [[0.0197], [_]]]
+    # probability = np.exp(logits) / (1 + np.exp(logits))
+    #             = [[0.1917, 0.3536],
+    #                [0.5049, _]]
+    # loss = -label * ln(p) - (1 - label) * ln(1 - p)
+    # loss = [[0.2129,  1.0396],
+    #         [0.7031, _]]
+    # aggregated_loss = sum(loss) / 3
+    # aggregated_loss = 0.6518
+    self._testFromCheckpoint(
+        train_input_fn, expected_loss=0.651841, return_sequences=True)
+
+  def testBinaryClassFromCheckpointSequentialWithWeights(self):
+    def train_input_fn():
+      return {
+          'price':
+              sparse_tensor.SparseTensor(
+                  values=[10., 5., 2.],
+                  indices=[[0, 0], [0, 1], [1, 0]],
+                  dense_shape=[2, 2]),
+          'weights':
+              sparse_tensor.SparseTensor(
+                  values=[0., 0.5, 0.5],
+                  indices=[[0, 0], [0, 1], [1, 0]],
+                  dense_shape=[2, 2])
+      }, sparse_tensor.SparseTensor(
+          values=[0, 0, 1],
+          indices=[[0, 0], [0, 1], [1, 0]],
+          dense_shape=[2, 2])
+
+    # Checkpoint and input are the same as testBinaryClassEvaluationMetrics, and
+    # expected loss is the same as we use non-zero weights only for the last
+    # step of each sequence.
+    # loss = [[_,  0.436326],
+    #         [0.6833351, _]]
+    # weights = [[0, 0.5], [0.5, 0]]
+    # aggregated_loss = (0.436326 + 0.6833351) / 2.
+    #                 = 0.559831
+    self._testFromCheckpoint(
+        train_input_fn, expected_loss=0.559831, return_sequences=True,
+        weight_column='weights', loss_reduction=losses_utils.ReductionV2.SUM)
 
 
 def sorted_key_dict(unsorted_dict):
@@ -930,21 +985,34 @@ def sorted_key_dict(unsorted_dict):
 class RNNClassifierEvaluationTest(test.TestCase):
 
   def setUp(self):
+    self.kernel = [[.1, -.2]]
+    self.recurrent = [[.2, -.3], [.3, -.4]]
+    self.bias = [.2, .5]
+    self.dense_kernel = [[-1.], [1.]]
+    self.dense_bias = [0.3]
+    self.global_step = 100
     self.sequence_feature_columns = [
         fc.sequence_numeric_column('price', shape=(1,))]
     super(RNNClassifierEvaluationTest, self).setUp()
 
-  def testBinaryClassEvaluationMetrics(self):
-    global_step = 100
+  def _testFromCheckpoint(self, input_fn, **kwargs):
     create_checkpoint(
-        kernel=[[.1, -.2]],
-        recurrent_kernel=[[.2, -.3], [.3, -.4]],
-        rnn_biases=[.2, .5],
-        logits_weights=[[-1.], [1.]],
-        logits_biases=[0.3],
-        global_step=global_step,
+        kernel=self.kernel,
+        recurrent=self.recurrent,
+        bias=self.bias,
+        dense_kernel=self.dense_kernel,
+        dense_bias=self.dense_bias,
+        global_step=self.global_step,
         model_dir=self.get_temp_dir())
 
+    est = rnn.RNNClassifier(
+        units=[2],
+        sequence_feature_columns=self.sequence_feature_columns,
+        model_dir=self.get_temp_dir(),
+        **kwargs)
+    return est.evaluate(input_fn, steps=1)
+
+  def testBinaryClassEvaluationMetrics(self):
     def eval_input_fn():
       return {
           'price':
@@ -954,12 +1022,7 @@ class RNNClassifierEvaluationTest(test.TestCase):
                   dense_shape=[2, 2]),
       }, [[0], [1]]
 
-    est = rnn.RNNClassifier(
-        units=[2],
-        sequence_feature_columns=self.sequence_feature_columns,
-        n_classes=2,
-        model_dir=self.get_temp_dir())
-    eval_metrics = est.evaluate(eval_input_fn, steps=1)
+    eval_metrics = self._testFromCheckpoint(eval_input_fn)
 
     # Uses identical numbers to testMultiExamplesWithDifferentLength.
     # See that test for logits calculation.
@@ -969,45 +1032,70 @@ class RNNClassifierEvaluationTest(test.TestCase):
     #      = [[0.436326], [0.683335]]
     # sum_over_batch_size = (0.436326 + 0.683335)/2
     expected_metrics = {
-        ops.GraphKeys.GLOBAL_STEP:
-            global_step,
-        metric_keys.MetricKeys.LOSS:
-            0.559831,
-        metric_keys.MetricKeys.LOSS_MEAN:
-            0.559831,
-        metric_keys.MetricKeys.ACCURACY:
-            1.0,
-        metric_keys.MetricKeys.PREDICTION_MEAN:
-            0.429262,
-        metric_keys.MetricKeys.LABEL_MEAN:
-            0.5,
-        metric_keys.MetricKeys.ACCURACY_BASELINE:
-            0.5,
+        ops.GraphKeys.GLOBAL_STEP: self.global_step,
+        metric_keys.MetricKeys.LOSS: 0.559831,
+        metric_keys.MetricKeys.LOSS_MEAN: 0.559831,
+        metric_keys.MetricKeys.ACCURACY: 1.0,
+        metric_keys.MetricKeys.PREDICTION_MEAN: 0.429262,
+        metric_keys.MetricKeys.LABEL_MEAN: 0.5,
+        metric_keys.MetricKeys.ACCURACY_BASELINE: 0.5,
         # With default threshold of 0.5, the model is a perfect classifier.
-        metric_keys.MetricKeys.RECALL:
-            1.0,
-        metric_keys.MetricKeys.PRECISION:
-            1.0,
+        metric_keys.MetricKeys.RECALL: 1.0,
+        metric_keys.MetricKeys.PRECISION: 1.0,
         # Positive example is scored above negative, so AUC = 1.0.
-        metric_keys.MetricKeys.AUC:
-            1.0,
-        metric_keys.MetricKeys.AUC_PR:
-            1.0,
+        metric_keys.MetricKeys.AUC: 1.0,
+        metric_keys.MetricKeys.AUC_PR: 1.0,
+    }
+    self.assertAllClose(
+        sorted_key_dict(expected_metrics), sorted_key_dict(eval_metrics))
+
+  def testBinaryClassEvaluationMetricsSequential(self):
+    def eval_input_fn():
+      return {
+          'price':
+              sparse_tensor.SparseTensor(
+                  values=[10., 5., 2.],
+                  indices=[[0, 0], [0, 1], [1, 0]],
+                  dense_shape=[2, 2]),
+      }, sparse_tensor.SparseTensor(
+          values=[0, 1, 0],
+          indices=[[0, 0], [0, 1], [1, 0]],
+          dense_shape=[2, 2])
+
+    eval_metrics = self._testFromCheckpoint(
+        eval_input_fn, return_sequences=True)
+
+    # logits = [[[-1.4388], [-0.6033]],
+    #            [[0.0197], [_]]]
+    # probability = np.exp(logits) / (1 + np.exp(logits))
+    #             = [[0.1917, 0.3536],
+    #                [0.5049, _]]
+    # labels = [[0, 1],
+    #           [0, _]]
+    # loss = -label * ln(p) - (1 - label) * ln(1 - p)
+    # loss = [[0.2129,  1.0396],
+    #         [0.7031, _]]
+    # aggregated_loss = sum(loss) / 3
+    # aggregated_loss = 0.6518
+    # accuracy = 1/3
+    # prediction_mean = mean(probability) = 0.3501
+    expected_metrics = {
+        ops.GraphKeys.GLOBAL_STEP: self.global_step,
+        metric_keys.MetricKeys.LOSS: 0.651841,
+        metric_keys.MetricKeys.LOSS_MEAN: 0.651841,
+        metric_keys.MetricKeys.ACCURACY: 1.0 / 3,
+        metric_keys.MetricKeys.PREDICTION_MEAN: 0.350085,
+        metric_keys.MetricKeys.LABEL_MEAN: 1.0 / 3,
+        metric_keys.MetricKeys.ACCURACY_BASELINE: 2.0 / 3,
+        metric_keys.MetricKeys.RECALL: 0.0,
+        metric_keys.MetricKeys.PRECISION: 0.0,
+        metric_keys.MetricKeys.AUC: 0.5,
+        metric_keys.MetricKeys.AUC_PR: 0.30685282,
     }
     self.assertAllClose(
         sorted_key_dict(expected_metrics), sorted_key_dict(eval_metrics))
 
   def testMultiClassEvaluationMetrics(self):
-    global_step = 100
-    create_checkpoint(
-        kernel=[[.1, -.2]],
-        recurrent_kernel=[[.2, -.3], [.3, -.4]],
-        rnn_biases=[.2, .5],
-        logits_weights=[[-1., 0.5, 0.2], [1., -0.3, 0.1]],
-        logits_biases=[0.3, 0.4, 0.5],
-        global_step=global_step,
-        model_dir=self.get_temp_dir())
-
     def eval_input_fn():
       return {
           'price':
@@ -1017,13 +1105,8 @@ class RNNClassifierEvaluationTest(test.TestCase):
                   dense_shape=[2, 2]),
       }, [[0], [1]]
 
-    est = rnn.RNNClassifier(
-        units=[2],
-        sequence_feature_columns=self.sequence_feature_columns,
-        n_classes=3,
-        model_dir=self.get_temp_dir())
-    eval_metrics = est.evaluate(eval_input_fn, steps=1)
-
+    self.dense_kernel = [[-1., 0.5, 0.2], [1., -0.3, 0.1]]
+    self.dense_bias = [0.3, 0.4, 0.5]
     # Uses identical numbers to testMultiExampleMultiDim.
     # See that test for logits calculation.
     # logits = [[-0.603282, 0.777708, 0.569756],
@@ -1037,8 +1120,10 @@ class RNNClassifierEvaluationTest(test.TestCase):
     # loss = -1. * log(softmax[label])
     #      = [[2.105432], [0.557500]]
     # sum_over_batch_size = (2.105432 + 0.557500)/2
+    eval_metrics = self._testFromCheckpoint(eval_input_fn, n_classes=3)
+
     expected_metrics = {
-        ops.GraphKeys.GLOBAL_STEP: global_step,
+        ops.GraphKeys.GLOBAL_STEP: self.global_step,
         metric_keys.MetricKeys.LOSS: 1.331465,
         metric_keys.MetricKeys.LOSS_MEAN: 1.331466,
         metric_keys.MetricKeys.ACCURACY: 0.5,
@@ -1052,18 +1137,23 @@ class RNNClassifierEvaluationTest(test.TestCase):
 class RNNClassifierPredictionTest(test.TestCase):
 
   def setUp(self):
+    self.kernel = [[.1, -.2]]
+    self.recurrent = [[.2, -.3], [.3, -.4]]
+    self.bias = [.2, .5]
+    self.dense_kernel = [[-1.], [1.]]
+    self.dense_bias = [0.3]
     self.sequence_feature_columns = [
         fc.sequence_numeric_column('price', shape=(1,))]
     super(RNNClassifierPredictionTest, self).setUp()
 
-  def testBinaryClassPredictions(self):
+  def _testFromCheckpoint(self, input_fn, **kwargs):
     create_checkpoint(
-        kernel=[[.1, -.2]],
-        recurrent_kernel=[[.2, -.3], [.3, -.4]],
-        rnn_biases=[.2, .5],
-        logits_weights=[[-1.], [1.]],
-        logits_biases=[0.3],
-        global_step=0,
+        kernel=self.kernel,
+        recurrent=self.recurrent,
+        bias=self.bias,
+        dense_kernel=self.dense_kernel,
+        dense_bias=self.dense_bias,
+        global_step=100,
         model_dir=self.get_temp_dir())
 
     label_vocabulary = ['class_0', 'class_1']
@@ -1071,16 +1161,19 @@ class RNNClassifierPredictionTest(test.TestCase):
     est = rnn.RNNClassifier(
         units=[2],
         sequence_feature_columns=self.sequence_feature_columns,
-        n_classes=2,
         label_vocabulary=label_vocabulary,
-        model_dir=self.get_temp_dir())
+        model_dir=self.get_temp_dir(),
+        **kwargs)
+    return next(est.predict(input_fn))
+
+  def testBinaryClassPredictions(self):
     # Uses identical numbers to testOneDimLogits.
     # See that test for logits calculation.
     # logits = [-0.603282]
     # logistic = exp(-0.6033) / (1 + exp(-0.6033)) = [0.353593]
     # probabilities = [0.646407, 0.353593]
     # class_ids = argmax(probabilities) = [0]
-    predictions = next(est.predict(_default_features_fn))
+    predictions = self._testFromCheckpoint(_default_features_fn)
     self.assertAllClose([-0.603282],
                         predictions[prediction_keys.PredictionKeys.LOGITS])
     self.assertAllClose([0.353593],
@@ -1094,23 +1187,8 @@ class RNNClassifierPredictionTest(test.TestCase):
                      predictions[prediction_keys.PredictionKeys.CLASSES])
 
   def testMultiClassPredictions(self):
-    create_checkpoint(
-        kernel=[[.1, -.2]],
-        recurrent_kernel=[[.2, -.3], [.3, -.4]],
-        rnn_biases=[.2, .5],
-        logits_weights=[[-1., 0.5, 0.2], [1., -0.3, 0.1]],
-        logits_biases=[0.3, 0.4, 0.5],
-        global_step=0,
-        model_dir=self.get_temp_dir())
-
-    label_vocabulary = ['class_0', 'class_1', 'class_2']
-
-    est = rnn.RNNClassifier(
-        units=[2],
-        sequence_feature_columns=self.sequence_feature_columns,
-        n_classes=3,
-        label_vocabulary=label_vocabulary,
-        model_dir=self.get_temp_dir())
+    self.dense_kernel = [[-1., 0.5, 0.2], [1., -0.3, 0.1]]
+    self.dense_bias = [0.3, 0.4, 0.5]
     # Uses identical numbers to testMultiDimLogits.
     # See that test for logits calculation.
     # logits = [-0.603282, 0.777708, 0.569756]
@@ -1118,7 +1196,7 @@ class RNNClassifierPredictionTest(test.TestCase):
     # softmax_probabilities = logits_exp / logits_exp.sum()
     #                       = [0.121793, 0.484596, 0.393611]
     # class_ids = argmax(probabilities) = [1]
-    predictions = next(est.predict(_default_features_fn))
+    predictions = self._testFromCheckpoint(_default_features_fn, n_classes=3)
     self.assertAllClose([-0.603282, 0.777708, 0.569756],
                         predictions[prediction_keys.PredictionKeys.LOGITS])
     self.assertAllClose(
@@ -1128,6 +1206,41 @@ class RNNClassifierPredictionTest(test.TestCase):
                         predictions[prediction_keys.PredictionKeys.CLASS_IDS])
     self.assertEqual([b'class_1'],
                      predictions[prediction_keys.PredictionKeys.CLASSES])
+
+  def testBinaryClassPredictionsSequential(self):
+    def predict_input_fn():
+      return {
+          'price':
+              sparse_tensor.SparseTensor(
+                  values=[10., 5.],
+                  indices=[[0, 0], [0, 1]],
+                  dense_shape=[1, 3]),
+      }
+    # Same as first record of testBinaryClassEvaluationMetricsSequential.
+    # Last step values are carried over.
+    # logits = [[-1.4388], [-0.6033], [_]]
+    # probabilities = np.exp(logits) / (1 + np.exp(logits))
+    #               = [[0.8083, 0.1917], [0.6464, 0.3536], [_, _]]
+    # class_ids = [[0], [0], [_]]
+    # classes = [['class_0'], ['class_0'], [_]]
+    predictions = self._testFromCheckpoint(
+        predict_input_fn, return_sequences=True, sequence_mask='my-mask')
+    self.assertAllEqual([1, 1], predictions['my-mask'])
+    self.assertAllClose(
+        [[-1.438803], [-0.603282], [-0.603282]],
+        predictions[prediction_keys.PredictionKeys.LOGITS])
+    self.assertAllClose(
+        [[0.191731], [0.353593], [0.353593]],
+        predictions[prediction_keys.PredictionKeys.LOGISTIC])
+    self.assertAllClose(
+        [[0.808269, 0.191731], [0.646407, 0.353593], [0.646407, 0.353593]],
+        predictions[prediction_keys.PredictionKeys.PROBABILITIES])
+    self.assertAllClose(
+        [[0], [0], [0]],
+        predictions[prediction_keys.PredictionKeys.CLASS_IDS])
+    self.assertAllEqual(
+        [[b'class_0'], [b'class_0'], [b'class_0']],
+        predictions[prediction_keys.PredictionKeys.CLASSES])
 
 
 class BaseRNNClassificationIntegrationTest(object):
@@ -1364,7 +1477,7 @@ class ModelFnTest(test.TestCase):
         head=_MockSeqHead(n_classes=3),
         rnn_layer_fn=rnn._make_rnn_layer_fn(
             rnn_cell_fn=None, units=[10], cell_type=rnn._SIMPLE_RNN_KEY,
-            return_sequences=False),
+            return_sequences=True),
         sequence_feature_columns=sequence_feature_columns,
         context_feature_columns=[],
         return_sequences=True)

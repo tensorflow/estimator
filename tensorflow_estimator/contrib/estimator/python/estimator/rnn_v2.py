@@ -29,6 +29,7 @@ from tensorflow.python.framework import ops
 from tensorflow.python.keras import layers as keras_layers
 from tensorflow.python.keras.utils import losses_utils
 from tensorflow.python.ops import array_ops
+from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.summary import summary
 from tensorflow.python.training import optimizer as optimizer_lib
 from tensorflow.python.training import training_util
@@ -318,12 +319,14 @@ class RNNClassifier(estimator.Estimator):
                units=None,
                cell_type=USE_DEFAULT,
                rnn_cell_fn=None,
+               return_sequences=False,
                model_dir=None,
                n_classes=2,
                weight_column=None,
                label_vocabulary=None,
                optimizer='Adagrad',
                loss_reduction=losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE,
+               sequence_mask='sequence_mask',
                config=None):
     """Initializes a `RNNClassifier` instance.
 
@@ -349,6 +352,9 @@ class RNNClassifier(estimator.Estimator):
         This is for advanced users who need additional customization beyond
         `units` and `cell_type`. Note that `tf.keras.layers.StackedRNNCells` is
         needed for stacked RNNs.
+      return_sequences: A boolean indicating whether to return the last output
+        in the output sequence, or the full sequence. Note that if True,
+        `weight_column` must be None or a string.
       model_dir: Directory to save model parameters, graph and etc. This can
         also be used to load checkpoints from the directory into a estimator to
         continue training a previously saved model.
@@ -359,8 +365,8 @@ class RNNClassifier(estimator.Estimator):
         weights. It is used to down weight or boost examples during training. It
         will be multiplied by the loss of the example. If it is a string, it is
         used as a key to fetch weight tensor from the `features`. If it is a
-        `_NumericColumn`, raw tensor is fetched by key `weight_column.key`,
-        then weight_column.normalizer_fn is applied on it to get weight tensor.
+        `NumericColumn`, raw tensor is fetched by key `weight_column.key`, then
+        weight_column.normalizer_fn is applied on it to get weight tensor.
       label_vocabulary: A list of strings represents possible label values. If
         given, labels must be string type and have any value in
         `label_vocabulary`. If it is not given, that means labels are
@@ -372,6 +378,13 @@ class RNNClassifier(estimator.Estimator):
         type. Defaults to Adagrad optimizer.
       loss_reduction: One of `tf.losses.Reduction` except `NONE`. Describes how
         to reduce training loss over batch. Defaults to `SUM_OVER_BATCH_SIZE`.
+      sequence_mask: A string with the name of the sequence mask tensor. If
+        `sequence_mask` is in the features dictionary, the provided tensor is
+        used, otherwise the sequence mask is computed from the length of
+        sequential features. The sequence mask is used in evaluation and
+        training mode to aggregate loss and metrics computation while excluding
+        padding steps. It is also added to the predictions dictionary in
+        prediction mode to indicate which steps are padding.
       config: `RunConfig` object to configure the runtime settings.
 
     Note that a RNN cell has:
@@ -386,7 +399,7 @@ class RNNClassifier(estimator.Estimator):
         compatible.
     """
     rnn_layer_fn = _make_rnn_layer_fn(
-        rnn_cell_fn, units, cell_type, return_sequences=False)
+        rnn_cell_fn, units, cell_type, return_sequences=return_sequences)
 
     if n_classes == 2:
       head = binary_head_lib.BinaryClassHead(
@@ -400,6 +413,13 @@ class RNNClassifier(estimator.Estimator):
           label_vocabulary=label_vocabulary,
           loss_reduction=loss_reduction)
 
+    if return_sequences:
+      logging.info('Converting head to sequential head with '
+                   '`SequentialHeadWrapper` to allow sequential predictions.')
+      head = seq_head_lib.SequentialHeadWrapper(
+          head, sequence_length_mask=sequence_mask,
+          feature_columns=weight_column)
+
     def _model_fn(features, labels, mode, config):
       del config  # Unused.
       return _rnn_model_fn(
@@ -410,7 +430,7 @@ class RNNClassifier(estimator.Estimator):
           rnn_layer_fn=rnn_layer_fn,
           sequence_feature_columns=tuple(sequence_feature_columns or []),
           context_feature_columns=tuple(context_feature_columns or []),
-          return_sequences=False,
+          return_sequences=return_sequences,
           optimizer=optimizer)
     super(RNNClassifier, self).__init__(
         model_fn=_model_fn, model_dir=model_dir, config=config)

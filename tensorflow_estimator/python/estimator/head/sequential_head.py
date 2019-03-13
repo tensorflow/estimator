@@ -215,8 +215,8 @@ class SequentialHeadWrapper(_SequentialHead):
                        '{} instead.'.format(sequence_mask.get_shape().ndims))
 
     with ops.name_scope('flatten'):
-      expected_length = math_ops.cast(
-          math_ops.reduce_sum(sequence_mask), dtypes.int32)
+      expected_length = math_ops.reduce_sum(
+          math_ops.cast(sequence_mask, dtypes.int32))
       # Flatten logits and labels.
       flat_logits = _flatten_tensor(logits, sequence_mask, expected_length)
       flat_labels = _flatten_tensor(labels, sequence_mask, expected_length)
