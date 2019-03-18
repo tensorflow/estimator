@@ -138,7 +138,7 @@ class EstimatorSpec(
         Single-headed models only need to specify one entry in this dictionary.
         Multi-headed models should specify one entry for each head, one of
         which must be named using
-        signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY.
+        `tf.saved_model.signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY`.
         If no entry is provided, a default `PredictOutput` mapping to
         `predictions` will be created.
       training_chief_hooks: Iterable of `tf.train.SessionRunHook` objects to
@@ -397,9 +397,9 @@ def _validate_estimator_spec_export_outputs(export_outputs, predictions, mode):
         `RegressionOutput`, or `PredictOutput`. Single-headed models should only
         need to specify one entry in this dictionary. Multi-headed models should
         specify one entry for each head, one of which must be named using
-        signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY. If no entry is
-        provided, a default `PredictOutput` mapping to predictions will be
-        created.
+        `tf.saved_model.signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY`.
+        If no entry is provided, a default `PredictOutput` mapping to
+        predictions will be created.
 
     predictions: Predictions `Tensor` or dict of `Tensor`. Used in generation of
      default outputs.
