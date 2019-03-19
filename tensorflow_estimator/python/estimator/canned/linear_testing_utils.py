@@ -80,6 +80,8 @@ BIAS_NAME = 'linear/linear_model/bias_weights'
 LANGUAGE_WEIGHT_NAME = 'linear/linear_model/language/weights'
 
 
+# TODO(mihaimaruseac): This and linear_testing_utils_v1 are 99%+ duplicated. Fix
+
 # This is so that we can easily switch between feature_column and
 # feature_column_v2 for testing.
 feature_column.numeric_column = feature_column._numeric_column
@@ -1984,7 +1986,8 @@ class BaseLinearLogitFnTest(object):
           units=3,
           cols_to_vars=cols_to_vars)
       cols_to_vars.pop('bias')
-      fraction_zero = linear._compute_fraction_of_zero(cols_to_vars.values())
+      fraction_zero = linear._compute_fraction_of_zero(
+          list(cols_to_vars.values()))
       age_var = ops.get_collection(ops.GraphKeys.GLOBAL_VARIABLES,
                                    'linear_model/age')[0]
       with tf_session.Session() as sess:

@@ -2093,7 +2093,8 @@ class BaseLinearLogitFnTest(object):
           units=3,
           cols_to_vars=cols_to_vars)
       cols_to_vars.pop('bias')
-      fraction_zero = linear._compute_fraction_of_zero(cols_to_vars.values())
+      fraction_zero = linear._compute_fraction_of_zero(
+          list(cols_to_vars.values()))
       age_var = ops.get_collection(ops.GraphKeys.GLOBAL_VARIABLES,
                                    'linear_model/age')[0]
       with tf_session.Session() as sess:
