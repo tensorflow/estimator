@@ -208,7 +208,7 @@ class SequentialHeadWrapper(_SequentialHead):
       raise ValueError('The provided sequence_length_mask key `{}` should be '
                        'included in the features dictionary, but was not '
                        'found. Found keys: {}.'.format(
-                           self.input_sequence_mask_key, features.keys()))
+                           self.input_sequence_mask_key, list(features.keys())))
     sequence_mask = features[self.input_sequence_mask_key]
     if sequence_mask.get_shape().ndims != 2:
       raise ValueError('Mask is expected to have two dimensions, got '
