@@ -1018,7 +1018,6 @@ class StepCounterHookTest(test.TestCase):
       self.assertEqual('bar/foo/sec', summary_value.tag)
 
   def test_log_warning_if_global_step_not_increased(self):
-    self.skipTest('Pending fix to failure once TF nightly is picked up.')
     with ops.Graph().as_default(), session_lib.Session() as sess:
       variables.get_or_create_global_step()
       train_op = training_util._increment_global_step(0)  # keep same.
@@ -1028,7 +1027,7 @@ class StepCounterHookTest(test.TestCase):
       hook.begin()
       mon_sess = monitored_session._HookedSession(sess, [hook])
       mon_sess.run(train_op)  # Run one step to record global step.
-      with test.mock.patch.object(tf_logging, 'warning') as mock_log:
+      with test.mock.patch.object(tf_logging, 'log_first_n') as mock_log:
         for _ in range(30):
           mon_sess.run(train_op)
         self.assertRegexpMatches(
