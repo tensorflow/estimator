@@ -135,7 +135,7 @@ class ObjectCheckpointingTest(test.TestCase):
     checkpoint.save(load_model_dir)
     load_est, input_fn = self._make_estimator(load_model_dir)
     predictions = load_est.predict(input_fn)
-    predictions = predictions.next()
+    predictions = next(predictions)
     self.assertAllClose([13.], predictions['bias'])
     self.assertEqual(40, predictions['step'])
 
