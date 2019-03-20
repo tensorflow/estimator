@@ -780,7 +780,7 @@ class _TrainingExecutor(object):
 
       max_delay_secs = _MAX_DELAY_SECS
       if config.experimental_max_worker_delay_secs is not None:
-        max_delay_secs = config.experimental_max_worker_delay_secs
+        max_delay_secs = int(config.experimental_max_worker_delay_secs)
 
       start_delay_secs = min(max_delay_secs,
                              (config.task_id + 1) * _DELAY_SECS_PER_WORKER)
