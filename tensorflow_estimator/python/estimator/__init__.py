@@ -24,4 +24,3 @@ from __future__ import print_function
 
 import tensorflow_estimator.python.estimator.estimator_lib
 
-# TODO(mihaimaruseac): Remove this line after CL lands
