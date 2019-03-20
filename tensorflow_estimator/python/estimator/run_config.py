@@ -263,6 +263,19 @@ def _validate_properties(run_config):
     if property_value is not None and not cond(property_value):
       raise ValueError(message)
 
+  def _validate_delay(delay):
+    """
+    Check that delay is an integer value.
+
+    Since this has to work for both Python2 and Python3 and PEP237 defines long
+    to be basically int, we cannot just use a lambda function.
+    """
+    try:
+      return isinstance(delay, (int, long))
+    except NameError:
+      # PEP237 redefines long to int for Python3
+      return isinstance(delay, int)
+
   _validate('model_dir', lambda dir: dir,
             message='model_dir should be non-empty')
 
@@ -288,8 +301,7 @@ def _validate_properties(run_config):
   _validate('tf_random_seed', lambda seed: isinstance(seed, six.integer_types),
             message='tf_random_seed must be integer.')
 
-  _validate('experimental_max_worker_delay_secs',
-            lambda delay: isinstance(delay, (int, long)),
+  _validate('experimental_max_worker_delay_secs', _validate_delay,
             message='experimental_max_worker_delay_secs must be an integer if'
             ' set.')
 
