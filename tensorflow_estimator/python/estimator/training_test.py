@@ -667,6 +667,21 @@ class TrainingExecutorRunWorkerTest(_TrainingExecutorTrainingTest,
       self._run_task(executor)
       self.assertTrue(mock_sleep.called)
 
+  @test.mock.patch.object(server_lib, 'Server')
+  def test_delay_disabled_for_worker(self, _):
+    mock_est = test.mock.Mock(spec=estimator_lib.Estimator)
+    mock_est.config = self._run_config.replace(
+        experimental_max_worker_delay_secs=0)
+    mock_train_spec = test.mock.Mock(spec=training.TrainSpec, hooks=[])
+    mock_eval_spec = test.mock.Mock(spec=training.EvalSpec)
+
+    executor = training._TrainingExecutor(mock_est, mock_train_spec,
+                                          mock_eval_spec)
+
+    with test.mock.patch.object(time, 'sleep') as mock_sleep:
+      self._run_task(executor)
+      self.assertFalse(mock_sleep.called)
+
 
 class TrainingExecutorRunChiefTest(_TrainingExecutorTrainingTest,
                                    test.TestCase):

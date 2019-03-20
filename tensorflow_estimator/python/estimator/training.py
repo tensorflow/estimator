@@ -777,7 +777,12 @@ class _TrainingExecutor(object):
     if config.task_type == run_config_lib.TaskType.WORKER:
       # TODO(xiejw): Replace the hard code logic (task_id + 1) with unique id in
       # training cluster.
-      start_delay_secs = min(_MAX_DELAY_SECS,
+
+      max_delay_secs = _MAX_DELAY_SECS
+      if config.experimental_max_worker_delay_secs is not None:
+        max_delay_secs = config.experimental_max_worker_delay_secs
+
+      start_delay_secs = min(max_delay_secs,
                              (config.task_id + 1) * _DELAY_SECS_PER_WORKER)
     if start_delay_secs > 0:
       logging.info('Waiting %d secs before starting training.',

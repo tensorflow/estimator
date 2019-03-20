@@ -53,6 +53,7 @@ _DEFAULT_REPLACEABLE_LIST = [
     'protocol',
     'eval_distribute',
     'experimental_distribute',
+    'experimental_max_worker_delay_secs',
 ]
 
 _SAVE_CKPT_ERR = (
@@ -287,6 +288,11 @@ def _validate_properties(run_config):
   _validate('tf_random_seed', lambda seed: isinstance(seed, six.integer_types),
             message='tf_random_seed must be integer.')
 
+  _validate('experimental_max_worker_delay_secs',
+            lambda delay: isinstance(delay, (int, long)),
+            message='experimental_max_worker_delay_secs must be an integer if'
+            ' set.')
+
   _validate('device_fn', lambda device_fn: six.callable(device_fn) and
             set(function_utils.fn_args(device_fn)) == _VALID_DEVICE_FN_ARGS,
             message='device_fn must be callable with exactly'
@@ -334,7 +340,8 @@ class RunConfig(object):
                device_fn=None,
                protocol=None,
                eval_distribute=None,
-               experimental_distribute=None):
+               experimental_distribute=None,
+               experimental_max_worker_delay_secs=None):
     """Constructs a RunConfig.
 
     All distributed training related properties `cluster_spec`, `is_chief`,
@@ -481,6 +488,14 @@ class RunConfig(object):
         DistributionStrategy-related configuration. The `train_distribute` and
         `eval_distribute` can be passed as parameters to `RunConfig` or set in
         `experimental_distribute` but not both.
+      experimental_max_worker_delay_secs: An optional integer
+        specifying the maximum time a worker should wait before starting.
+        By default, workers are started at staggered times, with each worker
+        being delayed by up to 60 seconds. This is intended to reduce the risk
+        of divergence, which can occur when many workers simultaneously update
+        the weights of a randomly initialized model. Users who warm-start their
+        models and train them for short durations (a few minutes or less) should
+        consider reducing this default to improve training times.
 
     Raises:
       ValueError: If both `save_checkpoints_steps` and `save_checkpoints_secs`
@@ -521,7 +536,8 @@ class RunConfig(object):
         device_fn=device_fn,
         protocol=protocol,
         eval_distribute=eval_distribute,
-        experimental_distribute=experimental_distribute)
+        experimental_distribute=experimental_distribute,
+        experimental_max_worker_delay_secs=experimental_max_worker_delay_secs)
 
     # TODO(frankchn,priyag): Eventually use distributed coordinator for TPUs.
     if ((train_distribute and
@@ -752,6 +768,10 @@ class RunConfig(object):
     return self._global_id_in_cluster
 
   @property
+  def experimental_max_worker_delay_secs(self):
+    return self._experimental_max_worker_delay_secs
+
+  @property
   def task_type(self):
     return self._task_type
 
@@ -832,6 +852,7 @@ class RunConfig(object):
       - `protocol`.
       - `eval_distribute`,
       - `experimental_distribute`,
+      - `experimental_max_worker_delay_secs`,
 
     In addition, either `save_checkpoints_steps` or `save_checkpoints_secs`
     can be set (should not be both).

@@ -66,6 +66,8 @@ _INVALID_CHIEF_IN_CLUSTER_WITH_MASTER_ERR = (
     'If `master` node exists in `cluster`, job `chief` is not supported.')
 _INVALID_SERVICE_TYPE_ERR = (
     'If "service" is set in TF_CONFIG, it must be a dict. Given')
+_EXPERIMENTAL_MAX_WORKER_DELAY_SECS_ERR = (
+    'experimental_max_worker_delay_secs must be an integer if set.')
 
 
 def _create_run_config_with_cluster_spec(tf_config, **kwargs):
@@ -87,6 +89,7 @@ class RunConfigTest(test.TestCase):
     self.assertEqual(10000, config.keep_checkpoint_every_n_hours)
     self.assertIsNone(config.service)
     self.assertIsNone(config.device_fn)
+    self.assertIsNone(config.experimental_max_worker_delay_secs)
 
   def test_model_dir(self):
     empty_config = run_config_lib.RunConfig()
@@ -177,6 +180,9 @@ class RunConfigTest(test.TestCase):
       config.replace(tf_random_seed=1.0)
     with self.assertRaisesRegexp(ValueError, _DEVICE_FN_ERR):
       config.replace(device_fn=lambda x, y: 0)
+    with self.assertRaisesRegexp(ValueError,
+                                 _EXPERIMENTAL_MAX_WORKER_DELAY_SECS_ERR):
+      config.replace(experimental_max_worker_delay_secs='5')
 
   def test_init_with_allowed_properties(self):
     session_config = config_pb2.ConfigProto(allow_soft_placement=True)
@@ -189,7 +195,8 @@ class RunConfigTest(test.TestCase):
         session_config=session_config,
         keep_checkpoint_max=16,
         keep_checkpoint_every_n_hours=17,
-        device_fn=device_fn)
+        device_fn=device_fn,
+        experimental_max_worker_delay_secs=10)
     self.assertEqual(11, config.tf_random_seed)
     self.assertEqual(12, config.save_summary_steps)
     self.assertEqual(14, config.save_checkpoints_secs)
@@ -197,6 +204,7 @@ class RunConfigTest(test.TestCase):
     self.assertEqual(16, config.keep_checkpoint_max)
     self.assertEqual(17, config.keep_checkpoint_every_n_hours)
     self.assertEqual(device_fn, config.device_fn)
+    self.assertEqual(10, config.experimental_max_worker_delay_secs)
 
   def test_init_none_value(self):
     config = run_config_lib.RunConfig(
@@ -238,6 +246,9 @@ class RunConfigTest(test.TestCase):
       run_config_lib.RunConfig(tf_random_seed=1.0)
     with self.assertRaisesRegexp(ValueError, _DEVICE_FN_ERR):
       run_config_lib.RunConfig(device_fn=lambda x: '/cpu:0')
+    with self.assertRaisesRegexp(ValueError,
+                                 _EXPERIMENTAL_MAX_WORKER_DELAY_SECS_ERR):
+      run_config_lib.RunConfig(experimental_max_worker_delay_secs='5')
 
 
 class RunConfigDistributedSettingTest(test.TestCase):
