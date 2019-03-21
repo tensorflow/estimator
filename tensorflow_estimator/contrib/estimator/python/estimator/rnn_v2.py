@@ -27,6 +27,7 @@ from __future__ import print_function
 from tensorflow.python.feature_column import feature_column_lib as fc
 from tensorflow.python.framework import ops
 from tensorflow.python.keras import layers as keras_layers
+from tensorflow.python.keras.layers import recurrent_v2
 from tensorflow.python.keras.utils import losses_utils
 from tensorflow.python.ops import array_ops
 from tensorflow.python.platform import tf_logging as logging
@@ -51,9 +52,8 @@ _LSTM_KEY = 'lstm'
 _GRU_KEY = 'gru'
 
 _LAYER_TYPES = {
-    # TODO(scottzhu): Change to recurrent_v2 once the change reaches HEAD.
-    _LSTM_KEY: keras_layers.LSTM,
-    _GRU_KEY: keras_layers.GRU}
+    _LSTM_KEY: recurrent_v2.LSTM,
+    _GRU_KEY: recurrent_v2.GRU}
 
 
 # Indicates no value was provided by the user to a kwarg.

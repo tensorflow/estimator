@@ -34,6 +34,7 @@ from tensorflow.python.framework import ops
 from tensorflow.python.framework import sparse_tensor
 from tensorflow.python.framework import test_util
 from tensorflow.python.keras import layers as keras_layers
+from tensorflow.python.keras.layers import recurrent_v2
 from tensorflow.python.keras.utils import losses_utils
 from tensorflow.python.lib.io import python_io
 from tensorflow.python.ops import check_ops
@@ -148,9 +149,8 @@ class RNNLayerFnTest(test.TestCase, parameterized.TestCase):
     self.assertIsInstance(layer, keras_layers.RNN)
     self.assertIsInstance(layer.cell, keras_layers.SimpleRNNCell)
 
-  # TODO(scottzhu): Change to recurrent_v2 once the change reaches HEAD.
-  @parameterized.parameters([('gru', keras_layers.GRU),
-                             ('lstm', keras_layers.LSTM)])
+  @parameterized.parameters([('gru', recurrent_v2.GRU),
+                             ('lstm', recurrent_v2.LSTM)])
   def testSpecificLayerTypeProvided(self, cell_type, layer_type):
     """Tests specific layer type for GRU and LSTM."""
     layer = _make_rnn_layer(cell_type=cell_type, units=[1])
