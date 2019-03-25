@@ -60,6 +60,7 @@ from tensorflow.python.training import training_util
 from tensorflow.python.training import warm_starting_util
 from tensorflow.python.util import compat
 from tensorflow.python.util import compat_internal
+from tensorflow.python.util import deprecation
 from tensorflow.python.util import function_utils
 from tensorflow.python.util import nest
 from tensorflow.python.util.tf_export import estimator_export
@@ -1609,6 +1610,8 @@ class Estimator(EstimatorV2):
     """Asserts members of `Estimator` are not overridden."""
     _assert_members_are_not_overridden(Estimator, self)
 
+  @deprecation.deprecated(
+      None, 'This function has been renamed, use `export_saved_model` instead.')
   def export_savedmodel(
       self, export_dir_base, serving_input_receiver_fn,
       assets_extra=None,
