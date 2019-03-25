@@ -165,9 +165,8 @@ def _dnn_linear_combined_model_fn_v2(features,
       raise ValueError(
           'dnn_hidden_units must be defined when dnn_feature_columns is '
           'specified.')
-    with variable_scope.variable_scope(
-        dnn_parent_scope, values=tuple(six.itervalues(features))) as scope:
-      dnn_absolute_scope = scope.name
+    with ops.name_scope(dnn_parent_scope, values=tuple(
+        six.itervalues(features))) as dnn_absolute_scope:
       dnn_logit_fn = dnn.dnn_logit_fn_builder_v2(
           units=head.logits_dimension,
           hidden_units=dnn_hidden_units,

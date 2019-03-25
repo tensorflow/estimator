@@ -39,7 +39,6 @@ from tensorflow.python.ops import init_ops
 from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import nn
 from tensorflow.python.ops import state_ops
-from tensorflow.python.ops import variable_scope
 from tensorflow.python.ops import variables as variables_lib
 from tensorflow.python.platform import test
 from tensorflow.python.summary import summary as summary_lib
@@ -601,9 +600,7 @@ class BaseDNNLogitFnTest(object):
       # Global step needed for MonitoredSession, which is in turn used to
       # explicitly set variable weights through a checkpoint.
       training_util.create_global_step()
-      # Use a variable scope here with 'dnn', emulating the dnn model_fn, so
-      # the checkpoint naming is shared.
-      with variable_scope.variable_scope('dnn'):
+      with ops.name_scope('dnn'):
         logit_fn = self._dnn_logit_fn_builder(
             units=logits_dimension,
             hidden_units=hidden_units,
@@ -842,9 +839,7 @@ class BaseDNNLogitFnTest(object):
         # Global step needed for MonitoredSession, which is in turn used to
         # explicitly set variable weights through a checkpoint.
         training_util.create_global_step()
-        # Use a variable scope here with 'dnn', emulating the dnn model_fn, so
-        # the checkpoint naming is shared.
-        with variable_scope.variable_scope('dnn'):
+        with ops.name_scope('dnn'):
           logit_fn = self._dnn_logit_fn_builder(
               units=logits_dimension,
               hidden_units=hidden_units,
@@ -892,9 +887,7 @@ class BaseDNNLogitFnTest(object):
         # Global step needed for MonitoredSession, which is in turn used to
         # explicitly set variable weights through a checkpoint.
         training_util.create_global_step()
-        # Use a variable scope here with 'dnn', emulating the dnn model_fn, so
-        # the checkpoint naming is shared.
-        with variable_scope.variable_scope('dnn'):
+        with ops.name_scope('dnn'):
           logit_fn = self._dnn_logit_fn_builder(
               units=logits_dimension,
               hidden_units=hidden_units,

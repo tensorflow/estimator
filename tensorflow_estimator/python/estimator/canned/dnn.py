@@ -264,6 +264,18 @@ class _DNNModel(training.Model):
     setattr(self, layer_name, layer)
 
 
+def _name_from_scope_name(name):
+  """Returns the name of an op given the name of its scope.
+
+  Args:
+    name: the name of the scope.
+
+  Returns:
+    the name of the op (equal to scope name minus any trailing slash).
+  """
+  return name[:-1] if (name and name[-1] == '/') else name
+
+
 class _DNNModelV2(training.Model):
   """A DNN Model."""
 
@@ -277,16 +289,22 @@ class _DNNModelV2(training.Model):
                name=None,
                **kwargs):
     super(_DNNModelV2, self).__init__(name=name, **kwargs)
-    if feature_column_lib.is_feature_column_v2(feature_columns):
-      self._input_layer = feature_column_lib.DenseFeatures(
-          feature_columns=feature_columns, name='input_layer')
-    else:
-      self._input_layer = feature_column.InputLayer(
-          feature_columns=feature_columns,
-          name='input_layer',
-          create_scope_now=False)
 
-    self._add_layer(self._input_layer, 'input_layer')
+    # Add this name_scope for backward compatibility, as previously it's used
+    # in variable_scope
+    with ops.name_scope(
+        'input_from_feature_columns') as input_feature_column_scope:
+      layer_name = input_feature_column_scope + 'input_layer'
+      if feature_column_lib.is_feature_column_v2(feature_columns):
+        self._input_layer = feature_column_lib.DenseFeatures(
+            feature_columns=feature_columns, name=layer_name)
+      else:
+        self._input_layer = feature_column.InputLayer(
+            feature_columns=feature_columns,
+            name=layer_name,
+            create_scope_now=False)
+
+    self._add_layer(self._input_layer, self._input_layer.name)
 
     self._dropout = dropout
     self._batch_norm = batch_norm
@@ -296,42 +314,42 @@ class _DNNModelV2(training.Model):
     self._batch_norm_layers = []
     self._hidden_layer_scope_names = []
     for layer_id, num_hidden_units in enumerate(hidden_units):
-      with variable_scope.variable_scope(
-          'hiddenlayer_%d' % layer_id) as hidden_layer_scope:
+      with ops.name_scope('hiddenlayer_%d' % layer_id) as hidden_layer_scope:
+        # Get scope name without the trailing slash.
+        hidden_shared_name = _name_from_scope_name(hidden_layer_scope)
         hidden_layer = core_layers.Dense(
             units=num_hidden_units,
             activation=activation_fn,
             kernel_initializer=init_ops.glorot_uniform_initializer(),
-            name=hidden_layer_scope,
-            _scope=hidden_layer_scope)
-        self._add_layer(hidden_layer, hidden_layer_scope.name)
-        self._hidden_layer_scope_names.append(hidden_layer_scope.name)
+            name=hidden_shared_name)
+        self._add_layer(hidden_layer, hidden_shared_name)
+        self._hidden_layer_scope_names.append(hidden_shared_name)
         self._hidden_layers.append(hidden_layer)
         if self._dropout is not None:
           dropout_layer = core_layers.Dropout(rate=self._dropout)
           self._add_layer(dropout_layer, dropout_layer.name)
           self._dropout_layers.append(dropout_layer)
         if self._batch_norm:
+          batch_norm_name = hidden_shared_name + '/batchnorm_%d' % layer_id
           batch_norm_layer = normalization.BatchNormalization(
               # The default momentum 0.99 actually crashes on certain
               # problem, so here we use 0.999, which is the default of
               # tf.contrib.layers.batch_norm.
               momentum=0.999,
               trainable=True,
-              name='batchnorm_%d' % layer_id,
-              _scope='batchnorm_%d' % layer_id)
-          self._add_layer(batch_norm_layer, batch_norm_layer.name)
+              name=batch_norm_name)
+          self._add_layer(batch_norm_layer, batch_norm_name)
           self._batch_norm_layers.append(batch_norm_layer)
 
-    with variable_scope.variable_scope('logits') as logits_scope:
+    with ops.name_scope('logits') as logits_scope:
+      logits_shared_name = _name_from_scope_name(logits_scope)
       self._logits_layer = core_layers.Dense(
           units=units,
           activation=None,
           kernel_initializer=init_ops.glorot_uniform_initializer(),
-          name=logits_scope,
-          _scope=logits_scope)
-      self._add_layer(self._logits_layer, logits_scope.name)
-      self._logits_scope_name = logits_scope.name
+          name=logits_shared_name)
+      self._add_layer(self._logits_layer, logits_shared_name)
+      self._logits_scope_name = logits_shared_name
 
   def call(self, features, mode):
     is_training = mode == ModeKeys.TRAIN
@@ -340,9 +358,7 @@ class _DNNModelV2(training.Model):
     # here which is the one before the training.Model one was applied.
     # TODO(rohanj): Remove this in TF 2.0 (b/116728605)
     with ops.name_scope(name=_get_previous_name_scope()):
-      # TODO(rohanj): Remove dependence on variable scope for partitioning.
-      with variable_scope.variable_scope('input_from_feature_columns'):
-        net = self._input_layer(features)
+      net = self._input_layer(features)
       for i in range(len(self._hidden_layers)):
         net = self._hidden_layers[i](net)
         if self._dropout is not None and is_training:
@@ -512,9 +528,7 @@ def dnn_model_fn_v2(features,
 
   del config
 
-  with variable_scope.variable_scope(
-      'dnn', values=tuple(six.itervalues(features))):
-
+  with ops.name_scope('dnn', values=tuple(six.itervalues(features))):
     logit_fn = dnn_logit_fn_builder_v2(
         units=head.logits_dimension,
         hidden_units=hidden_units,
