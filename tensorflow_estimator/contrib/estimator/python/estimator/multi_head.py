@@ -270,6 +270,19 @@ class _MultiHead(head_lib._Head):  # pylint:disable=protected-access
     logits_dict = {}
     with ops.name_scope(None, 'split_logits', values=[logits]):
       logits = ops.convert_to_tensor(logits)
+      logits_dimensions = [head.logits_dimension for head in self._heads]
+      total_logits_dimension = sum(logits_dimensions)
+      logits_tensor_shape = logits.shape.as_list()
+      last_dimension_size = logits_tensor_shape[-1]
+      if last_dimension_size is not None:
+        if last_dimension_size != total_logits_dimension:
+          raise ValueError(
+              'Could not split logits of shape %r among the heads with '
+              'individual logits dimensions: %r. The last dimension of the '
+              'logits tensor should equal %d but is %d.' %
+              ((logits_tensor_shape, logits_dimensions, last_dimension_size,
+                total_logits_dimension)))
+
       batch_shape = array_ops.shape(logits)[:-1]
       zeros_like_batch_shape = array_ops.zeros_like(batch_shape)
       minus_ones_like_batch_shape = -1 * array_ops.ones_like(batch_shape)

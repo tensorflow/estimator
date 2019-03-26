@@ -466,6 +466,36 @@ class MultiHeadTest(test.TestCase):
       self.assertAllClose(
           [[4.], [6.]], weights['head2'].eval(), rtol=tol, atol=tol)
 
+  def test_train_create_loss_logits_tensor_wrong_shape(self):
+    """Tests create_loss with logits Tensor of the wrong shape."""
+    weights1 = np.array([[1.], [2.]], dtype=np.float32)
+    weights2 = np.array([[2.], [3.]])
+    head1 = head_lib.multi_label_head(
+        n_classes=2, name='head1', weight_column='weights1')
+    head2 = head_lib.multi_label_head(
+        n_classes=3, name='head2', weight_column='weights2')
+    multi_head = multi_head_lib.multi_head([head1, head2],
+                                           head_weights=[1., 2.])
+
+    # logits tensor is 2x6 instead of 2x5
+    logits = np.array(
+        [[-10., 10., 20., -20., 20., 70.], [-15., 10., -30., 20., -20., 80.]],
+        dtype=np.float32)
+    labels = {
+        'head1': np.array([[1, 0], [1, 1]], dtype=np.int64),
+        'head2': np.array([[0, 1, 0], [1, 1, 0]], dtype=np.int64),
+    }
+    with self.assertRaisesRegexp(ValueError, r'Could not split logits'):
+      multi_head.create_loss(
+          features={
+              'x': np.array(((42,),), dtype=np.int32),
+              'weights1': weights1,
+              'weights2': weights2
+          },
+          mode=model_fn.ModeKeys.TRAIN,
+          logits=logits,
+          labels=labels)
+
   def test_train_create_loss_logits_tensor_multi_dim(self):
     """Tests create_loss with multi-dimensional logits of shape [2, 2, 5]."""
     head1 = head_lib.regression_head(label_dimension=2, name='head1')
@@ -501,6 +531,32 @@ class MultiHeadTest(test.TestCase):
     with self.cached_session():
       self.assertAllClose(
           expected_training_loss, training_loss.eval(), rtol=tol, atol=tol)
+
+  def test_train_create_loss_logits_tensor_multi_dim_wrong_shape(self):
+    """Tests create_loss with a multi-dimensional logits tensor of wrong shape."""
+    head1 = head_lib.regression_head(label_dimension=2, name='head1')
+    head2 = head_lib.regression_head(label_dimension=3, name='head2')
+    multi_head = multi_head_lib.multi_head([head1, head2])
+
+    # logits tensor is 2x2x4 instead of 2x2x5
+    logits = np.array([[[-1., 1., 2., -2.], [-1., 1., 2., -2.]],
+                       [[-1.5, 1.5, -2., 2.], [-1.5, 1.5, -2., 2.]]],
+                      dtype=np.float32)
+    labels = {
+        'head1':
+            np.array([[[1., 0.], [1., 0.]], [[1.5, 1.5], [1.5, 1.5]]],
+                     dtype=np.float32),
+        'head2':
+            np.array(
+                [[[0., 1., 0.], [0., 1., 0.]], [[2., 2., 0.], [2., 2., 0.]]],
+                dtype=np.float32),
+    }
+    with self.assertRaisesRegexp(ValueError, r'Could not split logits'):
+      multi_head.create_loss(
+          features={},
+          mode=model_fn.ModeKeys.TRAIN,
+          logits=logits,
+          labels=labels)
 
   def test_train_one_head(self):
     head1 = head_lib.multi_label_head(n_classes=2, name='head1')

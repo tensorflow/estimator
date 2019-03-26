@@ -199,6 +199,19 @@ class MultiHead(base_head.Head):
     logits_dict = {}
     with ops.name_scope('split_logits', values=[logits]):
       logits = ops.convert_to_tensor(logits)
+      logits_dimensions = [head.logits_dimension for head in self._heads]
+      total_logits_dimension = sum(logits_dimensions)
+      logits_tensor_shape = logits.shape.as_list()
+      last_dimension_size = logits_tensor_shape[-1]
+      if last_dimension_size is not None:
+        if last_dimension_size != total_logits_dimension:
+          raise ValueError(
+              'Could not split logits of shape %r among the heads with '
+              'individual logits dimensions: %r. The last dimension of the '
+              'logits tensor should equal %d but is %d.' %
+              ((logits_tensor_shape, logits_dimensions, last_dimension_size,
+                total_logits_dimension)))
+
       # TODO(b/119617064): unify eager and graph implementations
       if context.executing_eagerly():
         logits_shape = logits._shape_tuple()  # pylint: disable=protected-access
