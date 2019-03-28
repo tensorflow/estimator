@@ -24,7 +24,7 @@ import tempfile
 import numpy as np
 import six
 
-from tensorflow.python.feature_column import feature_column_lib as feature_column
+from tensorflow.python.feature_column import feature_column_v2
 from tensorflow.python.framework import ops
 from tensorflow.python.keras.utils import losses_utils
 from tensorflow.python.platform import gfile
@@ -115,7 +115,7 @@ class DNNEstimatorIntegrationTest(test.TestCase):
   def _test_complete_flow(self, train_input_fn, eval_input_fn, predict_input_fn,
                           input_dimension, label_dimension, batch_size):
     feature_columns = [
-        feature_column.numeric_column('x', shape=(input_dimension,))
+        feature_column_v2.numeric_column('x', shape=(input_dimension,))
     ]
     est = dnn.DNNEstimatorV2(
         head=regression_head.RegressionHead(label_dimension=label_dimension),
@@ -140,7 +140,7 @@ class DNNEstimatorIntegrationTest(test.TestCase):
     self.assertAllEqual((batch_size, label_dimension), predictions.shape)
 
     # Export
-    feature_spec = feature_column.make_parse_example_spec(feature_columns)
+    feature_spec = feature_column_v2.make_parse_example_spec_v2(feature_columns)
     serving_input_receiver_fn = export.build_parsing_serving_input_receiver_fn(
         feature_spec)
     export_dir = est.export_saved_model(tempfile.mkdtemp(),

@@ -299,10 +299,13 @@ class _DNNModelV2(training.Model):
         self._input_layer = feature_column_lib.DenseFeatures(
             feature_columns=feature_columns, name=layer_name)
       else:
-        self._input_layer = feature_column.InputLayer(
-            feature_columns=feature_columns,
-            name=layer_name,
-            create_scope_now=False)
+        raise ValueError(
+            'Received a feature column from TensorFlow v1, but this is a '
+            'TensorFlow v2 Estimator. Please either use v2 feature columns '
+            '(accessible via tf.feature_column.* in TF 2.x) with this '
+            'Estimator, or switch to a v1 Estimator for use with v1 feature '
+            'columns (accessible via tf.compat.v1.estimator.* and '
+            'tf.compat.v1.feature_column.*, respectively.')
 
     self._add_layer(self._input_layer, self._input_layer.name)
 

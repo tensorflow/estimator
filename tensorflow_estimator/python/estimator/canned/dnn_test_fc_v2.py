@@ -170,7 +170,8 @@ class DNNRegressorIntegrationTest(test.TestCase, parameterized.TestCase):
 
   def _test_complete_flow(self, train_input_fn, eval_input_fn, predict_input_fn,
                           input_dimension, label_dimension, batch_size):
-    feature_columns = [feature_column_v2.numeric_column('x', shape=(input_dimension,))]
+    feature_columns = [
+        feature_column_v2.numeric_column('x', shape=(input_dimension,))]
 
     est = dnn.DNNRegressorV2(
         hidden_units=(2, 2),
@@ -332,7 +333,8 @@ class DNNClassifierIntegrationTest(test.TestCase):
 
   def _test_complete_flow(self, train_input_fn, eval_input_fn, predict_input_fn,
                           input_dimension, n_classes, batch_size):
-    feature_columns = [feature_column_v2.numeric_column('x', shape=(input_dimension,))]
+    feature_columns = [
+        feature_column_v2.numeric_column('x', shape=(input_dimension,))]
 
     est = dnn.DNNClassifierV2(
         hidden_units=(2, 2),

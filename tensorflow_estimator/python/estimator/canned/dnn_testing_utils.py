@@ -27,7 +27,6 @@ import six
 
 from tensorflow.core.framework import summary_pb2
 from tensorflow.python.client import session as tf_session
-from tensorflow.python.feature_column import feature_column
 from tensorflow.python.feature_column import feature_column_v2
 from tensorflow.python.framework import constant_op
 from tensorflow.python.framework import dtypes
@@ -77,15 +76,6 @@ OCCUPATION_EMBEDDING_NAME = ('dnn/input_from_feature_columns/input_layer/'
                              'occupation_embedding/embedding_weights')
 CITY_EMBEDDING_NAME = ('dnn/input_from_feature_columns/input_layer/'
                        'city_embedding/embedding_weights')
-
-
-# This is so that we can easily switch between feature_column and
-# feature_column_v2 for testing.
-feature_column.numeric_column = feature_column._numeric_column
-feature_column.categorical_column_with_hash_bucket = feature_column._categorical_column_with_hash_bucket  # pylint: disable=line-too-long
-feature_column.categorical_column_with_vocabulary_list = feature_column._categorical_column_with_vocabulary_list  # pylint: disable=line-too-long
-feature_column.categorical_column_with_vocabulary_file = feature_column._categorical_column_with_vocabulary_file  # pylint: disable=line-too-long
-feature_column.embedding_column = feature_column._embedding_column
 
 
 def assert_close(expected, actual, rtol=1e-04, message='', name='assert_close'):
@@ -257,7 +247,7 @@ def mock_optimizer(testcase, hidden_units, expected_loss=None):
 class BaseDNNModelFnTest(object):
   """Tests that _dnn_model_fn passes expected logits to mock head."""
 
-  def __init__(self, dnn_model_fn, fc_impl=feature_column):
+  def __init__(self, dnn_model_fn, fc_impl=feature_column_v2):
     self._dnn_model_fn = dnn_model_fn
     self._fc_impl = fc_impl
 
@@ -530,7 +520,7 @@ class BaseDNNModelFnTest(object):
             head=head,
             hidden_units=hidden_units,
             feature_columns=[
-                feature_column.numeric_column('age'),
+                feature_column_v2.numeric_column('age'),
                 feature_column_v2.numeric_column('height')
             ],
             optimizer=mock_optimizer(self, hidden_units))
@@ -576,7 +566,7 @@ class BaseDNNModelFnTest(object):
 class BaseDNNLogitFnTest(object):
   """Tests correctness of logits calculated from _dnn_logit_fn_builder."""
 
-  def __init__(self, dnn_logit_fn_builder, fc_impl=feature_column):
+  def __init__(self, dnn_logit_fn_builder, fc_impl=feature_column_v2):
     self._dnn_logit_fn_builder = dnn_logit_fn_builder
     self._fc_impl = fc_impl
 
@@ -892,7 +882,7 @@ class BaseDNNLogitFnTest(object):
               units=logits_dimension,
               hidden_units=hidden_units,
               feature_columns=[
-                  feature_column.numeric_column('age'),
+                  feature_column_v2.numeric_column('age'),
                   feature_column_v2.numeric_column('height')
               ],
               activation_fn=nn.relu,
@@ -914,7 +904,7 @@ class BaseDNNWarmStartingTest(object):
   def __init__(self,
                _dnn_classifier_fn,
                _dnn_regressor_fn,
-               fc_impl=feature_column):
+               fc_impl=feature_column_v2):
     self._dnn_classifier_fn = _dnn_classifier_fn
     self._dnn_regressor_fn = _dnn_regressor_fn
     self._fc_impl = fc_impl
@@ -1207,7 +1197,7 @@ class BaseDNNWarmStartingTest(object):
 
 class BaseDNNClassifierEvaluateTest(object):
 
-  def __init__(self, dnn_classifier_fn, fc_impl=feature_column):
+  def __init__(self, dnn_classifier_fn, fc_impl=feature_column_v2):
     self._dnn_classifier_fn = dnn_classifier_fn
     self._fc_impl = fc_impl
 
@@ -1358,7 +1348,7 @@ class BaseDNNClassifierEvaluateTest(object):
 
 class BaseDNNRegressorEvaluateTest(object):
 
-  def __init__(self, dnn_regressor_fn, fc_impl=feature_column):
+  def __init__(self, dnn_regressor_fn, fc_impl=feature_column_v2):
     self._dnn_regressor_fn = dnn_regressor_fn
     self._fc_impl = fc_impl
 
@@ -1461,7 +1451,7 @@ class BaseDNNRegressorEvaluateTest(object):
 
 class BaseDNNClassifierPredictTest(object):
 
-  def __init__(self, dnn_classifier_fn, fc_impl=feature_column):
+  def __init__(self, dnn_classifier_fn, fc_impl=feature_column_v2):
     self._dnn_classifier_fn = dnn_classifier_fn
     self._fc_impl = fc_impl
 
@@ -1576,7 +1566,7 @@ class BaseDNNClassifierPredictTest(object):
 
 class BaseDNNRegressorPredictTest(object):
 
-  def __init__(self, dnn_regressor_fn, fc_impl=feature_column):
+  def __init__(self, dnn_regressor_fn, fc_impl=feature_column_v2):
     self._dnn_regressor_fn = dnn_regressor_fn
     self._fc_impl = fc_impl
 
@@ -1718,7 +1708,7 @@ def _assert_simple_summary(testcase, expected_values, actual_summary):
 
 class BaseDNNClassifierTrainTest(object):
 
-  def __init__(self, dnn_classifier_fn, fc_impl=feature_column):
+  def __init__(self, dnn_classifier_fn, fc_impl=feature_column_v2):
     self._dnn_classifier_fn = dnn_classifier_fn
     self._fc_impl = fc_impl
 
@@ -1915,7 +1905,7 @@ class BaseDNNClassifierTrainTest(object):
 
 class BaseDNNRegressorTrainTest(object):
 
-  def __init__(self, dnn_regressor_fn, fc_impl=feature_column):
+  def __init__(self, dnn_regressor_fn, fc_impl=feature_column_v2):
     self._dnn_regressor_fn = dnn_regressor_fn
     self._fc_impl = fc_impl
 
