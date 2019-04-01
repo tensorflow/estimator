@@ -820,10 +820,6 @@ py_test(
         "early_stopping_test.py",
     ],
     srcs_version = "PY2AND3",
-    # TODO(b/129498810): Re-enable this test.
-    tags = [
-        "notap",
-    ],
     deps = [
         ":early_stopping",
         "//tensorflow_estimator/python/estimator",

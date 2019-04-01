@@ -488,13 +488,19 @@ class _StopOnPredicateHook(session_run_hook.SessionRunHook):
 
 
 class _CheckForStoppingHook(session_run_hook.SessionRunHook):
-  """Hook that requests stop if stop is requested by `_StopOnPredicateHook`."""
+  """Hook that requests stop if stop is requested by `_StopOnPredicateHook`.
 
-  def __init__(self):
+  Args:
+    ctrl_deps: List of control dependencies of the stop variable.
+  """
+
+  def __init__(self, ctrl_deps=None):
     self._stop_var = None
+    self._ctrl_deps = ctrl_deps or []
 
   def begin(self):
-    self._stop_var = _get_or_create_stop_var()
+    with ops.control_dependencies(self._ctrl_deps):
+      self._stop_var = _get_or_create_stop_var()
 
   def before_run(self, run_context):
     del run_context

@@ -238,6 +238,7 @@ class CheckForStoppingHookTest(test.TestCase):
       no_op = control_flow_ops.no_op()
       assign_op = state_ops.assign(early_stopping._get_or_create_stop_var(),
                                    True)
+      hook._ctrl_deps = [assign_op]
       with monitored_session.SingularMonitoredSession(hooks=[hook]) as mon_sess:
         mon_sess.run(no_op)
         self.assertFalse(mon_sess.should_stop())
