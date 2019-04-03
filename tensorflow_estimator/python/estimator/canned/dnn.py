@@ -24,6 +24,8 @@ from tensorflow.python.feature_column import feature_column
 from tensorflow.python.feature_column import feature_column_lib
 from tensorflow.python.framework import ops
 from tensorflow.python.keras.engine import training
+from tensorflow.python.keras.layers import core as keras_core
+from tensorflow.python.keras.layers import normalization_v2 as keras_norm
 from tensorflow.python.keras.utils import losses_utils
 from tensorflow.python.layers import core as core_layers
 from tensorflow.python.layers import normalization
@@ -290,10 +292,11 @@ class _DNNModelV2(training.Model):
                **kwargs):
     super(_DNNModelV2, self).__init__(name=name, **kwargs)
 
-    # Add this name_scope for backward compatibility, as previously it's used
-    # in variable_scope
+    # Current DenseFeatures is not a pure Keras layer, as it still relies on
+    # variable_scope and get_variables. Here we need to manually add 'dnn' (the
+    # Keras model name) as prefix for backward compatibility.
     with ops.name_scope(
-        'input_from_feature_columns') as input_feature_column_scope:
+        'dnn/input_from_feature_columns') as input_feature_column_scope:
       layer_name = input_feature_column_scope + 'input_layer'
       if feature_column_lib.is_feature_column_v2(feature_columns):
         self._input_layer = feature_column_lib.DenseFeatures(
@@ -307,8 +310,6 @@ class _DNNModelV2(training.Model):
             'columns (accessible via tf.compat.v1.estimator.* and '
             'tf.compat.v1.feature_column.*, respectively.')
 
-    self._add_layer(self._input_layer, self._input_layer.name)
-
     self._dropout = dropout
     self._batch_norm = batch_norm
 
@@ -320,65 +321,50 @@ class _DNNModelV2(training.Model):
       with ops.name_scope('hiddenlayer_%d' % layer_id) as hidden_layer_scope:
         # Get scope name without the trailing slash.
         hidden_shared_name = _name_from_scope_name(hidden_layer_scope)
-        hidden_layer = core_layers.Dense(
+        hidden_layer = keras_core.Dense(
             units=num_hidden_units,
             activation=activation_fn,
             kernel_initializer=init_ops.glorot_uniform_initializer(),
             name=hidden_shared_name)
-        self._add_layer(hidden_layer, hidden_shared_name)
         self._hidden_layer_scope_names.append(hidden_shared_name)
         self._hidden_layers.append(hidden_layer)
         if self._dropout is not None:
-          dropout_layer = core_layers.Dropout(rate=self._dropout)
-          self._add_layer(dropout_layer, dropout_layer.name)
+          dropout_layer = keras_core.Dropout(rate=self._dropout)
           self._dropout_layers.append(dropout_layer)
         if self._batch_norm:
           batch_norm_name = hidden_shared_name + '/batchnorm_%d' % layer_id
-          batch_norm_layer = normalization.BatchNormalization(
+          batch_norm_layer = keras_norm.BatchNormalization(
               # The default momentum 0.99 actually crashes on certain
               # problem, so here we use 0.999, which is the default of
               # tf.contrib.layers.batch_norm.
               momentum=0.999,
               trainable=True,
               name=batch_norm_name)
-          self._add_layer(batch_norm_layer, batch_norm_name)
           self._batch_norm_layers.append(batch_norm_layer)
 
     with ops.name_scope('logits') as logits_scope:
       logits_shared_name = _name_from_scope_name(logits_scope)
-      self._logits_layer = core_layers.Dense(
+      self._logits_layer = keras_core.Dense(
           units=units,
           activation=None,
           kernel_initializer=init_ops.glorot_uniform_initializer(),
           name=logits_shared_name)
-      self._add_layer(self._logits_layer, logits_shared_name)
       self._logits_scope_name = logits_shared_name
 
   def call(self, features, mode):
     is_training = mode == ModeKeys.TRAIN
-    # The Keras training.Model adds a name_scope with the name of the model
-    # which modifies the constructed graph. Hence we add another name_scope
-    # here which is the one before the training.Model one was applied.
-    # TODO(rohanj): Remove this in TF 2.0 (b/116728605)
-    with ops.name_scope(name=_get_previous_name_scope()):
-      net = self._input_layer(features)
-      for i in range(len(self._hidden_layers)):
-        net = self._hidden_layers[i](net)
-        if self._dropout is not None and is_training:
-          net = self._dropout_layers[i](net, training=True)
-        if self._batch_norm:
-          net = self._batch_norm_layers[i](net, training=is_training)
-        _add_hidden_layer_summary(net, self._hidden_layer_scope_names[i])
+    net = self._input_layer(features)
+    for i in range(len(self._hidden_layers)):
+      net = self._hidden_layers[i](net)
+      if self._dropout is not None and is_training:
+        net = self._dropout_layers[i](net, training=True)
+      if self._batch_norm:
+        net = self._batch_norm_layers[i](net, training=is_training)
+      _add_hidden_layer_summary(net, self._hidden_layer_scope_names[i])
 
-      logits = self._logits_layer(net)
-      _add_hidden_layer_summary(logits, self._logits_scope_name)
-      return logits
-
-  def _add_layer(self, layer, layer_name):
-    # "Magic" required for keras.Model classes to track all the variables in
-    # a list of layers.Layer objects.
-    # TODO(ashankar): Figure out API so user code doesn't have to do this.
-    setattr(self, layer_name, layer)
+    logits = self._logits_layer(net)
+    _add_hidden_layer_summary(logits, self._logits_scope_name)
+    return logits
 
 
 def _validate_features(features):
@@ -531,18 +517,17 @@ def dnn_model_fn_v2(features,
 
   del config
 
-  with ops.name_scope('dnn', values=tuple(six.itervalues(features))):
-    logit_fn = dnn_logit_fn_builder_v2(
-        units=head.logits_dimension,
-        hidden_units=hidden_units,
-        feature_columns=feature_columns,
-        activation_fn=activation_fn,
-        dropout=dropout,
-        batch_norm=batch_norm)
-    logits = logit_fn(features=features, mode=mode)
+  logit_fn = dnn_logit_fn_builder_v2(
+      units=head.logits_dimension,
+      hidden_units=hidden_units,
+      feature_columns=feature_columns,
+      activation_fn=activation_fn,
+      dropout=dropout,
+      batch_norm=batch_norm)
+  logits = logit_fn(features=features, mode=mode)
 
-    return _get_dnn_estimator_spec(use_tpu, head, features, labels, mode,
-                                   logits, optimizer)
+  return _get_dnn_estimator_spec(use_tpu, head, features, labels, mode,
+                                 logits, optimizer)
 
 
 @estimator_export('estimator.DNNClassifier', v1=[])

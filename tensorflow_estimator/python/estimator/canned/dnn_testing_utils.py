@@ -590,22 +590,21 @@ class BaseDNNLogitFnTest(object):
       # Global step needed for MonitoredSession, which is in turn used to
       # explicitly set variable weights through a checkpoint.
       training_util.create_global_step()
-      with ops.name_scope('dnn'):
-        logit_fn = self._dnn_logit_fn_builder(
-            units=logits_dimension,
-            hidden_units=hidden_units,
-            feature_columns=[
-                self._fc_impl.numeric_column(
-                    'age', shape=np.array(inputs).shape[1:])
-            ],
-            activation_fn=nn.relu,
-            dropout=None,
-            batch_norm=batch_norm)
-        logits = logit_fn(
-            features={'age': constant_op.constant(inputs)}, mode=mode)
-        with monitored_session.MonitoredTrainingSession(
-            checkpoint_dir=self._model_dir) as sess:
-          self.assertAllClose(expected_logits, sess.run(logits))
+      logit_fn = self._dnn_logit_fn_builder(
+          units=logits_dimension,
+          hidden_units=hidden_units,
+          feature_columns=[
+              self._fc_impl.numeric_column(
+                  'age', shape=np.array(inputs).shape[1:])
+          ],
+          activation_fn=nn.relu,
+          dropout=None,
+          batch_norm=batch_norm)
+      logits = logit_fn(
+          features={'age': constant_op.constant(inputs)}, mode=mode)
+      with monitored_session.MonitoredTrainingSession(
+          checkpoint_dir=self._model_dir) as sess:
+        self.assertAllClose(expected_logits, sess.run(logits))
 
   def test_one_dim_logits(self):
     """Tests one-dimensional logits.
@@ -829,26 +828,25 @@ class BaseDNNLogitFnTest(object):
         # Global step needed for MonitoredSession, which is in turn used to
         # explicitly set variable weights through a checkpoint.
         training_util.create_global_step()
-        with ops.name_scope('dnn'):
-          logit_fn = self._dnn_logit_fn_builder(
-              units=logits_dimension,
-              hidden_units=hidden_units,
-              feature_columns=[
-                  self._fc_impl.numeric_column('age'),
-                  self._fc_impl.numeric_column('height')
-              ],
-              activation_fn=nn.relu,
-              dropout=None,
-              batch_norm=False)
-          logits = logit_fn(
-              features={
-                  'age': constant_op.constant(inputs[0]),
-                  'height': constant_op.constant(inputs[1])
-              },
-              mode=mode)
-          with monitored_session.MonitoredTrainingSession(
-              checkpoint_dir=self._model_dir) as sess:
-            self.assertAllClose(expected_logits, sess.run(logits))
+        logit_fn = self._dnn_logit_fn_builder(
+            units=logits_dimension,
+            hidden_units=hidden_units,
+            feature_columns=[
+                self._fc_impl.numeric_column('age'),
+                self._fc_impl.numeric_column('height')
+            ],
+            activation_fn=nn.relu,
+            dropout=None,
+            batch_norm=False)
+        logits = logit_fn(
+            features={
+                'age': constant_op.constant(inputs[0]),
+                'height': constant_op.constant(inputs[1])
+            },
+            mode=mode)
+        with monitored_session.MonitoredTrainingSession(
+            checkpoint_dir=self._model_dir) as sess:
+          self.assertAllClose(expected_logits, sess.run(logits))
 
   def test_multi_feature_column_mix_multi_dim_logits(self):
     """Tests multiple feature columns and multi-dimensional logits.
@@ -877,26 +875,25 @@ class BaseDNNLogitFnTest(object):
         # Global step needed for MonitoredSession, which is in turn used to
         # explicitly set variable weights through a checkpoint.
         training_util.create_global_step()
-        with ops.name_scope('dnn'):
-          logit_fn = self._dnn_logit_fn_builder(
-              units=logits_dimension,
-              hidden_units=hidden_units,
-              feature_columns=[
-                  feature_column_v2.numeric_column('age'),
-                  feature_column_v2.numeric_column('height')
-              ],
-              activation_fn=nn.relu,
-              dropout=None,
-              batch_norm=False)
-          logits = logit_fn(
-              features={
-                  'age': constant_op.constant(inputs[0]),
-                  'height': constant_op.constant(inputs[1])
-              },
-              mode=mode)
-          with monitored_session.MonitoredTrainingSession(
-              checkpoint_dir=self._model_dir) as sess:
-            self.assertAllClose(expected_logits, sess.run(logits))
+        logit_fn = self._dnn_logit_fn_builder(
+            units=logits_dimension,
+            hidden_units=hidden_units,
+            feature_columns=[
+                feature_column_v2.numeric_column('age'),
+                feature_column_v2.numeric_column('height')
+            ],
+            activation_fn=nn.relu,
+            dropout=None,
+            batch_norm=False)
+        logits = logit_fn(
+            features={
+                'age': constant_op.constant(inputs[0]),
+                'height': constant_op.constant(inputs[1])
+            },
+            mode=mode)
+        with monitored_session.MonitoredTrainingSession(
+            checkpoint_dir=self._model_dir) as sess:
+          self.assertAllClose(expected_logits, sess.run(logits))
 
 
 class BaseDNNWarmStartingTest(object):
@@ -1815,9 +1812,9 @@ class BaseDNNClassifierTrainTest(object):
       _assert_simple_summary(
           self,
           {
-              'dnn/dnn/hiddenlayer_0/fraction_of_zero_values': 0.,
-              'dnn/dnn/hiddenlayer_1/fraction_of_zero_values': .5,
-              'dnn/dnn/logits/fraction_of_zero_values': 0.,
+              'dnn/hiddenlayer_0/fraction_of_zero_values': 0.,
+              'dnn/hiddenlayer_1/fraction_of_zero_values': .5,
+              'dnn/logits/fraction_of_zero_values': 0.,
               metric_keys.MetricKeys.LOSS: expected_loss,
           },
           summary)
@@ -1891,9 +1888,9 @@ class BaseDNNClassifierTrainTest(object):
       _assert_simple_summary(
           self,
           {
-              'dnn/dnn/hiddenlayer_0/fraction_of_zero_values': 0.,
-              'dnn/dnn/hiddenlayer_1/fraction_of_zero_values': .5,
-              'dnn/dnn/logits/fraction_of_zero_values': 0.,
+              'dnn/hiddenlayer_0/fraction_of_zero_values': 0.,
+              'dnn/hiddenlayer_1/fraction_of_zero_values': .5,
+              'dnn/logits/fraction_of_zero_values': 0.,
               metric_keys.MetricKeys.LOSS: expected_loss,
           },
           summary)
@@ -1995,9 +1992,9 @@ class BaseDNNRegressorTrainTest(object):
       _assert_simple_summary(
           self,
           {
-              'dnn/dnn/hiddenlayer_0/fraction_of_zero_values': 0.,
-              'dnn/dnn/hiddenlayer_1/fraction_of_zero_values': 0.5,
-              'dnn/dnn/logits/fraction_of_zero_values': 0.,
+              'dnn/hiddenlayer_0/fraction_of_zero_values': 0.,
+              'dnn/hiddenlayer_1/fraction_of_zero_values': 0.5,
+              'dnn/logits/fraction_of_zero_values': 0.,
               metric_keys.MetricKeys.LOSS: expected_loss,
           },
           summary)
@@ -2051,9 +2048,9 @@ class BaseDNNRegressorTrainTest(object):
       _assert_simple_summary(
           self,
           {
-              'dnn/dnn/hiddenlayer_0/fraction_of_zero_values': 0.,
-              'dnn/dnn/hiddenlayer_1/fraction_of_zero_values': 0.5,
-              'dnn/dnn/logits/fraction_of_zero_values': 0.,
+              'dnn/hiddenlayer_0/fraction_of_zero_values': 0.,
+              'dnn/hiddenlayer_1/fraction_of_zero_values': 0.5,
+              'dnn/logits/fraction_of_zero_values': 0.,
               metric_keys.MetricKeys.LOSS: expected_loss,
           },
           summary)

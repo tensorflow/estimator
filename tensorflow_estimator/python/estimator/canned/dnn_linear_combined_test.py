@@ -822,7 +822,7 @@ class DNNLinearCombinedTests(test.TestCase):
         linear_optimizer=self._mock_optimizer(opt, 'linear'),
         dnn_hidden_units=(2, 2),
         dnn_feature_columns=[x_column],
-        # verifies dnn_optimizer is used only for linear part.
+        # verifies dnn_optimizer is used only for dnn part.
         dnn_optimizer=self._mock_optimizer(opt, 'dnn'),
         model_dir=self._model_dir)
     est.train(input_fn, steps=1)

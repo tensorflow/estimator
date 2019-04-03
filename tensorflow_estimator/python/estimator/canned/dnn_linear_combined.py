@@ -165,16 +165,14 @@ def _dnn_linear_combined_model_fn_v2(features,
       raise ValueError(
           'dnn_hidden_units must be defined when dnn_feature_columns is '
           'specified.')
-    with ops.name_scope(dnn_parent_scope, values=tuple(
-        six.itervalues(features))) as dnn_absolute_scope:
-      dnn_logit_fn = dnn.dnn_logit_fn_builder_v2(
-          units=head.logits_dimension,
-          hidden_units=dnn_hidden_units,
-          feature_columns=dnn_feature_columns,
-          activation_fn=dnn_activation_fn,
-          dropout=dnn_dropout,
-          batch_norm=batch_norm)
-      dnn_logits = dnn_logit_fn(features=features, mode=mode)
+    dnn_logit_fn = dnn.dnn_logit_fn_builder_v2(
+        units=head.logits_dimension,
+        hidden_units=dnn_hidden_units,
+        feature_columns=dnn_feature_columns,
+        activation_fn=dnn_activation_fn,
+        dropout=dnn_dropout,
+        batch_norm=batch_norm)
+    dnn_logits = dnn_logit_fn(features=features, mode=mode)
 
   linear_parent_scope = 'linear'
 
@@ -212,7 +210,7 @@ def _dnn_linear_combined_model_fn_v2(features,
           dnn_optimizer.minimize(
               loss,
               var_list=ops.get_collection(
-                  ops.GraphKeys.TRAINABLE_VARIABLES, scope=dnn_absolute_scope)))
+                  ops.GraphKeys.TRAINABLE_VARIABLES, scope=dnn_parent_scope)))
     if linear_logits is not None:
       train_ops.append(
           linear_optimizer.minimize(
