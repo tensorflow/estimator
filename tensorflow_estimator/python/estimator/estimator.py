@@ -75,8 +75,8 @@ _VALID_MODEL_FN_ARGS = set(
     ['features', 'labels', 'mode', 'params', 'self', 'config'])
 
 
-@estimator_export('estimator.Estimator', v1=[])
-class EstimatorV2(object):
+@estimator_export(v1=['estimator.Estimator'])
+class Estimator(object):
   """Estimator class to train and evaluate TensorFlow models.
 
   The `Estimator` object wraps a model which is specified by a `model_fn`,
@@ -643,7 +643,7 @@ class EstimatorV2(object):
 
   def _assert_members_are_not_overridden(self):
     """Asserts members of `Estimator` are not overridden."""
-    _assert_members_are_not_overridden(EstimatorV2, self)
+    _assert_members_are_not_overridden(Estimator, self)
 
   def export_saved_model(
       self, export_dir_base, serving_input_receiver_fn,
@@ -717,12 +717,13 @@ class EstimatorV2(object):
 
     input_receiver_fn_map = {experimental_mode: serving_input_receiver_fn}
 
-    return self.experimental_export_all_saved_models(
+    return self._export_all_saved_models(
         export_dir_base,
         input_receiver_fn_map,
         assets_extra=assets_extra,
         as_text=as_text,
-        checkpoint_path=checkpoint_path)
+        checkpoint_path=checkpoint_path,
+        strip_default_attrs=True)
 
   def experimental_export_all_saved_models(
       self, export_dir_base, input_receiver_fn_map,
@@ -793,6 +794,16 @@ class EstimatorV2(object):
       ValueError: if any `input_receiver_fn` is `None`, no `export_outputs`
         are provided, or no checkpoint can be found.
     """
+    return self._export_all_saved_models(
+        export_dir_base, input_receiver_fn_map,
+        assets_extra=assets_extra, as_text=as_text,
+        checkpoint_path=checkpoint_path, strip_default_attrs=True)
+
+  def _export_all_saved_models(
+      self, export_dir_base, input_receiver_fn_map,
+      assets_extra=None, as_text=False, checkpoint_path=None,
+      strip_default_attrs=True):
+    """Exports multiple modes in the model function to a SavedModel."""
     # TODO(b/65561022): Consider allowing multiple input_receiver_fns per mode.
     with context.graph_mode():
       if not checkpoint_path:
@@ -823,17 +834,20 @@ class EstimatorV2(object):
       if input_receiver_fn_map.get(ModeKeys.TRAIN):
         self._add_meta_graph_for_mode(
             builder, input_receiver_fn_map, checkpoint_path,
-            save_variables, mode=ModeKeys.TRAIN)
+            save_variables, mode=ModeKeys.TRAIN,
+            strip_default_attrs=strip_default_attrs)
         save_variables = False
       if input_receiver_fn_map.get(ModeKeys.EVAL):
         self._add_meta_graph_for_mode(
             builder, input_receiver_fn_map, checkpoint_path,
-            save_variables, mode=ModeKeys.EVAL)
+            save_variables, mode=ModeKeys.EVAL,
+            strip_default_attrs=strip_default_attrs)
         save_variables = False
       if input_receiver_fn_map.get(ModeKeys.PREDICT):
         self._add_meta_graph_for_mode(
             builder, input_receiver_fn_map, checkpoint_path,
-            save_variables, mode=ModeKeys.PREDICT)
+            save_variables, mode=ModeKeys.PREDICT,
+            strip_default_attrs=strip_default_attrs)
         save_variables = False
 
       if save_variables:
@@ -863,7 +877,8 @@ class EstimatorV2(object):
                                save_variables=True,
                                mode=ModeKeys.PREDICT,
                                export_tags=None,
-                               check_variables=True):
+                               check_variables=True,
+                               strip_default_attrs=True):
     """Loads variables and adds them along with a `tf.MetaGraphDef` for saving.
 
     Args:
@@ -883,6 +898,9 @@ class EstimatorV2(object):
       export_tags: The set of tags with which to save `tf.MetaGraphDef`. If
         `None`, a default set will be selected to matched the passed mode.
       check_variables: bool, whether to check the checkpoint has all variables.
+      strip_default_attrs: bool, whether to strip default attributes. This
+        may only be True when called from the deprecated V1
+        Estimator.export_savedmodel.
 
     Raises:
       ValueError: if `save_variables` is `True` and `check_variable` is `False`.
@@ -957,18 +975,12 @@ class EstimatorV2(object):
             assets_collection=ops.get_collection(ops.GraphKeys.ASSET_FILEPATHS),
             main_op=local_init_op,
             saver=graph_saver,
-            strip_default_attrs=True)
+            strip_default_attrs=strip_default_attrs)
 
-        self._call_add_meta_graph_and_variables(
-            save_variables, builder, session, meta_graph_kwargs)
-
-  def _call_add_meta_graph_and_variables(
-      self, save_variables, builder, session, kwargs):
-    """Convenience wrapper so we can swap out v1 and v2 behavior."""
-    if save_variables:
-      builder.add_meta_graph_and_variables(session, **kwargs)
-    else:
-      builder.add_meta_graph(**kwargs)
+        if save_variables:
+          builder.add_meta_graph_and_variables(session, **meta_graph_kwargs)
+        else:
+          builder.add_meta_graph(**meta_graph_kwargs)
 
   def _get_features_from_input_fn(self, input_fn, mode):
     """Extracts the `features` from return values of `input_fn`."""
@@ -1597,19 +1609,6 @@ class EstimatorV2(object):
                    (self._warm_start_settings,))
       warm_starting_util.warm_start(*self._warm_start_settings)
 
-
-@estimator_export(v1=['estimator.Estimator'])  # pylint: disable=missing-docstring
-class Estimator(EstimatorV2):
-  __doc__ = EstimatorV2.__doc__
-
-  # This is settable in v1, but has been changed to True in all cases for v2.
-  # The default in v1 was False, so we maintain that here.
-  _strip_default_attrs = False
-
-  def _assert_members_are_not_overridden(self):
-    """Asserts members of `Estimator` are not overridden."""
-    _assert_members_are_not_overridden(Estimator, self)
-
   @deprecation.deprecated(
       None, 'This function has been renamed, use `export_saved_model` instead.')
   def export_savedmodel(
@@ -1677,47 +1676,27 @@ class Estimator(EstimatorV2):
       `export_outputs` are provided, or no checkpoint can be found.
     """
     # pylint: enable=line-too-long
-    self._strip_default_attrs = strip_default_attrs
-    return super(Estimator, self).export_saved_model(
+    if not serving_input_receiver_fn:
+      raise ValueError('An input_receiver_fn must be defined.')
+
+    return self._export_all_saved_models(
         export_dir_base,
-        serving_input_receiver_fn,
+        {ModeKeys.PREDICT: serving_input_receiver_fn},
         assets_extra=assets_extra,
         as_text=as_text,
         checkpoint_path=checkpoint_path,
-        experimental_mode=ModeKeys.PREDICT)
-
-  def export_saved_model(
-      self, export_dir_base, serving_input_receiver_fn,
-      assets_extra=None,
-      as_text=False,
-      checkpoint_path=None,
-      experimental_mode=ModeKeys.PREDICT):
-    self._strip_default_attrs = True
-    return super(Estimator, self).export_saved_model(
-        export_dir_base,
-        serving_input_receiver_fn,
-        assets_extra=assets_extra,
-        as_text=as_text,
-        checkpoint_path=checkpoint_path,
-        experimental_mode=experimental_mode)
-
-  def _call_add_meta_graph_and_variables(
-      self, save_variables, builder, session, kwargs):
-    """For v1, add in the strip_default_attrs arg."""
-
-    kwargs['strip_default_attrs'] = self._strip_default_attrs
-
-    super(Estimator, self)._call_add_meta_graph_and_variables(
-        save_variables, builder, session, kwargs)
+        strip_default_attrs=strip_default_attrs)
 
 
-if hasattr(Estimator.export_saved_model, '__func__'):
-  # Python 2
-  Estimator.export_saved_model.__func__.__doc__ = (
-      EstimatorV2.export_saved_model.__doc__)
-else:
-  # Python 3
-  Estimator.export_saved_model.__doc__ = EstimatorV2.export_saved_model.__doc__
+@estimator_export('estimator.Estimator', v1=[])  # pylint: disable=missing-docstring
+class EstimatorV2(Estimator):
+  __doc__ = Estimator.__doc__
+
+  export_savedmodel = deprecation.HIDDEN_ATTRIBUTE
+
+  def _assert_members_are_not_overridden(self):
+    """Asserts members of `Estimator` are not overridden."""
+    _assert_members_are_not_overridden(EstimatorV2, self)
 
 
 def _assert_members_are_not_overridden(cls, obj):
@@ -1727,18 +1706,19 @@ def _assert_members_are_not_overridden(cls, obj):
     return
 
   allowed_overrides = set([
+      'model_fn',
       '_create_and_assert_global_step',
+      '_export_all_saved_models',
       '_tf_api_names', '_tf_api_names_v1', '_estimator_api_names',
       '_estimator_api_names_v1', '_estimator_api_constants',
       '_estimator_api_constants_v1',
   ])
 
-  estimator_members = set([m for m in cls.__dict__.keys()
-                           if not m.startswith('__')])
+  estimator_members = set([m for m in dir(cls) if not m.startswith('__')])
   subclass_members = set(obj.__class__.__dict__.keys())
   common_members = estimator_members & subclass_members - allowed_overrides
   overridden_members = [
-      m for m in common_members if cls.__dict__[m] != obj.__class__.__dict__[m]]
+      m for m in common_members if getattr(cls, m) != getattr(obj.__class__, m)]
   if overridden_members:
     raise ValueError(
         'Subclasses of Estimator cannot override members of Estimator. '
