@@ -154,7 +154,6 @@ py_library(
     srcs = ["model_fn.py"],
     srcs_version = "PY2AND3",
     deps = [
-        ":export",
         ":mode_keys",
         "//tensorflow_estimator/python/estimator:expect_six_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
@@ -933,6 +932,31 @@ py_test(
         ":export_export",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
+    ],
+)
+
+py_library(
+    name = "function",
+    srcs = [
+        "export/function.py",
+    ],
+    srcs_version = "PY2AND3",
+    deps = [
+        ":mode_keys",
+        ":model_fn",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
+py_test(
+    name = "function_test",
+    size = "small",
+    srcs = ["export/function_test.py"],
+    srcs_version = "PY2AND3",
+    deps = [
+        ":export",
+        ":function",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
     ],
 )
 

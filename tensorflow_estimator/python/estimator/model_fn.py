@@ -28,14 +28,15 @@ from tensorflow.python.framework import ops
 from tensorflow.python.framework import tensor_shape
 from tensorflow.python.keras.metrics import Metric
 from tensorflow.python.ops import array_ops
+from tensorflow.python.ops import variables
+from tensorflow.python.platform import tf_logging as logging
+from tensorflow.python.saved_model import model_utils as export_utils
 from tensorflow.python.training import monitored_session
 from tensorflow.python.training import session_run_hook
 from tensorflow.python.util import function_utils
 from tensorflow.python.util import nest
 from tensorflow.python.util.tf_export import estimator_export
-from tensorflow_estimator.python.estimator.export import export_lib
 from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
-
 
 LOSS_METRIC_KEY = 'loss'
 AVERAGE_LOSS_METRIC_KEY = 'average_loss'
@@ -295,7 +296,10 @@ def _validate_estimator_spec_train_op(train_op, mode):
   else:
     default_graph = ops.get_default_graph()
     _check_is_tensor_or_operation(train_op, 'train_op')
-    if not (context.executing_eagerly() or train_op.graph is default_graph):
+    if isinstance(train_op, variables.Variable):
+      train_op = train_op.op
+    if not (context.executing_eagerly() or
+            train_op.graph is default_graph):
       raise ValueError(
           _default_graph_error_message_template.format('train_op',
                                                        train_op.name))
@@ -412,7 +416,8 @@ def _validate_estimator_spec_export_outputs(export_outputs, predictions, mode):
                not instances of type `ExportOutput`.
   """
   if mode == ModeKeys.PREDICT:
-    export_outputs = export_lib.get_export_outputs(export_outputs, predictions)
+    export_outputs = export_utils.get_export_outputs(export_outputs,
+                                                     predictions)
   return export_outputs
 
 
@@ -595,3 +600,26 @@ def call_logit_fn(logit_fn, features, mode, params, config):
                      logit_fn_results)
 
   return logit_fn_results
+
+
+_VALID_MODEL_FN_ARGS = set(
+    ['features', 'labels', 'mode', 'params', 'self', 'config'])
+
+
+def verify_model_fn_args(model_fn, params):
+  """Verifies `model_fn` arguments."""
+  args = set(function_utils.fn_args(model_fn))
+  if 'features' not in args:
+    raise ValueError('model_fn (%s) must include features argument.' % model_fn)
+  if params is not None and 'params' not in args:
+    raise ValueError('model_fn (%s) does not include params argument, '
+                     'but params (%s) is passed to Estimator.' % (
+                         model_fn, params))
+  if params is None and 'params' in args:
+    logging.warning('Estimator\'s model_fn (%s) includes params '
+                    'argument, but params are not passed to Estimator.',
+                    model_fn)
+  non_valid_args = list(args - _VALID_MODEL_FN_ARGS)
+  if non_valid_args:
+    raise ValueError('model_fn (%s) has following not expected args: %s' %
+                     (model_fn, non_valid_args))
