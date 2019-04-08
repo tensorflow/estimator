@@ -26,6 +26,7 @@ py_library(
         ":exporter",
         ":extenders",
         ":fake_summary_writer",
+        ":function",
         ":hooks",
         ":inputs",
         ":keras",
