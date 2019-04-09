@@ -80,6 +80,7 @@ def _get_float_feature_columns(sorted_feature_columns):
       float_columns.append(feature_column)
   return float_columns
 
+
 def _get_transformed_features(
     features,
     sorted_feature_columns,
@@ -1749,6 +1750,9 @@ class BoostedTreesClassifier(_BoostedTreesBase):
     # TODO(nponomareva): Support multi-class cases.
     if n_classes == _HOLD_FOR_MULTI_CLASS_SUPPORT:
       n_classes = 2
+    elif n_classes > 2 and pruning_mode is not None:
+      raise ValueError('For now pruning is not supported with multi class.')
+
     head, closed_form = _create_classification_head_and_closed_form(
         n_classes, weight_column, label_vocabulary=label_vocabulary)
     # HParams for the model.
@@ -1902,6 +1906,9 @@ class BoostedTreesRegressor(_BoostedTreesBase):
     # TODO(nponomareva): Extend it to multi-dimension cases.
     if label_dimension == _HOLD_FOR_MULTI_DIM_SUPPORT:
       label_dimension = 1
+    elif n_classes > 1 and pruning_mode is not None:
+      raise ValueError('For now pruning is not supported with multi-dimension'
+                       'regression.')
     head = _create_regression_head(label_dimension, weight_column)
 
     # HParams for the model.
