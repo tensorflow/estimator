@@ -1208,7 +1208,11 @@ class Estimator(object):
           hooks)
       return self
     else:
-      self._config._train_distribute.configure(self._config.session_config)
+      self._config._train_distribute.configure(
+          self._config.session_config,
+          cluster_spec = self._config.cluster_spec,
+          task_type = self._config.task_type,
+          task_id = self._config.task_id)
       return self._actual_train_model_distributed(
           self._config._train_distribute, input_fn, hooks, saving_listeners)
     # pylint: enable=protected-access
