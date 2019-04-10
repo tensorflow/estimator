@@ -1066,7 +1066,7 @@ class Estimator(object):
       The global step `tf.Tensor`.
     """
     step = self._create_global_step(graph)
-    assert step == training.get_global_step()
+    assert step is training.get_global_step()
     assert step.dtype.is_integer
     return step
 
