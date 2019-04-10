@@ -1906,7 +1906,7 @@ class BoostedTreesRegressor(_BoostedTreesBase):
     # TODO(nponomareva): Extend it to multi-dimension cases.
     if label_dimension == _HOLD_FOR_MULTI_DIM_SUPPORT:
       label_dimension = 1
-    elif n_classes > 1 and pruning_mode is not None:
+    elif label_dimension > 1 and pruning_mode is not None:
       raise ValueError('For now pruning is not supported with multi-dimension'
                        'regression.')
     head = _create_regression_head(label_dimension, weight_column)
