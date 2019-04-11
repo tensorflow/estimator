@@ -1218,8 +1218,7 @@ class Estimator(object):
     """That method that does actual training with distribution strategy."""
     # TODO(sourabhbajaj): Remove this hack once we migrate the other strategies
     # to use the new API
-    is_tpu_strategy = (
-        strategy.__class__.__name__ == 'TPUStrategy')
+    is_tpu_strategy = strategy.__class__.__name__.startswith('TPUStrategy')
 
     worker_hooks = []
     with ops.Graph().as_default() as g:
@@ -1528,7 +1527,7 @@ class Estimator(object):
         input_fn, ModeKeys.EVAL, self._eval_distribution)
 
     is_tpu_strategy = (
-        self._eval_distribution.__class__.__name__ == 'TPUStrategy')
+        self._eval_distribution.__class__.__name__.startswith('TPUStrategy'))
 
     if is_tpu_strategy:
       steps_per_run_variable = training.get_or_create_steps_per_run_variable()
