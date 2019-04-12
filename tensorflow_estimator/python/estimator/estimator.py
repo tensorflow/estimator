@@ -413,7 +413,7 @@ class Estimator(object):
     Args:
       input_fn: A function that constructs the input data for evaluation. See
         [Premade Estimators](
-        https://tensorflow.org/guide/premade#create_input_functions)
+        https://tensorflow.org/guide/premade_estimators#create_input_functions)
         for more information. The
         function should construct and return one of the following:  * A
         `tf.data.Dataset` object: Outputs of `Dataset` object must be a tuple
