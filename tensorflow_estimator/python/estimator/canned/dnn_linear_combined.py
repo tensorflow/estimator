@@ -153,26 +153,28 @@ def _dnn_linear_combined_model_fn_v2(features,
   del config
 
   # Build DNN Logits.
-  dnn_parent_scope = 'dnn'
-
   if not dnn_feature_columns:
     dnn_logits = None
   else:
-    dnn_optimizer = optimizers.get_optimizer_instance(
+    dnn_optimizer = optimizers.get_optimizer_instance_v2(
         dnn_optimizer, learning_rate=_DNN_LEARNING_RATE)
     _check_no_sync_replicas_optimizer(dnn_optimizer)
     if not dnn_hidden_units:
       raise ValueError(
           'dnn_hidden_units must be defined when dnn_feature_columns is '
           'specified.')
-    dnn_logit_fn = dnn.dnn_logit_fn_builder_v2(
-        units=head.logits_dimension,
-        hidden_units=dnn_hidden_units,
-        feature_columns=dnn_feature_columns,
-        activation_fn=dnn_activation_fn,
-        dropout=dnn_dropout,
-        batch_norm=batch_norm)
-    dnn_logits = dnn_logit_fn(features=features, mode=mode)
+
+    dnn_logits, dnn_trainable_variables, dnn_update_ops = (
+        dnn._dnn_model_fn_builder_v2(  # pylint: disable=protected-access
+            units=head.logits_dimension,
+            hidden_units=dnn_hidden_units,
+            feature_columns=dnn_feature_columns,
+            activation_fn=dnn_activation_fn,
+            dropout=dnn_dropout,
+            batch_norm=batch_norm,
+            features=features,
+            mode=mode,
+            optimizer=dnn_optimizer))
 
   linear_parent_scope = 'linear'
 
@@ -207,10 +209,15 @@ def _dnn_linear_combined_model_fn_v2(features,
     global_step = training_util.get_global_step()
     if dnn_logits is not None:
       train_ops.append(
-          dnn_optimizer.minimize(
+          dnn_optimizer.get_updates(
               loss,
-              var_list=ops.get_collection(
-                  ops.GraphKeys.TRAINABLE_VARIABLES, scope=dnn_parent_scope)))
+              dnn_trainable_variables))
+      if dnn_update_ops is not None:
+        train_ops.append(dnn_update_ops)
+      # TODO(yhliang): For DNN only case with optimizer V2.
+      # Can be removed after optimizer V2 is used in Linear part
+      if linear_logits is None:
+        return control_flow_ops.group(*train_ops)
     if linear_logits is not None:
       train_ops.append(
           linear_optimizer.minimize(
@@ -218,10 +225,14 @@ def _dnn_linear_combined_model_fn_v2(features,
               var_list=ops.get_collection(
                   ops.GraphKeys.TRAINABLE_VARIABLES,
                   scope=linear_absolute_scope)))
-
+      # As linear uses optimizer v1, it still relies on global_step if it's
+      # Linear Only model
+      if dnn_logits is None:
+        train_op = control_flow_ops.group(*train_ops)
+        with ops.control_dependencies([train_op]):
+          return state_ops.assign_add(global_step, 1).op
     train_op = control_flow_ops.group(*train_ops)
-    with ops.control_dependencies([train_op]):
-      return state_ops.assign_add(global_step, 1).op
+    return train_op
 
   return head.create_estimator_spec(
       features=features,

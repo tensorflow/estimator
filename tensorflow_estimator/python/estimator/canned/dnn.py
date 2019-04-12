@@ -35,6 +35,7 @@ from tensorflow.python.ops import partitioned_variables
 from tensorflow.python.ops import variable_scope
 from tensorflow.python.ops.losses import losses
 from tensorflow.python.summary import summary
+from tensorflow.python.training import training_util
 from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator import estimator
 from tensorflow_estimator.python.estimator.canned import head as head_lib
@@ -466,6 +467,62 @@ def _dnn_model_fn(features,
                                    logits, optimizer)
 
 
+def _dnn_model_fn_builder_v2(units, hidden_units, feature_columns,
+                             activation_fn, dropout, batch_norm,
+                             features, mode, optimizer):
+  """Function builder for dnn logits, trainable variables and update ops.
+
+  Args:
+    units: An int indicating the dimension of the logit layer.  In the MultiHead
+      case, this should be the sum of all component Heads' logit dimensions.
+    hidden_units: Iterable of integer number of hidden units per layer.
+    feature_columns: Iterable of `feature_column._FeatureColumn` model inputs.
+    activation_fn: Activation function applied to each layer.
+    dropout: When not `None`, the probability we will drop out a given
+      coordinate.
+    batch_norm: Whether to use batch normalization after each hidden layer.
+    features: This is the first item returned from the `input_fn` passed to
+      `train`, `evaluate`, and `predict`. This should be a single `Tensor` or
+      `dict` of same.
+    mode: Optional. Specifies if this training, evaluation or prediction. See
+      `ModeKeys`.
+    optimizer: String, `tf.keras.optimizers.Optimizer` object, or callable that
+      creates the optimizer to use for training. If not specified, will use the
+      Adagrad optimizer. If it is String, the default learning rate of the
+      optimizer will be used. If it is String, and optimizer does not have a
+      default learning rate, then, a fixed learning rate of 0.05 is used.
+
+  Returns:
+    A `Tensor` representing the logits, or a list of `Tensor`'s representing
+      multiple logits in the MultiHead case.
+    A list of trainable variables.
+    A list of update ops.
+
+  Raises:
+    ValueError: If units is not an int.
+  """
+  if not isinstance(units, six.integer_types):
+    raise ValueError('units must be an int.  Given type: {}'.format(
+        type(units)))
+  dnn_model = _DNNModelV2(
+      units,
+      hidden_units,
+      feature_columns,
+      activation_fn,
+      dropout,
+      batch_norm,
+      name='dnn')
+  logits = dnn_model(features, mode)
+  trainable_variables = dnn_model.trainable_variables
+  update_ops = dnn_model.updates
+
+  # Assign global_step variable to optimizer.iterations to make global_step
+  # increased correctly, as Hooks relies on global step as step counter.
+  optimizer.iterations = training_util.get_or_create_global_step()
+
+  return logits, trainable_variables, update_ops
+
+
 def dnn_model_fn_v2(features,
                     labels,
                     mode,
@@ -492,11 +549,11 @@ def dnn_model_fn_v2(features,
     head: A `base_head.Head` instance.
     hidden_units: Iterable of integer number of hidden units per layer.
     feature_columns: Iterable of `feature_column._FeatureColumn` model inputs.
-    optimizer: String, `tf.Optimizer` object, or callable that creates the
-      optimizer to use for training. If not specified, will use the Adagrad
-      optimizer. If it is String, the default learning rate of the optimizer
-      will be used. If it is String, and optimizer does not have a default
-      learning rate, then, a fixed learning rate of 0.05 is used.
+    optimizer: String, `tf.keras.optimizers.Optimizer` object, or callable that
+      creates the optimizer to use for training. If not specified, will use the
+      Adagrad optimizer. If it is String, the default learning rate of the
+      optimizer will be used. If it is String, and optimizer does not have a
+      default learning rate, then, a fixed learning rate of 0.05 is used.
     activation_fn: Activation function applied to each layer.
     dropout: When not `None`, the probability we will drop out a given
       coordinate.
@@ -517,17 +574,31 @@ def dnn_model_fn_v2(features,
 
   del config
 
-  logit_fn = dnn_logit_fn_builder_v2(
+  logits, trainable_variables, update_ops = _dnn_model_fn_builder_v2(
       units=head.logits_dimension,
       hidden_units=hidden_units,
       feature_columns=feature_columns,
       activation_fn=activation_fn,
       dropout=dropout,
-      batch_norm=batch_norm)
-  logits = logit_fn(features=features, mode=mode)
+      batch_norm=batch_norm,
+      features=features,
+      mode=mode,
+      optimizer=optimizer)
 
-  return _get_dnn_estimator_spec(use_tpu, head, features, labels, mode,
-                                 logits, optimizer)
+  # Create EstimatorSpec.
+  if use_tpu:
+    estimator_spec_fn = head._create_tpu_estimator_spec  # pylint: disable=protected-access
+  else:
+    estimator_spec_fn = head.create_estimator_spec  # pylint: disable=protected-access
+
+  return estimator_spec_fn(
+      features=features,
+      mode=mode,
+      labels=labels,
+      optimizer=optimizer,
+      logits=logits,
+      trainable_variables=trainable_variables,
+      update_ops=update_ops)
 
 
 @estimator_export('estimator.DNNClassifier', v1=[])
@@ -1064,9 +1135,9 @@ class DNNRegressorV2(estimator.EstimatorV2):
         used as a key to fetch weight tensor from the `features`. If it is a
         `_NumericColumn`, raw tensor is fetched by key `weight_column.key`,
         then weight_column.normalizer_fn is applied on it to get weight tensor.
-      optimizer: An instance of `tf.Optimizer` used to train the model. Can also
-        be a string (one of 'Adagrad', 'Adam', 'Ftrl', 'RMSProp', 'SGD'), or
-        callable. Defaults to Adagrad optimizer.
+      optimizer: An instance of `tf.keras.optimizers.Optimizer` used to train
+        the model. Can also be a string (one of 'Adagrad', 'Adam', 'Ftrl',
+        'RMSProp', 'SGD'), or callable. Defaults to Adagrad optimizer.
       activation_fn: Activation function applied to each layer. If `None`, will
         use `tf.nn.relu`.
       dropout: When not `None`, the probability we will drop out a given

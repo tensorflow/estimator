@@ -31,6 +31,7 @@ from tensorflow.python.feature_column import feature_column
 from tensorflow.python.feature_column import feature_column_v2
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
+from tensorflow.python.keras.optimizer_v2 import gradient_descent as gradient_descent_v2
 from tensorflow.python.ops import nn
 from tensorflow.python.ops import parsing_ops
 from tensorflow.python.ops import variables as variables_lib
@@ -809,7 +810,8 @@ class DNNLinearCombinedTests(test.TestCase):
     return optimizer_mock
 
   def test_train_op_calls_both_dnn_and_linear(self, fc_impl):
-    opt = gradient_descent.GradientDescentOptimizer(1.)
+    dnn_opt = gradient_descent_v2.SGD(1.)
+    linear_opt = gradient_descent.GradientDescentOptimizer(1.)
     x_column = fc_impl.numeric_column('x')
     input_fn = numpy_io.numpy_input_fn(
         x={'x': np.array([[0.], [1.]])},
@@ -819,21 +821,20 @@ class DNNLinearCombinedTests(test.TestCase):
     est = dnn_linear_combined.DNNLinearCombinedClassifierV2(
         linear_feature_columns=[x_column],
         # verifies linear_optimizer is used only for linear part.
-        linear_optimizer=self._mock_optimizer(opt, 'linear'),
+        linear_optimizer=self._mock_optimizer(linear_opt, 'linear'),
         dnn_hidden_units=(2, 2),
         dnn_feature_columns=[x_column],
         # verifies dnn_optimizer is used only for dnn part.
-        dnn_optimizer=self._mock_optimizer(opt, 'dnn'),
+        dnn_optimizer=dnn_opt,
         model_dir=self._model_dir)
-    est.train(input_fn, steps=1)
+    num_steps = 1
+    est.train(input_fn, steps=num_steps)
     # verifies train_op fires linear minimize op
     self.assertEqual(100.,
                      checkpoint_utils.load_variable(
                          self._model_dir, 'linear_called'))
-    # verifies train_op fires dnn minimize op
-    self.assertEqual(100.,
-                     checkpoint_utils.load_variable(
-                         self._model_dir, 'dnn_called'))
+    # verifies train_op fires dnn optmizer
+    self.assertEqual(num_steps, est.get_variable_value(dnn_opt.iterations.name))
 
   def test_dnn_and_linear_logits_are_added(self, fc_impl):
     with ops.Graph().as_default():
@@ -916,15 +917,20 @@ class DNNLinearCombinedWarmStartingTest(test.TestCase):
             n_classes=4,
             linear_optimizer=gradient_descent.GradientDescentOptimizer(
                 learning_rate=0.0),
-            dnn_optimizer=gradient_descent.GradientDescentOptimizer(
+            dnn_optimizer=gradient_descent_v2.SGD(
                 learning_rate=0.0),
             warm_start_from=dnn_lc_classifier.model_dir))
 
     warm_started_dnn_lc_classifier.train(input_fn=self._input_fn, max_steps=1)
     for variable_name in warm_started_dnn_lc_classifier.get_variable_names():
-      self.assertAllClose(
-          dnn_lc_classifier.get_variable_value(variable_name),
-          warm_started_dnn_lc_classifier.get_variable_value(variable_name))
+      if 'learning_rate' in variable_name:
+        self.assertAllClose(
+            0.0,
+            warm_started_dnn_lc_classifier.get_variable_value(variable_name))
+      else:
+        self.assertAllClose(
+            dnn_lc_classifier.get_variable_value(variable_name),
+            warm_started_dnn_lc_classifier.get_variable_value(variable_name))
 
   def test_regressor_basic_warm_starting(self, fc_impl):
     """Tests correctness of DNNLinearCombinedRegressor default warm-start."""
@@ -954,15 +960,20 @@ class DNNLinearCombinedWarmStartingTest(test.TestCase):
             dnn_hidden_units=[256, 128],
             linear_optimizer=gradient_descent.GradientDescentOptimizer(
                 learning_rate=0.0),
-            dnn_optimizer=gradient_descent.GradientDescentOptimizer(
+            dnn_optimizer=gradient_descent_v2.SGD(
                 learning_rate=0.0),
             warm_start_from=dnn_lc_regressor.model_dir))
 
     warm_started_dnn_lc_regressor.train(input_fn=self._input_fn, max_steps=1)
     for variable_name in warm_started_dnn_lc_regressor.get_variable_names():
-      self.assertAllClose(
-          dnn_lc_regressor.get_variable_value(variable_name),
-          warm_started_dnn_lc_regressor.get_variable_value(variable_name))
+      if 'learning_rate' in variable_name:
+        self.assertAllClose(
+            0.0,
+            warm_started_dnn_lc_regressor.get_variable_value(variable_name))
+      else:
+        self.assertAllClose(
+            dnn_lc_regressor.get_variable_value(variable_name),
+            warm_started_dnn_lc_regressor.get_variable_value(variable_name))
 
   def test_warm_starting_selective_variables(self, fc_impl):
     """Tests selecting variables to warm-start."""
@@ -994,7 +1005,7 @@ class DNNLinearCombinedWarmStartingTest(test.TestCase):
             n_classes=4,
             linear_optimizer=gradient_descent.GradientDescentOptimizer(
                 learning_rate=0.0),
-            dnn_optimizer=gradient_descent.GradientDescentOptimizer(
+            dnn_optimizer=gradient_descent_v2.SGD(
                 learning_rate=0.0),
             # The provided regular expression will only warm-start the deep
             # portion of the model.
@@ -1005,9 +1016,14 @@ class DNNLinearCombinedWarmStartingTest(test.TestCase):
     warm_started_dnn_lc_classifier.train(input_fn=self._input_fn, max_steps=1)
     for variable_name in warm_started_dnn_lc_classifier.get_variable_names():
       if 'dnn' in variable_name:
-        self.assertAllClose(
-            dnn_lc_classifier.get_variable_value(variable_name),
-            warm_started_dnn_lc_classifier.get_variable_value(variable_name))
+        if 'learning_rate' in variable_name:
+          self.assertAllClose(
+              0.0,
+              warm_started_dnn_lc_classifier.get_variable_value(variable_name))
+        else:
+          self.assertAllClose(
+              dnn_lc_classifier.get_variable_value(variable_name),
+              warm_started_dnn_lc_classifier.get_variable_value(variable_name))
       elif 'linear' in variable_name:
         linear_values = warm_started_dnn_lc_classifier.get_variable_value(
             variable_name)

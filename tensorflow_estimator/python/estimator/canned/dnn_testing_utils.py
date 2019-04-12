@@ -31,6 +31,8 @@ from tensorflow.python.feature_column import feature_column_v2
 from tensorflow.python.framework import constant_op
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
+from tensorflow.python.keras.optimizer_v2 import optimizer_v2
+from tensorflow.python.keras.optimizer_v2 import gradient_descent
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import check_ops
 from tensorflow.python.ops import control_flow_ops
@@ -43,9 +45,7 @@ from tensorflow.python.platform import test
 from tensorflow.python.summary import summary as summary_lib
 from tensorflow.python.summary.writer import writer_cache
 from tensorflow.python.training import checkpoint_utils
-from tensorflow.python.training import gradient_descent
 from tensorflow.python.training import monitored_session
-from tensorflow.python.training import optimizer as optimizer_lib
 from tensorflow.python.training import saver
 from tensorflow.python.training import session_run_hook
 from tensorflow.python.training import training_util
@@ -153,7 +153,8 @@ def mock_head(testcase, hidden_units, logits_dimension, expected_logits):
       [LOGITS_WEIGHTS_NAME + ':0', LOGITS_BIASES_NAME + ':0'])
 
   def _create_tpu_estimator_spec(
-      features, mode, logits, labels, train_op_fn=None, optimizer=None):
+      features, mode, logits, labels, trainable_variables=None,
+      train_op_fn=None, optimizer=None, update_ops=None):
     del features, labels  # Not used.
     trainable_vars = ops.get_collection(ops.GraphKeys.TRAINABLE_VARIABLES)
     testcase.assertItemsEqual(expected_var_names,
@@ -166,7 +167,9 @@ def mock_head(testcase, hidden_units, logits_dimension, expected_logits):
         if train_op_fn is not None:
           train_op = train_op_fn(loss)
         elif optimizer is not None:
-          train_op = optimizer.minimize(loss, global_step=None)
+          train_op = optimizer.get_updates(loss, trainable_variables)
+        if update_ops is not None:
+          train_op = control_flow_ops.group(train_op, *update_ops)
         return model_fn._TPUEstimatorSpec(
             mode=mode, loss=loss, train_op=train_op)
       elif mode == ModeKeys.EVAL:
@@ -179,9 +182,11 @@ def mock_head(testcase, hidden_units, logits_dimension, expected_logits):
         testcase.fail('Invalid mode: {}'.format(mode))
 
   def _create_estimator_spec(
-      features, mode, logits, labels, train_op_fn=None, optimizer=None):
+      features, mode, logits, labels, trainable_variables=None,
+      train_op_fn=None, optimizer=None, update_ops=None):
     tpu_spec = _create_tpu_estimator_spec(
-        features, mode, logits, labels, train_op_fn, optimizer)
+        features, mode, logits, labels, trainable_variables,
+        train_op_fn, optimizer, update_ops)
     return tpu_spec.as_estimator_spec()
 
   head = test.mock.NonCallableMagicMock(spec=base_head.Head)
@@ -214,34 +219,35 @@ def mock_optimizer(testcase, hidden_units, expected_loss=None):
       hidden_weights_names + hidden_biases_names +
       [LOGITS_WEIGHTS_NAME + ':0', LOGITS_BIASES_NAME + ':0'])
 
-  def _minimize(loss, global_step=None, var_list=None):
-    """Mock of optimizer.minimize."""
-    trainable_vars = var_list or ops.get_collection(
-        ops.GraphKeys.TRAINABLE_VARIABLES)
-    testcase.assertItemsEqual(expected_var_names,
-                              [var.name for var in trainable_vars])
+  class _Optimizer(optimizer_v2.OptimizerV2):
 
-    # Verify loss. We can't check the value directly, so we add an assert op.
-    testcase.assertEquals(0, loss.shape.ndims)
-    if expected_loss is None:
-      if global_step is not None:
-        return state_ops.assign_add(global_step, 1).op
-      return control_flow_ops.no_op()
-    assert_loss = assert_close(
-        math_ops.to_float(expected_loss, name='expected'),
-        loss,
-        name='assert_loss')
-    with ops.control_dependencies((assert_loss,)):
-      if global_step is not None:
-        return state_ops.assign_add(global_step, 1).op
-      return control_flow_ops.no_op()
+    def get_updates(self, loss, params):
+      trainable_vars = params
+      testcase.assertItemsEqual(expected_var_names,
+                                [var.name for var in trainable_vars])
 
-  optimizer_mock = test.mock.NonCallableMagicMock(
-      spec=optimizer_lib.Optimizer,
-      wraps=optimizer_lib.Optimizer(use_locking=False, name='my_optimizer'))
-  optimizer_mock.minimize = test.mock.MagicMock(wraps=_minimize)
+      # Verify loss. We can't check the value directly, so we add an assert op.
+      testcase.assertEquals(0, loss.shape.ndims)
+      if expected_loss is None:
+        if self.iterations is not None:
+          return self.iterations.assign_add(1).op
+        return control_flow_ops.no_op()
+      assert_loss = assert_close(
+          math_ops.to_float(expected_loss, name='expected'),
+          loss,
+          name='assert_loss')
+      with ops.control_dependencies((assert_loss,)):
+        if self.iterations is not None:
+          return self.iterations.assign_add(1).op
+        return control_flow_ops.no_op()
 
-  return optimizer_mock
+    def get_config(self):
+      config = super(_Optimizer, self).get_config()
+      return config
+
+  optimizer = _Optimizer(name='my_optimizer')
+
+  return optimizer
 
 
 class BaseDNNModelFnTest(object):
@@ -960,14 +966,20 @@ class BaseDNNWarmStartingTest(object):
         hidden_units=[256, 128],
         feature_columns=[city],
         n_classes=4,
-        optimizer=gradient_descent.GradientDescentOptimizer(learning_rate=0.0),
+        optimizer=gradient_descent.SGD(learning_rate=0.0),
         warm_start_from=dnn_classifier.model_dir)
 
     warm_started_dnn_classifier.train(input_fn=self._input_fn, max_steps=1)
     for variable_name in warm_started_dnn_classifier.get_variable_names():
-      self.assertAllClose(
-          dnn_classifier.get_variable_value(variable_name),
-          warm_started_dnn_classifier.get_variable_value(variable_name))
+      # Learning rate is also checkpointed in V2 optimizer. So we need to make
+      # sure it uses the new value after warm started.
+      if 'learning_rate' in variable_name:
+        self.assertAllClose(
+            0.0, warm_started_dnn_classifier.get_variable_value(variable_name))
+      else:
+        self.assertAllClose(
+            dnn_classifier.get_variable_value(variable_name),
+            warm_started_dnn_classifier.get_variable_value(variable_name))
 
   def test_regressor_basic_warm_starting(self):
     """Tests correctness of DNNRegressor default warm-start."""
@@ -990,14 +1002,20 @@ class BaseDNNWarmStartingTest(object):
     warm_started_dnn_regressor = self._dnn_regressor_fn(
         hidden_units=[256, 128],
         feature_columns=[city],
-        optimizer=gradient_descent.GradientDescentOptimizer(learning_rate=0.0),
+        optimizer=gradient_descent.SGD(learning_rate=0.0),
         warm_start_from=dnn_regressor.model_dir)
 
     warm_started_dnn_regressor.train(input_fn=self._input_fn, max_steps=1)
     for variable_name in warm_started_dnn_regressor.get_variable_names():
-      self.assertAllClose(
-          dnn_regressor.get_variable_value(variable_name),
-          warm_started_dnn_regressor.get_variable_value(variable_name))
+      # Learning rate is also checkpointed in V2 optimizer. So we need to make
+      # sure it uses the new value after warm started.
+      if 'learning_rate' in variable_name:
+        self.assertAllClose(
+            0.0, warm_started_dnn_regressor.get_variable_value(variable_name))
+      else:
+        self.assertAllClose(
+            dnn_regressor.get_variable_value(variable_name),
+            warm_started_dnn_regressor.get_variable_value(variable_name))
 
   def test_warm_starting_selective_variables(self):
     """Tests selecting variables to warm-start."""
@@ -1022,7 +1040,7 @@ class BaseDNNWarmStartingTest(object):
         hidden_units=[256, 128],
         feature_columns=[city],
         n_classes=4,
-        optimizer=gradient_descent.GradientDescentOptimizer(learning_rate=0.0),
+        optimizer=gradient_descent.SGD(learning_rate=0.0),
         # The provided regular expression will only warm-start the city
         # embedding, not the kernels and biases of the hidden weights.
         warm_start_from=estimator.WarmStartSettings(
@@ -1101,7 +1119,7 @@ class BaseDNNWarmStartingTest(object):
         hidden_units=[256, 128],
         feature_columns=[occupation],
         n_classes=4,
-        optimizer=gradient_descent.GradientDescentOptimizer(learning_rate=0.0),
+        optimizer=gradient_descent.SGD(learning_rate=0.0),
         warm_start_from=estimator.WarmStartSettings(
             ckpt_to_initialize_from=dnn_classifier.model_dir,
             var_name_to_vocab_info={
@@ -1169,7 +1187,7 @@ class BaseDNNWarmStartingTest(object):
         hidden_units=[256, 128],
         feature_columns=[city],
         n_classes=4,
-        optimizer=gradient_descent.GradientDescentOptimizer(learning_rate=0.0),
+        optimizer=gradient_descent.SGD(learning_rate=0.0),
         # The 'city' variable correspond to the 'locality' variable in the
         # previous model.
         warm_start_from=estimator.WarmStartSettings(
@@ -1186,6 +1204,11 @@ class BaseDNNWarmStartingTest(object):
             dnn_classifier.get_variable_value(
                 CITY_EMBEDDING_NAME.replace('city', 'locality')),
             warm_started_dnn_classifier.get_variable_value(CITY_EMBEDDING_NAME))
+      # Learning rate is also checkpointed in V2 optimizer. So we need to make
+      # sure it uses the new value after warm started.
+      elif 'learning_rate' in variable_name:
+        self.assertAllClose(
+            0.0, warm_started_dnn_classifier.get_variable_value(variable_name))
       else:
         self.assertAllClose(
             dnn_classifier.get_variable_value(variable_name),
@@ -1758,7 +1781,6 @@ class BaseDNNClassifierTrainTest(object):
         feature_columns=(self._fc_impl.numeric_column('age'),),
         optimizer=opt,
         model_dir=self._model_dir)
-    self.assertEqual(0, opt.minimize.call_count)
 
     # Train for a few steps, then validate optimizer, summaries, and
     # checkpoint.
@@ -1767,7 +1789,9 @@ class BaseDNNClassifierTrainTest(object):
     dnn_classifier.train(
         input_fn=lambda: ({'age': [[10.]]}, [[1]]), steps=num_steps,
         hooks=(summary_hook,))
-    self.assertEqual(1, opt.minimize.call_count)
+    self.assertEqual(
+        num_steps,
+        dnn_classifier.get_variable_value(opt.iterations.name))
     _assert_checkpoint(
         self, num_steps, input_units=1, hidden_units=hidden_units,
         output_units=1, model_dir=self._model_dir)
@@ -1796,7 +1820,6 @@ class BaseDNNClassifierTrainTest(object):
         feature_columns=(self._fc_impl.numeric_column('age'),),
         optimizer=opt,
         model_dir=self._model_dir)
-    self.assertEqual(0, opt.minimize.call_count)
 
     # Train for a few steps, then validate optimizer, summaries, and
     # checkpoint.
@@ -1805,7 +1828,9 @@ class BaseDNNClassifierTrainTest(object):
     dnn_classifier.train(
         input_fn=lambda: ({'age': [[10.]]}, [[1]]), steps=num_steps,
         hooks=(summary_hook,))
-    self.assertEqual(1, opt.minimize.call_count)
+    self.assertEqual(
+        base_global_step + num_steps,
+        dnn_classifier.get_variable_value(opt.iterations.name))
     summaries = summary_hook.summaries()
     self.assertEqual(num_steps, len(summaries))
     for summary in summaries:
@@ -1841,14 +1866,15 @@ class BaseDNNClassifierTrainTest(object):
         feature_columns=(self._fc_impl.numeric_column('age'),),
         optimizer=opt,
         model_dir=self._model_dir)
-    self.assertEqual(0, opt.minimize.call_count)
 
     # Train for a few steps, then validate optimizer, summaries, and
     # checkpoint.
     num_steps = 5
     dnn_classifier.train(
         input_fn=lambda: ({'age': [[10.]]}, [[0.8]]), steps=num_steps)
-    self.assertEqual(1, opt.minimize.call_count)
+    self.assertEqual(
+        base_global_step + num_steps,
+        dnn_classifier.get_variable_value(opt.iterations.name))
 
   def test_multi_class(self):
     n_classes = 3
@@ -1872,7 +1898,6 @@ class BaseDNNClassifierTrainTest(object):
         feature_columns=(self._fc_impl.numeric_column('age'),),
         optimizer=opt,
         model_dir=self._model_dir)
-    self.assertEqual(0, opt.minimize.call_count)
 
     # Train for a few steps, then validate optimizer, summaries, and
     # checkpoint.
@@ -1881,7 +1906,9 @@ class BaseDNNClassifierTrainTest(object):
     dnn_classifier.train(
         input_fn=lambda: ({'age': [[10.]]}, [[1]]), steps=num_steps,
         hooks=(summary_hook,))
-    self.assertEqual(1, opt.minimize.call_count)
+    self.assertEqual(
+        base_global_step + num_steps,
+        dnn_classifier.get_variable_value(opt.iterations.name))
     summaries = summary_hook.summaries()
     self.assertEqual(num_steps, len(summaries))
     for summary in summaries:
@@ -1937,7 +1964,6 @@ class BaseDNNRegressorTrainTest(object):
         feature_columns=(self._fc_impl.numeric_column('age'),),
         optimizer=opt,
         model_dir=self._model_dir)
-    self.assertEqual(0, opt.minimize.call_count)
 
     # Train for a few steps, then validate optimizer, summaries, and
     # checkpoint.
@@ -1946,7 +1972,9 @@ class BaseDNNRegressorTrainTest(object):
     dnn_regressor.train(
         input_fn=lambda: ({'age': ((1,),)}, ((5.,),)), steps=num_steps,
         hooks=(summary_hook,))
-    self.assertEqual(1, opt.minimize.call_count)
+    self.assertEqual(
+        num_steps,
+        dnn_regressor.get_variable_value(opt.iterations.name))
     _assert_checkpoint(
         self, num_steps, input_units=1, hidden_units=hidden_units,
         output_units=1, model_dir=self._model_dir)
@@ -1976,7 +2004,6 @@ class BaseDNNRegressorTrainTest(object):
         feature_columns=(self._fc_impl.numeric_column('age'),),
         optimizer=opt,
         model_dir=self._model_dir)
-    self.assertEqual(0, opt.minimize.call_count)
 
     # Train for a few steps, then validate optimizer, summaries, and
     # checkpoint.
@@ -1985,7 +2012,9 @@ class BaseDNNRegressorTrainTest(object):
     dnn_regressor.train(
         input_fn=lambda: ({'age': [[10.]]}, [[1.]]), steps=num_steps,
         hooks=(summary_hook,))
-    self.assertEqual(1, opt.minimize.call_count)
+    self.assertEqual(
+        base_global_step + num_steps,
+        dnn_regressor.get_variable_value(opt.iterations.name))
     summaries = summary_hook.summaries()
     self.assertEqual(num_steps, len(summaries))
     for summary in summaries:
@@ -2031,7 +2060,6 @@ class BaseDNNRegressorTrainTest(object):
         label_dimension=label_dimension,
         optimizer=opt,
         model_dir=self._model_dir)
-    self.assertEqual(0, opt.minimize.call_count)
 
     # Train for a few steps, then validate optimizer, summaries, and
     # checkpoint.
@@ -2041,7 +2069,9 @@ class BaseDNNRegressorTrainTest(object):
         input_fn=lambda: ({'age': [[10., 8.]]}, [[1., -1., 0.5]]),
         steps=num_steps,
         hooks=(summary_hook,))
-    self.assertEqual(1, opt.minimize.call_count)
+    self.assertEqual(
+        base_global_step + num_steps,
+        dnn_regressor.get_variable_value(opt.iterations.name))
     summaries = summary_hook.summaries()
     self.assertEqual(num_steps, len(summaries))
     for summary in summaries:
