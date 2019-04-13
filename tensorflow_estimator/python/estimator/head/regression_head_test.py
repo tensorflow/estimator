@@ -28,7 +28,6 @@ from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import errors
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import test_util
-from tensorflow.python.keras.optimizer_v2 import optimizer_v2
 from tensorflow.python.keras.utils import losses_utils
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import check_ops
@@ -112,9 +111,7 @@ class RegressionHead(test.TestCase):
     spec = head.create_estimator_spec(
         features={'x': np.array(((42.,),))},
         mode=ModeKeys.PREDICT,
-        logits=logits_placeholder,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        logits=logits_placeholder)
     with self.cached_session():
       with self.assertRaisesRegexp(errors.OpError, 'logits shape'):
         spec.predictions[prediction_keys.PredictionKeys.PREDICTIONS].eval({
@@ -141,19 +138,14 @@ class RegressionHead(test.TestCase):
     with self.assertRaisesRegexp(ValueError, 'logits shape'):
       head.create_estimator_spec(
           features={'x': values_3d}, labels=values_3d,
-          mode=ModeKeys.EVAL, logits=values_1d, train_op_fn=None,
-          trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+          mode=ModeKeys.EVAL, logits=values_1d, train_op_fn=None)
     labels_placeholder = array_ops.placeholder(dtype=dtypes.float32)
     logits_placeholder = array_ops.placeholder(dtype=dtypes.float32)
     spec = head.create_estimator_spec(
         features={'x': values_1d},
         mode=ModeKeys.EVAL,
         logits=logits_placeholder,
-        labels=labels_placeholder,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
-
+        labels=labels_placeholder)
     with self.cached_session():
       with self.assertRaisesRegexp(errors.OpError, 'logits shape'):
         spec.loss.eval({
@@ -197,9 +189,7 @@ class RegressionHead(test.TestCase):
           mode=ModeKeys.TRAIN,
           logits=values_1d,
           labels=values_3d,
-          train_op_fn=lambda x: x,
-          trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+          train_op_fn=lambda x: x)
     labels_placeholder = array_ops.placeholder(dtype=dtypes.float32)
     logits_placeholder = array_ops.placeholder(dtype=dtypes.float32)
     spec = head.create_estimator_spec(
@@ -207,9 +197,7 @@ class RegressionHead(test.TestCase):
         mode=ModeKeys.TRAIN,
         logits=logits_placeholder,
         labels=labels_placeholder,
-        train_op_fn=lambda x: x,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        train_op_fn=lambda x: x)
     with self.cached_session():
       with self.assertRaisesRegexp(errors.OpError, 'logits shape'):
         spec.loss.eval({
@@ -249,9 +237,7 @@ class RegressionHead(test.TestCase):
     spec = head.create_estimator_spec(
         features={'x': np.array(((42.,),), dtype=np.int32)},
         mode=ModeKeys.PREDICT,
-        logits=np.array(((45,), (41,),), dtype=np.int32),
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        logits=np.array(((45,), (41,),), dtype=np.int32))
     self.assertIsNone(spec.loss)
     self.assertEqual({}, spec.eval_metric_ops)
     self.assertIsNone(spec.train_op)
@@ -297,9 +283,7 @@ class RegressionHead(test.TestCase):
     spec = head.create_estimator_spec(
         features={'x': np.array(((42.,),), dtype=np.int32)},
         mode=ModeKeys.PREDICT,
-        logits=logits,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        logits=logits)
     # Assert spec contains expected tensors.
     default_serving_key = (
         signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY)
@@ -396,9 +380,7 @@ class RegressionHead(test.TestCase):
           features={'x': np.array(((42,),), dtype=np.int32)},
           mode=ModeKeys.EVAL,
           logits=np.array(((45,), (41,),), dtype=np.float32),
-          labels=None,
-          trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+          labels=None)
 
   def test_eval(self):
     head = head_lib.RegressionHead()
@@ -440,9 +422,7 @@ class RegressionHead(test.TestCase):
           features=features,
           mode=ModeKeys.EVAL,
           logits=logits,
-          labels=labels,
-          trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+          labels=labels)
       # Assert spec contains expected tensors.
       self.assertEqual(dtypes.float32, spec.loss.dtype)
       self.assertItemsEqual((metric_keys.MetricKeys.LOSS_MEAN,
@@ -519,9 +499,7 @@ class RegressionHead(test.TestCase):
           mode=ModeKeys.EVAL,
           logits=logits,
           labels=labels,
-          regularization_losses=regularization_losses,
-          trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+          regularization_losses=regularization_losses)
       # Assert predictions, loss, and metrics.
       with self.cached_session() as sess:
         test_lib._initialize_variables(self, spec.scaffold)
@@ -584,9 +562,7 @@ class RegressionHead(test.TestCase):
           mode=ModeKeys.TRAIN,
           logits=np.array(((45,), (41,),), dtype=np.float32),
           labels=None,
-          train_op_fn=_no_op_train_fn,
-          trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+          train_op_fn=_no_op_train_fn)
 
   def test_train(self):
     head = head_lib.RegressionHead()
@@ -621,9 +597,7 @@ class RegressionHead(test.TestCase):
         mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
-        train_op_fn=_train_op_fn,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        train_op_fn=_train_op_fn)
 
     # Assert spec contains expected tensors.
     self.assertEqual({}, spec.eval_metric_ops)
@@ -682,9 +656,7 @@ class RegressionHead(test.TestCase):
         logits=logits,
         labels=labels,
         train_op_fn=_train_op_fn,
-        regularization_losses=regularization_losses,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        regularization_losses=regularization_losses)
 
     # Assert predictions, loss, train_op, and summaries.
     with self.cached_session() as sess:
@@ -746,9 +718,7 @@ class RegressionHead(test.TestCase):
           features=features,
           mode=ModeKeys.EVAL,
           logits=logits,
-          labels=labels,
-          trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+          labels=labels)
       # Assert spec contains expected tensors.
       self.assertEqual(dtypes.float32, spec.loss.dtype)
       self.assertIsNone(spec.train_op)
@@ -825,9 +795,7 @@ class RegressionHead(test.TestCase):
         mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
-        train_op_fn=_train_op_fn,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        train_op_fn=_train_op_fn)
 
     # Assert spec contains expected tensors.
     self.assertEqual({}, spec.eval_metric_ops)
@@ -908,9 +876,7 @@ class RegressionHead(test.TestCase):
         mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels_rank_1,
-        train_op_fn=_train_op_fn,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        train_op_fn=_train_op_fn)
 
     # Assert spec contains expected tensors.
     self.assertEqual({}, spec.eval_metric_ops)
@@ -999,9 +965,7 @@ class RegressionHead(test.TestCase):
           features=features,
           mode=ModeKeys.EVAL,
           logits=logits,
-          labels=labels,
-          trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+          labels=labels)
       # Assert spec contains expected tensors.
       self.assertEqual(dtypes.float32, spec.loss.dtype)
       self.assertItemsEqual((metric_keys.MetricKeys.LOSS_MEAN,
@@ -1081,9 +1045,7 @@ class RegressionHead(test.TestCase):
         mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
-        train_op_fn=_train_op_fn,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        train_op_fn=_train_op_fn)
 
     # Assert spec contains expected tensors.
     self.assertEqual({}, spec.eval_metric_ops)
@@ -1227,9 +1189,7 @@ class RegressionHead(test.TestCase):
         mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
-        train_op_fn=_train_op_fn,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        train_op_fn=_train_op_fn)
     with self.cached_session():
       test_lib._initialize_variables(self, monitored_session.Scaffold())
       self.assertAllClose(expected_loss, spec.loss.eval())
@@ -1264,9 +1224,7 @@ class RegressionHead(test.TestCase):
         mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
-        train_op_fn=_no_op_train_fn,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        train_op_fn=_no_op_train_fn)
     with self.assertRaisesRegexp(
         errors.InvalidArgumentError,
         r'\[logits_shape: \] \[2 2 3\] \[weights_shape: \] \[2 1\]'):
@@ -1304,9 +1262,7 @@ class RegressionHead(test.TestCase):
         mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
-        train_op_fn=_no_op_train_fn,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        train_op_fn=_no_op_train_fn)
     with self.cached_session():
       test_lib._initialize_variables(self, monitored_session.Scaffold())
       with self.assertRaisesRegexp(
@@ -1321,42 +1277,6 @@ class RegressionHead(test.TestCase):
 class RegressionHeadForEstimator(test.TestCase):
   """Tests for create_estimator_spec running in Graph mode only."""
 
-  def test_invalid_trainable_variables(self):
-    head = head_lib.RegressionHead()
-
-    class _Optimizer(optimizer_v2.OptimizerV2):
-
-      def get_updates(self, loss, params):
-        del params
-        return string_ops.string_join([
-            constant_op.constant('my_train_op'),
-            string_ops.as_string(loss, precision=2)
-        ])
-
-      def get_config(self):
-        config = super(_Optimizer, self).get_config()
-        return config
-
-    with self.assertRaisesRegexp(
-        ValueError, r'trainable_variables cannot be None'):
-      head.create_estimator_spec(
-          features={'x': np.array(((42.,),), dtype=np.float32)},
-          mode=ModeKeys.TRAIN,
-          logits = np.array(((45,), (41,),), dtype=np.float32),
-          labels = np.array(((43.,), (44.,),), dtype=np.float64),
-          optimizer=_Optimizer('my_optimizer'),
-          trainable_variables=None)
-    with self.assertRaisesRegexp(
-        ValueError, r'trainable_variables should be a list or a tuple'):
-      head.create_estimator_spec(
-          features={'x': np.array(((42.,),), dtype=np.float32)},
-          mode=ModeKeys.TRAIN,
-          logits = np.array(((45,), (41,),), dtype=np.float32),
-          labels = np.array(((43.,), (44.,),), dtype=np.float64),
-          optimizer=_Optimizer('my_optimizer'),
-          trainable_variables={'var_list': [
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)]})
-
   def test_train_with_optimizer(self):
     head = head_lib.RegressionHead()
     self.assertEqual(1, head.logits_dimension)
@@ -1369,27 +1289,21 @@ class RegressionHeadForEstimator(test.TestCase):
     # loss = ((43-45)^2 + (44-41)^2) / 2 = (4 + 9) / 2 = 13 / 2 = 6.5
     expected_loss = 6.5
 
-    class _Optimizer(optimizer_v2.OptimizerV2):
+    class _Optimizer(object):
 
-      def get_updates(self, loss, params):
-        del params
+      def minimize(self, loss, global_step):
+        del global_step
         with ops.control_dependencies((check_ops.assert_equal(
             math_ops.to_float(expected_loss), math_ops.to_float(loss),
             name='assert_loss'),)):
           return constant_op.constant(expected_train_result)
-
-      def get_config(self):
-        config = super(_Optimizer, self).get_config()
-        return config
 
     spec = head.create_estimator_spec(
         features=features,
         mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
-        optimizer=_Optimizer('my_optimizer'),
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        optimizer=_Optimizer())
 
     with self.cached_session() as sess:
       test_lib._initialize_variables(self, spec.scaffold)
@@ -1409,7 +1323,7 @@ class RegressionHeadForEstimator(test.TestCase):
         del loss
         return t.assign(expected_train_result)
 
-      head = head_lib.RegressionHead()
+      head = head_lib.RegressionHead(update_ops=[update_op])
       spec = head.create_estimator_spec(
           features={'x': np.array(((42,),), dtype=np.int32)},
           mode=ModeKeys.TRAIN,
@@ -1421,10 +1335,7 @@ class RegressionHeadForEstimator(test.TestCase):
               (43.,),
               (44.,),
           ), dtype=np.float64),
-          update_ops=[update_op],
-          train_op_fn=_train_op_fn,
-          trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+          train_op_fn=_train_op_fn)
 
       with self.cached_session() as sess:
         test_lib._initialize_variables(self, spec.scaffold)
@@ -1453,9 +1364,7 @@ class RegressionHeadForEstimator(test.TestCase):
         mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
-        train_op_fn=_train_op_fn,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        train_op_fn=_train_op_fn)
 
     # Assert summaries.
     with self.cached_session() as sess:
@@ -1498,9 +1407,7 @@ class RegressionHeadForEstimator(test.TestCase):
         mode=ModeKeys.TRAIN,
         logits=batched_logits,
         labels=batched_labels,
-        train_op_fn=lambda loss: loss * -7.,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        train_op_fn=lambda loss: loss * -7.)
 
     # Assert spec contains expected tensors.
     self.assertEqual(dtypes.float32, spec.loss.dtype)
@@ -1549,9 +1456,7 @@ class RegressionHeadForEstimator(test.TestCase):
         mode=ModeKeys.EVAL,
         logits=batched_logits,
         labels=batched_labels,
-        train_op_fn=None,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        train_op_fn=None)
 
     # losses = [1*(35-45)^2, .1*(42-41)^2, 1.5*(45-44)^2] = [100, .1, 1.5]
     # loss = sum(losses) = 100+.1+1.5 = 101.6
@@ -1636,9 +1541,7 @@ class PoissonRegressionHead(test.TestCase):
         mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
-        train_op_fn=_train_op_fn,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        train_op_fn=_train_op_fn)
 
     with self.cached_session() as sess:
       test_lib._initialize_variables(self, spec.scaffold)
@@ -1703,9 +1606,7 @@ class LogisticRegressionHead(test.TestCase):
         mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
-        train_op_fn=_train_op_fn,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        train_op_fn=_train_op_fn)
 
     with self.cached_session() as sess:
       test_lib._initialize_variables(self, spec.scaffold)
@@ -1740,9 +1641,7 @@ class LogisticRegressionHead(test.TestCase):
         mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
-        train_op_fn=_train_op_fn,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        train_op_fn=_train_op_fn)
 
     with self.cached_session() as sess:
       test_lib._initialize_variables(self, spec.scaffold)
@@ -1779,9 +1678,7 @@ class LogisticRegressionHead(test.TestCase):
         mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
-        train_op_fn=_train_op_fn,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        train_op_fn=_train_op_fn)
 
     with self.cached_session() as sess:
       test_lib._initialize_variables(self, spec.scaffold)

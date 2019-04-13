@@ -28,7 +28,6 @@ from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import errors
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import test_util
-from tensorflow.python.keras.optimizer_v2 import optimizer_v2
 from tensorflow.python.keras.utils import losses_utils
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import check_ops
@@ -117,9 +116,7 @@ class BinaryClassHeadTest(test.TestCase):
     spec = head.create_estimator_spec(
         features={'x': np.array(((42.,),))},
         mode=ModeKeys.PREDICT,
-        logits=logits_placeholder,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        logits=logits_placeholder)
     with self.cached_session():
       with self.assertRaisesRegexp(errors.OpError, 'logits shape'):
         spec.predictions[pred_key].eval({
@@ -260,9 +257,7 @@ class BinaryClassHeadTest(test.TestCase):
     spec = head.create_estimator_spec(
         features={'x': np.array(((42,),), dtype=np.int32)},
         mode=ModeKeys.PREDICT,
-        logits=logits,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        logits=logits)
 
     # Assert spec contains expected tensors.
     self.assertIsNone(spec.loss)
@@ -362,7 +357,8 @@ class BinaryClassHeadTest(test.TestCase):
     def _loss_fn(labels, logits):
       del labels, logits  # Unused
       return constant_op.constant(loss)
-    head = head_lib.BinaryClassHead(loss_fn=_loss_fn)
+    head = head_lib.BinaryClassHead(
+        loss_fn=_loss_fn)
 
     logits = np.array([[-10.], [10.]], dtype=np.float32)
     labels = np.array([[1], [0]], dtype=np.int64)
@@ -436,9 +432,7 @@ class BinaryClassHeadTest(test.TestCase):
         features=features,
         mode=ModeKeys.EVAL,
         logits=logits,
-        labels=labels,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        labels=labels)
     # Assert spec contains expected tensors.
     self.assertIsNotNone(spec.loss)
     self.assertItemsEqual(expected_metrics.keys(), spec.eval_metric_ops.keys())
@@ -459,7 +453,8 @@ class BinaryClassHeadTest(test.TestCase):
           expected_metrics, {k: value_ops[k].eval() for k in value_ops})
 
   def test_eval_metric_ops_with_head_name(self):
-    head = head_lib.BinaryClassHead(name='some_binary_head')
+    head = head_lib.BinaryClassHead(
+        name='some_binary_head')
     logits = np.array(((45,), (-41,),), dtype=np.float32)
     labels = np.array(((1,), (1,),), dtype=np.int32)
     features = {'x': np.array(((42,),), dtype=np.int32)}
@@ -523,9 +518,7 @@ class BinaryClassHeadTest(test.TestCase):
         mode=ModeKeys.EVAL,
         logits=logits,
         labels=labels,
-        regularization_losses=regularization_losses,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        regularization_losses=regularization_losses)
     # Assert predictions, loss, and metrics.
     with self.cached_session() as sess:
       test_lib._initialize_variables(self, spec.scaffold)
@@ -539,7 +532,8 @@ class BinaryClassHeadTest(test.TestCase):
           expected_metrics, {k: value_ops[k].eval() for k in value_ops})
 
   def test_eval_with_vocabulary_list_create_loss(self):
-    head = head_lib.BinaryClassHead(label_vocabulary=['aang', 'iroh'])
+    head = head_lib.BinaryClassHead(
+        label_vocabulary=['aang', 'iroh'])
     logits = np.array(((45,), (-41,),), dtype=np.float32)
     labels = [[b'iroh'], [b'iroh']]
     features = {'x': np.array(((42,),), dtype=np.int32)}
@@ -566,7 +560,8 @@ class BinaryClassHeadTest(test.TestCase):
       self.assertAllClose(expected_training_loss, training_loss.eval())
 
   def test_eval_with_vocabulary_list(self):
-    head = head_lib.BinaryClassHead(label_vocabulary=['aang', 'iroh'])
+    head = head_lib.BinaryClassHead(
+        label_vocabulary=['aang', 'iroh'])
     logits = np.array(((45,), (-41,),), dtype=np.float32)
     labels = [[b'iroh'], [b'iroh']]
     features = {'x': np.array(((42,),), dtype=np.int32)}
@@ -584,9 +579,7 @@ class BinaryClassHeadTest(test.TestCase):
         features=features,
         mode=ModeKeys.EVAL,
         logits=logits,
-        labels=labels,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        labels=labels)
 
     with self.cached_session() as sess:
       test_lib._initialize_variables(self, spec.scaffold)
@@ -621,7 +614,8 @@ class BinaryClassHeadTest(test.TestCase):
 
   def test_eval_with_thresholds(self):
     thresholds = [0.25, 0.5, 0.75]
-    head = head_lib.BinaryClassHead(thresholds=thresholds)
+    head = head_lib.BinaryClassHead(
+        thresholds=thresholds)
     logits = np.array(((-1,), (1,),), dtype=np.float32)
     labels = np.array(((1,), (1,),), dtype=np.int32)
     features = {'x': np.array(((42,),), dtype=np.int32)}
@@ -679,9 +673,7 @@ class BinaryClassHeadTest(test.TestCase):
         features=features,
         mode=ModeKeys.EVAL,
         logits=logits,
-        labels=labels,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        labels=labels)
     self.assertItemsEqual(expected_metrics.keys(), spec.eval_metric_ops.keys())
     with self.cached_session() as sess:
       test_lib._initialize_variables(self, spec.scaffold)
@@ -783,9 +775,7 @@ class BinaryClassHeadTest(test.TestCase):
         mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
-        train_op_fn=_train_op_fn,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        train_op_fn=_train_op_fn)
     # Assert spec contains expected tensors.
     self.assertIsNotNone(spec.loss)
     self.assertEqual({}, spec.eval_metric_ops)
@@ -873,9 +863,7 @@ class BinaryClassHeadTest(test.TestCase):
         mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels_rank_1,
-        train_op_fn=_train_op_fn,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        train_op_fn=_train_op_fn)
     # Assert spec contains expected tensors.
     self.assertIsNotNone(spec.loss)
     self.assertIsNotNone(spec.train_op)
@@ -926,9 +914,7 @@ class BinaryClassHeadTest(test.TestCase):
         logits=logits,
         labels=labels,
         train_op_fn=_train_op_fn,
-        regularization_losses=regularization_losses,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        regularization_losses=regularization_losses)
     # Assert predictions, loss, train_op, and summaries.
     with self.cached_session() as sess:
       test_lib._initialize_variables(self, spec.scaffold)
@@ -1027,9 +1013,7 @@ class BinaryClassHeadTest(test.TestCase):
         mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
-        train_op_fn=_train_op_fn,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        train_op_fn=_train_op_fn)
     # Assert predictions, loss, train_op, and summaries.
     with self.cached_session() as sess:
       test_lib._initialize_variables(self, spec.scaffold)
@@ -1093,9 +1077,7 @@ class BinaryClassHeadTest(test.TestCase):
         features=features,
         mode=ModeKeys.EVAL,
         logits=logits,
-        labels=labels,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        labels=labels)
     with self.cached_session() as sess:
       test_lib._initialize_variables(self, spec.scaffold)
       self.assertIsNone(spec.scaffold.summary_op)
@@ -1181,9 +1163,7 @@ class BinaryClassHeadTest(test.TestCase):
         features=features,
         mode=ModeKeys.EVAL,
         logits=logits,
-        labels=labels,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        labels=labels)
     # Assert spec contains expected tensors.
     self.assertIsNotNone(spec.loss)
     self.assertItemsEqual(expected_metrics.keys(), spec.eval_metric_ops.keys())
@@ -1235,9 +1215,7 @@ class BinaryClassHeadTest(test.TestCase):
         mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
-        train_op_fn=_train_op_fn,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        train_op_fn=_train_op_fn)
     # Assert spec contains expected tensors.
     self.assertIsNotNone(spec.loss)
     self.assertIsNotNone(spec.train_op)
@@ -1314,9 +1292,7 @@ class BinaryClassHeadTest(test.TestCase):
         mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
-        train_op_fn=_train_op_fn,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        train_op_fn=_train_op_fn)
     # Assert predictions, loss, train_op, and summaries.
     with self.cached_session() as sess:
       test_lib._initialize_variables(self, spec.scaffold)
@@ -1351,9 +1327,7 @@ class BinaryClassHeadTest(test.TestCase):
         mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
-        train_op_fn=_no_op_train_fn,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        train_op_fn=_no_op_train_fn)
     with self.cached_session():
       test_lib._initialize_variables(self, monitored_session.Scaffold())
       with self.assertRaisesRegexp(
@@ -1384,9 +1358,7 @@ class BinaryClassHeadTest(test.TestCase):
         mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
-        train_op_fn=_no_op_train_fn,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        train_op_fn=_no_op_train_fn)
     with self.cached_session():
       test_lib._initialize_variables(self, monitored_session.Scaffold())
       with self.assertRaisesRegexp(
@@ -1445,9 +1417,7 @@ class BinaryClassHeadTest(test.TestCase):
         features={'weights': weights},
         mode=ModeKeys.EVAL,
         logits=logits,
-        labels=labels,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        labels=labels)
     with self.cached_session() as sess:
       test_lib._initialize_variables(self, spec.scaffold)
       value_ops = {k: spec.eval_metric_ops[k][0] for k in spec.eval_metric_ops}
@@ -1464,42 +1434,6 @@ class BinaryClassHeadTest(test.TestCase):
 class BinaryClassHeadForEstimator(test.TestCase):
   """Tests for create_estimator_spec running in Graph mode only."""
 
-  def test_invalid_trainable_variables(self):
-    head = head_lib.BinaryClassHead()
-
-    class _Optimizer(optimizer_v2.OptimizerV2):
-
-      def get_updates(self, loss, params):
-        del params
-        return string_ops.string_join([
-            constant_op.constant('my_train_op'),
-            string_ops.as_string(loss, precision=2)
-        ])
-
-      def get_config(self):
-        config = super(_Optimizer, self).get_config()
-        return config
-
-    with self.assertRaisesRegexp(
-        ValueError, r'trainable_variables cannot be None'):
-      head.create_estimator_spec(
-          features={'x': np.array(((42,),), dtype=np.int32)},
-          mode=ModeKeys.TRAIN,
-          logits=np.array(((45,), (-41,),), dtype=np.float32),
-          labels=np.array(((1,), (1,),), dtype=np.float64),
-          optimizer=_Optimizer('my_optimizer'),
-          trainable_variables=None)
-    with self.assertRaisesRegexp(
-        ValueError, r'trainable_variables should be a list or a tuple'):
-      head.create_estimator_spec(
-          features={'x': np.array(((42,),), dtype=np.int32)},
-          mode=ModeKeys.TRAIN,
-          logits=np.array(((45,), (-41,),), dtype=np.float32),
-          labels=np.array(((1,), (1,),), dtype=np.float64),
-          optimizer=_Optimizer('my_optimizer'),
-          trainable_variables={'var_list': [
-              variables.Variable([1.0, 2.0], dtype=dtypes.float32)]})
-
   def test_train_with_optimizer(self):
     head = head_lib.BinaryClassHead()
 
@@ -1511,18 +1445,14 @@ class BinaryClassHeadForEstimator(test.TestCase):
     #      = sum(0, 41) / 2 = 41 / 2 = 20.5
     expected_loss = 20.5
 
-    class _Optimizer(optimizer_v2.OptimizerV2):
+    class _Optimizer(object):
 
-      def get_updates(self, loss, params):
-        del params
+      def minimize(self, loss, global_step):
+        del global_step
         with ops.control_dependencies((check_ops.assert_equal(
             math_ops.to_float(expected_loss), math_ops.to_float(loss),
             name='assert_loss'),)):
           return constant_op.constant(expected_train_result)
-
-      def get_config(self):
-        config = super(_Optimizer, self).get_config()
-        return config
 
     # Create estimator spec.
     spec = head.create_estimator_spec(
@@ -1530,9 +1460,7 @@ class BinaryClassHeadForEstimator(test.TestCase):
         mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
-        optimizer=_Optimizer('my_optimizer'),
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        optimizer=_Optimizer())
 
     with self.cached_session() as sess:
       test_lib._initialize_variables(self, spec.scaffold)
@@ -1551,16 +1479,13 @@ class BinaryClassHeadForEstimator(test.TestCase):
         del loss
         return t.assign(expected_train_result)
 
-      head = head_lib.BinaryClassHead()
+      head = head_lib.BinaryClassHead(update_ops=[update_op])
       spec = head.create_estimator_spec(
           features={'x': np.array(((42,),), dtype=np.int32)},
           mode=ModeKeys.TRAIN,
           logits=np.array(((45,), (-41,),), dtype=np.float32),
           labels=np.array(((1,), (1,),), dtype=np.float64),
-          train_op_fn=_train_op_fn,
-          update_ops=[update_op],
-          trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+          train_op_fn=_train_op_fn)
 
       with self.cached_session() as sess:
         test_lib._initialize_variables(self, spec.scaffold)
@@ -1590,9 +1515,7 @@ class BinaryClassHeadForEstimator(test.TestCase):
         mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
-        train_op_fn=_train_op_fn,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        train_op_fn=_train_op_fn)
     # Assert summaries.
     with self.cached_session() as sess:
       test_lib._initialize_variables(self, spec.scaffold)
@@ -1609,11 +1532,11 @@ class BinaryClassHeadForEstimator(test.TestCase):
         label_vocabulary=['aang', 'iroh'])
 
     feature_columns = [feature_column.numeric_column('x')]
-    est = dnn.DNNEstimatorV2(
+    est = dnn.DNNEstimator(
         head=head,
         hidden_units=(2, 2),
-        feature_columns=feature_columns,
-        batch_norm=True)
+        feature_columns=feature_columns)
+
     def input_fn():
       return (
           {'x': np.array(((42,), (43,),), dtype=np.int32)},

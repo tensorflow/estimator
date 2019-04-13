@@ -21,12 +21,6 @@ from __future__ import print_function
 import six
 import inspect
 
-from tensorflow.python.keras.optimizer_v2 import adagrad as adagrad_v2
-from tensorflow.python.keras.optimizer_v2 import adam as adam_v2
-from tensorflow.python.keras.optimizer_v2 import ftrl as ftrl_v2
-from tensorflow.python.keras.optimizer_v2 import gradient_descent as gradient_descent_v2
-from tensorflow.python.keras.optimizer_v2 import optimizer_v2
-from tensorflow.python.keras.optimizer_v2 import rmsprop as rmsprop_v2
 from tensorflow.python.training import adagrad
 from tensorflow.python.training import adam
 from tensorflow.python.training import ftrl
@@ -41,14 +35,6 @@ _OPTIMIZER_CLS_NAMES = {
     'Ftrl': ftrl.FtrlOptimizer,
     'RMSProp': rmsprop.RMSPropOptimizer,
     'SGD': gradient_descent.GradientDescentOptimizer,
-}
-
-_OPTIMIZER_CLS_NAMES_V2 = {
-    'Adagrad': adagrad_v2.Adagrad,
-    'Adam': adam_v2.Adam,
-    'Ftrl': ftrl_v2.Ftrl,
-    'RMSProp': rmsprop_v2.RMSProp,
-    'SGD': gradient_descent_v2.SGD,
 }
 
 # The default learning rate of 0.05 is a historical artifact of the initial
@@ -105,27 +91,25 @@ def _optimizer_has_default_learning_rate(opt):
 
 
 def get_optimizer_instance_v2(opt, learning_rate=None):
-  """Returns an optimizer_v2.OptimizerV2 instance.
+  """Returns an optimizer instance.
 
   Supports the following types for the given `opt`:
-  * An `optimizer_v2.OptimizerV2` instance: Returns the given `opt`.
-  * A string: Creates an `optimizer_v2.OptimizerV2` subclass with the given
-  `learning_rate`.
+  * An `Optimizer` instance: Returns the given `opt`.
+  * A string: Creates an `Optimizer` subclass with the given `learning_rate`.
     Supported strings:
-    * 'Adagrad': Returns an tf.keras.optimizers.Adagrad.
-    * 'Adam': Returns an tf.keras.optimizers.Adam.
-    * 'Ftrl': Returns an tf.keras.optimizers.Ftrl.
-    * 'RMSProp': Returns an tf.keras.optimizers.RMSProp.
-    * 'SGD': Returns a tf.keras.optimizers.SGD.
+    * 'Adagrad': Returns an `AdagradOptimizer`.
+    * 'Adam': Returns an `AdamOptimizer`.
+    * 'Ftrl': Returns an `FtrlOptimizer`.
+    * 'RMSProp': Returns an `RMSPropOptimizer`.
+    * 'SGD': Returns a `GradientDescentOptimizer`.
 
   Args:
-    opt: An `tf.keras.optimizers.Optimizer` instance, or string, as discussed
-      above.
+    opt: An `Optimizer` instance, or string, as discussed above.
     learning_rate: A float. Only used if `opt` is a string. If None, and opt is
       string, it will use the default learning_rate of the optimizer.
 
   Returns:
-    An `tf.keras.optimizers.Optimizer` instance.
+    An `Optimizer` instance.
 
   Raises:
     ValueError: If `opt` is an unsupported string.
@@ -134,20 +118,19 @@ def get_optimizer_instance_v2(opt, learning_rate=None):
     ValueError: If `opt` is none of the above types.
   """
   if isinstance(opt, six.string_types):
-    if opt in six.iterkeys(_OPTIMIZER_CLS_NAMES_V2):
+    if opt in six.iterkeys(_OPTIMIZER_CLS_NAMES):
       if not learning_rate:
-        if _optimizer_has_default_learning_rate(_OPTIMIZER_CLS_NAMES_V2[opt]):
-          return _OPTIMIZER_CLS_NAMES_V2[opt]()
+        if _optimizer_has_default_learning_rate(_OPTIMIZER_CLS_NAMES[opt]):
+          return _OPTIMIZER_CLS_NAMES[opt]()
         else:
-          return _OPTIMIZER_CLS_NAMES_V2[opt](learning_rate=_LEARNING_RATE)
-      return _OPTIMIZER_CLS_NAMES_V2[opt](learning_rate=learning_rate)
+          return _OPTIMIZER_CLS_NAMES[opt](learning_rate=_LEARNING_RATE)
+      return _OPTIMIZER_CLS_NAMES[opt](learning_rate=learning_rate)
     raise ValueError(
         'Unsupported optimizer name: {}. Supported names are: {}'.format(
-            opt, tuple(sorted(six.iterkeys(_OPTIMIZER_CLS_NAMES_V2)))))
+            opt, tuple(sorted(six.iterkeys(_OPTIMIZER_CLS_NAMES)))))
   if callable(opt):
     opt = opt()
-  if not isinstance(opt, optimizer_v2.OptimizerV2):
+  if not isinstance(opt, optimizer_lib.Optimizer):
     raise ValueError(
-        'The given object is not a tf.keras.optimizers.Optimizer instance.'
-        ' Given: {}'.format(opt))
+        'The given object is not an Optimizer instance. Given: {}'.format(opt))
   return opt

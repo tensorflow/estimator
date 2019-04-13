@@ -22,14 +22,13 @@ import numpy as np
 import six
 
 from tensorflow.python.eager import context
-from tensorflow.python.feature_column import feature_column_v2 as feature_column
+from tensorflow.python.feature_column import feature_column_lib as feature_column
 from tensorflow.python.framework import constant_op
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import errors
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import sparse_tensor
 from tensorflow.python.framework import test_util
-from tensorflow.python.keras.optimizer_v2 import optimizer_v2
 from tensorflow.python.keras.utils import losses_utils
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import control_flow_ops
@@ -172,9 +171,7 @@ class MultiLabelHead(test.TestCase):
     spec = head.create_estimator_spec(
         features={'x': np.array(((42,),), dtype=np.int32)},
         mode=ModeKeys.PREDICT,
-        logits=logits,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        logits=logits)
     self.assertItemsEqual(
         (test_lib._DEFAULT_SERVING_KEY, 'predict', 'classification'),
         spec.export_outputs.keys())
@@ -220,9 +217,7 @@ class MultiLabelHead(test.TestCase):
     spec = head.create_estimator_spec(
         features=features,
         mode=ModeKeys.PREDICT,
-        logits=logits,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        logits=logits)
     # Assert predictions and export_outputs.
     with self.cached_session() as sess:
       test_lib._initialize_variables(self, spec.scaffold)
@@ -405,9 +400,7 @@ class MultiLabelHead(test.TestCase):
         mode=ModeKeys.EVAL,
         logits=logits,
         labels=labels,
-        regularization_losses=regularization_losses,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        regularization_losses=regularization_losses)
     # Assert spec contains expected tensors.
     self.assertIsNotNone(spec.loss)
     self.assertItemsEqual(expected_metrics.keys(), spec.eval_metric_ops.keys())
@@ -822,9 +815,7 @@ class MultiLabelHead(test.TestCase):
         mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
-        train_op_fn=_train_op_fn,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        train_op_fn=_train_op_fn)
     with self.cached_session() as sess:
       test_lib._initialize_variables(self, spec.scaffold)
       with self.assertRaisesRegexp(
@@ -860,9 +851,7 @@ class MultiLabelHead(test.TestCase):
         mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
-        train_op_fn=_train_op_fn,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        train_op_fn=_train_op_fn)
     with self.cached_session() as sess:
       test_lib._initialize_variables(self, spec.scaffold)
       with self.assertRaisesRegexp(
@@ -893,9 +882,7 @@ class MultiLabelHead(test.TestCase):
         mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
-        train_op_fn=_train_op_fn,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        train_op_fn=_train_op_fn)
     self.assertIsNotNone(spec.loss)
     self.assertEqual({}, spec.eval_metric_ops)
     self.assertIsNotNone(spec.train_op)
@@ -965,6 +952,52 @@ class MultiLabelHead(test.TestCase):
     self._test_train(
         head=head, logits=logits, labels=labels, expected_loss=expected_loss)
 
+  def test_train_with_optimizer(self):
+    head = head_lib.MultiLabelHead(n_classes=2)
+    logits = np.array([[-10., 10.], [-15., 10.]], dtype=np.float32)
+    labels = np.array([[1, 0], [1, 1]], dtype=np.int64)
+    features = {'x': np.array(((42,),), dtype=np.int32)}
+    # For large logits, sigmoid cross entropy loss is approximated as:
+    # loss = labels * (logits < 0) * (-logits) +
+    #        (1 - labels) * (logits > 0) * logits =>
+    # expected_unweighted_loss = [[10., 10.], [15., 0.]]
+    # Average over classes, sum over examples, divide by batch_size.
+    # loss = ((10 + 10) / 2 + (15 + 0) / 2 ) / 2
+    expected_loss = 8.75
+    tol = 1e-3
+    loss = head.loss(
+        logits=logits,
+        labels=labels,
+        features=features,
+        mode=ModeKeys.TRAIN)
+    self.assertIsNotNone(loss)
+    self.assertAllClose(expected_loss, self.evaluate(loss), rtol=tol, atol=tol)
+    if context.executing_eagerly():
+      return
+
+    expected_train_result = 'my_train_op'
+
+    class _Optimizer(object):
+
+      def minimize(self, loss, global_step):
+        del global_step
+        return string_ops.string_join(
+            [constant_op.constant(expected_train_result),
+             string_ops.as_string(loss, precision=3)])
+    spec = head.create_estimator_spec(
+        features=features,
+        mode=ModeKeys.TRAIN,
+        logits=logits,
+        labels=labels,
+        optimizer=_Optimizer())
+    with self.cached_session() as sess:
+      test_lib._initialize_variables(self, spec.scaffold)
+      loss, train_result = sess.run((spec.loss, spec.train_op))
+      self.assertAllClose(expected_loss, loss, rtol=tol, atol=tol)
+      self.assertEqual(
+          six.b('{0:s}{1:.3f}'.format(expected_train_result, expected_loss)),
+          train_result)
+
   def test_train_with_regularization_losses(self):
     head = head_lib.MultiLabelHead(n_classes=2)
     logits = np.array([[-10., 10.], [-15., 10.]], dtype=np.float32)
@@ -1004,9 +1037,7 @@ class MultiLabelHead(test.TestCase):
         logits=logits,
         labels=labels,
         train_op_fn=_train_op_fn,
-        regularization_losses=regularization_losses,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        regularization_losses=regularization_losses)
     # Assert predictions, loss, train_op, and summaries.
     with self.cached_session() as sess:
       test_lib._initialize_variables(self, spec.scaffold)
@@ -1060,9 +1091,7 @@ class MultiLabelHead(test.TestCase):
         mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
-        train_op_fn=_train_op_fn,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        train_op_fn=_train_op_fn)
     self.assertIsNotNone(spec.loss)
     self.assertEqual({}, spec.eval_metric_ops)
     self.assertIsNotNone(spec.train_op)
@@ -1143,9 +1172,7 @@ class MultiLabelHead(test.TestCase):
         mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
-        train_op_fn=_train_op_fn,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        train_op_fn=_train_op_fn)
     with self.cached_session() as sess:
       test_lib._initialize_variables(self, monitored_session.Scaffold())
       loss, train_result = sess.run((spec.loss, spec.train_op))
@@ -1182,9 +1209,7 @@ class MultiLabelHead(test.TestCase):
         mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
-        train_op_fn=_train_op_fn,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        train_op_fn=_train_op_fn)
     with self.cached_session():
       test_lib._initialize_variables(self, monitored_session.Scaffold())
       with self.assertRaisesRegexp(
@@ -1221,9 +1246,7 @@ class MultiLabelHead(test.TestCase):
         mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
-        train_op_fn=_train_op_fn,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        train_op_fn=_train_op_fn)
     with self.cached_session():
       test_lib._initialize_variables(self, monitored_session.Scaffold())
       with self.assertRaisesRegexp(
@@ -1265,87 +1288,6 @@ class MultiLabelHead(test.TestCase):
 class MultiLabelHeadForEstimator(test.TestCase):
   """Tests for create_estimator_spec running in Graph mode only."""
 
-  def test_invalid_trainable_variables(self):
-    head = head_lib.MultiLabelHead(n_classes=2)
-
-    class _Optimizer(optimizer_v2.OptimizerV2):
-
-      def get_updates(self, loss, params):
-        del params
-        return string_ops.string_join([
-            constant_op.constant('my_train_op'),
-            string_ops.as_string(loss, precision=2)
-        ])
-
-      def get_config(self):
-        config = super(_Optimizer, self).get_config()
-        return config
-
-    with self.assertRaisesRegexp(
-        ValueError, r'trainable_variables cannot be None'):
-      head.create_estimator_spec(
-          features={'x': np.array(((42,),), dtype=np.int32)},
-          mode=ModeKeys.TRAIN,
-          logits=np.array([[-10., 10.], [-15., 10.]], dtype=np.float32),
-          labels=np.array([[1, 0], [1, 1]], dtype=np.int64),
-          optimizer=_Optimizer('my_optimizer'),
-          trainable_variables=None)
-    with self.assertRaisesRegexp(
-        ValueError, r'trainable_variables should be a list or a tuple'):
-      head.create_estimator_spec(
-          features={'x': np.array(((42,),), dtype=np.int32)},
-          mode=ModeKeys.TRAIN,
-          logits=np.array([[-10., 10.], [-15., 10.]], dtype=np.float32),
-          labels=np.array([[1, 0], [1, 1]], dtype=np.int64),
-          optimizer=_Optimizer('my_optimizer'),
-          trainable_variables={
-              'var_list': [
-                  variables.Variable([1.0, 2.0], dtype=dtypes.float32)]})
-
-  def test_train_with_optimizer(self):
-    head = head_lib.MultiLabelHead(n_classes=2)
-    logits = np.array([[-10., 10.], [-15., 10.]], dtype=np.float32)
-    labels = np.array([[1, 0], [1, 1]], dtype=np.int64)
-    features = {'x': np.array(((42,),), dtype=np.int32)}
-    # For large logits, sigmoid cross entropy loss is approximated as:
-    # loss = labels * (logits < 0) * (-logits) +
-    #        (1 - labels) * (logits > 0) * logits =>
-    # expected_unweighted_loss = [[10., 10.], [15., 0.]]
-    # Average over classes, sum over examples, divide by batch_size.
-    # loss = ((10 + 10) / 2 + (15 + 0) / 2 ) / 2
-    expected_loss = 8.75
-    expected_train_result = 'my_train_op'
-
-    class _Optimizer(optimizer_v2.OptimizerV2):
-
-      def get_updates(self, loss, params):
-        del params
-        return string_ops.string_join(
-            [constant_op.constant(expected_train_result),
-             string_ops.as_string(loss, precision=3)])
-
-      def get_config(self):
-        config = super(_Optimizer, self).get_config()
-        return config
-
-    spec = head.create_estimator_spec(
-        features=features,
-        mode=ModeKeys.TRAIN,
-        logits=logits,
-        labels=labels,
-        optimizer=_Optimizer('my_optimizer'),
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
-
-    tol = 1e-3
-    with self.cached_session() as sess:
-      test_lib._initialize_variables(self, spec.scaffold)
-      loss, train_result = sess.run((spec.loss, spec.train_op))
-      self.assertAllClose(expected_loss, loss, rtol=tol, atol=tol)
-      self.assertEqual(
-          six.b('{0:s}{1:.3f}'.format(expected_train_result, expected_loss)),
-          train_result)
-
   def test_predict_with_label_vocabulary(self):
     n_classes = 4
     head = head_lib.MultiLabelHead(
@@ -1358,9 +1300,7 @@ class MultiLabelHeadForEstimator(test.TestCase):
     spec = head.create_estimator_spec(
         features={'x': np.array(((42,),), dtype=np.int32)},
         mode=ModeKeys.PREDICT,
-        logits=logits,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        logits=logits)
 
     with self.cached_session() as sess:
       test_lib._initialize_variables(self, spec.scaffold)
@@ -1379,16 +1319,13 @@ class MultiLabelHeadForEstimator(test.TestCase):
         del loss
         return t.assign(expected_train_result)
 
-      head = head_lib.MultiLabelHead(n_classes=2)
+      head = head_lib.MultiLabelHead(n_classes=2, update_ops=[update_op])
       spec = head.create_estimator_spec(
           features={'x': np.array(((42,),), dtype=np.int32)},
           mode=ModeKeys.TRAIN,
           logits=np.array([[-10., 10.], [-15., 10.]], dtype=np.float32),
           labels=np.array([[1, 0], [1, 1]], dtype=np.int64),
-          train_op_fn=_train_op_fn,
-          update_ops=[update_op],
-          trainable_variables=[
-              variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+          train_op_fn=_train_op_fn)
 
       with self.cached_session() as sess:
         test_lib._initialize_variables(self, spec.scaffold)
@@ -1404,7 +1341,7 @@ class MultiLabelHeadForEstimator(test.TestCase):
 
     feature_columns = [feature_column.numeric_column('x')]
     # Create dnn estimator.
-    est = dnn.DNNEstimatorV2(
+    est = dnn.DNNEstimator(
         head=head,
         hidden_units=(2, 2),
         feature_columns=feature_columns)

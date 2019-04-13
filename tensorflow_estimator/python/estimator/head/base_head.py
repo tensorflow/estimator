@@ -29,7 +29,6 @@ from tensorflow.python.feature_column.feature_column import _NumericColumn
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import sparse_tensor
 from tensorflow.python.framework import tensor_util
-from tensorflow.python.keras.optimizer_v2 import optimizer_v2
 from tensorflow.python.keras.utils import losses_utils
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import check_ops
@@ -247,8 +246,7 @@ class Head(object):
 
   def create_estimator_spec(
       self, features, mode, logits, labels=None, optimizer=None,
-      trainable_variables=None, train_op_fn=None, update_ops=None,
-      regularization_losses=None):
+      train_op_fn=None, regularization_losses=None):
     """Returns `EstimatorSpec` that a model_fn can return.
 
     It is recommended to pass all args via name.
@@ -261,26 +259,15 @@ class Head(object):
       logits: Logits `Tensor` to be used by the head.
       labels: Labels `Tensor`, or `dict` mapping string label names to `Tensor`
         objects of the label values.
-      optimizer: An `tf.keras.optimizers.Optimizer` instance to optimize the
-        loss in TRAIN mode. Namely, sets `train_op = optimizer.get_updates(loss,
-        trainable_variables)`, which updates variables to minimize `loss`.
-      trainable_variables: A list or tuple of `Variable` objects to update to
-        minimize `loss`. In Tensorflow 1.x, by default these are the list of
-        variables collected in the graph under the key
-        `GraphKeys.TRAINABLE_VARIABLES`. As Tensorflow 2.x doesn't have
-        collections and GraphKeys, trainable_variables need to be passed
-        explicitly here.
+      optimizer: `Optimizer` instance to optimize the loss in TRAIN mode.
+        Namely, sets `train_op = optimizer.minimize(loss, global_step)`, which
+        updates variables and increments `global_step`.
       train_op_fn: Function that takes a scalar loss `Tensor` and returns an op
         to optimize the model with the loss in TRAIN mode. Used if `optimizer`
         is `None`. Exactly one of `train_op_fn` and `optimizer` must be set in
         TRAIN mode. By default, it is `None` in other modes. If you want to
         optimize loss yourself, you can pass `lambda _: tf.no_op()` and then use
         `EstimatorSpec.loss` to compute and apply gradients.
-      update_ops: A list or tuple of update ops to be run at training time. For
-        example, layers such as BatchNormalization create mean and variance
-        update ops that need to be run at training time. In Tensorflow 1.x,
-        these are thrown into an UPDATE_OPS collection. As Tensorflow 2.x
-        doesn't have collections, update_ops need to be passed explicitly here.
       regularization_losses: A list of additional scalar losses to be added to
         the training loss, such as regularization losses.
 
@@ -294,10 +281,8 @@ class Head(object):
     try:
       tpu_estimator_spec = (
           self._create_tpu_estimator_spec(
-              features=features, mode=mode, logits=logits, labels=labels,
-              optimizer=optimizer, trainable_variables=trainable_variables,
-              train_op_fn=train_op_fn, update_ops=update_ops,
-              regularization_losses=regularization_losses))
+              features, mode, logits, labels, optimizer, train_op_fn,
+              regularization_losses))
       return tpu_estimator_spec.as_estimator_spec()
     except NotImplementedError:
       raise NotImplementedError(
@@ -305,9 +290,8 @@ class Head(object):
           '_create_tpu_estimator_spec().')
 
   def _create_tpu_estimator_spec(
-      self, features, mode, logits, labels=None,
-      optimizer=None, trainable_variables=None, train_op_fn=None,
-      update_ops=None, regularization_losses=None,):
+      self, features, mode, logits, labels=None, optimizer=None,
+      train_op_fn=None, regularization_losses=None):
     """Returns `model_fn._TPUEstimatorSpec` that a model_fn can return.
 
     Args:
@@ -315,29 +299,18 @@ class Head(object):
         `SparseTensor` objects containing the values for that feature in a
         minibatch. Often to be used to fetch example-weight tensor.
       mode: Estimator's `ModeKeys`.
-      logits: Logits `Tensor` to be used by the head.
+      logits: logits `Tensor` to be used by the head.
       labels: Labels `Tensor`, or `dict` mapping string label names to `Tensor`
         objects of the label values.
-      optimizer: An `tf.keras.optimizers.Optimizer` instance to optimize the
-        loss in TRAIN mode. Namely, sets `train_op = optimizer.get_updates(loss,
-        trainable_variables)`, which updates variables to minimize `loss`.
-      trainable_variables: A list or tuple of `Variable` objects to update to
-        minimize `loss`. In Tensorflow 1.x, by default these are the list of
-        variables collected in the graph under the key
-        `GraphKeys.TRAINABLE_VARIABLES`. As Tensorflow 2.x doesn't have
-        collections and GraphKeys, trainable_variables need to be passed
-        explicitly here.
+      optimizer: `Optimizer` instance to optimize the loss in TRAIN mode.
+        Namely, sets `train_op = optimizer.minimize(loss, global_step)`, which
+        updates variables and increments `global_step`.
       train_op_fn: Function that takes a scalar loss `Tensor` and returns an op
         to optimize the model with the loss in TRAIN mode. Used if `optimizer`
         is `None`. Exactly one of `train_op_fn` and `optimizer` must be set in
-        TRAIN mode. By default, it is `None` in other modes. If you want to
-        optimize loss yourself, you can pass `lambda _: tf.no_op()` and then use
+        TRAIN mode. None is allowed in other modes. If you want to optimize loss
+        yourself you can pass `lambda _: tf.no_op()` and then use
         `EstimatorSpec.loss` to compute and apply gradients.
-      update_ops: A list or tuple of update ops to be run at training time. For
-        example, layers such as BatchNormalization create mean and variance
-        update ops that need to be run at training time. In Tensorflow 1.x,
-        these are thrown into an UPDATE_OPS collection. As Tensorflow 2.x
-        doesn't have collections, update_ops need to be passed explicitly here.
       regularization_losses: A list of additional scalar losses to be added to
         the training loss, such as regularization losses.
 
@@ -376,8 +349,6 @@ _MISMATCHED_LABEL_DIM_ERR_MSG = (
 _LABEL_SHAPE_ERR_MSG = (
     'labels shape must be [D0, D1, ... DN, {}]. Suggested Fix: check your '
     'n_classes argument to the head and/or the shape of your label.')
-
-_VALIDATION_ERROR_MSG = '{} should be a list or a tuple. Given type: {}.'
 
 
 def check_dense_labels_match_logits_and_reshape(labels, logits,
@@ -640,17 +611,8 @@ def validate_loss_reduction(loss_reduction):
 def validate_update_ops(update_ops=None):
   if update_ops is not None and not isinstance(update_ops, (list, tuple)):
     raise ValueError(
-        _VALIDATION_ERROR_MSG.format('update_ops', type(update_ops)))
-
-
-def validate_trainable_variables(trainable_variables=None):
-  if trainable_variables is None:
-    raise ValueError('trainable_variables cannot be None. Given {}'.format(
-        trainable_variables))
-  if not isinstance(trainable_variables, (list, tuple)):
-    raise ValueError(
-        _VALIDATION_ERROR_MSG.format(
-            'trainable_variables', type(trainable_variables)))
+        'update_ops should be a list or a tuple. Given type: {}'.format(
+            type(update_ops)))
 
 
 def call_loss_fn(loss_fn, labels, logits, features, expected_loss_dim=1):
@@ -796,54 +758,16 @@ def create_eval_metrics_tuple(fn, kwargs):
 
 
 def create_estimator_spec_train_op(
-    head_name, optimizer=None, trainable_variables=None, train_op_fn=None,
-    update_ops=None, regularized_training_loss=None):
-  """Create train_op for estimator_spec.
-
-  Args:
-    head_name: The name of the head.
-    optimizer: An `tf.keras.optimizers.Optimizer` instance to optimize the
-       loss in TRAIN mode. Namely, sets
-      `train_op = optimizer.get_updates(loss, trainable_variables)`,
-      which updates variables to minimize `loss`.
-    trainable_variables: A list or tuple of `Variable` objects to update to
-      minimize `loss`. In Tensorflow 1.x, by default these are the list of
-      variables collected in the graph under the key
-      `GraphKeys.TRAINABLE_VARIABLES`. As Tensorflow 2.x doesn't have
-      collections and GraphKeys, trainable_variables need to be passed
-      explicitly here.
-    train_op_fn: Function that takes a scalar loss `Tensor` and returns
-      `train_op`. Used if `optimizer` is `None`.
-    update_ops: A list or tuple of update ops to be run at training time. For
-      example, layers such as BatchNormalization create mean and variance
-      update ops that need to be run at training time. In Tensorflow 1.x,
-      these are thrown into an UPDATE_OPS collection. As Tensorflow 2.x
-      doesn't have collections, update_ops need to be passed explicitly here.
-    regularized_training_loss: A list of additional scalar losses to be added to
-      the training loss, such as regularization losses. These losses are
-      usually expressed as a batch average, so for best results users need to
-      set `loss_reduction=SUM_OVER_BATCH_SIZE` when creating the head to
-      avoid scaling errors.
-
-  Returns:
-    A train op for EstimatorSpec.
-  """
-  validate_update_ops(update_ops)
+    head_name, optimizer=None, train_op_fn=None, update_ops=None,
+    regularized_training_loss=None):
+  """Create train_op for estimator_spec."""
   with ops.name_scope(head_name, 'head'):
     if optimizer is not None:
       if train_op_fn is not None:
         raise ValueError('train_op_fn and optimizer cannot both be set.')
-      if isinstance(optimizer, optimizer_v2.OptimizerV2):
-        validate_trainable_variables(trainable_variables)
-        train_op = optimizer.get_updates(
-            regularized_training_loss, trainable_variables)
-      else:
-        # TODO(yhliang): this is to support linear model that still relies on
-        # optimizer v1. Can be removed after optimizer v2 is supported in
-        # linear.
-        train_op = optimizer.minimize(
-            regularized_training_loss,
-            global_step=training_util.get_global_step())
+      train_op = optimizer.minimize(
+          regularized_training_loss,
+          global_step=training_util.get_global_step())
     elif train_op_fn is not None:
       train_op = train_op_fn(regularized_training_loss)
     else:

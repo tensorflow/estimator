@@ -266,8 +266,7 @@ class SequentialHeadWrapper(_SequentialHead):
 
   def create_estimator_spec(
       self, features, mode, logits, labels=None, optimizer=None,
-      trainable_variables=None, train_op_fn=None, update_ops=None,
-      regularization_losses=None):
+      train_op_fn=None, regularization_losses=None):
     """Returns `EstimatorSpec` that a model_fn can return.
 
     If in TRAIN or EVAL mode, `logits`, `labels`, and `features` tensors
@@ -287,29 +286,18 @@ class SequentialHeadWrapper(_SequentialHead):
         [batch_size, seq_length, D2, ... DN].
       labels: Labels `Tensor` or `SparseTensor` or rank >= 2 and shape
         [batch_size, seq_length, D2, ... DN].
-      optimizer: An `tf.keras.optimizers.Optimizer` instance to optimize the
-        loss in TRAIN mode. Namely, sets
-        `train_op = optimizer.get_updates(loss, trainable_variables)`,
-        which updates variables to minimize `loss`.
-      trainable_variables: A list or tuple of `Variable` objects to update to
-        minimize `loss`. In Tensorflow 1.x, by default these are the list of
-        variables collected in the graph under the key
-        `GraphKeys.TRAINABLE_VARIABLES`. As Tensorflow 2.x doesn't have
-        collections and GraphKeys, trainable_variables need to be passed
-        explicitly here.
+      optimizer: `Optimizer` instance to optimize the loss in TRAIN mode.
+        Namely, sets `train_op = optimizer.minimize(loss, global_step)`, which
+        updates variables and increments `global_step`.
       train_op_fn: Function that takes a scalar loss `Tensor` and returns an op
         to optimize the model with the loss in TRAIN mode. Used if `optimizer`
         is `None`. Exactly one of `train_op_fn` and `optimizer` must be set in
         TRAIN mode. By default, it is `None` in other modes. If you want to
         optimize loss yourself, you can pass `lambda _: tf.no_op()` and then use
         `EstimatorSpec.loss` to compute and apply gradients.
-      update_ops: A list or tuple of update ops to be run at training time. For
-        example, layers such as BatchNormalization create mean and variance
-        update ops that need to be run at training time. In Tensorflow 1.x,
-        these are thrown into an UPDATE_OPS collection. As Tensorflow 2.x
-        doesn't have collections, update_ops need to be passed explicitly here.
       regularization_losses: A list of additional scalar losses to be added to
         the training loss, such as regularization losses.
+
     Returns:
       `EstimatorSpec`.
     """
@@ -325,9 +313,8 @@ class SequentialHeadWrapper(_SequentialHead):
 
     return self._static_head.create_estimator_spec(
         features=flat_features, mode=mode, logits=flat_logits,
-        trainable_variables=trainable_variables, labels=flat_labels,
-        optimizer=optimizer, train_op_fn=train_op_fn,
-        regularization_losses=regularization_losses, update_ops=update_ops)
+        labels=flat_labels, optimizer=optimizer, train_op_fn=train_op_fn,
+        regularization_losses=regularization_losses)
 
   def update_metrics(self, eval_metrics, features, logits, labels,
                      regularization_losses=None):
@@ -365,8 +352,7 @@ class SequentialHeadWrapper(_SequentialHead):
 
   def _create_tpu_estimator_spec(
       self, features, mode, logits, labels=None, optimizer=None,
-      trainable_variables=None, train_op_fn=None, update_ops=None,
-      regularization_losses=None):
+      train_op_fn=None, regularization_losses=None):
     raise NotImplementedError
 
   def predictions(self, logits, keys=None):

@@ -86,10 +86,9 @@ class CreateEstimatorSpecTest(test.TestCase):
                        mode=None, regularization_losses=None):
       return None
 
-    def _create_tpu_estimator_spec(
-        self, features, mode, logits, labels=None,
-        optimizer=None, trainable_variables=None, train_op_fn=None,
-        update_ops=None, regularization_losses=None,):
+    def _create_tpu_estimator_spec(self, features, mode, logits, labels=None,
+                                   optimizer=None, train_op_fn=None,
+                                   regularization_losses=None):
       return model_fn._TPUEstimatorSpec(
           mode=ModeKeys.EVAL,
           loss=constant_op.constant(0.0, dtype=dtypes.float32))
@@ -119,10 +118,9 @@ class CreateEstimatorSpecTest(test.TestCase):
                        mode=None, regularization_losses=None):
       return None
 
-    def create_estimator_spec(
-        self, features, mode, logits, labels=None,
-        optimizer=None, trainable_variables=None, train_op_fn=None,
-        update_ops=None, regularization_losses=None,):
+    def create_estimator_spec(self, features, mode, logits, labels=None,
+                              optimizer=None, train_op_fn=None,
+                              regularization_losses=None):
       return model_fn.EstimatorSpec(
           mode=ModeKeys.EVAL,
           loss=constant_op.constant(0.0, dtype=dtypes.float32))
