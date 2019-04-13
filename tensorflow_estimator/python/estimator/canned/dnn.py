@@ -54,6 +54,7 @@ def _add_hidden_layer_summary(value, tag):
   summary.histogram('%s/activation' % tag, value)
 
 
+@estimator_export(v1=['estimator.experimental.dnn_logit_fn_builder'])
 def dnn_logit_fn_builder(units, hidden_units, feature_columns, activation_fn,
                          dropout, input_layer_partitioner, batch_norm):
   """Function builder for a dnn logit_fn.
@@ -108,7 +109,6 @@ def dnn_logit_fn_builder(units, hidden_units, feature_columns, activation_fn,
   return dnn_logit_fn
 
 
-@estimator_export('estimator.experimental.dnn_logit_fn_builder', v1=[])
 def dnn_logit_fn_builder_v2(units, hidden_units, feature_columns, activation_fn,
                             dropout, batch_norm):
   """Function builder for a dnn logit_fn.

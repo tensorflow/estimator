@@ -312,7 +312,7 @@ def _compute_fraction_of_zero(variables):
     return zero_fraction_or_nan
 
 
-@estimator_export('estimator.experimental.linear_logit_fn_builder')
+@estimator_export(v1=['estimator.experimental.linear_logit_fn_builder'])
 def linear_logit_fn_builder(units, feature_columns, sparse_combiner='sum'):
   """Function builder for a linear logit_fn.
 
