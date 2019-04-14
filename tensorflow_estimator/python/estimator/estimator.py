@@ -1280,7 +1280,8 @@ class Estimator(object):
                     ModeKeys.TRAIN,
                     self.config))
           loss = strategy.reduce(reduce_util.ReduceOp.SUM,
-                                 grouped_estimator_spec.loss)
+                                 grouped_estimator_spec.loss,
+                                 axis=None)
           distributed_train_op = grouped_estimator_spec.train_op
 
         scaffold = _combine_distributed_scaffold(
