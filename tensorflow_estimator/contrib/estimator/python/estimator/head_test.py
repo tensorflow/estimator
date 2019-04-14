@@ -88,7 +88,7 @@ def _sigmoid_cross_entropy(labels, logits):
   sigmoid_logits = _sigmoid(logits)
   unreduced_result = (
       -labels * np.log(sigmoid_logits)
-      -(1 - labels) * np.log(1 - sigmoid_logits))
+      - (1 - labels) * np.log(1 - sigmoid_logits))
   # Mean over classes
   return np.mean(unreduced_result, axis=-1, keepdims=True)
 

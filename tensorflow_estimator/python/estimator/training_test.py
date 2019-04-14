@@ -983,7 +983,7 @@ class TrainingExecutorRunMasterTest(test.TestCase):
         input_fn=lambda: 1, steps=2, exporters=exporter, throttle_secs=10)
 
     mock_est.evaluate.side_effect = [
-        {_GLOBAL_STEP_KEY: train_spec.max_steps //2},
+        {_GLOBAL_STEP_KEY: train_spec.max_steps // 2},
         {_GLOBAL_STEP_KEY: train_spec.max_steps}
     ]
 
@@ -1036,7 +1036,7 @@ class TrainingExecutorRunMasterTest(test.TestCase):
         input_fn=lambda: 1, steps=2, exporters=exporter, throttle_secs=10)
 
     mock_est.evaluate.side_effect = [
-        {_GLOBAL_STEP_KEY: train_spec.max_steps //2},
+        {_GLOBAL_STEP_KEY: train_spec.max_steps // 2},
         {_GLOBAL_STEP_KEY: train_spec.max_steps}
     ]
 
