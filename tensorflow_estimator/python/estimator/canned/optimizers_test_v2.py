@@ -18,25 +18,28 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from tensorflow.python.framework import test_util
+from tensorflow.python.keras.optimizer_v2 import adagrad
+from tensorflow.python.keras.optimizer_v2 import adam
+from tensorflow.python.keras.optimizer_v2 import ftrl
+from tensorflow.python.keras.optimizer_v2 import gradient_descent
+from tensorflow.python.keras.optimizer_v2 import optimizer_v2
+from tensorflow.python.keras.optimizer_v2 import rmsprop
+from tensorflow.python.ops import variables
 from tensorflow.python.platform import test
-from tensorflow.python.training import adagrad
-from tensorflow.python.training import adam
-from tensorflow.python.training import ftrl
-from tensorflow.python.training import gradient_descent
-from tensorflow.python.training import optimizer as optimizer_lib
-from tensorflow.python.training import rmsprop
 from tensorflow_estimator.python.estimator.canned import optimizers
 
 
-class _TestOptimizerV2(optimizer_lib.Optimizer):
+class _TestOptimizerV2(optimizer_v2.OptimizerV2):
 
   def __init__(self):
-    super(_TestOptimizerV2, self).__init__(
-        use_locking=False, name='TestOptimizer')
+    super(_TestOptimizerV2, self).__init__(name='TestOptimizer')
+
+  def get_config(self):
+    pass
 
 
 class GetOptimizerInstanceV2(test.TestCase):
+  """Tests for Optimizer V2."""
 
   def test_unsupported_name(self):
     with self.assertRaisesRegexp(
@@ -45,39 +48,62 @@ class GetOptimizerInstanceV2(test.TestCase):
           'unsupported_name', learning_rate=0.1)
 
   def test_adagrad_but_no_learning_rate(self):
-    opt = optimizers.get_optimizer_instance_v2('Adagrad')
-    self.assertIsInstance(opt, adagrad.AdagradOptimizer)
-    self.assertAlmostEqual(0.05, opt._learning_rate)
+    with self.cached_session():
+      opt = optimizers.get_optimizer_instance_v2('Adagrad')
+      # The creation of variables in optimizer_v2 is deferred to when it's
+      # called, so we need to manually create it here. Same for all other tests.
+      self.assertIsInstance(opt.learning_rate, variables.Variable)
+      self.evaluate(variables.global_variables_initializer())
+      self.assertIsInstance(opt, adagrad.Adagrad)
+      self.assertAlmostEqual(0.001, self.evaluate(opt.learning_rate))
 
   def test_adam_but_no_learning_rate(self):
-    opt = optimizers.get_optimizer_instance_v2('Adam')
-    self.assertIsInstance(opt, adam.AdamOptimizer)
-    self.assertAlmostEqual(0.001, opt._lr)
+    with self.cached_session():
+      opt = optimizers.get_optimizer_instance_v2('Adam')
+      self.assertIsInstance(opt.learning_rate, variables.Variable)
+      self.evaluate(variables.global_variables_initializer())
+      self.assertIsInstance(opt, adam.Adam)
+      self.assertAlmostEqual(0.001, self.evaluate(opt.learning_rate))
 
   def test_adagrad(self):
-    opt = optimizers.get_optimizer_instance_v2('Adagrad', learning_rate=0.1)
-    self.assertIsInstance(opt, adagrad.AdagradOptimizer)
-    self.assertAlmostEqual(0.1, opt._learning_rate)
+    with self.cached_session():
+      opt = optimizers.get_optimizer_instance_v2('Adagrad', learning_rate=0.1)
+      self.assertIsInstance(opt.learning_rate, variables.Variable)
+      self.evaluate(variables.global_variables_initializer())
+      self.assertIsInstance(opt, adagrad.Adagrad)
+      self.assertAlmostEqual(0.1, self.evaluate(opt.learning_rate))
 
   def test_adam(self):
-    opt = optimizers.get_optimizer_instance_v2('Adam', learning_rate=0.1)
-    self.assertIsInstance(opt, adam.AdamOptimizer)
-    self.assertAlmostEqual(0.1, opt._lr)
+    with self.cached_session():
+      opt = optimizers.get_optimizer_instance_v2('Adam', learning_rate=0.1)
+      self.assertIsInstance(opt.learning_rate, variables.Variable)
+      self.evaluate(variables.global_variables_initializer())
+      self.assertIsInstance(opt, adam.Adam)
+      self.assertAlmostEqual(0.1, self.evaluate(opt.learning_rate))
 
   def test_ftrl(self):
-    opt = optimizers.get_optimizer_instance_v2('Ftrl', learning_rate=0.1)
-    self.assertIsInstance(opt, ftrl.FtrlOptimizer)
-    self.assertAlmostEqual(0.1, opt._learning_rate)
+    with self.cached_session():
+      opt = optimizers.get_optimizer_instance_v2('Ftrl', learning_rate=0.1)
+      self.assertIsInstance(opt.learning_rate, variables.Variable)
+      self.evaluate(variables.global_variables_initializer())
+      self.assertIsInstance(opt, ftrl.Ftrl)
+      self.assertAlmostEqual(0.1, self.evaluate(opt.learning_rate))
 
   def test_rmsprop(self):
-    opt = optimizers.get_optimizer_instance_v2('RMSProp', learning_rate=0.1)
-    self.assertIsInstance(opt, rmsprop.RMSPropOptimizer)
-    self.assertAlmostEqual(0.1, opt._learning_rate)
+    with self.cached_session():
+      opt = optimizers.get_optimizer_instance_v2('RMSProp', learning_rate=0.1)
+      self.assertIsInstance(opt.learning_rate, variables.Variable)
+      self.evaluate(variables.global_variables_initializer())
+      self.assertIsInstance(opt, rmsprop.RMSProp)
+      self.assertAlmostEqual(0.1, self.evaluate(opt.learning_rate))
 
   def test_sgd(self):
-    opt = optimizers.get_optimizer_instance_v2('SGD', learning_rate=0.1)
-    self.assertIsInstance(opt, gradient_descent.GradientDescentOptimizer)
-    self.assertAlmostEqual(0.1, opt._learning_rate)
+    with self.cached_session():
+      opt = optimizers.get_optimizer_instance_v2('SGD', learning_rate=0.1)
+      self.assertIsInstance(opt.learning_rate, variables.Variable)
+      self.evaluate(variables.global_variables_initializer())
+      self.assertIsInstance(opt, gradient_descent.SGD)
+      self.assertAlmostEqual(0.1, self.evaluate(opt.learning_rate))
 
   def test_object(self):
     opt = optimizers.get_optimizer_instance_v2(_TestOptimizerV2())
@@ -85,7 +111,8 @@ class GetOptimizerInstanceV2(test.TestCase):
 
   def test_object_invalid(self):
     with self.assertRaisesRegexp(
-        ValueError, 'The given object is not an Optimizer instance'):
+        ValueError,
+        'The given object is not a tf.keras.optimizers.Optimizer instance'):
       optimizers.get_optimizer_instance_v2((1, 2, 3))
 
   def test_callable(self):
@@ -106,7 +133,8 @@ class GetOptimizerInstanceV2(test.TestCase):
       return (1, 2, 3)
 
     with self.assertRaisesRegexp(
-        ValueError, 'The given object is not an Optimizer instance'):
+        ValueError,
+        'The given object is not a tf.keras.optimizers.Optimizer instance'):
       optimizers.get_optimizer_instance_v2(_optimizer_fn)
 
 

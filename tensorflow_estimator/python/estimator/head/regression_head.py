@@ -101,11 +101,6 @@ class RegressionHead(base_head.Head):
       `SUM_OVER_BATCH_SIZE`, namely weighted sum of losses divided by
       `batch size * label_dimension`.
     loss_fn: Optional loss function. Defaults to `mean_squared_error`.
-    update_ops: A list or tuple of update ops to be run at training time. For
-      example, layers such as BatchNormalization create mean and variance update
-      ops that need to be run at training time. In Tensorflow 1.x, these are
-      thrown into an UPDATE_OPS collection. As Tensorflow 2.x doesn't have
-      collections, update_ops need to be explicitly passed to Head constructor.
     inverse_link_fn: Optional inverse link function, also known as 'mean
       function'. Defaults to identity.
     name: name of the head. If provided, summary and metrics keys will be
@@ -117,7 +112,6 @@ class RegressionHead(base_head.Head):
                weight_column=None,
                loss_reduction=losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE,
                loss_fn=None,
-               update_ops=None,
                inverse_link_fn=None,
                name=None):
     if label_dimension < 1:
@@ -125,12 +119,10 @@ class RegressionHead(base_head.Head):
     base_head.validate_loss_reduction(loss_reduction)
     if loss_fn:
       base_head.validate_loss_fn_args(loss_fn)
-    base_head.validate_update_ops(update_ops)
     self._logits_dimension = label_dimension
     self._weight_column = weight_column
     self._loss_reduction = loss_reduction
     self._loss_fn = loss_fn
-    self._update_ops = update_ops
     self._inverse_link_fn = inverse_link_fn
     self._name = name
     # Metric keys.
@@ -263,7 +255,8 @@ class RegressionHead(base_head.Head):
 
   def _create_tpu_estimator_spec(
       self, features, mode, logits, labels=None, optimizer=None,
-      train_op_fn=None, regularization_losses=None):
+      trainable_variables=None, train_op_fn=None, update_ops=None,
+      regularization_losses=None):
     """Returns an `EstimatorSpec`.
 
     Args:
@@ -277,11 +270,23 @@ class RegressionHead(base_head.Head):
         `[D0, D1, ... DN, logits_dimension]`. When `logits_dimension=1`, shape
         `[D0, D1, ... DN]` is also supported. `labels` is a required argument
         when `mode` equals `TRAIN` or `EVAL`.
-      optimizer: `Optimizer` instance to optimize the loss in TRAIN mode.
-        Namely, sets `train_op = optimizer.minimize(loss, global_step)`, which
-        updates variables and increments `global_step`.
+      optimizer: An `tf.keras.optimizers.Optimizer` instance to optimize the
+         loss in TRAIN mode. Namely, sets
+        `train_op = optimizer.get_updates(loss, trainable_variables)`,
+        which updates variables to minimize `loss`.
+      trainable_variables: A list or tuple of `Variable` objects to update to
+        minimize `loss`. In Tensorflow 1.x, by default these are the list of
+        variables collected in the graph under the key
+        `GraphKeys.TRAINABLE_VARIABLES`. As Tensorflow 2.x doesn't have
+        collections and GraphKeys, trainable_variables need to be passed
+        explicitly here.
       train_op_fn: Function that takes a scalar loss `Tensor` and returns
         `train_op`. Used if `optimizer` is `None`.
+      update_ops: A list or tuple of update ops to be run at training time. For
+        example, layers such as BatchNormalization create mean and variance
+        update ops that need to be run at training time. In Tensorflow 1.x,
+        these are thrown into an UPDATE_OPS collection. As Tensorflow 2.x
+        doesn't have collections, update_ops need to be passed explicitly here.
       regularization_losses: A list of additional scalar losses to be added to
         the training loss, such as regularization losses. These losses are
         usually expressed as a batch average, so for best results users need to
@@ -332,7 +337,8 @@ class RegressionHead(base_head.Head):
       # Train.
       train_op = base_head.create_estimator_spec_train_op(
           head_name=self._name, optimizer=optimizer, train_op_fn=train_op_fn,
-          update_ops=self._update_ops,
+          update_ops=update_ops,
+          trainable_variables=trainable_variables,
           regularized_training_loss=regularized_training_loss)
     # Create summary.
     base_head.create_estimator_spec_summary(

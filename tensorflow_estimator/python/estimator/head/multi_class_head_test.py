@@ -29,6 +29,7 @@ from tensorflow.python.framework import errors
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import sparse_tensor
 from tensorflow.python.framework import test_util
+from tensorflow.python.keras.optimizer_v2 import optimizer_v2
 from tensorflow.python.keras.utils import losses_utils
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import control_flow_ops
@@ -126,7 +127,9 @@ class MultiClassHead(test.TestCase):
             (42.,),
         ))},
         mode=ModeKeys.PREDICT,
-        logits=logits_placeholder)
+        logits=logits_placeholder,
+        trainable_variables=[
+            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
     with self.cached_session():
       with self.assertRaisesRegexp(errors.OpError, 'logits shape'):
         spec.predictions[pred_key].eval({logits_placeholder: logits_2x2})
@@ -377,7 +380,9 @@ class MultiClassHead(test.TestCase):
     spec = head.create_estimator_spec(
         features={'x': np.array(((42,),), dtype=np.int32)},
         mode=ModeKeys.PREDICT,
-        logits=logits)
+        logits=logits,
+        trainable_variables=[
+            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
 
     self.assertItemsEqual(
         (test_lib._DEFAULT_SERVING_KEY, 'predict', 'classification'),
@@ -431,7 +436,9 @@ class MultiClassHead(test.TestCase):
     spec = head.create_estimator_spec(
         features={'x': np.array(((42,),), dtype=np.int32)},
         mode=ModeKeys.PREDICT,
-        logits=logits)
+        logits=logits,
+        trainable_variables=[
+            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
 
     with self.cached_session() as sess:
       test_lib._initialize_variables(self, spec.scaffold)
@@ -462,7 +469,9 @@ class MultiClassHead(test.TestCase):
       return
 
     spec = head.create_estimator_spec(
-        features=features, mode=ModeKeys.PREDICT, logits=logits)
+        features=features, mode=ModeKeys.PREDICT, logits=logits,
+        trainable_variables=[
+            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
 
     with self.cached_session() as sess:
       test_lib._initialize_variables(self, spec.scaffold)
@@ -604,7 +613,9 @@ class MultiClassHead(test.TestCase):
         features=features,
         mode=ModeKeys.EVAL,
         logits=logits,
-        labels=labels)
+        labels=labels,
+        trainable_variables=[
+            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
 
     # Assert spec contains expected tensors.
     self.assertIsNotNone(spec.loss)
@@ -692,7 +703,9 @@ class MultiClassHead(test.TestCase):
         mode=ModeKeys.EVAL,
         logits=logits,
         labels=labels,
-        regularization_losses=regularization_losses)
+        regularization_losses=regularization_losses,
+        trainable_variables=[
+            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
 
     # Assert predictions, loss, and metrics.
     with self.cached_session() as sess:
@@ -777,7 +790,9 @@ class MultiClassHead(test.TestCase):
         features=features,
         mode=ModeKeys.EVAL,
         logits=logits,
-        labels=labels)
+        labels=labels,
+        trainable_variables=[
+            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
 
     with self.cached_session() as sess:
       test_lib._initialize_variables(self, spec.scaffold)
@@ -844,7 +859,9 @@ class MultiClassHead(test.TestCase):
         features=features,
         mode=ModeKeys.EVAL,
         logits=logits,
-        labels=labels)
+        labels=labels,
+        trainable_variables=[
+            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
     # Assert spec contains expected tensors.
     self.assertIsNotNone(spec.loss)
     self.assertItemsEqual(expected_metrics.keys(), spec.eval_metric_ops.keys())
@@ -998,7 +1015,9 @@ class MultiClassHead(test.TestCase):
         mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
-        train_op_fn=_train_op_fn)
+        train_op_fn=_train_op_fn,
+        trainable_variables=[
+            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
 
     self.assertIsNotNone(spec.loss)
     self.assertEqual({}, spec.eval_metric_ops)
@@ -1063,7 +1082,9 @@ class MultiClassHead(test.TestCase):
         logits=logits,
         labels=labels,
         train_op_fn=_train_op_fn,
-        regularization_losses=regularization_losses)
+        regularization_losses=regularization_losses,
+        trainable_variables=[
+            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
 
     # Assert predictions, loss, train_op, and summaries.
     with self.cached_session() as sess:
@@ -1180,7 +1201,9 @@ class MultiClassHead(test.TestCase):
         mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels_rank_1,
-        train_op_fn=_train_op_fn)
+        train_op_fn=_train_op_fn,
+        trainable_variables=[
+            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
 
     self.assertIsNotNone(spec.loss)
     self.assertEqual({}, spec.eval_metric_ops)
@@ -1264,7 +1287,9 @@ class MultiClassHead(test.TestCase):
         mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
-        train_op_fn=_train_op_fn)
+        train_op_fn=_train_op_fn,
+        trainable_variables=[
+            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
     with self.cached_session() as sess:
       test_lib._initialize_variables(self, spec.scaffold)
       loss = sess.run(spec.loss)
@@ -1312,7 +1337,9 @@ class MultiClassHead(test.TestCase):
         mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
-        train_op_fn=_train_op_fn)
+        train_op_fn=_train_op_fn,
+        trainable_variables=[
+            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
 
     self.assertIsNotNone(spec.loss)
     self.assertEqual({}, spec.eval_metric_ops)
@@ -1405,7 +1432,9 @@ class MultiClassHead(test.TestCase):
         mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
-        train_op_fn=_train_op_fn)
+        train_op_fn=_train_op_fn,
+        trainable_variables=[
+            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
 
     # Assert predictions, loss, train_op, and summaries.
     with self.cached_session() as sess:
@@ -1442,7 +1471,9 @@ class MultiClassHead(test.TestCase):
         mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
-        train_op_fn=_no_op_train_fn)
+        train_op_fn=_no_op_train_fn,
+        trainable_variables=[
+            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
     with self.cached_session():
       test_lib._initialize_variables(self, monitored_session.Scaffold())
       with self.assertRaisesRegexp(
@@ -1479,7 +1510,9 @@ class MultiClassHead(test.TestCase):
         mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
-        train_op_fn=_no_op_train_fn)
+        train_op_fn=_no_op_train_fn,
+        trainable_variables=[
+            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
     with self.cached_session():
       test_lib._initialize_variables(self, monitored_session.Scaffold())
       with self.assertRaisesRegexp(
@@ -1535,7 +1568,9 @@ class MultiClassHead(test.TestCase):
         features={'weights': weights},
         mode=ModeKeys.EVAL,
         logits=logits,
-        labels=labels)
+        labels=labels,
+        trainable_variables=[
+            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
     # Assert predictions, loss, and metrics.
     with self.cached_session() as sess:
       test_lib._initialize_variables(self, spec.scaffold)
@@ -1554,6 +1589,49 @@ class MultiClassHead(test.TestCase):
 class MultiClassHeadForEstimator(test.TestCase):
   """Tests for create_estimator_spec running in Graph mode only."""
 
+  def test_invalid_trainable_variables(self):
+    n_classes = 3
+    head = head_lib.MultiClassHead(n_classes)
+
+    class _Optimizer(optimizer_v2.OptimizerV2):
+
+      def get_updates(self, loss, params):
+        del params
+        return string_ops.string_join([
+            constant_op.constant('my_train_op'),
+            string_ops.as_string(loss, precision=2)
+        ])
+
+      def get_config(self):
+        config = super(_Optimizer, self).get_config()
+        return config
+
+    with self.assertRaisesRegexp(
+        ValueError, r'trainable_variables cannot be None'):
+      head.create_estimator_spec(
+          features={'x': np.array(((42,),), dtype=np.int32)},
+          mode=ModeKeys.TRAIN,
+          logits=np.array((
+              (10, 0, 0),
+              (0, 10, 0),
+          ), dtype=np.float32),
+          labels=np.array(((1,), (1,)), dtype=np.int64),
+          optimizer=_Optimizer('my_optimizer'),
+          trainable_variables=None)
+    with self.assertRaisesRegexp(
+        ValueError, r'trainable_variables should be a list or a tuple'):
+      head.create_estimator_spec(
+          features={'x': np.array(((42,),), dtype=np.int32)},
+          mode=ModeKeys.TRAIN,
+          logits=np.array((
+              (10, 0, 0),
+              (0, 10, 0),
+          ), dtype=np.float32),
+          labels=np.array(((1,), (1,)), dtype=np.int64),
+          optimizer=_Optimizer('my_optimizer'),
+          trainable_variables={'var_list': [
+              variables.Variable([1.0, 2.0], dtype=dtypes.float32)]})
+
   def test_train_with_optimizer(self):
     n_classes = 3
     head = head_lib.MultiClassHead(n_classes)
@@ -1566,14 +1644,18 @@ class MultiClassHeadForEstimator(test.TestCase):
     features = {'x': np.array(((42,),), dtype=np.int32)}
     expected_train_result = 'my_train_op'
 
-    class _Optimizer(object):
+    class _Optimizer(optimizer_v2.OptimizerV2):
 
-      def minimize(self, loss, global_step):
-        del global_step
+      def get_updates(self, loss, params):
+        del params
         return string_ops.string_join([
             constant_op.constant(expected_train_result),
             string_ops.as_string(loss, precision=2)
         ])
+
+      def get_config(self):
+        config = super(_Optimizer, self).get_config()
+        return config
 
     # loss = sum(cross_entropy(labels, logits)) / batch_size
     #      = sum(10, 0) / 2 = 5.
@@ -1583,7 +1665,9 @@ class MultiClassHeadForEstimator(test.TestCase):
         mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
-        optimizer=_Optimizer())
+        optimizer=_Optimizer('my_optimizer'),
+        trainable_variables=[
+            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
 
     tol = 1e-2
     with self.cached_session() as sess:
@@ -1606,7 +1690,7 @@ class MultiClassHeadForEstimator(test.TestCase):
       def _train_op_fn(loss):
         del loss
         return t.assign(expected_train_result)
-      head = head_lib.MultiClassHead(n_classes, update_ops=[update_op])
+      head = head_lib.MultiClassHead(n_classes)
 
       spec = head.create_estimator_spec(
           features={'x': np.array(((42,),), dtype=np.int32)},
@@ -1616,7 +1700,10 @@ class MultiClassHeadForEstimator(test.TestCase):
               (0, 10, 0),
           ), dtype=np.float32),
           labels=np.array(((1,), (1,)), dtype=np.int64),
-          train_op_fn=_train_op_fn)
+          train_op_fn=_train_op_fn,
+          update_ops=[update_op],
+          trainable_variables=[
+            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
 
       with self.cached_session() as sess:
         test_lib._initialize_variables(self, spec.scaffold)
@@ -1647,7 +1734,9 @@ class MultiClassHeadForEstimator(test.TestCase):
         mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
-        train_op_fn=_train_op_fn)
+        train_op_fn=_train_op_fn,
+        trainable_variables=[
+            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
 
     # Assert summaries.
     tol = 1e-2
@@ -1669,7 +1758,7 @@ class MultiClassHeadForEstimator(test.TestCase):
 
     feature_columns = [feature_column.numeric_column('x')]
     # Create dnn estimator.
-    est = dnn.DNNEstimator(
+    est = dnn.DNNEstimatorV2(
         head=head,
         hidden_units=(2, 2),
         feature_columns=feature_columns)

@@ -23,6 +23,7 @@ import six
 from tensorflow.python.eager import context
 from tensorflow.python.framework import ops
 from tensorflow.python.keras import metrics
+from tensorflow.python.keras.optimizer_v2 import optimizer_v2
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import math_ops
@@ -336,7 +337,8 @@ class MultiHead(base_head.Head):
 
   def create_estimator_spec(
       self, features, mode, logits, labels=None, optimizer=None,
-      train_op_fn=None, regularization_losses=None):
+      trainable_variables=None, train_op_fn=None, update_ops=None,
+      regularization_losses=None):
     """Returns a `model_fn.EstimatorSpec`.
 
     Args:
@@ -352,11 +354,22 @@ class MultiHead(base_head.Head):
         can be integer or string `Tensor` with shape matching its corresponding
         `logits`.`labels` is a required argument when `mode` equals `TRAIN` or
         `EVAL`.
-      optimizer: `Optimizer` instance to optimize the loss in TRAIN mode.
-        Namely, sets `train_op = optimizer.minimize(loss, global_step)`, which
-        updates variables and increments `global_step`.
+      optimizer: An `tf.keras.optimizers.Optimizer` instance to optimize the
+        loss in TRAIN mode. Namely, sets `train_op = optimizer.get_updates(loss,
+        trainable_variables)`, which updates variables to minimize `loss`.
+      trainable_variables: A list or tuple of `Variable` objects to update to
+        minimize `loss`. In Tensorflow 1.x, by default these are the list of
+        variables collected in the graph under the key
+        `GraphKeys.TRAINABLE_VARIABLES`. As Tensorflow 2.x doesn't have
+        collections and GraphKeys, trainable_variables need to be passed
+        explicitly here.
       train_op_fn: Function that takes a scalar loss `Tensor` and returns
         `train_op`. Used if `optimizer` is `None`.
+      update_ops: A list or tuple of update ops to be run at training time. For
+        example, layers such as BatchNormalization create mean and variance
+        update ops that need to be run at training time. In Tensorflow 1.x,
+        these are thrown into an UPDATE_OPS collection. As Tensorflow 2.x
+        doesn't have collections, update_ops need to be passed explicitly here.
       regularization_losses: A list of additional scalar losses to be added to
         the training loss, such as regularization losses. These losses are
         usually expressed as a batch average, so for best results, in each head,
@@ -411,8 +424,14 @@ class MultiHead(base_head.Head):
         if optimizer is not None:
           if train_op_fn is not None:
             raise ValueError('train_op_fn and optimizer cannot both be set.')
-          train_op = optimizer.minimize(
-              loss, global_step=training_util.get_global_step())
+          if isinstance(optimizer, optimizer_v2.OptimizerV2):
+            base_head.validate_trainable_variables(trainable_variables)
+            train_op = optimizer.get_updates(
+                loss, trainable_variables)
+          else:
+            train_op = optimizer.minimize(
+                loss,
+                global_step=training_util.get_global_step())
         elif train_op_fn is not None:
           train_op = train_op_fn(loss)
         else:

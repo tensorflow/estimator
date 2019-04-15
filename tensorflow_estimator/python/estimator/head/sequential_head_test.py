@@ -25,16 +25,19 @@ import numpy as np
 
 from tensorflow.python.eager import context
 from tensorflow.python.framework import constant_op
+from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import errors_impl
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import sparse_tensor
 from tensorflow.python.framework import test_util
+from tensorflow.python.keras.optimizer_v2 import optimizer_v2
 from tensorflow.python.keras.utils import losses_utils
+from tensorflow.python.ops import variables
 from tensorflow.python.platform import test
 from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.canned import prediction_keys
 from tensorflow_estimator.python.estimator.head import binary_class_head as binary_head_lib
-from tensorflow_estimator.python.estimator.head import head_utils
+from tensorflow_estimator.python.estimator.head import head_utils as test_lib
 from tensorflow_estimator.python.estimator.head import multi_class_head as multi_head_lib
 from tensorflow_estimator.python.estimator.head import multi_head
 from tensorflow_estimator.python.estimator.head import sequential_head as seq_head_lib
@@ -264,7 +267,9 @@ class TestSequentialHead(test.TestCase):
       return
 
     spec = head.create_estimator_spec(
-        features=features, mode=ModeKeys.PREDICT, logits=logits)
+        features=features, mode=ModeKeys.PREDICT, logits=logits,
+        trainable_variables=[
+            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
     self.assertIn('sequence_mask', spec.predictions)
     with self.cached_session() as sess:
       self.assertAllEqual(sess.run(spec.predictions['sequence_mask']),
@@ -318,6 +323,9 @@ class TestSequentialHead(test.TestCase):
     features = {'weights': [[0.3, 0.2], [0.5, 100]],
                 'mask': [[1, 1], [1, 0]]}
     head = seq_head_lib.SequentialHeadWrapper(_MockHead(), 'mask', 'weights')
+    w = variables.Variable(1)
+    update_op = w.assign_add(1)
+    trainable_variables = [variables.Variable([1.0, 2.0], dtype=dtypes.float32)]
     expected_output = {
         'logits': [[1], [2], [3]],
         'labels': [[0], [1], [0]],
@@ -325,7 +333,9 @@ class TestSequentialHead(test.TestCase):
         'mode': ModeKeys.TRAIN,
         'regularization_losses': 123,
         'optimizer': 'my-opt',
-        'train_op_fn': 'my-train-op'
+        'train_op_fn': 'my-train-op',
+        'trainable_variables': trainable_variables,
+        'update_ops': [update_op]
     }
     spec = head.create_estimator_spec(
         logits=_convert_to_tensor(logits),
@@ -334,7 +344,9 @@ class TestSequentialHead(test.TestCase):
         mode=ModeKeys.TRAIN,
         optimizer='my-opt',
         train_op_fn='my-train-op',
-        regularization_losses=123)
+        regularization_losses=123,
+        update_ops=[update_op],
+        trainable_variables=trainable_variables)
     with self.cached_session() as sess:
       self.assertItemsEqual(spec.kwargs.keys(), expected_output.keys())
       self._assert_equal(spec.kwargs, dref=expected_output, session=sess)
@@ -384,18 +396,24 @@ class TestSequentialHead(test.TestCase):
         values=(0, 1, 2),
         dense_shape=(2, 2))
 
-    class _Optimizer(object):
+    class _Optimizer(optimizer_v2.OptimizerV2):
 
-      def minimize(self, loss, global_step):
-        del global_step, loss
+      def get_updates(self, loss, params):
+        del params, loss
         return constant_op.constant('op')
+
+      def get_config(self):
+        config = super(_Optimizer, self).get_config()
+        return config
 
     if context.executing_eagerly():
       loss = head.loss(logits=logits, labels=labels, features=features)
     else:
       spec = head.create_estimator_spec(
-          features, ModeKeys.TRAIN, logits, labels,
-          optimizer=_Optimizer())
+          features, ModeKeys.TRAIN, logits, labels=labels,
+          optimizer=_Optimizer('my_optimizer'),
+          trainable_variables=[
+              variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
       with self.cached_session() as sess:
         loss = sess.run(spec.loss)
     self.assertAllClose(loss, expected_loss, atol=1e-4)
@@ -456,10 +474,12 @@ class TestSequentialHead(test.TestCase):
 
     spec = head.create_estimator_spec(
         features=features, mode=ModeKeys.EVAL, logits=logits,
-        labels=labels, regularization_losses=regularization_losses)
+        labels=labels, regularization_losses=regularization_losses,
+        trainable_variables=[
+            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
 
     with self.cached_session() as sess:
-      head_utils._initialize_variables(self, spec.scaffold)
+      test_lib._initialize_variables(self, spec.scaffold)
       self.assertIsNone(spec.scaffold.summary_op)
       value_ops = {k: spec.eval_metric_ops[k][0] for k in spec.eval_metric_ops}
       update_ops = {k: spec.eval_metric_ops[k][1] for k in spec.eval_metric_ops}
