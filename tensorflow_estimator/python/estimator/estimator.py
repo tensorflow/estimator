@@ -1381,6 +1381,7 @@ class Estimator(object):
 
     if (self._config.cluster_spec and type(
         self._train_distribution).__name__ in ('CollectiveAllReduceStrategy',
+                                               'CollectiveAllReduceStrategyV1',
                                                'MultiWorkerMirroredStrategy')):
       return self._train_with_estimator_spec_distributed(
           estimator_spec, worker_hooks, saving_listeners)
