@@ -56,6 +56,7 @@ from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 from tensorflow_estimator.python.estimator.model_fn import call_logit_fn
 from tensorflow_estimator.python.estimator.model_fn import EstimatorSpec
 from tensorflow_estimator.python.estimator.run_config import RunConfig
+from tensorflow_estimator.python.estimator.tpu.tpu_estimator import TPUEstimator
 from tensorflow_estimator.python.estimator.training import EvalSpec
 from tensorflow_estimator.python.estimator.training import train_and_evaluate
 from tensorflow_estimator.python.estimator.training import TrainSpec
