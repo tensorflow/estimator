@@ -30,6 +30,7 @@ import six
 from google.protobuf import message
 from tensorflow.core.framework import summary_pb2
 from tensorflow.python.client import session as tf_session
+from tensorflow.python.distribute import distribute_lib
 from tensorflow.python.distribute import estimator_training as distribute_coordinator_training
 from tensorflow.python.distribute import reduce_util
 from tensorflow.python.eager import context
@@ -63,6 +64,7 @@ from tensorflow.python.util import compat_internal
 from tensorflow.python.util import deprecation
 from tensorflow.python.util import function_utils
 from tensorflow.python.util import nest
+from tensorflow.python.util import tf_contextlib
 from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
 from tensorflow_estimator.python.estimator import run_config
@@ -1227,7 +1229,23 @@ class Estimator(object):
       # and doesn't need to be a Mirrored/Device variable.
       if is_tpu_strategy:
         steps_per_run_variable = training.get_or_create_steps_per_run_variable()
-      with strategy.scope():
+
+      # Set flag on the distribution strategy so that optimizer v1 is
+      # distribution aware and scales the losses by number of replicas.
+      # This is required only for backward compatibility with estimator and
+      # V1 optimizer. TF2 will not do this scaling.
+      if hasattr(strategy, '_scale_loss_for_estimator_enabled'):
+        scale_ctx = strategy._scale_loss_for_estimator_enabled()  # pylint: disable=protected-access
+      else:
+        # TODO(psv): Remove this clause after estimator repo gets the
+        # distribute library changes related to loss scaling.
+        @tf_contextlib.contextmanager
+        def nullcontextmanager():
+          yield
+
+        scale_ctx = nullcontextmanager()
+
+      with strategy.scope(), scale_ctx:
         random_seed.set_random_seed(self._config.tf_random_seed)
         iterator, input_hooks = self._get_iterator_from_input_fn(
             input_fn, ModeKeys.TRAIN, strategy)
@@ -1235,9 +1253,8 @@ class Estimator(object):
         global_step_tensor = self._create_and_assert_global_step(g)
         # we want to add to the global collection in the main thread not the
         # replica threads.
-        ops.add_to_collection(
-            training_util.GLOBAL_STEP_READ_KEY,
-            strategy.extended.read_var(global_step_tensor))
+        ops.add_to_collection(training_util.GLOBAL_STEP_READ_KEY,
+                              strategy.extended.read_var(global_step_tensor))
 
         if is_tpu_strategy:
           # Create a step_fn from the train_op of grouped_estimator_spec
@@ -1250,14 +1267,11 @@ class Estimator(object):
               labels = None
             estimator_spec = strategy.extended.call_for_each_replica(
                 self._call_model_fn,
-                args=(features,
-                      labels,
-                      ModeKeys.TRAIN,
-                      self.config))
+                args=(features, labels, ModeKeys.TRAIN, self.config))
             ctx.set_last_step_output(
                 name='loss',
                 output=estimator_spec.loss,
-                reduce_op=reduce_util.ReduceOp.SUM)
+                reduce_op=_get_loss_reduce_op_for_reporting())
             ctx.set_non_tensor_output(
                 name='estimator_spec', output=estimator_spec)
             return estimator_spec.train_op
@@ -1279,9 +1293,10 @@ class Estimator(object):
                     labels,  # although this will be None it seems
                     ModeKeys.TRAIN,
                     self.config))
-          loss = strategy.reduce(reduce_util.ReduceOp.SUM,
-                                 grouped_estimator_spec.loss,
-                                 axis=None)
+          loss = strategy.reduce(
+              _get_loss_reduce_op_for_reporting(),
+              grouped_estimator_spec.loss,
+              axis=None)
           distributed_train_op = grouped_estimator_spec.train_op
 
         scaffold = _combine_distributed_scaffold(
@@ -1698,6 +1713,13 @@ class EstimatorV2(Estimator):
   def _assert_members_are_not_overridden(self):
     """Asserts members of `Estimator` are not overridden."""
     _assert_members_are_not_overridden(EstimatorV2, self)
+
+
+def _get_loss_reduce_op_for_reporting():
+  graph = ops.get_default_graph()
+  if getattr(graph, '_is_loss_scaled_by_optimizer', False):  # pylint: disable=protected-access
+    return distribute_lib.get_loss_reduction()
+  return reduce_util.ReduceOp.SUM
 
 
 def _assert_members_are_not_overridden(cls, obj):
