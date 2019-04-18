@@ -18,14 +18,10 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import numpy as np
 
-from tensorflow.python.eager import context
-from tensorflow.python.feature_column import feature_column
 from tensorflow.python.feature_column import feature_column_v2
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
-from tensorflow.python.framework import test_util
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import gen_math_ops
 from tensorflow.python.platform import test
@@ -44,15 +40,6 @@ def _linear_classifier_fn(*args, **kwargs):
 # Tests for Linear Regressor.
 
 
-class LinearRegressorEvaluationTest(
-    linear_testing_utils.BaseLinearRegressorEvaluationTest, test.TestCase):
-
-  def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
-    linear_testing_utils.BaseLinearRegressorEvaluationTest.__init__(
-        self, _linear_regressor_fn, fc_lib=feature_column)
-
-
 class LinearRegressorEvaluationV2Test(
     linear_testing_utils.BaseLinearRegressorEvaluationTest, test.TestCase):
 
@@ -60,15 +47,6 @@ class LinearRegressorEvaluationV2Test(
     test.TestCase.__init__(self, methodName)
     linear_testing_utils.BaseLinearRegressorEvaluationTest.__init__(
         self, _linear_regressor_fn, fc_lib=feature_column_v2)
-
-
-class LinearRegressorPredictTest(
-    linear_testing_utils.BaseLinearRegressorPredictTest, test.TestCase):
-
-  def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
-    linear_testing_utils.BaseLinearRegressorPredictTest.__init__(
-        self, _linear_regressor_fn, fc_lib=feature_column)
 
 
 class LinearRegressorPredictV2Test(
@@ -80,15 +58,6 @@ class LinearRegressorPredictV2Test(
         self, _linear_regressor_fn, fc_lib=feature_column_v2)
 
 
-class LinearRegressorIntegrationTest(
-    linear_testing_utils.BaseLinearRegressorIntegrationTest, test.TestCase):
-
-  def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
-    linear_testing_utils.BaseLinearRegressorIntegrationTest.__init__(
-        self, _linear_regressor_fn, fc_lib=feature_column)
-
-
 class LinearRegressorIntegrationV2Test(
     linear_testing_utils.BaseLinearRegressorIntegrationTest, test.TestCase):
 
@@ -96,15 +65,6 @@ class LinearRegressorIntegrationV2Test(
     test.TestCase.__init__(self, methodName)
     linear_testing_utils.BaseLinearRegressorIntegrationTest.__init__(
         self, _linear_regressor_fn, fc_lib=feature_column_v2)
-
-
-class LinearRegressorTrainingTest(
-    linear_testing_utils.BaseLinearRegressorTrainingTest, test.TestCase):
-
-  def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
-    linear_testing_utils.BaseLinearRegressorTrainingTest.__init__(
-        self, _linear_regressor_fn, fc_lib=feature_column)
 
 
 class LinearRegressorTrainingV2Test(
@@ -118,14 +78,6 @@ class LinearRegressorTrainingV2Test(
 
 # Tests for Linear Classifier.
 
-class LinearClassifierTrainingTest(
-    linear_testing_utils.BaseLinearClassifierTrainingTest, test.TestCase):
-
-  def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
-    linear_testing_utils.BaseLinearClassifierTrainingTest.__init__(
-        self, linear_classifier_fn=_linear_classifier_fn, fc_lib=feature_column)
-
 
 class LinearClassifierTrainingV2Test(
     linear_testing_utils.BaseLinearClassifierTrainingTest, test.TestCase):
@@ -136,15 +88,6 @@ class LinearClassifierTrainingV2Test(
         self,
         linear_classifier_fn=_linear_classifier_fn,
         fc_lib=feature_column_v2)
-
-
-class LinearClassifierEvaluationTest(
-    linear_testing_utils.BaseLinearClassifierEvaluationTest, test.TestCase):
-
-  def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
-    linear_testing_utils.BaseLinearClassifierEvaluationTest.__init__(
-        self, linear_classifier_fn=_linear_classifier_fn, fc_lib=feature_column)
 
 
 class LinearClassifierEvaluationV2Test(
@@ -158,15 +101,6 @@ class LinearClassifierEvaluationV2Test(
         fc_lib=feature_column_v2)
 
 
-class LinearClassifierPredictTest(
-    linear_testing_utils.BaseLinearClassifierPredictTest, test.TestCase):
-
-  def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
-    linear_testing_utils.BaseLinearClassifierPredictTest.__init__(
-        self, linear_classifier_fn=_linear_classifier_fn, fc_lib=feature_column)
-
-
 class LinearClassifierPredictV2Test(
     linear_testing_utils.BaseLinearClassifierPredictTest, test.TestCase):
 
@@ -176,15 +110,6 @@ class LinearClassifierPredictV2Test(
         self,
         linear_classifier_fn=_linear_classifier_fn,
         fc_lib=feature_column_v2)
-
-
-class LinearClassifierIntegrationTest(
-    linear_testing_utils.BaseLinearClassifierIntegrationTest, test.TestCase):
-
-  def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
-    linear_testing_utils.BaseLinearClassifierIntegrationTest.__init__(
-        self, linear_classifier_fn=_linear_classifier_fn, fc_lib=feature_column)
 
 
 class LinearClassifierIntegrationV2Test(
@@ -200,14 +125,6 @@ class LinearClassifierIntegrationV2Test(
 
 # Tests for Linear logit_fn.
 
-class LinearLogitFnTest(linear_testing_utils.BaseLinearLogitFnTest,
-                        test.TestCase):
-
-  def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
-    linear_testing_utils.BaseLinearLogitFnTest.__init__(
-        self, fc_lib=feature_column)
-
 
 class LinearLogitFnV2Test(linear_testing_utils.BaseLinearLogitFnTest,
                           test.TestCase):
@@ -219,17 +136,6 @@ class LinearLogitFnV2Test(linear_testing_utils.BaseLinearLogitFnTest,
 
 
 # Tests for warm-starting with Linear logit_fn.
-
-class LinearWarmStartingTest(linear_testing_utils.BaseLinearWarmStartingTest,
-                             test.TestCase):
-
-  def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
-    linear_testing_utils.BaseLinearWarmStartingTest.__init__(
-        self,
-        _linear_classifier_fn,
-        _linear_regressor_fn,
-        fc_lib=feature_column)
 
 
 class LinearWarmStartingV2Test(linear_testing_utils.BaseLinearWarmStartingTest,

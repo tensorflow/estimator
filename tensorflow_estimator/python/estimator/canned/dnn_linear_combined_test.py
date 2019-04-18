@@ -112,15 +112,6 @@ def _linear_regressor_fn(feature_columns,
       linear_sparse_combiner=sparse_combiner)
 
 
-class LinearOnlyRegressorEvaluationTest(
-    linear_testing_utils.BaseLinearRegressorEvaluationTest, test.TestCase):
-
-  def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
-    linear_testing_utils.BaseLinearRegressorEvaluationTest.__init__(
-        self, _linear_regressor_fn, fc_lib=feature_column)
-
-
 class LinearOnlyRegressorEvaluationV2Test(
     linear_testing_utils.BaseLinearRegressorEvaluationTest, test.TestCase):
 
@@ -128,15 +119,6 @@ class LinearOnlyRegressorEvaluationV2Test(
     test.TestCase.__init__(self, methodName)
     linear_testing_utils.BaseLinearRegressorEvaluationTest.__init__(
         self, _linear_regressor_fn, fc_lib=feature_column_v2)
-
-
-class LinearOnlyRegressorPredictTest(
-    linear_testing_utils.BaseLinearRegressorPredictTest, test.TestCase):
-
-  def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
-    linear_testing_utils.BaseLinearRegressorPredictTest.__init__(
-        self, _linear_regressor_fn, fc_lib=feature_column)
 
 
 class LinearOnlyRegressorPredictV2Test(
@@ -148,15 +130,6 @@ class LinearOnlyRegressorPredictV2Test(
         self, _linear_regressor_fn, fc_lib=feature_column_v2)
 
 
-class LinearOnlyRegressorIntegrationTest(
-    linear_testing_utils.BaseLinearRegressorIntegrationTest, test.TestCase):
-
-  def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
-    linear_testing_utils.BaseLinearRegressorIntegrationTest.__init__(
-        self, _linear_regressor_fn, fc_lib=feature_column)
-
-
 class LinearOnlyRegressorIntegrationV2Test(
     linear_testing_utils.BaseLinearRegressorIntegrationTest, test.TestCase):
 
@@ -164,15 +137,6 @@ class LinearOnlyRegressorIntegrationV2Test(
     test.TestCase.__init__(self, methodName)
     linear_testing_utils.BaseLinearRegressorIntegrationTest.__init__(
         self, _linear_regressor_fn, fc_lib=feature_column_v2)
-
-
-class LinearOnlyRegressorTrainingTest(
-    linear_testing_utils.BaseLinearRegressorTrainingTest, test.TestCase):
-
-  def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
-    linear_testing_utils.BaseLinearRegressorTrainingTest.__init__(
-        self, _linear_regressor_fn, fc_lib=feature_column)
 
 
 class LinearOnlyRegressorTrainingV2Test(
@@ -203,15 +167,6 @@ def _linear_classifier_fn(feature_columns,
       linear_sparse_combiner=sparse_combiner)
 
 
-class LinearOnlyClassifierTrainingTest(
-    linear_testing_utils.BaseLinearClassifierTrainingTest, test.TestCase):
-
-  def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
-    linear_testing_utils.BaseLinearClassifierTrainingTest.__init__(
-        self, linear_classifier_fn=_linear_classifier_fn, fc_lib=feature_column)
-
-
 class LinearOnlyClassifierTrainingV2Test(
     linear_testing_utils.BaseLinearClassifierTrainingTest, test.TestCase):
 
@@ -221,15 +176,6 @@ class LinearOnlyClassifierTrainingV2Test(
         self,
         linear_classifier_fn=_linear_classifier_fn,
         fc_lib=feature_column_v2)
-
-
-class LinearOnlyClassifierClassesEvaluationTest(
-    linear_testing_utils.BaseLinearClassifierEvaluationTest, test.TestCase):
-
-  def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
-    linear_testing_utils.BaseLinearClassifierEvaluationTest.__init__(
-        self, linear_classifier_fn=_linear_classifier_fn, fc_lib=feature_column)
 
 
 class LinearOnlyClassifierClassesEvaluationV2Test(
@@ -243,15 +189,6 @@ class LinearOnlyClassifierClassesEvaluationV2Test(
         fc_lib=feature_column_v2)
 
 
-class LinearOnlyClassifierPredictTest(
-    linear_testing_utils.BaseLinearClassifierPredictTest, test.TestCase):
-
-  def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
-    linear_testing_utils.BaseLinearClassifierPredictTest.__init__(
-        self, linear_classifier_fn=_linear_classifier_fn, fc_lib=feature_column)
-
-
 class LinearOnlyClassifierPredictV2Test(
     linear_testing_utils.BaseLinearClassifierPredictTest, test.TestCase):
 
@@ -261,15 +198,6 @@ class LinearOnlyClassifierPredictV2Test(
         self,
         linear_classifier_fn=_linear_classifier_fn,
         fc_lib=feature_column_v2)
-
-
-class LinearOnlyClassifierIntegrationTest(
-    linear_testing_utils.BaseLinearClassifierIntegrationTest, test.TestCase):
-
-  def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
-    linear_testing_utils.BaseLinearClassifierIntegrationTest.__init__(
-        self, linear_classifier_fn=_linear_classifier_fn, fc_lib=feature_column)
 
 
 class LinearOnlyClassifierIntegrationV2Test(
@@ -344,15 +272,32 @@ class DNNLinearCombinedRegressorIntegrationTest(test.TestCase):
                                     predict_input_fn, input_dimension,
                                     label_dimension, batch_size)
 
-  def _test_complete_flow_fc_v1(self, train_input_fn, eval_input_fn,
-                                predict_input_fn, input_dimension,
-                                label_dimension, batch_size, fc_impl):
+  def _test_complete_flow_dnn_fc_v1(self, train_input_fn, eval_input_fn,
+                                    predict_input_fn, input_dimension,
+                                    label_dimension, batch_size, fc_impl):
     del fc_impl
     linear_feature_columns = [
-        feature_column.numeric_column('x', shape=(input_dimension,))
+        feature_column_v2.numeric_column('x', shape=(input_dimension,))
     ]
     dnn_feature_columns = [
-        feature_column.numeric_column('x', shape=(input_dimension,))
+        feature_column._numeric_column('x', shape=(input_dimension,))
+    ]
+    feature_columns = linear_feature_columns + dnn_feature_columns
+    feature_spec = feature_column.make_parse_example_spec(feature_columns)
+    self._test_complete_flow_helper(linear_feature_columns, dnn_feature_columns,
+                                    feature_spec, train_input_fn, eval_input_fn,
+                                    predict_input_fn, input_dimension,
+                                    label_dimension, batch_size)
+
+  def _test_complete_flow_linear_fc_v1(self, train_input_fn, eval_input_fn,
+                                       predict_input_fn, input_dimension,
+                                       label_dimension, batch_size, fc_impl):
+    del fc_impl
+    linear_feature_columns = [
+        feature_column._numeric_column('x', shape=(input_dimension,))
+    ]
+    dnn_feature_columns = [
+        feature_column_v2.numeric_column('x', shape=(input_dimension,))
     ]
     feature_columns = linear_feature_columns + dnn_feature_columns
     feature_spec = feature_column.make_parse_example_spec(feature_columns)
@@ -396,10 +341,17 @@ class DNNLinearCombinedRegressorIntegrationTest(test.TestCase):
   def test_numpy_input_fn_basic(self, fc_impl):
     self._test_numpy_input_fn_helper(fc_impl, self._test_complete_flow)
 
-  def test_numpy_input_fn_fc_v1(self, fc_impl):
+  def test_numpy_input_fn_dnn_fc_v1(self, fc_impl):
     with self.assertRaisesRegexp(
         ValueError, r'Received a feature column from TensorFlow v1'):
-      self._test_numpy_input_fn_helper(fc_impl, self._test_complete_flow_fc_v1)
+      self._test_numpy_input_fn_helper(fc_impl,
+                                       self._test_complete_flow_dnn_fc_v1)
+
+  def test_numpy_input_fn_linear_fc_v1(self, fc_impl):
+    with self.assertRaisesRegexp(
+        ValueError, r'Received a feature column from TensorFlow v1'):
+      self._test_numpy_input_fn_helper(fc_impl,
+                                       self._test_complete_flow_linear_fc_v1)
 
   def _test_pandas_input_fn_helper(self, fc_impl, fn_to_run):
     """Tests complete flow with pandas_input_fn."""
@@ -438,10 +390,17 @@ class DNNLinearCombinedRegressorIntegrationTest(test.TestCase):
   def test_pandas_input_fn_basic(self, fc_impl):
     self._test_pandas_input_fn_helper(fc_impl, self._test_complete_flow)
 
-  def test_pandas_input_fn_fc_v1(self, fc_impl):
+  def test_pandas_input_fn_dnn_fc_v1(self, fc_impl):
     with self.assertRaisesRegexp(
         ValueError, r'Received a feature column from TensorFlow v1'):
-      self._test_pandas_input_fn_helper(fc_impl, self._test_complete_flow_fc_v1)
+      self._test_pandas_input_fn_helper(fc_impl,
+                                        self._test_complete_flow_dnn_fc_v1)
+
+  def test_pandas_input_fn_linear_fc_v1(self, fc_impl):
+    with self.assertRaisesRegexp(
+        ValueError, r'Received a feature column from TensorFlow v1'):
+      self._test_pandas_input_fn_helper(fc_impl,
+                                        self._test_complete_flow_linear_fc_v1)
 
   def _test_input_fn_from_parse_example_helper(self, fc_impl, fn_to_run):
     """Tests complete flow with input_fn constructed from parse_example."""
@@ -498,11 +457,17 @@ class DNNLinearCombinedRegressorIntegrationTest(test.TestCase):
     self._test_input_fn_from_parse_example_helper(fc_impl,
                                                   self._test_complete_flow)
 
-  def test_input_fn_from_parse_example_fc_v1(self, fc_impl):
+  def test_input_fn_from_parse_example_dnn_fc_v1(self, fc_impl):
     with self.assertRaisesRegexp(
         ValueError, r'Received a feature column from TensorFlow v1'):
       self._test_input_fn_from_parse_example_helper(
-          fc_impl, self._test_complete_flow_fc_v1)
+          fc_impl, self._test_complete_flow_dnn_fc_v1)
+
+  def test_input_fn_from_parse_example_linear_fc_v1(self, fc_impl):
+    with self.assertRaisesRegexp(
+        ValueError, r'Received a feature column from TensorFlow v1'):
+      self._test_input_fn_from_parse_example_helper(
+          fc_impl, self._test_complete_flow_linear_fc_v1)
 
 
 # A function to mimic dnn-classifier init reuse same tests.

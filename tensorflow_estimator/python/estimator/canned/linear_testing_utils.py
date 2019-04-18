@@ -30,7 +30,6 @@ from tensorflow.core.example import example_pb2
 from tensorflow.core.example import feature_pb2
 from tensorflow.python.client import session as tf_session
 from tensorflow.python.data.ops import dataset_ops
-from tensorflow.python.feature_column import feature_column
 from tensorflow.python.feature_column import feature_column_v2
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
@@ -78,17 +77,6 @@ HEIGHT_WEIGHT_NAME = 'linear/linear_model/height/weights'
 OCCUPATION_WEIGHT_NAME = 'linear/linear_model/occupation/weights'
 BIAS_NAME = 'linear/linear_model/bias_weights'
 LANGUAGE_WEIGHT_NAME = 'linear/linear_model/language/weights'
-
-
-# TODO(mihaimaruseac): This and linear_testing_utils_v1 are 99%+ duplicated. Fix
-
-# This is so that we can easily switch between feature_column and
-# feature_column_v2 for testing.
-feature_column.numeric_column = feature_column._numeric_column
-feature_column.categorical_column_with_hash_bucket = feature_column._categorical_column_with_hash_bucket  # pylint: disable=line-too-long
-feature_column.categorical_column_with_vocabulary_list = feature_column._categorical_column_with_vocabulary_list  # pylint: disable=line-too-long
-feature_column.categorical_column_with_vocabulary_file = feature_column._categorical_column_with_vocabulary_file  # pylint: disable=line-too-long
-feature_column.embedding_column = feature_column._embedding_column
 
 
 def assert_close(expected, actual, rtol=1e-04, name='assert_close'):
@@ -139,7 +127,7 @@ def sigmoid(x):
 # TODO(b/36813849): Add tests with dynamic shape inputs using placeholders.
 class BaseLinearRegressorEvaluationTest(object):
 
-  def __init__(self, linear_regressor_fn, fc_lib=feature_column):
+  def __init__(self, linear_regressor_fn, fc_lib=feature_column_v2):
     self._linear_regressor_fn = linear_regressor_fn
     self._fc_lib = fc_lib
 
@@ -318,7 +306,7 @@ class BaseLinearRegressorEvaluationTest(object):
 
     batch_size = 2
     feature_columns = [
-        feature_column.numeric_column('age'),
+        feature_column_v2.numeric_column('age'),
         feature_column_v2.numeric_column('height')
     ]
 
@@ -349,7 +337,7 @@ class BaseLinearRegressorEvaluationTest(object):
 
 class BaseLinearRegressorPredictTest(object):
 
-  def __init__(self, linear_regressor_fn, fc_lib=feature_column):
+  def __init__(self, linear_regressor_fn, fc_lib=feature_column_v2):
     self._linear_regressor_fn = linear_regressor_fn
     self._fc_lib = fc_lib
 
@@ -453,7 +441,7 @@ class BaseLinearRegressorPredictTest(object):
       save_variables_to_ckpt(self._model_dir)
 
     linear_regressor = self._linear_regressor_fn(
-        feature_columns=(feature_column.numeric_column('x0'),
+        feature_columns=(feature_column_v2.numeric_column('x0'),
                          feature_column_v2.numeric_column('x1')),
         model_dir=self._model_dir)
 
@@ -533,7 +521,7 @@ class BaseLinearRegressorPredictTest(object):
 
 class BaseLinearRegressorIntegrationTest(object):
 
-  def __init__(self, linear_regressor_fn, fc_lib=feature_column):
+  def __init__(self, linear_regressor_fn, fc_lib=feature_column_v2):
     self._linear_regressor_fn = linear_regressor_fn
     self._fc_lib = fc_lib
 
@@ -570,7 +558,7 @@ class BaseLinearRegressorIntegrationTest(object):
     self.assertAllEqual((prediction_length, label_dimension), predictions.shape)
 
     # EXPORT
-    feature_spec = feature_column.make_parse_example_spec(feature_columns)
+    feature_spec = feature_column_v2.make_parse_example_spec_v2(feature_columns)
     serving_input_receiver_fn = export.build_parsing_serving_input_receiver_fn(
         feature_spec)
     export_dir = est.export_saved_model(tempfile.mkdtemp(),
@@ -702,7 +690,7 @@ class BaseLinearRegressorIntegrationTest(object):
 
 class BaseLinearRegressorTrainingTest(object):
 
-  def __init__(self, linear_regressor_fn, fc_lib=feature_column):
+  def __init__(self, linear_regressor_fn, fc_lib=feature_column_v2):
     self._linear_regressor_fn = linear_regressor_fn
     self._fc_lib = fc_lib
 
@@ -926,7 +914,7 @@ class BaseLinearRegressorTrainingTest(object):
 
 class BaseLinearClassifierTrainingTest(object):
 
-  def __init__(self, linear_classifier_fn, fc_lib=feature_column):
+  def __init__(self, linear_classifier_fn, fc_lib=feature_column_v2):
     self._linear_classifier_fn = linear_classifier_fn
     self._fc_lib = fc_lib
 
@@ -1340,7 +1328,7 @@ class BaseLinearClassifierTrainingTest(object):
 
 class BaseLinearClassifierEvaluationTest(object):
 
-  def __init__(self, linear_classifier_fn, fc_lib=feature_column):
+  def __init__(self, linear_classifier_fn, fc_lib=feature_column_v2):
     self._linear_classifier_fn = linear_classifier_fn
     self._fc_lib = fc_lib
 
@@ -1588,7 +1576,7 @@ class BaseLinearClassifierEvaluationTest(object):
 
 class BaseLinearClassifierPredictTest(object):
 
-  def __init__(self, linear_classifier_fn, fc_lib=feature_column):
+  def __init__(self, linear_classifier_fn, fc_lib=feature_column_v2):
     self._linear_classifier_fn = linear_classifier_fn
     self._fc_lib = fc_lib
 
@@ -1759,7 +1747,7 @@ class BaseLinearClassifierPredictTest(object):
 
 class BaseLinearClassifierIntegrationTest(object):
 
-  def __init__(self, linear_classifier_fn, fc_lib=feature_column):
+  def __init__(self, linear_classifier_fn, fc_lib=feature_column_v2):
     self._linear_classifier_fn = linear_classifier_fn
     self._fc_lib = fc_lib
 
@@ -1795,7 +1783,7 @@ class BaseLinearClassifierIntegrationTest(object):
     self.assertAllEqual((prediction_length, 1), predictions.shape)
 
     # EXPORT
-    feature_spec = feature_column.make_parse_example_spec(feature_columns)
+    feature_spec = feature_column_v2.make_parse_example_spec_v2(feature_columns)
     serving_input_receiver_fn = export.build_parsing_serving_input_receiver_fn(
         feature_spec)
     export_dir = est.export_saved_model(tempfile.mkdtemp(),
@@ -1945,7 +1933,7 @@ class BaseLinearClassifierIntegrationTest(object):
 
 class BaseLinearLogitFnTest(object):
 
-  def __init__(self, fc_lib=feature_column):
+  def __init__(self, fc_lib=feature_column_v2):
     self._fc_lib = fc_lib
 
   def test_basic_logit_correctness(self):
@@ -1967,38 +1955,6 @@ class BaseLinearLogitFnTest(object):
         # [2 * 23 + 10, 3 * 23 + 5] = [56, 74].
         # [2 * 31 + 10, 3 * 31 + 5] = [72, 98]
         self.assertAllClose([[56., 74.], [72., 98.]], logits.eval())
-
-  def test_compute_fraction_of_zero(self):
-    """Tests the calculation of sparsity."""
-    if self._fc_lib != feature_column:
-      return
-    age = feature_column_v2.numeric_column('age')
-    occupation = feature_column.categorical_column_with_hash_bucket(
-        'occupation', hash_bucket_size=5)
-    with ops.Graph().as_default():
-      cols_to_vars = {}
-      feature_column.linear_model(
-          features={
-              'age': [[23.], [31.]],
-              'occupation': [['doctor'], ['engineer']]
-          },
-          feature_columns=[age, occupation],
-          units=3,
-          cols_to_vars=cols_to_vars)
-      cols_to_vars.pop('bias')
-      fraction_zero = linear._compute_fraction_of_zero(
-          list(cols_to_vars.values()))
-      age_var = ops.get_collection(ops.GraphKeys.GLOBAL_VARIABLES,
-                                   'linear_model/age')[0]
-      with tf_session.Session() as sess:
-        sess.run([variables_lib.global_variables_initializer()])
-        # Upon initialization, all variables will be zero.
-        self.assertAllClose(1, fraction_zero.eval())
-
-        sess.run(age_var.assign([[2.0, 0.0, -1.0]]))
-        # 1 of the 3 age weights are zero, and all of the 15 (5 hash buckets
-        # x 3-dim output) are zero.
-        self.assertAllClose(16. / 18., fraction_zero.eval())
 
   def test_compute_fraction_of_zero_v2(self):
     """Tests the calculation of sparsity."""
@@ -2037,7 +1993,7 @@ class BaseLinearWarmStartingTest(object):
   def __init__(self,
                _linear_classifier_fn,
                _linear_regressor_fn,
-               fc_lib=feature_column):
+               fc_lib=feature_column_v2):
     self._linear_classifier_fn = _linear_classifier_fn
     self._linear_regressor_fn = _linear_regressor_fn
     self._fc_lib = fc_lib

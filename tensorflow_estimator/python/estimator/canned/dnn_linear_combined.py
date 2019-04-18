@@ -188,7 +188,7 @@ def _dnn_linear_combined_model_fn_v2(features,
     with variable_scope.variable_scope(
         linear_parent_scope, values=tuple(six.itervalues(features))) as scope:
       linear_absolute_scope = scope.name
-      logit_fn = linear.linear_logit_fn_builder(
+      logit_fn = linear.linear_logit_fn_builder_v2(
           units=head.logits_dimension,
           feature_columns=linear_feature_columns,
           sparse_combiner=linear_sparse_combiner)

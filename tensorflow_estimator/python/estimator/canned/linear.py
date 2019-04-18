@@ -312,6 +312,73 @@ def _compute_fraction_of_zero(variables):
     return zero_fraction_or_nan
 
 
+def linear_logit_fn_builder_v2(units, feature_columns, sparse_combiner='sum'):
+  """Function builder for a linear logit_fn.
+
+  Args:
+    units: An int indicating the dimension of the logit layer.
+    feature_columns: An iterable containing all the feature columns used by
+      the model.
+    sparse_combiner: A string specifying how to reduce if a categorical column
+      is multivalent.  One of "mean", "sqrtn", and "sum".
+
+  Returns:
+    A logit_fn (see below).
+
+  """
+
+  def linear_logit_fn(features):
+    """Linear model logit_fn.
+
+    Args:
+      features: This is the first item returned from the `input_fn`
+                passed to `train`, `evaluate`, and `predict`. This should be a
+                single `Tensor` or `dict` of same.
+
+    Returns:
+      A `Tensor` representing the logits.
+    """
+    if not feature_column_lib.is_feature_column_v2(feature_columns):
+      raise ValueError(
+          'Received a feature column from TensorFlow v1, but this is a '
+          'TensorFlow v2 Estimator. Please either use v2 feature columns '
+          '(accessible via tf.feature_column.* in TF 2.x) with this '
+          'Estimator, or switch to a v1 Estimator for use with v1 feature '
+          'columns (accessible via tf.compat.v1.estimator.* and '
+          'tf.compat.v1.feature_column.*, respectively.')
+
+    linear_model = feature_column_lib.LinearModel(
+        feature_columns=feature_columns,
+        units=units,
+        sparse_combiner=sparse_combiner,
+        name='linear_model')
+    logits = linear_model(features)
+    bias = linear_model.bias
+
+    # We'd like to get all the non-bias variables associated with this
+    # LinearModel.
+    # TODO(rohanj): Figure out how to get shared embedding weights variable
+    # here.
+    variables = linear_model.variables
+    variables.remove(bias)
+
+    # Expand (potential) Partitioned variables
+    bias = _get_expanded_variable_list([bias])
+    variables = _get_expanded_variable_list(variables)
+
+    if units > 1:
+      summary.histogram('bias', bias)
+    else:
+      # If units == 1, the bias value is a length-1 list of a scalar Tensor,
+      # so we should provide a scalar summary.
+      summary.scalar('bias', bias[0][0])
+    summary.scalar('fraction_of_zero_weights',
+                   _compute_fraction_of_zero(variables))
+    return logits
+
+  return linear_logit_fn
+
+
 @estimator_export(v1=['estimator.experimental.linear_logit_fn_builder'])
 def linear_logit_fn_builder(units, feature_columns, sparse_combiner='sum'):
   """Function builder for a linear logit_fn.
@@ -530,7 +597,7 @@ def _linear_model_fn_v2(features,
       return _sdca_model_fn(features, labels, mode, head, feature_columns,
                             optimizer)
     else:
-      logit_fn = linear_logit_fn_builder(
+      logit_fn = linear_logit_fn_builder_v2(
           units=head.logits_dimension,
           feature_columns=feature_columns,
           sparse_combiner=sparse_combiner,
