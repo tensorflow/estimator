@@ -1328,10 +1328,10 @@ class RegressionHeadForEstimator(test.TestCase):
 
       def get_updates(self, loss, params):
         del params
-        return string_ops.string_join([
+        return [string_ops.string_join([
             constant_op.constant('my_train_op'),
             string_ops.as_string(loss, precision=2)
-        ])
+        ])]
 
       def get_config(self):
         config = super(_Optimizer, self).get_config()
@@ -1376,7 +1376,7 @@ class RegressionHeadForEstimator(test.TestCase):
         with ops.control_dependencies((check_ops.assert_equal(
             math_ops.to_float(expected_loss), math_ops.to_float(loss),
             name='assert_loss'),)):
-          return constant_op.constant(expected_train_result)
+          return [constant_op.constant(expected_train_result)]
 
       def get_config(self):
         config = super(_Optimizer, self).get_config()

@@ -426,8 +426,10 @@ class MultiHead(base_head.Head):
             raise ValueError('train_op_fn and optimizer cannot both be set.')
           if isinstance(optimizer, optimizer_v2.OptimizerV2):
             base_head.validate_trainable_variables(trainable_variables)
+            # optimizer_v2.get_updates always returns a list, and the first
+            # element is the train_op.
             train_op = optimizer.get_updates(
-                loss, trainable_variables)
+                loss, trainable_variables)[0]
           else:
             train_op = optimizer.minimize(
                 loss,

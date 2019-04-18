@@ -400,7 +400,7 @@ class TestSequentialHead(test.TestCase):
 
       def get_updates(self, loss, params):
         del params, loss
-        return constant_op.constant('op')
+        return [constant_op.constant('op')]
 
       def get_config(self):
         config = super(_Optimizer, self).get_config()

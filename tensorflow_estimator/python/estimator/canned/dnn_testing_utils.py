@@ -230,16 +230,16 @@ def mock_optimizer(testcase, hidden_units, expected_loss=None):
       testcase.assertEquals(0, loss.shape.ndims)
       if expected_loss is None:
         if self.iterations is not None:
-          return self.iterations.assign_add(1).op
-        return control_flow_ops.no_op()
+          return [self.iterations.assign_add(1).op]
+        return [control_flow_ops.no_op()]
       assert_loss = assert_close(
           math_ops.to_float(expected_loss, name='expected'),
           loss,
           name='assert_loss')
       with ops.control_dependencies((assert_loss,)):
         if self.iterations is not None:
-          return self.iterations.assign_add(1).op
-        return control_flow_ops.no_op()
+          return [self.iterations.assign_add(1).op]
+        return [control_flow_ops.no_op()]
 
     def get_config(self):
       config = super(_Optimizer, self).get_config()

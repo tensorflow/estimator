@@ -23,8 +23,11 @@ import six
 
 from tensorflow.python.eager import context
 from tensorflow.python.framework import constant_op
+from tensorflow.python.framework import dtypes
+from tensorflow.python.keras.optimizer_v2 import optimizer_v2
 from tensorflow.python.ops import nn
 from tensorflow.python.ops import string_ops
+from tensorflow.python.ops import variables
 from tensorflow.python.platform import test
 from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.canned import prediction_keys
@@ -634,19 +637,28 @@ class MultiHeadTest(test.TestCase):
 
     expected_train_result = 'my_train_op'
 
-    class _Optimizer(object):
+    class _Optimizer(optimizer_v2.OptimizerV2):
 
-      def minimize(self, loss, global_step):
-        del global_step
-        return string_ops.string_join(
-            [constant_op.constant(expected_train_result),
-             string_ops.as_string(loss, precision=3)])
+      def get_updates(self, loss, params):
+        del params
+        return [string_ops.string_join([
+            constant_op.constant(expected_train_result),
+            string_ops.as_string(loss, precision=3)
+        ])]
+
+      def get_config(self):
+        config = super(_Optimizer, self).get_config()
+        return config
+
     spec = multi_head.create_estimator_spec(
         features=features,
         mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
-        optimizer=_Optimizer())
+        optimizer=_Optimizer('my_optimizer'),
+        trainable_variables=[
+            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+
     with self.cached_session() as sess:
       test_lib._initialize_variables(self, spec.scaffold)
       loss, train_result = sess.run((spec.loss, spec.train_op))

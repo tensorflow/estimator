@@ -835,8 +835,10 @@ def create_estimator_spec_train_op(
         raise ValueError('train_op_fn and optimizer cannot both be set.')
       if isinstance(optimizer, optimizer_v2.OptimizerV2):
         validate_trainable_variables(trainable_variables)
+        # optimizer_v2.get_updates always returns a list, and the first element
+        # is the train_op.
         train_op = optimizer.get_updates(
-            regularized_training_loss, trainable_variables)
+            regularized_training_loss, trainable_variables)[0]
       else:
         # TODO(yhliang): this is to support linear model that still relies on
         # optimizer v1. Can be removed after optimizer v2 is supported in

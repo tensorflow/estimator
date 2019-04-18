@@ -1597,10 +1597,10 @@ class MultiClassHeadForEstimator(test.TestCase):
 
       def get_updates(self, loss, params):
         del params
-        return string_ops.string_join([
+        return [string_ops.string_join([
             constant_op.constant('my_train_op'),
             string_ops.as_string(loss, precision=2)
-        ])
+        ])]
 
       def get_config(self):
         config = super(_Optimizer, self).get_config()
@@ -1648,10 +1648,10 @@ class MultiClassHeadForEstimator(test.TestCase):
 
       def get_updates(self, loss, params):
         del params
-        return string_ops.string_join([
+        return [string_ops.string_join([
             constant_op.constant(expected_train_result),
             string_ops.as_string(loss, precision=2)
-        ])
+        ])]
 
       def get_config(self):
         config = super(_Optimizer, self).get_config()
