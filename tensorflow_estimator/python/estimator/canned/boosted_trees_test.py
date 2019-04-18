@@ -107,10 +107,15 @@ def _make_train_input_fn_dataset(is_classification, batch=None, repeat=None):
 class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
 
   def setUp(self):
+    self._head = boosted_trees._create_regression_head(label_dimension=1)
+    self._numeric_feature_columns = {
+        feature_column.numeric_column('f_%d' % i, dtype=dtypes.float32)
+        for i in range(NUM_FEATURES)
+    }
+
     self._feature_columns = {
-        feature_column.bucketized_column(
-            feature_column.numeric_column('f_%d' % i, dtype=dtypes.float32),
-            BUCKET_BOUNDARIES) for i in range(NUM_FEATURES)
+        feature_column.bucketized_column(f, BUCKET_BOUNDARIES)
+        for f in self._numeric_feature_columns
     }
 
   def _assert_checkpoint(self,
@@ -1478,6 +1483,146 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
         tree_complexity=1e-3)
     est.train(input_fn, steps=num_steps)
 
+  @test_util.run_in_graph_and_eager_modes()
+  def testTrainAndEvaluateEstimator(self):
+    input_fn = _make_train_input_fn(is_classification=False)
+
+    est = boosted_trees.BoostedTreesEstimator(
+        feature_columns=self._feature_columns,
+        n_batches_per_layer=1,
+        n_trees=2,
+        head=self._head,
+        max_depth=5)
+
+    # It will stop after 10 steps because of the max depth and num trees.
+    num_steps = 100
+    # Train for a few steps, and validate final checkpoint.
+    est.train(input_fn, steps=num_steps)
+    self._assert_checkpoint(
+        est.model_dir, global_step=10, finalized_trees=2, attempted_layers=10)
+    eval_res = est.evaluate(input_fn=input_fn, steps=1)
+    self.assertAllClose(eval_res['average_loss'], 1.008551)
+
+  @test_util.run_in_graph_and_eager_modes()
+  def testTrainAndEvaluateEstimatorWithCenterBias(self):
+    input_fn = _make_train_input_fn(is_classification=False)
+
+    est = boosted_trees.BoostedTreesEstimator(
+        feature_columns=self._feature_columns,
+        n_batches_per_layer=1,
+        n_trees=2,
+        head=self._head,
+        max_depth=5,
+        center_bias=True)
+
+    # It will stop after 11 steps because of the max depth and num trees.
+    num_steps = 100
+    # Train for a few steps, and validate final checkpoint.
+    est.train(input_fn, steps=num_steps)
+    # 10 steps for training and 2 step for bias centering.
+    self._assert_checkpoint(
+        est.model_dir, global_step=12, finalized_trees=2, attempted_layers=10)
+    eval_res = est.evaluate(input_fn=input_fn, steps=1)
+    self.assertAllClose(eval_res['average_loss'], 0.614642)
+
+  @test_util.run_in_graph_and_eager_modes()
+  def testTrainAndEvaluateEstimatorWithPrePruning(self):
+    input_fn = _make_train_input_fn(is_classification=False)
+
+    est = boosted_trees.BoostedTreesEstimator(
+        feature_columns=self._feature_columns,
+        n_batches_per_layer=1,
+        n_trees=2,
+        head=self._head,
+        max_depth=5,
+        tree_complexity=0.001,
+        pruning_mode='pre')
+
+    num_steps = 100
+    # Train for a few steps, and validate final checkpoint.
+    est.train(input_fn, steps=num_steps)
+    # We stop actually after 2*depth*n_trees steps (via a hook) because we still
+    # could not grow 2 trees of depth 5 (due to pre-pruning).
+    self._assert_checkpoint(
+        est.model_dir, global_step=21, finalized_trees=0, attempted_layers=21)
+    eval_res = est.evaluate(input_fn=input_fn, steps=1)
+    self.assertAllClose(eval_res['average_loss'], 3.83943)
+
+  @test_util.run_in_graph_and_eager_modes()
+  def testTrainAndEvaluateEstimatorWithPostPruning(self):
+    input_fn = _make_train_input_fn(is_classification=False)
+
+    est = boosted_trees.BoostedTreesEstimator(
+        feature_columns=self._feature_columns,
+        n_batches_per_layer=1,
+        n_trees=2,
+        head=self._head,
+        max_depth=5,
+        tree_complexity=0.001,
+        pruning_mode='post')
+
+    # It will stop after 10 steps because of the max depth and num trees.
+    num_steps = 100
+    # Train for a few steps, and validate final checkpoint.
+    est.train(input_fn, steps=num_steps)
+    self._assert_checkpoint(
+        est.model_dir, global_step=10, finalized_trees=2, attempted_layers=10)
+    eval_res = est.evaluate(input_fn=input_fn, steps=1)
+    self.assertAllClose(eval_res['average_loss'], 2.37652)
+
+  @test_util.run_in_graph_and_eager_modes()
+  def testInferEstimator(self):
+    train_input_fn = _make_train_input_fn(is_classification=False)
+    predict_input_fn = numpy_io.numpy_input_fn(
+        x=FEATURES_DICT, y=None, batch_size=1, num_epochs=1, shuffle=False)
+
+    est = boosted_trees.BoostedTreesEstimator(
+        feature_columns=self._feature_columns,
+        n_batches_per_layer=1,
+        n_trees=1,
+        max_depth=5,
+        head=self._head)
+
+    # It will stop after 5 steps because of the max depth and num trees.
+    num_steps = 100
+    # Train for a few steps, and validate final checkpoint.
+    est.train(train_input_fn, steps=num_steps)
+    self._assert_checkpoint(
+        est.model_dir, global_step=5, finalized_trees=1, attempted_layers=5)
+    # Validate predictions.
+    predictions = list(est.predict(input_fn=predict_input_fn))
+    self.assertAllClose(
+        [[0.571619], [0.262821], [0.124549], [0.956801], [1.769801]],
+        [pred['predictions'] for pred in predictions])
+
+  @test_util.run_in_graph_and_eager_modes()
+  def testInferEstimatorWithCenterBias(self):
+    train_input_fn = _make_train_input_fn(is_classification=False)
+    predict_input_fn = numpy_io.numpy_input_fn(
+        x=FEATURES_DICT, y=None, batch_size=1, num_epochs=1, shuffle=False)
+
+    est = boosted_trees.BoostedTreesEstimator(
+        feature_columns=self._feature_columns,
+        n_batches_per_layer=1,
+        n_trees=1,
+        max_depth=5,
+        center_bias=True,
+        head=self._head)
+
+    # It will stop after 6 steps because of the max depth and num trees (5 for
+    # training and 2 for bias centering).
+    num_steps = 100
+    # Train for a few steps, and validate final checkpoint.
+    est.train(train_input_fn, steps=num_steps)
+    self._assert_checkpoint(
+        est.model_dir, global_step=7, finalized_trees=1, attempted_layers=5)
+    # Validate predictions.
+    predictions = list(est.predict(input_fn=predict_input_fn))
+
+    self.assertAllClose(
+        [[1.634501], [1.325703], [1.187431], [2.019683], [2.832683]],
+        [pred['predictions'] for pred in predictions])
+
 
 class BoostedTreesDebugOutputsTest(test_util.TensorFlowTestCase):
   """Test debug/model explainability outputs for individual predictions.
@@ -1486,6 +1631,7 @@ class BoostedTreesDebugOutputsTest(test_util.TensorFlowTestCase):
   """
 
   def setUp(self):
+    self._head = boosted_trees._create_regression_head(label_dimension=1)
     self._feature_columns = {
         feature_column.bucketized_column(
             feature_column.numeric_column('f_%d' % i, dtype=dtypes.float32),
@@ -1671,6 +1817,69 @@ class BoostedTreesDebugOutputsTest(test_util.TensorFlowTestCase):
           sum(debug_pred['dfc'].values()) + debug_pred['bias'],
           pred['predictions'])
 
+  @test_util.run_in_graph_and_eager_modes()
+  def testContribEstimatorThatDFCIsInPredictions(self):
+    # pylint:disable=protected-access
+    head = boosted_trees._create_regression_head(label_dimension=1)
+    train_input_fn = _make_train_input_fn(is_classification=False)
+    predict_input_fn = numpy_io.numpy_input_fn(
+        x=FEATURES_DICT, y=None, batch_size=1, num_epochs=1, shuffle=False)
+
+    est = boosted_trees.BoostedTreesEstimator(
+        feature_columns=self._feature_columns,
+        n_batches_per_layer=1,
+        head=head,
+        n_trees=1,
+        max_depth=5,
+        center_bias=True)
+    # pylint:enable=protected-access
+
+    num_steps = 100
+    # Train for a few steps. Validate debug outputs in prediction dicts.
+    est.train(train_input_fn, steps=num_steps)
+    debug_predictions = est.experimental_predict_with_explanations(
+        predict_input_fn)
+    biases, dfcs = zip(*[(pred['bias'], pred['dfc'])
+                         for pred in debug_predictions])
+    self.assertAllClose([1.8] * 5, biases)
+    expected_dfcs = (collections.OrderedDict(
+        (('f_1_bucketized', -0.09500002861022949),
+         ('f_0_bucketized', -0.07049942016601562), ('f_2_bucketized', 0.0))),
+                     collections.OrderedDict(
+                         (('f_0_bucketized', -0.5376303195953369),
+                          ('f_1_bucketized',
+                           0.06333339214324951), ('f_2_bucketized', 0.0))),
+                     collections.OrderedDict(
+                         (('f_0_bucketized', -0.5175694227218628),
+                          ('f_1_bucketized',
+                           -0.09500002861022949), ('f_2_bucketized', 0.0))),
+                     collections.OrderedDict(
+                         (('f_0_bucketized', 0.1563495397567749),
+                          ('f_1_bucketized',
+                           0.06333339214324951), ('f_2_bucketized', 0.0))),
+                     collections.OrderedDict(
+                         (('f_0_bucketized', 0.96934974193573),
+                          ('f_1_bucketized',
+                           0.06333339214324951), ('f_2_bucketized', 0.0))))
+    for expected, dfc in zip(expected_dfcs, dfcs):
+      self.assertAllEqual(expected.keys(), dfc.keys())
+      self.assertAllClose(expected.values(), dfc.values())
+    # Assert sum(dfcs) + bias == predictions.
+    expected_predictions = [[1.6345005], [1.32570302], [1.1874305],
+                            [2.01968288], [2.83268309]]
+    predictions = [
+        [sum(dfc.values()) + bias] for (dfc, bias) in zip(dfcs, biases)
+    ]
+    self.assertAllClose(expected_predictions, predictions)
+
+    # Test when user doesn't include bias or dfc in predict_keys.
+    debug_predictions = est.experimental_predict_with_explanations(
+        predict_input_fn, predict_keys=['predictions'])
+    for prediction_dict in debug_predictions:
+      self.assertIn('bias', prediction_dict)
+      self.assertIn('dfc', prediction_dict)
+      self.assertIn('predictions', prediction_dict)
+      self.assertEqual(len(prediction_dict), 3)
 
 class ModelFnTests(test_util.TensorFlowTestCase):
   """Tests bt_model_fn including unexposed internal functionalities."""
@@ -3187,263 +3396,6 @@ class ModelFnTests(test_util.TensorFlowTestCase):
       ensemble_proto = boosted_trees_pb2.TreeEnsemble()
       ensemble_proto.ParseFromString(serialized)
       self.assertProtoEquals(expected_forth, ensemble_proto)
-
-
-class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
-
-  def setUp(self):
-    self._head = boosted_trees._create_regression_head(label_dimension=1)
-    self._numeric_feature_columns = {
-        feature_column.numeric_column('f_%d' % i, dtype=dtypes.float32)
-        for i in range(NUM_FEATURES)
-    }
-
-    self._feature_columns = {
-        feature_column.bucketized_column(f, BUCKET_BOUNDARIES)
-        for f in self._numeric_feature_columns
-    }
-
-  def _assert_checkpoint(self,
-                         model_dir,
-                         global_step,
-                         finalized_trees,
-                         attempted_layers,
-                         bucket_boundaries=None):
-    reader = checkpoint_utils.load_checkpoint(model_dir)
-    self.assertEqual(global_step, reader.get_tensor(ops.GraphKeys.GLOBAL_STEP))
-    serialized = reader.get_tensor('boosted_trees:0_serialized')
-    ensemble_proto = boosted_trees_pb2.TreeEnsemble()
-    ensemble_proto.ParseFromString(serialized)
-
-    self.assertEqual(
-        finalized_trees,
-        sum([1 for t in ensemble_proto.tree_metadata if t.is_finalized]))
-    self.assertEqual(attempted_layers,
-                     ensemble_proto.growing_metadata.num_layers_attempted)
-
-    if bucket_boundaries:
-      for i, bucket_boundary in enumerate(bucket_boundaries):
-        self.assertAllClose(
-            bucket_boundary,
-            reader.get_tensor(
-                'boosted_trees/QuantileAccumulator:0_bucket_boundaries_' +
-                str(i)))
-
-  @test_util.run_in_graph_and_eager_modes()
-  def testTrainAndEvaluateEstimator(self):
-    input_fn = _make_train_input_fn(is_classification=False)
-
-    est = boosted_trees.BoostedTreesEstimator(
-        feature_columns=self._feature_columns,
-        n_batches_per_layer=1,
-        n_trees=2,
-        head=self._head,
-        max_depth=5)
-
-    # It will stop after 10 steps because of the max depth and num trees.
-    num_steps = 100
-    # Train for a few steps, and validate final checkpoint.
-    est.train(input_fn, steps=num_steps)
-    self._assert_checkpoint(
-        est.model_dir, global_step=10, finalized_trees=2, attempted_layers=10)
-    eval_res = est.evaluate(input_fn=input_fn, steps=1)
-    self.assertAllClose(eval_res['average_loss'], 1.008551)
-
-  @test_util.run_in_graph_and_eager_modes()
-  def testTrainAndEvaluateEstimatorWithCenterBias(self):
-    input_fn = _make_train_input_fn(is_classification=False)
-
-    est = boosted_trees.BoostedTreesEstimator(
-        feature_columns=self._feature_columns,
-        n_batches_per_layer=1,
-        n_trees=2,
-        head=self._head,
-        max_depth=5,
-        center_bias=True)
-
-    # It will stop after 11 steps because of the max depth and num trees.
-    num_steps = 100
-    # Train for a few steps, and validate final checkpoint.
-    est.train(input_fn, steps=num_steps)
-    # 10 steps for training and 2 step for bias centering.
-    self._assert_checkpoint(
-        est.model_dir, global_step=12, finalized_trees=2, attempted_layers=10)
-    eval_res = est.evaluate(input_fn=input_fn, steps=1)
-    self.assertAllClose(eval_res['average_loss'], 0.614642)
-
-  @test_util.run_in_graph_and_eager_modes()
-  def testTrainAndEvaluateEstimatorWithPrePruning(self):
-    input_fn = _make_train_input_fn(is_classification=False)
-
-    est = boosted_trees.BoostedTreesEstimator(
-        feature_columns=self._feature_columns,
-        n_batches_per_layer=1,
-        n_trees=2,
-        head=self._head,
-        max_depth=5,
-        tree_complexity=0.001,
-        pruning_mode='pre')
-
-    num_steps = 100
-    # Train for a few steps, and validate final checkpoint.
-    est.train(input_fn, steps=num_steps)
-    # We stop actually after 2*depth*n_trees steps (via a hook) because we still
-    # could not grow 2 trees of depth 5 (due to pre-pruning).
-    self._assert_checkpoint(
-        est.model_dir, global_step=21, finalized_trees=0, attempted_layers=21)
-    eval_res = est.evaluate(input_fn=input_fn, steps=1)
-    self.assertAllClose(eval_res['average_loss'], 3.83943)
-
-  @test_util.run_in_graph_and_eager_modes()
-  def testTrainAndEvaluateEstimatorWithPostPruning(self):
-    input_fn = _make_train_input_fn(is_classification=False)
-
-    est = boosted_trees.BoostedTreesEstimator(
-        feature_columns=self._feature_columns,
-        n_batches_per_layer=1,
-        n_trees=2,
-        head=self._head,
-        max_depth=5,
-        tree_complexity=0.001,
-        pruning_mode='post')
-
-    # It will stop after 10 steps because of the max depth and num trees.
-    num_steps = 100
-    # Train for a few steps, and validate final checkpoint.
-    est.train(input_fn, steps=num_steps)
-    self._assert_checkpoint(
-        est.model_dir, global_step=10, finalized_trees=2, attempted_layers=10)
-    eval_res = est.evaluate(input_fn=input_fn, steps=1)
-    self.assertAllClose(eval_res['average_loss'], 2.37652)
-
-  @test_util.run_in_graph_and_eager_modes()
-  def testInferEstimator(self):
-    train_input_fn = _make_train_input_fn(is_classification=False)
-    predict_input_fn = numpy_io.numpy_input_fn(
-        x=FEATURES_DICT, y=None, batch_size=1, num_epochs=1, shuffle=False)
-
-    est = boosted_trees.BoostedTreesEstimator(
-        feature_columns=self._feature_columns,
-        n_batches_per_layer=1,
-        n_trees=1,
-        max_depth=5,
-        head=self._head)
-
-    # It will stop after 5 steps because of the max depth and num trees.
-    num_steps = 100
-    # Train for a few steps, and validate final checkpoint.
-    est.train(train_input_fn, steps=num_steps)
-    self._assert_checkpoint(
-        est.model_dir, global_step=5, finalized_trees=1, attempted_layers=5)
-    # Validate predictions.
-    predictions = list(est.predict(input_fn=predict_input_fn))
-    self.assertAllClose(
-        [[0.571619], [0.262821], [0.124549], [0.956801], [1.769801]],
-        [pred['predictions'] for pred in predictions])
-
-  @test_util.run_in_graph_and_eager_modes()
-  def testInferEstimatorWithCenterBias(self):
-    train_input_fn = _make_train_input_fn(is_classification=False)
-    predict_input_fn = numpy_io.numpy_input_fn(
-        x=FEATURES_DICT, y=None, batch_size=1, num_epochs=1, shuffle=False)
-
-    est = boosted_trees.BoostedTreesEstimator(
-        feature_columns=self._feature_columns,
-        n_batches_per_layer=1,
-        n_trees=1,
-        max_depth=5,
-        center_bias=True,
-        head=self._head)
-
-    # It will stop after 6 steps because of the max depth and num trees (5 for
-    # training and 2 for bias centering).
-    num_steps = 100
-    # Train for a few steps, and validate final checkpoint.
-    est.train(train_input_fn, steps=num_steps)
-    self._assert_checkpoint(
-        est.model_dir, global_step=7, finalized_trees=1, attempted_layers=5)
-    # Validate predictions.
-    predictions = list(est.predict(input_fn=predict_input_fn))
-
-    self.assertAllClose(
-        [[1.634501], [1.325703], [1.187431], [2.019683], [2.832683]],
-        [pred['predictions'] for pred in predictions])
-
-
-class BoostedTreesDebugOutputTest(test_util.TensorFlowTestCase):
-
-  def setUp(self):
-    self._head = boosted_trees._create_regression_head(label_dimension=1)
-    self._feature_columns = {
-        feature_column.bucketized_column(
-            feature_column.numeric_column('f_%d' % i, dtype=dtypes.float32),
-            BUCKET_BOUNDARIES) for i in range(NUM_FEATURES)
-    }
-
-  @test_util.run_in_graph_and_eager_modes()
-  def testContribEstimatorThatDFCIsInPredictions(self):
-    # pylint:disable=protected-access
-    head = boosted_trees._create_regression_head(label_dimension=1)
-    train_input_fn = _make_train_input_fn(is_classification=False)
-    predict_input_fn = numpy_io.numpy_input_fn(
-        x=FEATURES_DICT, y=None, batch_size=1, num_epochs=1, shuffle=False)
-
-    est = boosted_trees.BoostedTreesEstimator(
-        feature_columns=self._feature_columns,
-        n_batches_per_layer=1,
-        head=head,
-        n_trees=1,
-        max_depth=5,
-        center_bias=True)
-    # pylint:enable=protected-access
-
-    num_steps = 100
-    # Train for a few steps. Validate debug outputs in prediction dicts.
-    est.train(train_input_fn, steps=num_steps)
-    debug_predictions = est.experimental_predict_with_explanations(
-        predict_input_fn)
-    biases, dfcs = zip(*[(pred['bias'], pred['dfc'])
-                         for pred in debug_predictions])
-    self.assertAllClose([1.8] * 5, biases)
-    expected_dfcs = (collections.OrderedDict(
-        (('f_1_bucketized', -0.09500002861022949),
-         ('f_0_bucketized', -0.07049942016601562), ('f_2_bucketized', 0.0))),
-                     collections.OrderedDict(
-                         (('f_0_bucketized', -0.5376303195953369),
-                          ('f_1_bucketized',
-                           0.06333339214324951), ('f_2_bucketized', 0.0))),
-                     collections.OrderedDict(
-                         (('f_0_bucketized', -0.5175694227218628),
-                          ('f_1_bucketized',
-                           -0.09500002861022949), ('f_2_bucketized', 0.0))),
-                     collections.OrderedDict(
-                         (('f_0_bucketized', 0.1563495397567749),
-                          ('f_1_bucketized',
-                           0.06333339214324951), ('f_2_bucketized', 0.0))),
-                     collections.OrderedDict(
-                         (('f_0_bucketized', 0.96934974193573),
-                          ('f_1_bucketized',
-                           0.06333339214324951), ('f_2_bucketized', 0.0))))
-    for expected, dfc in zip(expected_dfcs, dfcs):
-      self.assertAllEqual(expected.keys(), dfc.keys())
-      self.assertAllClose(expected.values(), dfc.values())
-    # Assert sum(dfcs) + bias == predictions.
-    expected_predictions = [[1.6345005], [1.32570302], [1.1874305],
-                            [2.01968288], [2.83268309]]
-    predictions = [
-        [sum(dfc.values()) + bias] for (dfc, bias) in zip(dfcs, biases)
-    ]
-    self.assertAllClose(expected_predictions, predictions)
-
-    # Test when user doesn't include bias or dfc in predict_keys.
-    debug_predictions = est.experimental_predict_with_explanations(
-        predict_input_fn, predict_keys=['predictions'])
-    for prediction_dict in debug_predictions:
-      self.assertIn('bias', prediction_dict)
-      self.assertIn('dfc', prediction_dict)
-      self.assertIn('predictions', prediction_dict)
-      self.assertEqual(len(prediction_dict), 3)
-
 
 if __name__ == '__main__':
   googletest.main()
