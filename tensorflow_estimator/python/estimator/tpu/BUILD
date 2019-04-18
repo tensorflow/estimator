@@ -34,6 +34,9 @@ py_test(
     name = "tpu_config_test",
     size = "small",
     srcs = ["tpu_config_test.py"],
+    tags = [
+        "no_pip",  # due to visibility rules
+    ],
     deps = [
         ":tpu_estimator",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
@@ -45,7 +48,10 @@ py_test(
     size = "small",
     srcs = ["tpu_estimator_signals_test.py"],
     # TODO(jhseu): Remove. Fails in OSS on Python 3.
-    tags = ["no_oss"],
+    tags = [
+        "no_oss",
+        "no_pip",  # due to visibility rules
+    ],
     deps = [
         ":tpu_estimator",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
