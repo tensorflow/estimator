@@ -479,10 +479,9 @@ class RunConfig(object):
         global step and the loss will be logged during training.  Also controls
         the frequency that the global steps / s will be logged (and written to
         summary) during training.
-      train_distribute: An optional instance of
-        `tf.contrib.distribute.DistributionStrategy`. If specified,
-        then Estimator will distribute the user's model during training,
-        according to the policy specified by that strategy. Setting
+      train_distribute: An optional instance of `tf.distribute.Strategy`.
+        If specified, then Estimator will distribute the user's model during
+        training, according to the policy specified by that strategy. Setting
         `experimental_distribute.train_distribute` is preferred.
       device_fn: A callable invoked for every `Operation` that takes the
         `Operation` and returns the device string. If `None`, defaults to
@@ -490,11 +489,10 @@ class RunConfig(object):
         with round-robin strategy.
       protocol: An optional argument which specifies the protocol used when
         starting server. `None` means default to grpc.
-      eval_distribute: An optional instance of
-        `tf.contrib.distribute.DistributionStrategy`. If specified,
-        then Estimator will distribute the user's model during evaluation,
-        according to the policy specified by that strategy. Setting
-        `experimental_distribute.eval_distribute` is preferred.
+      eval_distribute: An optional instance of `tf.distribute.Strategy`.
+        If specified, then Estimator will distribute the user's model during
+        evaluation, according to the policy specified by that strategy.
+        Setting `experimental_distribute.eval_distribute` is preferred.
       experimental_distribute: An optional
         `tf.contrib.distribute.DistributeConfig` object specifying
         DistributionStrategy-related configuration. The `train_distribute` and
@@ -830,13 +828,13 @@ class RunConfig(object):
 
   @property
   def train_distribute(self):
-    """Optional `tf.contrib.distribute.DistributionStrategy` for training.
+    """Optional `tf.distribute.Strategy` for training.
     """
     return self._train_distribute
 
   @property
   def eval_distribute(self):
-    """Optional `tf.contrib.distribute.DistributionStrategy` for evaluation.
+    """Optional `tf.distribute.Strategy` for evaluation.
     """
     return self._eval_distribute
 
