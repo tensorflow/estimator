@@ -173,26 +173,25 @@ def _dnn_linear_combined_model_fn_v2(features,
             dropout=dnn_dropout,
             batch_norm=batch_norm,
             features=features,
-            mode=mode,
-            optimizer=dnn_optimizer))
+            mode=mode))
 
   linear_parent_scope = 'linear'
 
   if not linear_feature_columns:
     linear_logits = None
   else:
-    linear_optimizer = optimizers.get_optimizer_instance(
+    linear_optimizer = optimizers.get_optimizer_instance_v2(
         linear_optimizer,
         learning_rate=_linear_learning_rate(len(linear_feature_columns)))
     _check_no_sync_replicas_optimizer(linear_optimizer)
     with variable_scope.variable_scope(
         linear_parent_scope, values=tuple(six.itervalues(features))) as scope:
-      linear_absolute_scope = scope.name
-      logit_fn = linear.linear_logit_fn_builder_v2(
-          units=head.logits_dimension,
-          feature_columns=linear_feature_columns,
-          sparse_combiner=linear_sparse_combiner)
-      linear_logits = logit_fn(features=features)
+      linear_logits, linear_trainable_variables = (
+          linear._linear_model_fn_builder_v2(  # pylint: disable=protected-access
+              units=head.logits_dimension,
+              feature_columns=linear_feature_columns,
+              sparse_combiner=linear_sparse_combiner,
+              features=features))
       _add_layer_summary(linear_logits, scope.name)
 
   # Combine logits and build full model.
@@ -206,33 +205,28 @@ def _dnn_linear_combined_model_fn_v2(features,
   def _train_op_fn(loss):
     """Returns the op to optimize the loss."""
     train_ops = []
-    global_step = training_util.get_global_step()
     if dnn_logits is not None:
-      train_ops.append(
+      train_ops.extend(
           dnn_optimizer.get_updates(
               loss,
               dnn_trainable_variables))
       if dnn_update_ops is not None:
-        train_ops.append(dnn_update_ops)
-      # TODO(yhliang): For DNN only case with optimizer V2.
-      # Can be removed after optimizer V2 is used in Linear part
-      if linear_logits is None:
-        return control_flow_ops.group(*train_ops)
+        train_ops.extend(dnn_update_ops)
     if linear_logits is not None:
-      train_ops.append(
-          linear_optimizer.minimize(
+      train_ops.extend(
+          linear_optimizer.get_updates(
               loss,
-              var_list=ops.get_collection(
-                  ops.GraphKeys.TRAINABLE_VARIABLES,
-                  scope=linear_absolute_scope)))
-      # As linear uses optimizer v1, it still relies on global_step if it's
-      # Linear Only model
-      if dnn_logits is None:
-        train_op = control_flow_ops.group(*train_ops)
-        with ops.control_dependencies([train_op]):
-          return state_ops.assign_add(global_step, 1).op
+              linear_trainable_variables))
     train_op = control_flow_ops.group(*train_ops)
     return train_op
+
+  # Assign global_step variable to optimizer.iterations to make global_step
+  # increased correctly, as Hooks relies on global step as step counter.
+  # Note that, Only one model's optimizer needs this assignment.
+  if dnn_logits is not None:
+    dnn_optimizer.iterations = training_util.get_or_create_global_step()
+  else:
+    linear_optimizer.iterations = training_util.get_or_create_global_step()
 
   return head.create_estimator_spec(
       features=features,

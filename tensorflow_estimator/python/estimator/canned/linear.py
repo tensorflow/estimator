@@ -27,6 +27,7 @@ from tensorflow.python.feature_column import feature_column_lib
 from tensorflow.python.framework import constant_op
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
+from tensorflow.python.keras.optimizer_v2 import ftrl as ftrl_v2
 from tensorflow.python.keras.utils import losses_utils
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import control_flow_ops
@@ -41,6 +42,7 @@ from tensorflow.python.summary import summary
 from tensorflow.python.training import ftrl
 from tensorflow.python.training import session_run_hook
 from tensorflow.python.training import training
+from tensorflow.python.training import training_util
 from tensorflow.python.util import nest
 from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator import estimator
@@ -248,6 +250,11 @@ class LinearSDCA(object):
             loss_type=loss_type))
     train_op = sdca_model.minimize(global_step=global_step)
     return sdca_model, train_op
+
+
+def _get_default_optimizer_v2(feature_columns):
+  learning_rate = min(_LEARNING_RATE, 1.0 / math.sqrt(len(feature_columns)))
+  return ftrl_v2.Ftrl(learning_rate=learning_rate)
 
 
 def _get_default_optimizer(feature_columns):
@@ -553,6 +560,61 @@ class _SDCAUpdateWeightsHook(session_run_hook.SessionRunHook):
     return session_run_hook.SessionRunArgs(self._update_op)
 
 
+def _linear_model_fn_builder_v2(units, feature_columns, sparse_combiner='sum',
+                                features=None):
+  """Function builder for a linear model_fn.
+
+  Args:
+    units: An int indicating the dimension of the logit layer.
+    feature_columns: An iterable containing all the feature columns used by
+      the model.
+    sparse_combiner: A string specifying how to reduce if a categorical column
+      is multivalent.  One of "mean", "sqrtn", and "sum".
+    features: This is the first item returned from the `input_fn`
+              passed to `train`, `evaluate`, and `predict`. This should be a
+              single `Tensor` or `dict` of same.
+
+  Returns:
+    A `Tensor` representing the logits.
+    A list of trainable variables.
+
+  """
+  if not feature_column_lib.is_feature_column_v2(feature_columns):
+    raise ValueError(
+        'Received a feature column from TensorFlow v1, but this is a '
+        'TensorFlow v2 Estimator. Please either use v2 feature columns '
+        '(accessible via tf.feature_column.* in TF 2.x) with this '
+        'Estimator, or switch to a v1 Estimator for use with v1 feature '
+        'columns (accessible via tf.compat.v1.estimator.* and '
+        'tf.compat.v1.feature_column.*, respectively.')
+
+  linear_model = feature_column_lib.LinearModel(
+      feature_columns=feature_columns,
+      units=units,
+      sparse_combiner=sparse_combiner,
+      name='linear_model')
+  logits = linear_model(features)
+  bias = linear_model.bias
+
+  # We'd like to get all the non-bias variables associated with this
+  # LinearModel.
+  # TODO(rohanj): Figure out how to get shared embedding weights variable
+  # here.
+  variables = linear_model.variables
+  variables.remove(bias)
+
+  if units > 1:
+    summary.histogram('bias', bias)
+  else:
+    # If units == 1, the bias value is a length-1 list of a scalar Tensor,
+    # so we should provide a scalar summary.
+    summary.scalar('bias', bias[0])
+  summary.scalar('fraction_of_zero_weights',
+                 _compute_fraction_of_zero(variables))
+
+  return logits, linear_model.variables
+
+
 def _linear_model_fn_v2(features,
                         labels,
                         mode,
@@ -597,22 +659,26 @@ def _linear_model_fn_v2(features,
       return _sdca_model_fn(features, labels, mode, head, feature_columns,
                             optimizer)
     else:
-      logit_fn = linear_logit_fn_builder_v2(
+      optimizer = optimizers.get_optimizer_instance_v2(
+          optimizer or _get_default_optimizer_v2(feature_columns),
+          learning_rate=_LEARNING_RATE)
+
+      logits, trainable_variables = _linear_model_fn_builder_v2(
           units=head.logits_dimension,
           feature_columns=feature_columns,
           sparse_combiner=sparse_combiner,
-      )
-      logits = logit_fn(features=features)
+          features=features)
 
-      optimizer = optimizers.get_optimizer_instance(
-          optimizer or _get_default_optimizer(feature_columns),
-          learning_rate=_LEARNING_RATE)
+      # Assign global_step variable to optimizer.iterations to make global_step
+      # increased correctly, as Hooks relies on global step as step counter.
+      optimizer.iterations = training_util.get_or_create_global_step()
 
       return head.create_estimator_spec(
           features=features,
           mode=mode,
           labels=labels,
           optimizer=optimizer,
+          trainable_variables=trainable_variables,
           logits=logits)
 
 

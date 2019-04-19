@@ -469,7 +469,7 @@ def _dnn_model_fn(features,
 
 def _dnn_model_fn_builder_v2(units, hidden_units, feature_columns,
                              activation_fn, dropout, batch_norm,
-                             features, mode, optimizer):
+                             features, mode):
   """Function builder for dnn logits, trainable variables and update ops.
 
   Args:
@@ -486,11 +486,6 @@ def _dnn_model_fn_builder_v2(units, hidden_units, feature_columns,
       `dict` of same.
     mode: Optional. Specifies if this training, evaluation or prediction. See
       `ModeKeys`.
-    optimizer: String, `tf.keras.optimizers.Optimizer` object, or callable that
-      creates the optimizer to use for training. If not specified, will use the
-      Adagrad optimizer. If it is String, the default learning rate of the
-      optimizer will be used. If it is String, and optimizer does not have a
-      default learning rate, then, a fixed learning rate of 0.05 is used.
 
   Returns:
     A `Tensor` representing the logits, or a list of `Tensor`'s representing
@@ -515,10 +510,6 @@ def _dnn_model_fn_builder_v2(units, hidden_units, feature_columns,
   logits = dnn_model(features, mode)
   trainable_variables = dnn_model.trainable_variables
   update_ops = dnn_model.updates
-
-  # Assign global_step variable to optimizer.iterations to make global_step
-  # increased correctly, as Hooks relies on global step as step counter.
-  optimizer.iterations = training_util.get_or_create_global_step()
 
   return logits, trainable_variables, update_ops
 
@@ -582,8 +573,11 @@ def dnn_model_fn_v2(features,
       dropout=dropout,
       batch_norm=batch_norm,
       features=features,
-      mode=mode,
-      optimizer=optimizer)
+      mode=mode)
+
+  # Assign global_step variable to optimizer.iterations to make global_step
+  # increased correctly, as Hooks relies on global step as step counter.
+  optimizer.iterations = training_util.get_or_create_global_step()
 
   # Create EstimatorSpec.
   if use_tpu:

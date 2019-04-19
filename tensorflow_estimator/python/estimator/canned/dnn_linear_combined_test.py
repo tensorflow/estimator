@@ -38,10 +38,7 @@ from tensorflow.python.ops import variables as variables_lib
 from tensorflow.python.platform import gfile
 from tensorflow.python.platform import test
 from tensorflow.python.summary.writer import writer_cache
-from tensorflow.python.training import checkpoint_utils
-from tensorflow.python.training import gradient_descent
 from tensorflow.python.training import input as input_lib
-from tensorflow.python.training import optimizer as optimizer_lib
 from tensorflow_estimator.python.estimator import estimator
 from tensorflow_estimator.python.estimator.canned import dnn_linear_combined
 from tensorflow_estimator.python.estimator.canned import dnn_testing_utils
@@ -752,31 +749,9 @@ class DNNLinearCombinedTests(test.TestCase):
     if self._model_dir:
       shutil.rmtree(self._model_dir)
 
-  def _mock_optimizer(self, real_optimizer, var_name_prefix):
-    """Verifies global_step is None and var_names start with given prefix."""
-
-    def _minimize(loss, global_step=None, var_list=None):
-      self.assertIsNone(global_step)
-      trainable_vars = var_list or ops.get_collection(
-          ops.GraphKeys.TRAINABLE_VARIABLES)
-      var_names = [var.name for var in trainable_vars]
-      self.assertTrue(
-          all([name.startswith(var_name_prefix) for name in var_names]))
-      # var is used to check this op called by training.
-      with ops.name_scope(''):
-        var = variables_lib.Variable(0., name=(var_name_prefix + '_called'))
-      with ops.control_dependencies([var.assign(100.)]):
-        return real_optimizer.minimize(loss, global_step, var_list)
-
-    optimizer_mock = test.mock.NonCallableMagicMock(
-        spec=optimizer_lib.Optimizer, wraps=real_optimizer)
-    optimizer_mock.minimize = test.mock.MagicMock(wraps=_minimize)
-
-    return optimizer_mock
-
   def test_train_op_calls_both_dnn_and_linear(self, fc_impl):
     dnn_opt = gradient_descent_v2.SGD(1.)
-    linear_opt = gradient_descent.GradientDescentOptimizer(1.)
+    linear_opt = gradient_descent_v2.SGD(1.)
     x_column = fc_impl.numeric_column('x')
     input_fn = numpy_io.numpy_input_fn(
         x={'x': np.array([[0.], [1.]])},
@@ -786,7 +761,7 @@ class DNNLinearCombinedTests(test.TestCase):
     est = dnn_linear_combined.DNNLinearCombinedClassifierV2(
         linear_feature_columns=[x_column],
         # verifies linear_optimizer is used only for linear part.
-        linear_optimizer=self._mock_optimizer(linear_opt, 'linear'),
+        linear_optimizer=linear_opt,
         dnn_hidden_units=(2, 2),
         dnn_feature_columns=[x_column],
         # verifies dnn_optimizer is used only for dnn part.
@@ -795,9 +770,8 @@ class DNNLinearCombinedTests(test.TestCase):
     num_steps = 1
     est.train(input_fn, steps=num_steps)
     # verifies train_op fires linear minimize op
-    self.assertEqual(100.,
-                     checkpoint_utils.load_variable(
-                         self._model_dir, 'linear_called'))
+    self.assertEqual(num_steps, est.get_variable_value(
+        linear_opt.iterations.name))
     # verifies train_op fires dnn optmizer
     self.assertEqual(num_steps, est.get_variable_value(dnn_opt.iterations.name))
 
@@ -880,7 +854,7 @@ class DNNLinearCombinedWarmStartingTest(test.TestCase):
             dnn_feature_columns=[city],
             dnn_hidden_units=[256, 128],
             n_classes=4,
-            linear_optimizer=gradient_descent.GradientDescentOptimizer(
+            linear_optimizer=gradient_descent_v2.SGD(
                 learning_rate=0.0),
             dnn_optimizer=gradient_descent_v2.SGD(
                 learning_rate=0.0),
@@ -923,7 +897,7 @@ class DNNLinearCombinedWarmStartingTest(test.TestCase):
             linear_feature_columns=[age],
             dnn_feature_columns=[city],
             dnn_hidden_units=[256, 128],
-            linear_optimizer=gradient_descent.GradientDescentOptimizer(
+            linear_optimizer=gradient_descent_v2.SGD(
                 learning_rate=0.0),
             dnn_optimizer=gradient_descent_v2.SGD(
                 learning_rate=0.0),
@@ -968,7 +942,7 @@ class DNNLinearCombinedWarmStartingTest(test.TestCase):
             dnn_feature_columns=[city],
             dnn_hidden_units=[256, 128],
             n_classes=4,
-            linear_optimizer=gradient_descent.GradientDescentOptimizer(
+            linear_optimizer=gradient_descent_v2.SGD(
                 learning_rate=0.0),
             dnn_optimizer=gradient_descent_v2.SGD(
                 learning_rate=0.0),

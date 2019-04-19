@@ -34,6 +34,8 @@ from tensorflow.python.feature_column import feature_column_v2
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import sparse_tensor
+from tensorflow.python.keras.optimizer_v2 import gradient_descent
+from tensorflow.python.keras.optimizer_v2 import optimizer_v2
 from tensorflow.python.ops import check_ops
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import data_flow_ops
@@ -46,9 +48,7 @@ from tensorflow.python.platform import gfile
 from tensorflow.python.platform import test
 from tensorflow.python.summary.writer import writer_cache
 from tensorflow.python.training import checkpoint_utils
-from tensorflow.python.training import gradient_descent
 from tensorflow.python.training import input as input_lib
-from tensorflow.python.training import optimizer as optimizer_lib
 from tensorflow.python.training import queue_runner
 from tensorflow.python.training import saver
 from tensorflow_estimator.python.estimator import estimator
@@ -122,6 +122,40 @@ def sorted_key_dict(unsorted_dict):
 
 def sigmoid(x):
   return 1 / (1 + np.exp(-1.0 * x))
+
+
+def mock_optimizer(testcase, expected_loss=None):
+  expected_var_names = ['%s:0' % AGE_WEIGHT_NAME, '%s:0' % BIAS_NAME]
+
+  class _Optimizer(optimizer_v2.OptimizerV2):
+
+    def get_updates(self, loss, params):
+      trainable_vars = params
+      testcase.assertItemsEqual(expected_var_names,
+                                [var.name for var in trainable_vars])
+
+      # Verify loss. We can't check the value directly, so we add an assert op.
+      testcase.assertEquals(0, loss.shape.ndims)
+      if expected_loss is None:
+        if self.iterations is not None:
+          return [self.iterations.assign_add(1).op]
+        return [control_flow_ops.no_op()]
+      assert_loss = assert_close(
+          math_ops.to_float(expected_loss, name='expected'),
+          loss,
+          name='assert_loss')
+      with ops.control_dependencies((assert_loss,)):
+        if self.iterations is not None:
+          return [self.iterations.assign_add(1).op]
+        return [control_flow_ops.no_op()]
+
+    def get_config(self):
+      config = super(_Optimizer, self).get_config()
+      return config
+
+  optimizer = _Optimizer(name='my_optimizer')
+
+  return optimizer
 
 
 # TODO(b/36813849): Add tests with dynamic shape inputs using placeholders.
@@ -702,40 +736,6 @@ class BaseLinearRegressorTrainingTest(object):
       writer_cache.FileWriterCache.clear()
       shutil.rmtree(self._model_dir)
 
-  def _mock_optimizer(self, expected_loss=None):
-    expected_var_names = ['%s:0' % AGE_WEIGHT_NAME, '%s:0' % BIAS_NAME]
-
-    def _minimize(loss, global_step=None, var_list=None):
-      trainable_vars = var_list or ops.get_collection(
-          ops.GraphKeys.TRAINABLE_VARIABLES)
-      self.assertItemsEqual(expected_var_names,
-                            [var.name for var in trainable_vars])
-
-      # Verify loss. We can't check the value directly, so we add an assert op.
-      self.assertEquals(0, loss.shape.ndims)
-      if expected_loss is None:
-        if global_step is not None:
-          return state_ops.assign_add(global_step, 1).op
-        return control_flow_ops.no_op()
-      assert_loss = assert_close(
-          math_ops.to_float(expected_loss, name='expected'),
-          loss,
-          name='assert_loss')
-      with ops.control_dependencies((assert_loss,)):
-        if global_step is not None:
-          return state_ops.assign_add(global_step, 1).op
-        return control_flow_ops.no_op()
-
-    mock_optimizer = test.mock.NonCallableMock(
-        spec=optimizer_lib.Optimizer,
-        wraps=optimizer_lib.Optimizer(use_locking=False, name='my_optimizer'))
-    mock_optimizer.minimize = test.mock.MagicMock(wraps=_minimize)
-
-    # NOTE: Estimator.params performs a deepcopy, which wreaks havoc with mocks.
-    # So, return mock_optimizer itself for deepcopy.
-    mock_optimizer.__deepcopy__ = lambda _: mock_optimizer
-    return mock_optimizer
-
   def _assert_checkpoint(self,
                          expected_global_step,
                          expected_age_weight=None,
@@ -824,18 +824,19 @@ class BaseLinearRegressorTrainingTest(object):
     label = 5.
     age = 17
     # loss = (logits - label)^2 = (0 - 5.)^2 = 25.
-    mock_optimizer = self._mock_optimizer(expected_loss=25.)
+    mock_opt = mock_optimizer(self, expected_loss=25.)
     linear_regressor = self._linear_regressor_fn(
         feature_columns=(self._fc_lib.numeric_column('age'),),
         model_dir=self._model_dir,
-        optimizer=mock_optimizer)
-    self.assertEqual(0, mock_optimizer.minimize.call_count)
+        optimizer=mock_opt)
 
     # Train for a few steps, and validate optimizer and final checkpoint.
     num_steps = 10
     linear_regressor.train(
         input_fn=lambda: ({'age': ((age,),)}, ((label,),)), steps=num_steps)
-    self.assertEqual(1, mock_optimizer.minimize.call_count)
+    self.assertEqual(
+        num_steps,
+        linear_regressor.get_variable_value(mock_opt.iterations.name))
     self._assert_checkpoint(
         expected_global_step=num_steps,
         expected_age_weight=0.,
@@ -857,18 +858,19 @@ class BaseLinearRegressorTrainingTest(object):
 
     # logits = age * age_weight + bias = 17 * 10. + 5. = 175
     # loss = (logits - label)^2 = (175 - 5)^2 = 28900
-    mock_optimizer = self._mock_optimizer(expected_loss=28900.)
+    mock_opt = mock_optimizer(self, expected_loss=28900.)
     linear_regressor = self._linear_regressor_fn(
         feature_columns=(self._fc_lib.numeric_column('age'),),
         model_dir=self._model_dir,
-        optimizer=mock_optimizer)
-    self.assertEqual(0, mock_optimizer.minimize.call_count)
+        optimizer=mock_opt)
 
     # Train for a few steps, and validate optimizer and final checkpoint.
     num_steps = 10
     linear_regressor.train(
         input_fn=lambda: ({'age': ((17,),)}, ((5.,),)), steps=num_steps)
-    self.assertEqual(1, mock_optimizer.minimize.call_count)
+    self.assertEqual(
+        initial_global_step + num_steps,
+        linear_regressor.get_variable_value(mock_opt.iterations.name))
     self._assert_checkpoint(
         expected_global_step=initial_global_step + num_steps,
         expected_age_weight=age_weight,
@@ -893,19 +895,20 @@ class BaseLinearRegressorTrainingTest(object):
     # logits[1] = 15 * 10. + 5. = 155
     # loss = sum(logits - label)^2 = (175 - 5)^2 + (155 - 3)^2 = 52004
     # expected_loss = loss / 2 = 26002
-    mock_optimizer = self._mock_optimizer(expected_loss=26002.)
+    mock_opt = mock_optimizer(self, expected_loss=26002.)
     linear_regressor = self._linear_regressor_fn(
         feature_columns=(self._fc_lib.numeric_column('age'),),
         model_dir=self._model_dir,
-        optimizer=mock_optimizer)
-    self.assertEqual(0, mock_optimizer.minimize.call_count)
+        optimizer=mock_opt)
 
     # Train for a few steps, and validate optimizer and final checkpoint.
     num_steps = 10
     linear_regressor.train(
         input_fn=lambda: ({'age': ((17,), (15,))}, ((5.,), (3.,))),
         steps=num_steps)
-    self.assertEqual(1, mock_optimizer.minimize.call_count)
+    self.assertEqual(
+        initial_global_step + num_steps,
+        linear_regressor.get_variable_value(mock_opt.iterations.name))
     self._assert_checkpoint(
         expected_global_step=initial_global_step + num_steps,
         expected_age_weight=age_weight,
@@ -924,36 +927,6 @@ class BaseLinearClassifierTrainingTest(object):
   def tearDown(self):
     if self._model_dir:
       shutil.rmtree(self._model_dir)
-
-  def _mock_optimizer(self, expected_loss=None):
-    expected_var_names = ['%s:0' % AGE_WEIGHT_NAME, '%s:0' % BIAS_NAME]
-
-    def _minimize(loss, global_step):
-      trainable_vars = ops.get_collection(ops.GraphKeys.TRAINABLE_VARIABLES)
-      self.assertItemsEqual(
-          expected_var_names,
-          [var.name for var in trainable_vars])
-
-      # Verify loss. We can't check the value directly, so we add an assert op.
-      self.assertEquals(0, loss.shape.ndims)
-      if expected_loss is None:
-        return state_ops.assign_add(global_step, 1).op
-      assert_loss = assert_close(
-          math_ops.to_float(expected_loss, name='expected'),
-          loss,
-          name='assert_loss')
-      with ops.control_dependencies((assert_loss,)):
-        return state_ops.assign_add(global_step, 1).op
-
-    mock_optimizer = test.mock.NonCallableMock(
-        spec=optimizer_lib.Optimizer,
-        wraps=optimizer_lib.Optimizer(use_locking=False, name='my_optimizer'))
-    mock_optimizer.minimize = test.mock.MagicMock(wraps=_minimize)
-
-    # NOTE: Estimator.params performs a deepcopy, which wreaks havoc with mocks.
-    # So, return mock_optimizer itself for deepcopy.
-    mock_optimizer.__deepcopy__ = lambda _: mock_optimizer
-    return mock_optimizer
 
   def _assert_checkpoint(
       self, n_classes, expected_global_step, expected_age_weight=None,
@@ -1120,21 +1093,22 @@ class BaseLinearClassifierTrainingTest(object):
     #      loss = 1 * -log ( 1.0 / n_classes )
     # For this particular test case, as logits are same, the formular
     # 1 * -log ( 1.0 / n_classes ) covers both binary and multi class cases.
-    mock_optimizer = self._mock_optimizer(
-        expected_loss=-1 * math.log(1.0/n_classes))
+    mock_opt = mock_optimizer(
+        self, expected_loss=-1 * math.log(1.0/n_classes))
 
     est = linear.LinearClassifierV2(
         feature_columns=(self._fc_lib.numeric_column('age'),),
         n_classes=n_classes,
-        optimizer=mock_optimizer,
+        optimizer=mock_opt,
         model_dir=self._model_dir)
-    self.assertEqual(0, mock_optimizer.minimize.call_count)
 
     # Train for a few steps, and validate optimizer and final checkpoint.
     num_steps = 10
     est.train(
         input_fn=lambda: ({'age': ((age,),)}, ((label,),)), steps=num_steps)
-    self.assertEqual(1, mock_optimizer.minimize.call_count)
+    self.assertEqual(
+        num_steps,
+        est.get_variable_value(mock_opt.iterations.name))
     self._assert_checkpoint(
         n_classes,
         expected_global_step=num_steps,
@@ -1184,20 +1158,21 @@ class BaseLinearClassifierTrainingTest(object):
       softmax = logits_exp / logits_exp.sum()
       expected_loss = -1 * math.log(softmax[0, label])
 
-    mock_optimizer = self._mock_optimizer(expected_loss=expected_loss)
+    mock_opt = mock_optimizer(self, expected_loss=expected_loss)
 
     est = linear.LinearClassifierV2(
         feature_columns=(self._fc_lib.numeric_column('age'),),
         n_classes=n_classes,
-        optimizer=mock_optimizer,
+        optimizer=mock_opt,
         model_dir=self._model_dir)
-    self.assertEqual(0, mock_optimizer.minimize.call_count)
 
     # Train for a few steps, and validate optimizer and final checkpoint.
     num_steps = 10
     est.train(
         input_fn=lambda: ({'age': ((age,),)}, ((label,),)), steps=num_steps)
-    self.assertEqual(1, mock_optimizer.minimize.call_count)
+    self.assertEqual(
+        initial_global_step + num_steps,
+        est.get_variable_value(mock_opt.iterations.name))
     self._assert_checkpoint(
         n_classes,
         expected_global_step=initial_global_step + num_steps,
@@ -1232,20 +1207,21 @@ class BaseLinearClassifierTrainingTest(object):
     # logits = age * age_weight + bias = 17 * 2. - 35. = -1.
     # loss = sigmoid_cross_entropy(logits, label)
     # => loss = -0.8 * log(sigmoid(-1)) -0.2 * log(sigmoid(+1)) = 1.1132617
-    mock_optimizer = self._mock_optimizer(expected_loss=1.1132617)
+    mock_opt = mock_optimizer(self, expected_loss=1.1132617)
 
     est = linear.LinearClassifierV2(
         feature_columns=(self._fc_lib.numeric_column('age'),),
         n_classes=n_classes,
-        optimizer=mock_optimizer,
+        optimizer=mock_opt,
         model_dir=self._model_dir)
-    self.assertEqual(0, mock_optimizer.minimize.call_count)
 
     # Train for a few steps, and validate optimizer and final checkpoint.
     num_steps = 10
     est.train(
         input_fn=lambda: ({'age': ((age,),)}, ((label,),)), steps=num_steps)
-    self.assertEqual(1, mock_optimizer.minimize.call_count)
+    self.assertEqual(
+        initial_global_step + num_steps,
+        est.get_variable_value(mock_opt.iterations.name))
 
   def testBinaryClassesFromCheckpointFloatLabels(self):
     self._testFromCheckpointFloatLabels(n_classes=2)
@@ -1298,21 +1274,22 @@ class BaseLinearClassifierTrainingTest(object):
       expected_loss_1 = -1 * math.log(softmax_row_1[label[1]])
       expected_loss = (expected_loss_0 + expected_loss_1) / 2
 
-    mock_optimizer = self._mock_optimizer(expected_loss=expected_loss)
+    mock_opt = mock_optimizer(self, expected_loss=expected_loss)
 
     est = linear.LinearClassifierV2(
         feature_columns=(self._fc_lib.numeric_column('age'),),
         n_classes=n_classes,
-        optimizer=mock_optimizer,
+        optimizer=mock_opt,
         model_dir=self._model_dir)
-    self.assertEqual(0, mock_optimizer.minimize.call_count)
 
     # Train for a few steps, and validate optimizer and final checkpoint.
     num_steps = 10
     est.train(
         input_fn=lambda: ({'age': (age)}, (label)),
         steps=num_steps)
-    self.assertEqual(1, mock_optimizer.minimize.call_count)
+    self.assertEqual(
+        initial_global_step + num_steps,
+        est.get_variable_value(mock_opt.iterations.name))
     self._assert_checkpoint(
         n_classes,
         expected_global_step=initial_global_step + num_steps,
@@ -2036,14 +2013,21 @@ class BaseLinearWarmStartingTest(object):
     warm_started_linear_classifier = self._linear_classifier_fn(
         feature_columns=[age],
         n_classes=4,
-        optimizer=gradient_descent.GradientDescentOptimizer(learning_rate=0.0),
+        optimizer=gradient_descent.SGD(learning_rate=0.0),
         warm_start_from=linear_classifier.model_dir)
 
     warm_started_linear_classifier.train(input_fn=self._input_fn, max_steps=1)
     for variable_name in warm_started_linear_classifier.get_variable_names():
-      self.assertAllClose(
-          linear_classifier.get_variable_value(variable_name),
-          warm_started_linear_classifier.get_variable_value(variable_name))
+      # Learning rate is also checkpointed in V2 optimizer. So we need to make
+      # sure it uses the new value after warm started.
+      if 'learning_rate' in variable_name:
+        self.assertAllClose(
+            0.0, warm_started_linear_classifier.get_variable_value(variable_name))
+      else:
+        self.assertAllClose(
+            linear_classifier.get_variable_value(variable_name),
+            warm_started_linear_classifier.get_variable_value(variable_name))
+
 
   def test_regressor_basic_warm_starting(self):
     """Tests correctness of LinearRegressor default warm-start."""
@@ -2061,14 +2045,20 @@ class BaseLinearWarmStartingTest(object):
     # accumulator values that change).
     warm_started_linear_regressor = self._linear_regressor_fn(
         feature_columns=[age],
-        optimizer=gradient_descent.GradientDescentOptimizer(learning_rate=0.0),
+        optimizer=gradient_descent.SGD(learning_rate=0.0),
         warm_start_from=linear_regressor.model_dir)
 
     warm_started_linear_regressor.train(input_fn=self._input_fn, max_steps=1)
     for variable_name in warm_started_linear_regressor.get_variable_names():
-      self.assertAllClose(
-          linear_regressor.get_variable_value(variable_name),
-          warm_started_linear_regressor.get_variable_value(variable_name))
+      # Learning rate is also checkpointed in V2 optimizer. So we need to make
+      # sure it uses the new value after warm started.
+      if 'learning_rate' in variable_name:
+        self.assertAllClose(
+            0.0, warm_started_linear_regressor.get_variable_value(variable_name))
+      else:
+        self.assertAllClose(
+            linear_regressor.get_variable_value(variable_name),
+            warm_started_linear_regressor.get_variable_value(variable_name))
 
   def test_warm_starting_selective_variables(self):
     """Tests selecting variables to warm-start."""
@@ -2088,7 +2078,7 @@ class BaseLinearWarmStartingTest(object):
     warm_started_linear_classifier = self._linear_classifier_fn(
         feature_columns=[age],
         n_classes=4,
-        optimizer=gradient_descent.GradientDescentOptimizer(learning_rate=0.0),
+        optimizer=gradient_descent.SGD(learning_rate=0.0),
         # The provided regular expression will only warm-start the age variable
         # and not the bias.
         warm_start_from=estimator.WarmStartSettings(
@@ -2150,7 +2140,7 @@ class BaseLinearWarmStartingTest(object):
     warm_started_linear_classifier = self._linear_classifier_fn(
         feature_columns=[occupation],
         n_classes=4,
-        optimizer=gradient_descent.GradientDescentOptimizer(learning_rate=0.0),
+        optimizer=gradient_descent.SGD(learning_rate=0.0),
         warm_start_from=estimator.WarmStartSettings(
             ckpt_to_initialize_from=linear_classifier.model_dir,
             var_name_to_vocab_info={
@@ -2199,7 +2189,7 @@ class BaseLinearWarmStartingTest(object):
     warm_started_linear_classifier = self._linear_classifier_fn(
         feature_columns=[self._fc_lib.numeric_column('age')],
         n_classes=4,
-        optimizer=gradient_descent.GradientDescentOptimizer(learning_rate=0.0),
+        optimizer=gradient_descent.SGD(learning_rate=0.0),
         # The 'age' variable correspond to the 'age_in_years' variable in the
         # previous model.
         warm_start_from=estimator.WarmStartSettings(
