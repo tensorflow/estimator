@@ -22,6 +22,7 @@ import collections
 
 from tensorflow.python.feature_column import feature_column as core_fc
 from tensorflow.python.feature_column import feature_column_lib as core_fc_lib
+from tensorflow.python.feature_column import utils as fc_utils
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import sparse_tensor
@@ -138,7 +139,8 @@ def get_configs_from_feature_columns(feature_columns):
           'Feature column {} is used with multiple embeddings and this is '
           'not supported.'.format(feature_name))
     feature_to_config[feature_name] = tpu_embedding.FeatureConfig(
-        table_id=table_name)
+        table_id=table_name,
+        max_sequence_length=column.get_max_sequence_length())
     feature_to_weight_key_name[feature_name] = column.get_weight_key_name()
     vocabulary_size, dimension = column.get_embedding_table_size()
     table_to_config[table_name] = tpu_embedding.TableConfig(
@@ -313,6 +315,17 @@ def split_inputs(ctx, features, labels):
         ctx.embedding_config.feature_to_weight_key_name_dict)
     for feature_key in tpu_embedding_.feature_to_config_dict:
       sparse_feature = _get_sparse_feature_from_feature(feature_key, features)
+      max_sequence_length = tpu_embedding_.feature_to_config_dict[
+          feature_key].max_sequence_length
+      if max_sequence_length > 0:
+        length_feature_name = (
+            tpu_fc.get_sequence_length_feature_key_name_from_feature_key_name(
+                feature_key))
+        length_feature = math_ops.minimum(
+            fc_utils.sequence_length_from_sparse_tensor(sparse_feature),
+            max_sequence_length)
+        length_feature.set_shape(ctx.batch_size_for_input_fn)
+        features[length_feature_name] = length_feature
       weight_key_name = feature_to_weight_key_name_dict[feature_key]
       if isinstance(sparse_feature, sparse_tensor.SparseTensor):
         weights = _get_weights_from_features(weight_key_name, features)
