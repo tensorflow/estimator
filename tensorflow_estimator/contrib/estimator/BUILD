@@ -46,6 +46,7 @@ py_test(
     name = "boosted_trees_test",
     size = "medium",
     srcs = ["python/estimator/boosted_trees_test.py"],
+    python_version = "PY2",
     shard_count = 4,
     srcs_version = "PY2AND3",
     tags = [
@@ -79,6 +80,7 @@ py_test(
     name = "dnn_with_layer_annotations_test",
     size = "medium",
     srcs = ["python/estimator/dnn_with_layer_annotations_test.py"],
+    python_version = "PY2",
     shard_count = 4,
     srcs_version = "PY2AND3",
     tags = [
@@ -121,6 +123,7 @@ py_test(
     name = "extenders_test",
     size = "medium",
     srcs = ["python/estimator/extenders_test.py"],
+    python_version = "PY2",
     shard_count = 2,
     srcs_version = "PY2AND3",
     tags = ["notsan"],  # b/62863147
@@ -163,6 +166,7 @@ py_test(
     name = "exporter_test",
     size = "medium",
     srcs = ["python/estimator/exporter_test.py"],
+    python_version = "PY2",
     srcs_version = "PY2AND3",
     deps = [
         ":exporter",
@@ -194,6 +198,7 @@ py_test(
     name = "head_test",
     size = "medium",
     srcs = ["python/estimator/head_test.py"],
+    python_version = "PY2",
     srcs_version = "PY2AND3",
     deps = [
         ":head",
@@ -226,6 +231,7 @@ py_test(
     name = "logit_fns_test",
     size = "small",
     srcs = ["python/estimator/logit_fns_test.py"],
+    python_version = "PY2",
     srcs_version = "PY2AND3",
     deps = [
         ":logit_fns",
@@ -256,6 +262,7 @@ py_test(
     name = "multi_head_test",
     size = "small",
     srcs = ["python/estimator/multi_head_test.py"],
+    python_version = "PY2",
     srcs_version = "PY2AND3",
     deps = [
         ":head",
@@ -307,6 +314,7 @@ py_test(
     name = "rnn_test",
     size = "medium",
     srcs = ["python/estimator/rnn_test.py"],
+    python_version = "PY2",
     srcs_version = "PY2AND3",
     tags = [
         "no_pip",
@@ -350,6 +358,7 @@ py_test(
     name = "rnn_v2_test",
     size = "medium",
     srcs = ["python/estimator/rnn_v2_test.py"],
+    python_version = "PY2",
     srcs_version = "PY2AND3",
     tags = [
         "no_pip",
