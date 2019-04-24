@@ -175,8 +175,6 @@ def _dnn_linear_combined_model_fn_v2(features,
             features=features,
             mode=mode))
 
-  linear_parent_scope = 'linear'
-
   if not linear_feature_columns:
     linear_logits = None
   else:
@@ -184,15 +182,13 @@ def _dnn_linear_combined_model_fn_v2(features,
         linear_optimizer,
         learning_rate=_linear_learning_rate(len(linear_feature_columns)))
     _check_no_sync_replicas_optimizer(linear_optimizer)
-    with variable_scope.variable_scope(
-        linear_parent_scope, values=tuple(six.itervalues(features))) as scope:
-      linear_logits, linear_trainable_variables = (
-          linear._linear_model_fn_builder_v2(  # pylint: disable=protected-access
-              units=head.logits_dimension,
-              feature_columns=linear_feature_columns,
-              sparse_combiner=linear_sparse_combiner,
-              features=features))
-      _add_layer_summary(linear_logits, scope.name)
+    linear_logits, linear_trainable_variables = (
+        linear._linear_model_fn_builder_v2(  # pylint: disable=protected-access
+            units=head.logits_dimension,
+            feature_columns=linear_feature_columns,
+            sparse_combiner=linear_sparse_combiner,
+            features=features))
+    _add_layer_summary(linear_logits, 'linear')
 
   # Combine logits and build full model.
   if dnn_logits is not None and linear_logits is not None:

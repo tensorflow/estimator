@@ -476,11 +476,6 @@ def _sdca_model_fn(features, labels, mode, head, feature_columns, optimizer):
     ValueError: mode or params are invalid, or features has the wrong type.
   """
   assert feature_column_lib.is_feature_column_v2(feature_columns)
-  # The _sdca_model_fn is used by _linear_model_fn with LinearSDCA optimizer in
-  # both v1 and v2 Linear Estimators, and the only difference is to check head
-  # type. Here we check the instance for both v1 and v2 Head to avoid duplicate
-  # codes. Later v1 and v2 versions of _sdca_model_fn can be created if
-  # necessary.
   if isinstance(head,
                 (binary_class_head.BinaryClassHead,
                  head_lib._BinaryLogisticHeadWithSigmoidCrossEntropyLoss)):  # pylint: disable=protected-access
@@ -492,8 +487,20 @@ def _sdca_model_fn(features, labels, mode, head, feature_columns, optimizer):
   else:
     raise ValueError('Unsupported head type: {}'.format(head))
 
+  # The default name for LinearModel.
+  linear_model_name = 'linear_model'
+
+  # Name scope has no effect on variables in LinearModel, as it uses
+  # tf.get_variables() for variable creation. So we modify the model name to
+  # keep the variable names the same for checkpoint backward compatibility in
+  # canned Linear v2.
+  if isinstance(head, (binary_class_head.BinaryClassHead,
+                       regression_head.RegressionHead)):
+    linear_model_name = 'linear/linear_model'
+
   linear_model = feature_column_lib.LinearModel(
-      feature_columns=feature_columns, units=1, sparse_combiner='sum')
+      feature_columns=feature_columns, units=1, sparse_combiner='sum',
+      name=linear_model_name)
   logits = linear_model(features)
 
   bias = linear_model.bias
@@ -588,11 +595,14 @@ def _linear_model_fn_builder_v2(units, feature_columns, sparse_combiner='sum',
         'columns (accessible via tf.compat.v1.estimator.* and '
         'tf.compat.v1.feature_column.*, respectively.')
 
+  # Name scope has no effect on variables in LinearModel, as it uses
+  # tf.get_variables() for variable creation. So we modify the model name to
+  # keep the variable names the same for checkpoint backward compatibility.
   linear_model = feature_column_lib.LinearModel(
       feature_columns=feature_columns,
       units=units,
       sparse_combiner=sparse_combiner,
-      name='linear_model')
+      name='linear/linear_model')
   logits = linear_model(features)
   bias = linear_model.bias
 
@@ -651,35 +661,32 @@ def _linear_model_fn_v2(features,
 
   del config
 
-  with variable_scope.variable_scope(
-      'linear', values=tuple(six.itervalues(features))):
+  if isinstance(optimizer, LinearSDCA):
+    assert sparse_combiner == 'sum'
+    return _sdca_model_fn(features, labels, mode, head, feature_columns,
+                          optimizer)
+  else:
+    optimizer = optimizers.get_optimizer_instance_v2(
+        optimizer or _get_default_optimizer_v2(feature_columns),
+        learning_rate=_LEARNING_RATE)
 
-    if isinstance(optimizer, LinearSDCA):
-      assert sparse_combiner == 'sum'
-      return _sdca_model_fn(features, labels, mode, head, feature_columns,
-                            optimizer)
-    else:
-      optimizer = optimizers.get_optimizer_instance_v2(
-          optimizer or _get_default_optimizer_v2(feature_columns),
-          learning_rate=_LEARNING_RATE)
+    logits, trainable_variables = _linear_model_fn_builder_v2(
+        units=head.logits_dimension,
+        feature_columns=feature_columns,
+        sparse_combiner=sparse_combiner,
+        features=features)
 
-      logits, trainable_variables = _linear_model_fn_builder_v2(
-          units=head.logits_dimension,
-          feature_columns=feature_columns,
-          sparse_combiner=sparse_combiner,
-          features=features)
+    # Assign global_step variable to optimizer.iterations to make global_step
+    # increased correctly, as Hooks relies on global step as step counter.
+    optimizer.iterations = training_util.get_or_create_global_step()
 
-      # Assign global_step variable to optimizer.iterations to make global_step
-      # increased correctly, as Hooks relies on global step as step counter.
-      optimizer.iterations = training_util.get_or_create_global_step()
-
-      return head.create_estimator_spec(
-          features=features,
-          mode=mode,
-          labels=labels,
-          optimizer=optimizer,
-          trainable_variables=trainable_variables,
-          logits=logits)
+    return head.create_estimator_spec(
+        features=features,
+        mode=mode,
+        labels=labels,
+        optimizer=optimizer,
+        trainable_variables=trainable_variables,
+        logits=logits)
 
 
 def _linear_model_fn(features, labels, mode, head, feature_columns, optimizer,
