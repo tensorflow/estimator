@@ -666,19 +666,20 @@ def _linear_model_fn_v2(features,
     return _sdca_model_fn(features, labels, mode, head, feature_columns,
                           optimizer)
   else:
-    optimizer = optimizers.get_optimizer_instance_v2(
-        optimizer or _get_default_optimizer_v2(feature_columns),
-        learning_rate=_LEARNING_RATE)
-
     logits, trainable_variables = _linear_model_fn_builder_v2(
         units=head.logits_dimension,
         feature_columns=feature_columns,
         sparse_combiner=sparse_combiner,
         features=features)
 
-    # Assign global_step variable to optimizer.iterations to make global_step
-    # increased correctly, as Hooks relies on global step as step counter.
-    optimizer.iterations = training_util.get_or_create_global_step()
+    # In TRAIN mode, create optimizer and assign global_step variable to
+    # optimizer.iterations to make global_step increased correctly, as Hooks
+    # relies on global step as step counter.
+    if mode == ModeKeys.TRAIN:
+      optimizer = optimizers.get_optimizer_instance_v2(
+          optimizer or _get_default_optimizer_v2(feature_columns),
+          learning_rate=_LEARNING_RATE)
+      optimizer.iterations = training_util.get_or_create_global_step()
 
     return head.create_estimator_spec(
         features=features,

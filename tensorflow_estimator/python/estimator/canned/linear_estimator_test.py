@@ -26,6 +26,7 @@ import six
 
 from tensorflow.python.feature_column import feature_column_lib as feature_column
 from tensorflow.python.framework import ops
+from tensorflow.python.keras.optimizer_v2 import ftrl as ftrl_v2
 from tensorflow.python.keras.utils import losses_utils
 from tensorflow.python.platform import gfile
 from tensorflow.python.platform import test
@@ -89,13 +90,14 @@ class LinearEstimatorIntegrationTest(test.TestCase):
 
   def _test_complete_flow(
       self, train_input_fn, eval_input_fn, predict_input_fn, input_dimension,
-      label_dimension, batch_size):
+      label_dimension, batch_size, optimizer='Ftrl'):
     feature_columns = [
         feature_column.numeric_column('x', shape=(input_dimension,))]
     est = linear.LinearEstimatorV2(
         head=regression_head.RegressionHead(label_dimension=label_dimension),
         feature_columns=feature_columns,
-        model_dir=self._model_dir)
+        model_dir=self._model_dir,
+        optimizer=optimizer)
 
     # Train
     num_steps = 10
@@ -121,10 +123,8 @@ class LinearEstimatorIntegrationTest(test.TestCase):
                                         serving_input_receiver_fn)
     self.assertTrue(gfile.Exists(export_dir))
 
-  def test_numpy_input_fn(self):
-    """Tests complete flow with numpy_input_fn."""
-    label_dimension = 2
-    batch_size = 10
+  def _create_input_fn(self, label_dimension, batch_size):
+    """Creates input_fn for integration test."""
     data = np.linspace(0., 2., batch_size * label_dimension, dtype=np.float32)
     data = data.reshape(batch_size, label_dimension)
     # learn y = x
@@ -144,6 +144,14 @@ class LinearEstimatorIntegrationTest(test.TestCase):
         batch_size=batch_size,
         shuffle=False)
 
+    return train_input_fn, eval_input_fn, predict_input_fn
+
+  def test_numpy_input_fn(self):
+    """Tests complete flow with numpy_input_fn."""
+    label_dimension = 2
+    batch_size = 10
+    train_input_fn, eval_input_fn, predict_input_fn = self._create_input_fn(
+        label_dimension, batch_size)
     self._test_complete_flow(
         train_input_fn=train_input_fn,
         eval_input_fn=eval_input_fn,
@@ -151,6 +159,22 @@ class LinearEstimatorIntegrationTest(test.TestCase):
         input_dimension=label_dimension,
         label_dimension=label_dimension,
         batch_size=batch_size)
+
+  def test_numpy_input_fn_with_optimizer_instance(self):
+    """Tests complete flow with optimizer_v2 instance."""
+    label_dimension = 2
+    batch_size = 10
+    train_input_fn, eval_input_fn, predict_input_fn = self._create_input_fn(
+        label_dimension, batch_size)
+
+    self._test_complete_flow(
+        train_input_fn=train_input_fn,
+        eval_input_fn=eval_input_fn,
+        predict_input_fn=predict_input_fn,
+        input_dimension=label_dimension,
+        label_dimension=label_dimension,
+        batch_size=batch_size,
+        optimizer=ftrl_v2.Ftrl(0.01))  # Test with optimizer_v2 instance
 
 
 if __name__ == '__main__':

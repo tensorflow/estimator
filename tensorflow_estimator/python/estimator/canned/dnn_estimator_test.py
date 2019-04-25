@@ -26,6 +26,7 @@ import six
 
 from tensorflow.python.feature_column import feature_column_v2
 from tensorflow.python.framework import ops
+from tensorflow.python.keras.optimizer_v2 import adagrad as adagrad_v2
 from tensorflow.python.keras.utils import losses_utils
 from tensorflow.python.platform import gfile
 from tensorflow.python.platform import test
@@ -113,7 +114,8 @@ class DNNEstimatorIntegrationTest(test.TestCase):
       shutil.rmtree(self._model_dir)
 
   def _test_complete_flow(self, train_input_fn, eval_input_fn, predict_input_fn,
-                          input_dimension, label_dimension, batch_size):
+                          input_dimension, label_dimension, batch_size,
+                          optimizer='Adagrad'):
     feature_columns = [
         feature_column_v2.numeric_column('x', shape=(input_dimension,))
     ]
@@ -121,6 +123,7 @@ class DNNEstimatorIntegrationTest(test.TestCase):
         head=regression_head.RegressionHead(label_dimension=label_dimension),
         hidden_units=(2, 2),
         feature_columns=feature_columns,
+        optimizer=optimizer,
         model_dir=self._model_dir)
 
     # Train
@@ -147,10 +150,8 @@ class DNNEstimatorIntegrationTest(test.TestCase):
                                         serving_input_receiver_fn)
     self.assertTrue(gfile.Exists(export_dir))
 
-  def test_numpy_input_fn(self):
-    """Tests complete flow with numpy_input_fn."""
-    label_dimension = 2
-    batch_size = 10
+  def _create_input_fn(self, label_dimension, batch_size):
+    """Creates input_fn for integration test."""
     data = np.linspace(0., 2., batch_size * label_dimension, dtype=np.float32)
     data = data.reshape(batch_size, label_dimension)
     # learn y = x
@@ -165,6 +166,15 @@ class DNNEstimatorIntegrationTest(test.TestCase):
     predict_input_fn = numpy_io.numpy_input_fn(
         x={'x': data}, batch_size=batch_size, shuffle=False)
 
+    return train_input_fn, eval_input_fn, predict_input_fn
+
+  def test_numpy_input_fn(self):
+    """Tests complete flow with numpy_input_fn."""
+    label_dimension = 2
+    batch_size = 10
+    train_input_fn, eval_input_fn, predict_input_fn = self._create_input_fn(
+        label_dimension, batch_size)
+
     self._test_complete_flow(
         train_input_fn=train_input_fn,
         eval_input_fn=eval_input_fn,
@@ -173,6 +183,20 @@ class DNNEstimatorIntegrationTest(test.TestCase):
         label_dimension=label_dimension,
         batch_size=batch_size)
 
+  def test_numpy_input_fn_with_optimizer_instance(self):
+    """Tests complete flow with optimizer_v2 instance."""
+    label_dimension = 2
+    batch_size = 10
+    train_input_fn, eval_input_fn, predict_input_fn = self._create_input_fn(
+        label_dimension, batch_size)
+    self._test_complete_flow(
+        train_input_fn=train_input_fn,
+        eval_input_fn=eval_input_fn,
+        predict_input_fn=predict_input_fn,
+        input_dimension=label_dimension,
+        label_dimension=label_dimension,
+        batch_size=batch_size,
+        optimizer=adagrad_v2.Adagrad(0.01))  # Test with optimizer_v2 instance
 
 if __name__ == '__main__':
   test.main()

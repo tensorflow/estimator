@@ -41,6 +41,7 @@ from tensorflow_estimator.python.estimator.canned import linear
 from tensorflow_estimator.python.estimator.canned import optimizers
 from tensorflow_estimator.python.estimator.head import head_utils
 from tensorflow_estimator.python.estimator.head import regression_head
+from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 
 # The default learning rates are a historical artifact of the initial
 # implementation.
@@ -156,14 +157,15 @@ def _dnn_linear_combined_model_fn_v2(features,
   if not dnn_feature_columns:
     dnn_logits = None
   else:
-    dnn_optimizer = optimizers.get_optimizer_instance_v2(
-        dnn_optimizer, learning_rate=_DNN_LEARNING_RATE)
-    _check_no_sync_replicas_optimizer(dnn_optimizer)
+    if mode == ModeKeys.TRAIN:
+      dnn_optimizer = optimizers.get_optimizer_instance_v2(
+          dnn_optimizer, learning_rate=_DNN_LEARNING_RATE)
+      _check_no_sync_replicas_optimizer(dnn_optimizer)
+
     if not dnn_hidden_units:
       raise ValueError(
           'dnn_hidden_units must be defined when dnn_feature_columns is '
           'specified.')
-
     dnn_logits, dnn_trainable_variables, dnn_update_ops = (
         dnn._dnn_model_fn_builder_v2(  # pylint: disable=protected-access
             units=head.logits_dimension,
@@ -178,10 +180,12 @@ def _dnn_linear_combined_model_fn_v2(features,
   if not linear_feature_columns:
     linear_logits = None
   else:
-    linear_optimizer = optimizers.get_optimizer_instance_v2(
-        linear_optimizer,
-        learning_rate=_linear_learning_rate(len(linear_feature_columns)))
-    _check_no_sync_replicas_optimizer(linear_optimizer)
+    if mode == ModeKeys.TRAIN:
+      linear_optimizer = optimizers.get_optimizer_instance_v2(
+          linear_optimizer,
+          learning_rate=_linear_learning_rate(len(linear_feature_columns)))
+      _check_no_sync_replicas_optimizer(linear_optimizer)
+
     linear_logits, linear_trainable_variables = (
         linear._linear_model_fn_builder_v2(  # pylint: disable=protected-access
             units=head.logits_dimension,
@@ -216,13 +220,14 @@ def _dnn_linear_combined_model_fn_v2(features,
     train_op = control_flow_ops.group(*train_ops)
     return train_op
 
-  # Assign global_step variable to optimizer.iterations to make global_step
-  # increased correctly, as Hooks relies on global step as step counter.
-  # Note that, Only one model's optimizer needs this assignment.
-  if dnn_logits is not None:
-    dnn_optimizer.iterations = training_util.get_or_create_global_step()
-  else:
-    linear_optimizer.iterations = training_util.get_or_create_global_step()
+  # In TRAIN mode, asssign global_step variable to optimizer.iterations to
+  # make global_step increased correctly, as Hooks relies on global step as
+  # step counter. Note that, Only one model's optimizer needs this assignment.
+  if mode == ModeKeys.TRAIN:
+    if dnn_logits is not None:
+      dnn_optimizer.iterations = training_util.get_or_create_global_step()
+    else:
+      linear_optimizer.iterations = training_util.get_or_create_global_step()
 
   return head.create_estimator_spec(
       features=features,

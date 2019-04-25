@@ -559,8 +559,6 @@ def dnn_model_fn_v2(features,
   Raises:
     ValueError: If features has the wrong type.
   """
-  optimizer = optimizers.get_optimizer_instance_v2(optimizer)
-
   _validate_features(features)
 
   del config
@@ -575,9 +573,12 @@ def dnn_model_fn_v2(features,
       features=features,
       mode=mode)
 
-  # Assign global_step variable to optimizer.iterations to make global_step
-  # increased correctly, as Hooks relies on global step as step counter.
-  optimizer.iterations = training_util.get_or_create_global_step()
+  # In TRAIN mode, create optimizer and assign global_step variable to
+  # optimizer.iterations to make global_step increased correctly, as Hooks
+  # relies on global step as step counter.
+  if mode == ModeKeys.TRAIN:
+    optimizer = optimizers.get_optimizer_instance_v2(optimizer)
+    optimizer.iterations = training_util.get_or_create_global_step()
 
   # Create EstimatorSpec.
   if use_tpu:
