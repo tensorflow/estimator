@@ -449,8 +449,6 @@ class Estimator(object):
 
     Raises:
       ValueError: If `steps <= 0`.
-      ValueError: If no model has been trained, namely `model_dir`, or the
-        given `checkpoint_path` is empty.
     """
     # pylint: disable=protected-access
     if (self._eval_distribution and
@@ -590,7 +588,6 @@ class Estimator(object):
       Evaluated values of `predictions` tensors.
 
     Raises:
-      ValueError: Could not find a trained model in `model_dir`.
       ValueError: If batch length of predictions is not the same and
         `yield_single_examples` is `True`.
       ValueError: If there is a conflict between `predict_keys` and
