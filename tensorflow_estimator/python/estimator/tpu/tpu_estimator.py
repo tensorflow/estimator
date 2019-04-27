@@ -21,6 +21,7 @@ from __future__ import print_function
 import collections
 import copy
 import enum
+import math
 import os
 import signal
 import sys
@@ -83,6 +84,7 @@ from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
 from tensorflow_estimator.python.estimator.export import export_output as export_output_lib
 from tensorflow_estimator.python.estimator.tpu import _tpu_estimator_embedding
 from tensorflow_estimator.python.estimator.tpu import error_handling
+from tensorflow_estimator.python.estimator.tpu import iteration_count_estimator
 from tensorflow_estimator.python.estimator.tpu import tpu_config
 from tensorflow_estimator.python.estimator.tpu import tpu_context
 from tensorflow_estimator.python.estimator.tpu import util as util_lib
@@ -623,8 +625,12 @@ class _TPUStopAtStepHook(session_run_hook.SessionRunHook):
   This hook is similar to the `session_run_hook._StopAfterNEvalsHook` with
   following differences for TPU training:
 
-  1. This hook sets the variable for iterations_per_loop, which is used by
+  1. This hook sets the variable for `iterations_per_loop`, which is used by
      `TPUInfeedOutfeedSessionHook` to control the iterations for infeed/outfeed.
+     If the `iterations_per_loop` value is specified as time in seconds, the
+     number of iterations per `Session.run` will be estimated automatically
+     based on per iteration runtime.
+
      As the hook execution order is not guaranteed, the variable update is
      handled in `after_create_session` and `after_run` as
      `TPUInfeedOutfeedSessionHook` reads the variable value in `before_run`.
@@ -635,30 +641,75 @@ class _TPUStopAtStepHook(session_run_hook.SessionRunHook):
      condition.
   """
 
-  def __init__(self, iterations, num_steps=None, last_step=None):
-    """Initializes a `StopAtStepHook`.
+  def __init__(self,
+               iterations_per_loop_counter,
+               num_steps=None,
+               final_step=None):
+    """Initializes a `TPUStopAtStepHook`.
 
     Args:
-      iterations: The number of iterations to run optimizer per training loop.
+      iterations_per_loop_counter: A namedtuple of [`value',`unit`] that
+        represents the number of 'iterations count' or 'time in seconds' to run
+        optimizer per loop, based on the `unit` specified, `count` or `seconds`
+        respectively.
       num_steps: Number of steps to execute.
-      last_step: Step after which to stop.
+      final_step: Step after which to stop.
 
     Raises:
       ValueError: If one of the arguments is invalid.
     """
-    if num_steps is None and last_step is None:
-      raise ValueError('One of num_steps or last_step must be specified.')
-    if num_steps is not None and last_step is not None:
-      raise ValueError('Only one of num_steps or last_step can be specified.')
+    if num_steps is None and final_step is None:
+      raise ValueError('One of `num_steps` or `final_step` must be specified.')
+    if num_steps is not None and final_step is not None:
+      raise ValueError(
+          'Only one of `num_steps` or `final_step` can be specified.')
+    self._iterations_per_loop_counter = iterations_per_loop_counter
+    if self._iterations_per_loop_counter.unit not in ['seconds', 'count']:
+      raise ValueError(
+          'Only `count` or `seconds` are accepted as the '
+          '`iterations_per_loop_counter.unit')
     self._num_steps = num_steps
-    self._last_step = last_step
-    self._iterations = iterations
+    self._final_step = final_step
+    self._next_iteration_count = 1
+    self._iteration_count_estimator = None
+    if self._iterations_per_loop_counter.unit == 'seconds':
+      self._iteration_count_estimator = (
+          iteration_count_estimator.IterationCountEstimator())
+    self._start_time = time.time()
 
-  def _next_iterations(self, global_step, last_step):
-    gap = last_step - global_step
-    return min(gap, self._iterations)
+  def _next_iterations(self, global_step, final_step):
+    """Computes the next iterations count.
+
+    The next iterations count is computed by choosing the smaller of the
+    remaining step count (`final_step` - `global_step`) and the estimated
+    iterations count returned by the estimator.
+
+    Args:
+      global_step: The current step.
+      final_step: Step after which to stop.
+
+    Returns:
+      The number of iterations count to run per loop.
+    """
+    remaining_steps = final_step - global_step
+
+    if self._iteration_count_estimator is not None:
+      estimated_iterations = self._iteration_count_estimator.get(
+          self._iterations_per_loop_counter.value)
+    else:
+      estimated_iterations = self._iterations_per_loop_counter.value
+
+    self._next_iteration_count = min(remaining_steps, estimated_iterations)
+    return self._next_iteration_count
 
   def begin(self):
+    """Initializes variables.
+
+    Initializes the global step and iterations per loop variables.
+
+    Raises:
+      RuntimeError: An error occurred if global step variable does not exist.
+    """
     self._global_step_tensor = training_util.get_global_step()
     if self._global_step_tensor is None:
       raise RuntimeError('Global step should be created.')
@@ -666,22 +717,53 @@ class _TPUStopAtStepHook(session_run_hook.SessionRunHook):
     self._iterations_per_loop_var = _create_or_get_iterations_per_loop()
 
   def after_create_session(self, session, coord):
+    """Computes and updates the first time iterations count.
+
+    The iterations are computed by choosing the smaller of the (`final step` -
+    `global step`), and the initial estimated iterations returned by the
+    estimator (by default is 1).
+
+    Args:
+      session: A TensorFlow Session that has been created.
+      coord: A Coordinator object which keeps track of all threads.
+    """
     global_step = session.run(self._global_step_tensor)
-    if self._last_step is None:
-      self._last_step = global_step + self._num_steps
+    if self._final_step is None:
+      self._final_step = global_step + self._num_steps
 
-    iterations = self._next_iterations(global_step, self._last_step)
-
+    iterations = self._next_iterations(global_step, self._final_step)
     self._iterations_per_loop_var.load(iterations, session=session)
 
+  def before_run(self, run_context):
+    """Reset the timer."""
+    if self._iteration_count_estimator is not None:
+      self._start_time = time.time()
+
   def after_run(self, run_context, run_values):
+    """Computes the next iterations per loop value or terminates.
+
+    Computes the elapsed time to run the last optimizer loop and if the
+    `IterationCountEstimator` is used, records the elapsed time and iterations
+    count. If the final step count has been reached, terminates. Otherwise,
+    computes and updates the number of iterations to run the optimizer per loop.
+
+    Args:
+      run_context: A `SessionRunContext` object.
+      run_values: A SessionRunValues object.
+    """
+    if self._iteration_count_estimator is not None:
+      elapsed_time = time.time() - self._start_time
+      logging.info("ElapsedTime: %.3f", elapsed_time)
+      self._iteration_count_estimator.update(elapsed_time,
+                                             self._next_iteration_count)
+
     # Global step cannot be retrieved via SessionRunArgs and before_run due to
     # race condition.
     global_step = run_context.session.run(self._global_step_tensor)
-    if global_step >= self._last_step:
+    if global_step >= self._final_step:
       run_context.request_stop()
     else:
-      iterations = self._next_iterations(global_step, self._last_step)
+      iterations = self._next_iterations(global_step, self._final_step)
       self._iterations_per_loop_var.load(
           iterations, session=run_context.session)
 
@@ -905,7 +987,7 @@ def generate_per_host_v2_enqueue_ops_fn_for_host(
           features, labels = inputs.features_and_labels()  # Calls get_next()
           signals = inputs.signals()
 
-          # All the replicas share the replica 0's stopping singal.
+          # All the replicas share the replica 0's stopping signal.
           # This avoids inconsistent state among different model replcias.
           if cached_signals:
             signals['stopping'] = cached_signals['stopping']
@@ -2477,8 +2559,30 @@ class TPUEstimator(estimator_lib.Estimator):
         config=config,
         params=params,
         warm_start_from=warm_start_from)
-    self._iterations_per_training_loop = (
+    self._iterations_per_training_loop = util_lib.parse_iterations_per_loop(
         self._config.tpu_config.iterations_per_loop)
+    # In absence of an explicit `log_every_n_secs` config, if the
+    # `iterations_per_loop` value is specified as time in seconds, enable
+    # logging every n secs based on the `iterations_per_loop` value. A trade-off
+    # avoiding API change on the current release.
+    # TODO(henrytan): add `log_every_n_secs` to RunConfig.
+    if self._iterations_per_training_loop.unit == 'seconds':
+      self._log_every_n_secs = self._iterations_per_training_loop.value
+      self._log_every_n_steps = None
+    elif self._iterations_per_training_loop.unit == 'count':
+      # Each session.run() lasts for iterations_per_loop. We can't log
+      # in-between a session.run(), and we can only log after the
+      # `iterations_per_loop` steps, so we can only approximate. If a user
+      # requests to log every N steps, we actually want to roughly log every
+      # N / `iterations_per_loop` steps to match the original intention.
+      self._log_every_n_steps = (
+          int(math.ceil(float(self._log_every_n_steps) /
+                        self._iterations_per_training_loop.value)))
+      self._log_every_n_secs = None
+    else:
+      assert False, ('Invalid TPUConfig `iterations_per_loop` value. '
+                     'Indicates a bug in `iterations_per_loop` '
+                     'parsing.')
 
     # All properties passed to _InternalTPUContext are immutable.
     # pylint: disable=protected-access
@@ -2611,7 +2715,8 @@ class TPUEstimator(estimator_lib.Estimator):
       util_lib.check_positive_integer(max_steps, 'Train max_steps')
 
     return [
-        _TPUStopAtStepHook(self._iterations_per_training_loop, steps, max_steps)
+        _TPUStopAtStepHook(
+            self._iterations_per_training_loop, steps, max_steps)
     ]
 
   def _convert_eval_steps_to_hooks(self, steps):
@@ -2799,7 +2904,8 @@ class TPUEstimator(estimator_lib.Estimator):
 
         # examples_hook is added to training_hooks for both CPU and TPU
         # execution.
-        if self._log_every_n_steps is not None:
+        if (self._log_every_n_steps is not None
+            or self._log_every_n_secs is not None):
           examples_hook = ExamplesPerSecondHook(
               ctx.global_batch_size,
               # pylint:disable=g-long-ternary
@@ -2807,13 +2913,15 @@ class TPUEstimator(estimator_lib.Estimator):
                           if not config or config.save_summary_steps
                           else None),
               # pylint:enable=g-long-ternary
-              every_n_steps=self._log_every_n_steps)
+              every_n_steps=self._log_every_n_steps,
+              every_n_secs=self._log_every_n_secs)
 
         if ctx.is_running_on_cpu(is_export_mode=is_export_mode):
           logging.info('Running %s on CPU', mode)
           estimator_spec = model_fn_wrapper.call_without_tpu(
               features, labels, is_export_mode=is_export_mode)
-          if self._log_every_n_steps is not None:
+          if (self._log_every_n_steps is not None
+              or self._log_every_n_secs is not None):
             estimator_spec = estimator_spec._replace(
                 training_hooks=estimator_spec.training_hooks + (examples_hook,))
           return estimator_spec
@@ -2917,19 +3025,18 @@ class TPUEstimator(estimator_lib.Estimator):
           if tpu_cluster_resolver.is_running_in_gce():
             hooks.extend(
                 [preempted_hook.CloudTPUPreemptedHook(self._config.cluster)])
-          if self._log_every_n_steps is not None:
-            logging_hook_frequency = (  # Divide and round up
-                (self._log_every_n_steps +
-                 self._config.tpu_config.iterations_per_loop - 1) //
-                self._config.tpu_config.iterations_per_loop)
-            hooks.append(
-                training.LoggingTensorHook({
+          if (self._log_every_n_steps is not None
+              or self._log_every_n_secs is not None):
+            if self._iterations_per_training_loop.unit == 'count':
+              examples_hook._set_steps_per_run(  # pylint: disable=protected-access
+                  self._iterations_per_training_loop.value)
+            hooks.append(training.LoggingTensorHook(
+                {
                     'loss': array_ops.identity(loss),
                     'step': global_step,
                 },
-                                           every_n_iter=logging_hook_frequency))
-            examples_hook._set_steps_per_run(  # pylint: disable=protected-access
-                self._config.tpu_config.iterations_per_loop)
+                every_n_iter=self._log_every_n_steps,
+                every_n_secs=self._log_every_n_secs))
             hooks.append(examples_hook)
 
           if training_hooks:
@@ -2943,8 +3050,17 @@ class TPUEstimator(estimator_lib.Estimator):
                 save_secs=self._config.save_checkpoints_secs,
                 save_steps=self._config.save_checkpoints_steps,
                 scaffold=scaffold)
-            checkpoint_hook._set_steps_per_run(  # pylint: disable=protected-access
-                self._config.tpu_config.iterations_per_loop)
+            if self._iterations_per_training_loop.unit == 'count':
+              checkpoint_hook._set_steps_per_run(  # pylint: disable=protected-access
+                  self._iterations_per_training_loop.value)
+            else:
+              # When estimating iterations_per_loop, set steps_per_run to an
+              # arbitrarily high number to force checking the global step on
+              # every call.
+              # TODO(henrytan): refactor SecondOrStepTimer to do this more
+              # explicitly.
+              checkpoint_hook._set_steps_per_run(  # pylint: disable=protected-access
+                  100000)
             chief_hooks.append(checkpoint_hook)
 
           summary.scalar(model_fn_lib.LOSS_METRIC_KEY, loss)

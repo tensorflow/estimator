@@ -67,6 +67,11 @@ class TPUConfig(
       It is recommended to be set as number of global steps for next checkpoint.
       Note that in evaluation don't use this value, instead we run total eval
       `steps` on TPU for a single `Session.run`.
+      [Experimental]: `iterations_per_loop` can be specified as a time interval.
+      To specify N seconds in one `Session.run`, one can specify it as `Ns` and
+      substitute the N with the N with the number of desired seconds.
+      Alternatively, the unit of time can also be specified in minutes or hours,
+      e.g. `3600s` or `60m` or `1h`.
     num_shards: (Deprecated, ignored by TPUEstimator).
       The number of model replicas in the system. For non-model-parallelism
       case, this number equals the total number of TPU cores. For
@@ -129,8 +134,7 @@ class TPUConfig(
       eval_training_input_configuration=InputPipelineConfig.PER_HOST_V1):
 
     # Check iterations_per_loop.
-    util_lib.check_positive_integer(iterations_per_loop,
-                                    'TPUConfig iterations_per_loop')
+    util_lib.parse_iterations_per_loop(iterations_per_loop)
 
     # Check num_shards.
     if num_shards is not None:

@@ -17,6 +17,7 @@ py_library(
     srcs = [
         "_tpu_estimator_embedding.py",
         "error_handling.py",
+        "iteration_count_estimator.py",
         "tpu_config.py",
         "tpu_context.py",
         "tpu_estimator.py",
@@ -51,6 +52,16 @@ py_test(
     tags = [
         "no_oss",
     ],
+    deps = [
+        ":tpu_estimator",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
+py_test(
+    name = "autotuning_iterations_per_loop_test",
+    size = "small",
+    srcs = ["autotuning_iterations_per_loop_test.py"],
     deps = [
         ":tpu_estimator",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",

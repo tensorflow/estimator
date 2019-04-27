@@ -24,6 +24,7 @@ from tensorflow.core.protobuf import config_pb2
 from tensorflow.python.platform import test
 from tensorflow_estimator.python.estimator import run_config as run_config_lib
 from tensorflow_estimator.python.estimator.tpu import tpu_config as tpu_config_lib
+from tensorflow_estimator.python.estimator.tpu import util as util_lib
 
 
 def _set_tf_config_env_variable(tf_config):
@@ -79,16 +80,41 @@ class TPURunConfigTest(test.TestCase):
       tpu_config_lib.RunConfig(
           tpu_config=tpu_config_lib.TPUConfig(num_shards=0))
 
-  def test_fail_with_iterations_per_loop(self):
+  def _validate_invalid_iterations_per_loop(self, iterations_per_loop):
     with self.assertRaisesRegexp(ValueError, 'must be positive'):
       tpu_config_lib.RunConfig(
-          tpu_config=tpu_config_lib.TPUConfig(iterations_per_loop=0))
+          tpu_config=tpu_config_lib.TPUConfig(
+              iterations_per_loop=iterations_per_loop))
+
+  def test_fail_with_iterations_per_loop(self):
+    self._validate_invalid_iterations_per_loop(0)
+    self._validate_invalid_iterations_per_loop(-1)
+    self._validate_invalid_iterations_per_loop('-1h')
+    self._validate_invalid_iterations_per_loop('-1m')
+    self._validate_invalid_iterations_per_loop('-1s')
 
   def test_fail_with_invalid_num_cores_per_replica(self):
     with self.assertRaisesRegexp(
         ValueError, 'num_cores_per_replica must be 1, 2, 4, 8, or 16;'
         ' got 7'):
       tpu_config_lib.TPUConfig(num_cores_per_replica=7)
+
+  def _evaluate_iterations_per_loop_in_seconds(self, value, expected_value,
+                                               expected_unit):
+    config = tpu_config_lib.RunConfig(
+        tpu_config=tpu_config_lib.TPUConfig(iterations_per_loop=value))
+    self.assertEqual(config.tpu_config.iterations_per_loop, value)
+    d = util_lib.parse_iterations_per_loop(
+        config.tpu_config.iterations_per_loop)
+    self.assertEqual(expected_value, d.value)
+    self.assertEqual(expected_unit, d.unit)
+
+  def test_valid_iterations_per_loop(self):
+    self._evaluate_iterations_per_loop_in_seconds(1, 1, 'count')
+    self._evaluate_iterations_per_loop_in_seconds(100, 100, 'count')
+    self._evaluate_iterations_per_loop_in_seconds('300s', 300, 'seconds')
+    self._evaluate_iterations_per_loop_in_seconds('1m', 60, 'seconds')
+    self._evaluate_iterations_per_loop_in_seconds('1h', 3600, 'seconds')
 
 
 class TPURunConfigMasterTest(test.TestCase):
