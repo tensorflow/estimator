@@ -64,11 +64,12 @@ class LinearSDCA(object):
   """Stochastic Dual Coordinate Ascent helper for linear estimators.
 
   Objects of this class are intended to be provided as the optimizer argument
-  (though LinearSDCA objects do not implement the tf.train.Optimizer interface)
-  when creating tf.estimator.LinearClassifier or tf.estimator.LinearRegressor.
+  (though LinearSDCA objects do not implement the `tf.train.Optimizer` interface)
+  when creating `tf.estimator.LinearClassifier` or `tf.estimator.LinearRegressor`.
 
-  SDCA can only be used with LinearClassifier and LinearRegressor under the
+  SDCA can only be used with `LinearClassifier` and `LinearRegressor` under the
   following conditions:
+  
     - Feature columns are of type V2.
     - Multivalent categorical columns are not normalized. In other words the
       `sparse_combiner` argument in the estimator constructor should be "sum".
