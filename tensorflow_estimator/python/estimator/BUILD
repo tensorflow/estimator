@@ -1039,6 +1039,8 @@ py_library(
     srcs_version = "PY2AND3",
     deps = [
         ":base_head",
+        ":binary_class_head",
+        ":head_utils",
         ":mode_keys",
         ":model_fn",
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",

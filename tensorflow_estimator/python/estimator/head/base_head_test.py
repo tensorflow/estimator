@@ -25,13 +25,17 @@ from tensorflow.python.framework import constant_op
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import test_util
+from tensorflow.python.keras.optimizer_v2 import optimizer_v2
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import math_ops
+from tensorflow.python.ops import variables
 from tensorflow.python.platform import test
 from tensorflow.python.saved_model import signature_constants
 from tensorflow_estimator.python.estimator import model_fn
 from tensorflow_estimator.python.estimator.head import base_head
+from tensorflow_estimator.python.estimator.head import binary_class_head as head_lib
+from tensorflow_estimator.python.estimator.head import head_utils as test_lib
 from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 
 _DEFAULT_SERVING_KEY = signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY
@@ -224,6 +228,52 @@ class CreateEstimatorSpecTest(test.TestCase):
               logits_placeholder: logits_input
           }),
           loss)
+
+  @test_util.deprecated_graph_mode_only
+  def test_optimizer_v2_variable_name(self):
+    head = head_lib.BinaryClassHead()
+
+    logits = np.array(((45,), (-41,),), dtype=np.float32)
+    labels = np.array(((1,), (1,),), dtype=np.float64)
+    features = {'x': np.array(((42,),), dtype=np.float32)}
+
+    class _Optimizer(optimizer_v2.OptimizerV2):
+
+      def init(self, name, **kwargs):
+        super(_Optimizer, self).__init__(name, **kwargs)
+
+      def get_updates(self, loss, params):
+        del params
+        variable = variables.Variable(
+            name='my_variable',
+            dtype=dtypes.float32,
+            initial_value=0.)
+        self._weights.append(variable)
+        return [variable]
+
+      def get_config(self):
+        config = super(_Optimizer, self).get_config()
+        return config
+
+    # Create estimator spec.
+    optimizer = _Optimizer('my_optimizer')
+    expected_variable_name_prefix = 'training/' + optimizer.__class__.__name__
+    spec = head.create_estimator_spec(
+        features=features,
+        mode=ModeKeys.TRAIN,
+        logits=logits,
+        labels=labels,
+        optimizer=optimizer,
+        trainable_variables=[
+            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+
+    with self.cached_session() as sess:
+      test_lib._initialize_variables(self, spec.scaffold)
+      optimizer_variables = optimizer.variables()
+      var_values = sess.run(optimizer_variables)
+      self.assertEqual(0., var_values[0])
+      for var in optimizer_variables:
+        self.assertIn(expected_variable_name_prefix, var.name)
 
 if __name__ == '__main__':
   test.main()
