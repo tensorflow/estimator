@@ -34,6 +34,7 @@ from tensorflow.python.distribute import distribute_lib
 from tensorflow.python.distribute import estimator_training as distribute_coordinator_training
 from tensorflow.python.distribute import reduce_util
 from tensorflow.python.eager import context
+from tensorflow.python.eager import monitoring
 from tensorflow.python.framework import constant_op
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import errors
@@ -75,6 +76,8 @@ from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 
 _VALID_MODEL_FN_ARGS = set(
     ['features', 'labels', 'mode', 'params', 'self', 'config'])
+_estimator_api_gauge = monitoring.BoolGauge('/tensorflow/api/estimator',
+                                            'estimator api usage', 'method')
 
 
 @estimator_export(v1=['estimator.Estimator'])
@@ -188,6 +191,7 @@ class Estimator(object):
       ValueError: if this is called via a subclass and if that class overrides
         a member of `Estimator`.
     """
+    _estimator_api_gauge.get_cell('init').set(True)
     # We do not endorse Estimator child classes to override methods in
     # Estimator, other than a select few. You're on your own if you cleverly
     # override the method "_assert_members_are_not_overridden".
@@ -332,6 +336,7 @@ class Estimator(object):
       ValueError: If both `steps` and `max_steps` are not `None`.
       ValueError: If either `steps` or `max_steps <= 0`.
     """
+    _estimator_api_gauge.get_cell('train').set(True)
     if self.config.task_type in (run_config.TaskType.EVALUATOR,
                                  run_config.TaskType.PS):
       raise ValueError(
@@ -450,6 +455,7 @@ class Estimator(object):
     Raises:
       ValueError: If `steps <= 0`.
     """
+    _estimator_api_gauge.get_cell('evaluate').set(True)
     # pylint: disable=protected-access
     if (self._eval_distribution and
         hasattr(self._config, '_distribute_coordinator_mode') and
@@ -594,6 +600,7 @@ class Estimator(object):
         `predictions`. For example if `predict_keys` is not `None` but
         `tf.estimator.EstimatorSpec.predictions` is not a `dict`.
     """
+    _estimator_api_gauge.get_cell('predict').set(True)
     with context.graph_mode():
       hooks = _check_hooks_type(hooks)
       # Check that model has been trained.
