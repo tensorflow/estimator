@@ -422,7 +422,7 @@ class _InternalTPUContext(object):
       is_export_mode: Indicates whether the current mode is for exporting the
         model, when mode == PREDICT. Only with this bool, we could
         tell whether user is calling the Estimator.predict or
-        Estimator.export_savedmodel, which are running on TPU and CPU
+        Estimator.export_saved_model, which are running on TPU and CPU
         respectively. Parent class Estimator does not distinguish these two.
 
     Returns:

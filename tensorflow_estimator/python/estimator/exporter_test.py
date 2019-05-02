@@ -63,20 +63,19 @@ class BestExporterTest(test.TestCase):
         as_text=False,
         exports_to_keep=5)
     estimator = test.mock.Mock(spec=estimator_lib.Estimator)
-    estimator.export_savedmodel.return_value = "export_result_path"
+    estimator.export_saved_model.return_value = "export_result_path"
     estimator.model_dir = export_dir_base
 
     export_result = exporter.export(estimator, export_dir_base,
                                     "checkpoint_path", {}, False)
 
     self.assertEqual("export_result_path", export_result)
-    estimator.export_savedmodel.assert_called_with(
+    estimator.export_saved_model.assert_called_with(
         export_dir_base,
         _serving_input_receiver_fn,
         assets_extra={"from/path": "to/path"},
         as_text=False,
-        checkpoint_path="checkpoint_path",
-        strip_default_attrs=True)
+        checkpoint_path="checkpoint_path")
 
   def test_best_export_is_saved(self):
 
@@ -95,13 +94,13 @@ class BestExporterTest(test.TestCase):
         as_text=False,
         exports_to_keep=1)
     estimator = test.mock.Mock(spec=estimator_lib.Estimator)
-    estimator.export_savedmodel.return_value = "export_result_path"
+    estimator.export_saved_model.return_value = "export_result_path"
     estimator.model_dir = export_dir_base
 
     export_result = exporter.export(estimator, export_dir_base,
                                     "checkpoint_path", {"loss": 0.5}, False)
 
-    self.assertTrue(estimator.export_savedmodel.called)
+    self.assertTrue(estimator.export_saved_model.called)
     self.assertEqual("export_result_path", export_result)
 
     export_result = exporter.export(estimator, export_dir_base,
@@ -138,7 +137,7 @@ class BestExporterTest(test.TestCase):
 
     estimator = test.mock.Mock(spec=estimator_lib.Estimator)
     estimator.model_dir = export_dir_base
-    estimator.export_savedmodel.return_value = "export_result_path"
+    estimator.export_saved_model.return_value = "export_result_path"
 
     export_result = exporter.export(estimator, export_dir_base,
                                     "checkpoint_path", {"loss": 100}, False)
@@ -177,7 +176,7 @@ class BestExporterTest(test.TestCase):
 
     estimator = test.mock.Mock(spec=estimator_lib.Estimator)
     estimator.model_dir = export_dir_base
-    estimator.export_savedmodel.return_value = "export_result_path"
+    estimator.export_saved_model.return_value = "export_result_path"
 
     export_result = exporter.export(estimator, export_dir_base,
                                     "checkpoint_path", {"loss": 100}, False)
@@ -250,19 +249,18 @@ class LatestExporterTest(test.TestCase):
         as_text=False,
         exports_to_keep=5)
     estimator = test.mock.Mock(spec=estimator_lib.Estimator)
-    estimator.export_savedmodel.return_value = "export_result_path"
+    estimator.export_saved_model.return_value = "export_result_path"
 
     export_result = exporter.export(estimator, export_dir_base,
                                     "checkpoint_path", {}, False)
 
     self.assertEqual("export_result_path", export_result)
-    estimator.export_savedmodel.assert_called_with(
+    estimator.export_saved_model.assert_called_with(
         export_dir_base,
         _serving_input_receiver_fn,
         assets_extra={"from/path": "to/path"},
         as_text=False,
-        checkpoint_path="checkpoint_path",
-        strip_default_attrs=True)
+        checkpoint_path="checkpoint_path")
 
   def test_only_the_last_export_is_saved(self):
 
@@ -278,25 +276,24 @@ class LatestExporterTest(test.TestCase):
         assets_extra={"from/path": "to/path"},
         as_text=False)
     estimator = test.mock.Mock(spec=estimator_lib.Estimator)
-    estimator.export_savedmodel.return_value = "export_result_path"
+    estimator.export_saved_model.return_value = "export_result_path"
 
     export_result = exporter.export(estimator, export_dir_base,
                                     "checkpoint_path", {}, False)
 
-    self.assertFalse(estimator.export_savedmodel.called)
+    self.assertFalse(estimator.export_saved_model.called)
     self.assertEqual(None, export_result)
 
     export_result = exporter.export(estimator, export_dir_base,
                                     "checkpoint_path", {}, True)
 
     self.assertEqual("export_result_path", export_result)
-    estimator.export_savedmodel.assert_called_with(
+    estimator.export_saved_model.assert_called_with(
         export_dir_base,
         _serving_input_receiver_fn,
         assets_extra={"from/path": "to/path"},
         as_text=False,
-        checkpoint_path="checkpoint_path",
-        strip_default_attrs=True)
+        checkpoint_path="checkpoint_path")
 
   def test_garbage_collect_exports(self):
     export_dir_base = tempfile.mkdtemp() + "export/"

@@ -78,8 +78,7 @@ class _SavedModelExporter(Exporter):
                name,
                serving_input_receiver_fn,
                assets_extra=None,
-               as_text=False,
-               strip_default_attrs=True):
+               as_text=False):
     """Create an `Exporter` to use with `tf.estimator.EvalSpec`.
 
     Args:
@@ -96,9 +95,6 @@ class _SavedModelExporter(Exporter):
         `{'my_asset_file.txt': '/path/to/my_asset_file.txt'}`.
       as_text: whether to write the SavedModel proto in text format. Defaults to
         `False`.
-      strip_default_attrs: Boolean. If set, default attrs in the `GraphDef` will
-        be stripped on write. This is the default behavior and recommended for
-        better forward compatibility of the resulting `SavedModel`.
 
     Raises:
       ValueError: if any arguments is invalid.
@@ -107,7 +103,6 @@ class _SavedModelExporter(Exporter):
     self._serving_input_receiver_fn = serving_input_receiver_fn
     self._assets_extra = assets_extra
     self._as_text = as_text
-    self._strip_default_attrs = strip_default_attrs
 
   @property
   def name(self):
@@ -117,13 +112,12 @@ class _SavedModelExporter(Exporter):
              is_the_final_export):
     del is_the_final_export
 
-    export_result = estimator.export_savedmodel(
+    export_result = estimator.export_saved_model(
         export_path,
         self._serving_input_receiver_fn,
         assets_extra=self._assets_extra,
         as_text=self._as_text,
-        checkpoint_path=checkpoint_path,
-        strip_default_attrs=self._strip_default_attrs)
+        checkpoint_path=checkpoint_path)
 
     return export_result
 

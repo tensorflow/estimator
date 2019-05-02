@@ -286,7 +286,7 @@ class KMeansClustering(estimator.Estimator):
     print 'point:', point, 'is in cluster', cluster_index, 'centered at', center
   ```
 
-  The `SavedModel` saved by the `export_savedmodel` method does not include the
+  The `SavedModel` saved by the `export_saved_model` method does not include the
   cluster centers. However, the cluster centers may be retrieved by the
   latest checkpoint saved during training. Specifically,
   ```

@@ -173,8 +173,8 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
     export_dir = os.path.join(tmpdir, 'saved_model')
     input_receiver_fn = (
         export_lib.build_supervised_input_receiver_fn_from_input_fn(input_fn))
-    export_dir = est.export_savedmodel(
-        export_dir, input_receiver_fn, as_text=True, strip_default_attrs=True)
+    export_dir = est.export_saved_model(
+        export_dir, input_receiver_fn, as_text=True)
 
     # Restore, to validate that the export was well-formed.
     tag_set = export_lib.EXPORT_TAG_MAP[ModeKeys.PREDICT]

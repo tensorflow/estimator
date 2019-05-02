@@ -112,7 +112,7 @@ class TimeSeriesRegressor(estimator_lib.Estimator):
   def build_one_shot_parsing_serving_input_receiver_fn(
       self, filtering_length, prediction_length, default_batch_size=None,
       values_input_dtype=None, truncate_values=False):
-    """Build an input_receiver_fn for export_savedmodel accepting tf.Examples.
+    """Build an input_receiver_fn for export_saved_model accepting tf.Examples.
 
     Only compatible with `OneShotPredictionHead` (see `head`).
 
@@ -138,7 +138,7 @@ class TimeSeriesRegressor(estimator_lib.Estimator):
 
     Returns:
       An input_receiver_fn which may be passed to the Estimator's
-      export_savedmodel.
+      export_saved_model.
 
       Expects features contained in a vector of serialized tf.Examples with
       shape [batch size] (dtype `tf.string`), each tf.Example containing
@@ -158,7 +158,7 @@ class TimeSeriesRegressor(estimator_lib.Estimator):
       values_proto_length = filtering_length
 
     def _serving_input_receiver_fn():
-      """A receiver function to be passed to export_savedmodel."""
+      """A receiver function to be passed to export_saved_model."""
       times_column = feature_column.numeric_column(
           key=feature_keys.TrainEvalFeatures.TIMES, dtype=dtypes.int64)
       values_column = feature_column.numeric_column(
@@ -207,7 +207,7 @@ class TimeSeriesRegressor(estimator_lib.Estimator):
 
   def build_raw_serving_input_receiver_fn(
       self, default_batch_size=None, default_series_length=None):
-    """Build an input_receiver_fn for export_savedmodel which accepts arrays.
+    """Build an input_receiver_fn for export_saved_model which accepts arrays.
 
     Automatically creates placeholders for exogenous `FeatureColumn`s passed to
     the model.
@@ -222,12 +222,13 @@ class TimeSeriesRegressor(estimator_lib.Estimator):
         which means only this series length will be accepted by the exported
         model. If None (default), static shape information for series length is
         omitted.
+
     Returns:
       An input_receiver_fn which may be passed to the Estimator's
-      export_savedmodel.
+      export_saved_model.
     """
     def _serving_input_receiver_fn():
-      """A receiver function to be passed to export_savedmodel."""
+      """A receiver function to be passed to export_saved_model."""
       placeholders = {}
       time_placeholder = array_ops.placeholder(
           name=feature_keys.TrainEvalFeatures.TIMES,

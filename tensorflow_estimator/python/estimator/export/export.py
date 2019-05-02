@@ -172,8 +172,8 @@ class TensorServingInputReceiver(
   The normal `ServingInputReceiver` always returns a feature dict, even if it
   contains only one entry, and so can be used only with models that accept such
   a dict.  For models that accept only a single raw feature, the
-  `serving_input_receiver_fn` provided to `Estimator.export_savedmodel()` should
-  return this `TensorServingInputReceiver` instead.  See:
+  `serving_input_receiver_fn` provided to `Estimator.export_saved_model()`
+  should return this `TensorServingInputReceiver` instead.  See:
   https://github.com/tensorflow/tensorflow/issues/11674
 
   Note that the receiver_tensors and receiver_tensor_alternatives arguments

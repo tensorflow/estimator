@@ -270,7 +270,7 @@ class TimeSeriesRegressionHead(head_lib._Head):  # pylint:disable=protected-acce
       elif mode == estimator_lib.ModeKeys.PREDICT and not passed_flat_state:
         return self._predict_ops(features)
       elif mode == estimator_lib.ModeKeys.PREDICT and passed_flat_state:
-        # The mode is PREDICT, but we're actually in export_savedmodel for
+        # The mode is PREDICT, but we're actually in export_saved_model for
         # serving. We want to return two graphs: one for filtering (state + data
         # -> state) and one for predicting (state -> prediction).
         return self._serving_ops(features)

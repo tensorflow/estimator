@@ -58,7 +58,7 @@ class StepsExporterTest(test.TestCase):
         as_text=False,
         steps_to_keep=[1])
     estimator = test.mock.Mock(spec=estimator_lib.Estimator)
-    estimator.export_savedmodel.return_value = "export_result_path"
+    estimator.export_saved_model.return_value = "export_result_path"
     estimator.model_dir = export_dir_base
 
     export_result = exporter.export(estimator, export_dir_base,
@@ -66,13 +66,12 @@ class StepsExporterTest(test.TestCase):
                                     False)
 
     self.assertEqual("export_result_path", export_result)
-    estimator.export_savedmodel.assert_called_with(
+    estimator.export_saved_model.assert_called_with(
         export_dir_base,
         _serving_input_receiver_fn,
         assets_extra={"from/path": "to/path"},
         as_text=False,
-        checkpoint_path="checkpoint_path",
-        strip_default_attrs=True)
+        checkpoint_path="checkpoint_path")
 
     shutil.rmtree(export_dir_base, ignore_errors=True)
 
@@ -100,7 +99,7 @@ class StepsExporterTest(test.TestCase):
 
     estimator = test.mock.Mock(spec=estimator_lib.Estimator)
     estimator.model_dir = export_dir_base
-    estimator.export_savedmodel.return_value = "export_result_path"
+    estimator.export_saved_model.return_value = "export_result_path"
 
     export_result = exporter.export(estimator, export_dir_base,
                                     "checkpoint_path", {"global_step": 3},
@@ -136,14 +135,14 @@ class StepsExporterTest(test.TestCase):
         as_text=False,
         steps_to_keep=[1, 5, 8, 10, 11])
     estimator = test.mock.Mock(spec=estimator_lib.Estimator)
-    estimator.export_savedmodel.return_value = "export_result_path"
+    estimator.export_saved_model.return_value = "export_result_path"
     estimator.model_dir = export_dir_base
 
     export_result = exporter.export(estimator, export_dir_base,
                                     "checkpoint_path", {"global_step": 1},
                                     False)
 
-    self.assertTrue(estimator.export_savedmodel.called)
+    self.assertTrue(estimator.export_saved_model.called)
     self.assertEqual("export_result_path", export_result)
 
     export_result = exporter.export(estimator, export_dir_base,
@@ -154,19 +153,19 @@ class StepsExporterTest(test.TestCase):
     export_result = exporter.export(estimator, export_dir_base,
                                     "checkpoint_path", {"global_step": 5},
                                     False)
-    self.assertTrue(estimator.export_savedmodel.called)
+    self.assertTrue(estimator.export_saved_model.called)
     self.assertEqual("export_result_path", export_result)
 
     export_result = exporter.export(estimator, export_dir_base,
                                     "checkpoint_path", {"global_step": 10},
                                     False)
-    self.assertTrue(estimator.export_savedmodel.called)
+    self.assertTrue(estimator.export_saved_model.called)
     self.assertEqual("export_result_path", export_result)
 
     export_result = exporter.export(estimator, export_dir_base,
                                     "checkpoint_path", {"global_step": 15},
                                     False)
-    self.assertTrue(estimator.export_savedmodel.called)
+    self.assertTrue(estimator.export_saved_model.called)
     self.assertEqual("export_result_path", export_result)
 
     export_result = exporter.export(estimator, export_dir_base,
@@ -193,7 +192,7 @@ class StepsExporterTest(test.TestCase):
         as_text=False,
         steps_to_keep=[1])
     estimator = test.mock.Mock(spec=estimator_lib.Estimator)
-    estimator.export_savedmodel.return_value = "export_result_path"
+    estimator.export_saved_model.return_value = "export_result_path"
     estimator.model_dir = export_dir_base
 
     with self.assertRaisesRegexp(ValueError, "does not have global step"):

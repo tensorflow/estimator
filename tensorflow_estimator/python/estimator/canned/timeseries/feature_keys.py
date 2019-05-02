@@ -27,7 +27,7 @@ class State(object):
   STATE_TUPLE = "start_tuple"
   # Same meaning as STATE_TUPLE, but prefixes keys representing flattened model
   # state rather than mapping to a nested tuple containing model state,
-  # primarily for use with export_savedmodel.
+  # primarily for use with export_saved_model.
   STATE_PREFIX = "model_state"
 
 
@@ -69,7 +69,7 @@ class FilteringResults(Times, State):
 
 
 class SavedModelLabels(object):
-  """Names of signatures exported with export_savedmodel."""
+  """Names of signatures exported with export_saved_model."""
   PREDICT = signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY
   FILTER = "filter"
   COLD_START_FILTER = "cold_start_filter"

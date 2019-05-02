@@ -487,7 +487,7 @@ class _TrainingExecutorTrainingTest(object):
         hooks=list(train_spec.hooks),
         saving_listeners=test.mock.ANY)
     mock_est.evaluate.assert_not_called()
-    mock_est.export_savedmodel.assert_not_called()
+    mock_est.export_saved_model.assert_not_called()
 
   @test.mock.patch.object(time, 'sleep')
   @test.mock.patch.object(server_lib, 'Server')
@@ -518,7 +518,7 @@ class _TrainingExecutorTrainingTest(object):
         hooks=list(train_spec.hooks),
         saving_listeners=test.mock.ANY)
     mock_est.evaluate.assert_not_called()
-    mock_est.export_savedmodel.assert_not_called()
+    mock_est.export_saved_model.assert_not_called()
 
   @test.mock.patch.object(time, 'sleep')
   @test.mock.patch.object(server_lib, 'Server')
@@ -760,7 +760,7 @@ class TrainingExecutorRunMasterTest(test.TestCase):
         max_steps=train_spec.max_steps,
         hooks=list(train_spec.hooks),
         saving_listeners=test.mock.ANY)
-    mock_est.export_savedmodel.assert_not_called()
+    mock_est.export_saved_model.assert_not_called()
 
   @test.mock.patch.object(time, 'sleep')
   @test.mock.patch.object(server_lib, 'Server')
