@@ -3285,6 +3285,12 @@ class EstimatorExportTest(test.TestCase):
     variable_dir = saved_model_utils.get_variables_path(saved_model_dir)
     self.assertEqual(42., training.load_variable(variable_dir, 'x'))
 
+  def test_export_saved_model_symbol_deprecated(self):
+    est = estimator.EstimatorV2(model_fn=_model_fn_for_export_tests)
+    with self.assertRaisesRegexp(AttributeError,
+                                 'Please use `export_saved_model`'):
+      est.export_savedmodel
+
 
 class EstimatorHookOrderingTest(test.TestCase):
 

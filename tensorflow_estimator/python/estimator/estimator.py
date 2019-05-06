@@ -1712,7 +1712,9 @@ class Estimator(object):
 class EstimatorV2(Estimator):
   __doc__ = Estimator.__doc__
 
-  export_savedmodel = deprecation.HIDDEN_ATTRIBUTE
+  export_savedmodel = deprecation.hide_attribute_from_api(
+      '`Estimator.export_savedmodel` has been deprecated. Please use '
+      '`export_saved_model` instead.')
 
   def _assert_members_are_not_overridden(self):
     """Asserts members of `Estimator` are not overridden."""
