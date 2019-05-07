@@ -64,6 +64,9 @@ py_test(
     ],
     python_version = "PY2",
     srcs_version = "PY2AND3",
+    tags = [
+        "notap",  # TODO(b/132129465): Re-enable.
+    ],
     deps = [
         ":ar_model",
         ":estimators",
