@@ -251,6 +251,17 @@ class EmbeddingConfig(object):
     self._grad_multiplier_fn = (
         embedding_config_spec.experimental_gradient_multiplier_fn)
 
+    self._partition_strategy = embedding_config_spec.feature_columns[
+        0].get_partition_strategy()
+    for column in embedding_config_spec.feature_columns:
+      if self._partition_strategy != column.get_partition_strategy():
+        raise ValueError(
+            'All feature columns must have the same partition_strategy. Got '
+            '{} for column {} and {} for column {}.'.format(
+                self._partition_strategy,
+                embedding_config_spec.feature_columns[0].name,
+                column.get_partition_strategy(), column.name))
+
   def get_grad_multiplier(self):
     if self._grad_multiplier_fn:
       return ops.convert_to_tensor(
@@ -296,7 +307,8 @@ class EmbeddingConfig(object):
         optimization_parameters,
         cluster_def,
         pipeline_execution_with_tensor_core=self._embedding_config_spec
-        .pipeline_execution_with_tensor_core)
+        .pipeline_execution_with_tensor_core,
+        partition_strategy=self._partition_strategy)
     return tpu_embedding_
 
   def get_tpu_embedding(self, mode):
