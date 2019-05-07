@@ -33,12 +33,15 @@ from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import sparse_tensor
 from tensorflow.python.framework import test_util
+from tensorflow.python.keras import activations
+from tensorflow.python.keras import initializers
 from tensorflow.python.keras import layers as keras_layers
+from tensorflow.python.keras import losses
+from tensorflow.python.keras import optimizers
 from tensorflow.python.keras.layers import recurrent_v2
 from tensorflow.python.keras.utils import losses_utils
 from tensorflow.python.lib.io import python_io
 from tensorflow.python.ops import check_ops
-from tensorflow.python.ops import init_ops
 from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import state_ops
 from tensorflow.python.ops import variables as variables_lib
@@ -59,11 +62,11 @@ from tensorflow_estimator.python.estimator.head import sequential_head as seq_he
 from tensorflow_estimator.python.estimator.inputs import numpy_io
 
 # Names of variables created by BasicRNNCell model.
-CELL_KERNEL_NAME = 'rnn/kernel'
-CELL_RECURRENT_KERNEL_NAME = 'rnn/recurrent_kernel'
-CELL_BIAS_NAME = 'rnn/bias'
-LOGITS_WEIGHTS_NAME = 'logits/kernel'
-LOGITS_BIAS_NAME = 'logits/bias'
+CELL_KERNEL_NAME = 'rnn_model/rnn/kernel'
+CELL_RECURRENT_KERNEL_NAME = 'rnn_model/rnn/recurrent_kernel'
+CELL_BIAS_NAME = 'rnn_model/rnn/bias'
+LOGITS_WEIGHTS_NAME = 'rnn_model/logits/kernel'
+LOGITS_BIAS_NAME = 'rnn_model/logits/bias'
 
 
 def _assert_close(expected, actual, rtol=1e-04, name='assert_close'):
@@ -118,10 +121,9 @@ def create_checkpoint(kernel, recurrent, bias, dense_kernel, dense_bias,
 
 def _make_rnn_layer(rnn_cell_fn=None, units=None, cell_type=rnn.USE_DEFAULT,
                     return_sequences=False):
-  layer_fn = rnn._make_rnn_layer_fn(
+  return rnn._make_rnn_layer(
       rnn_cell_fn=rnn_cell_fn, units=units, cell_type=cell_type,
       return_sequences=return_sequences)
-  return layer_fn()
 
 
 @test_util.run_all_in_graph_and_eager_modes
@@ -150,22 +152,23 @@ class RNNLayerFnTest(test.TestCase, parameterized.TestCase):
     self.assertIsInstance(layer.cell, keras_layers.SimpleRNNCell)
 
   @parameterized.parameters([('gru', recurrent_v2.GRU),
-                             ('lstm', recurrent_v2.LSTM)])
+                             ('lstm', recurrent_v2.LSTM),
+                             ('simple_rnn', keras_layers.SimpleRNN)])
   def testSpecificLayerTypeProvided(self, cell_type, layer_type):
     """Tests specific layer type for GRU and LSTM."""
-    layer = _make_rnn_layer(cell_type=cell_type, units=[1])
+    layer = _make_rnn_layer(cell_type=cell_type, units=1)
     self.assertIsInstance(layer, layer_type)
 
   def testSpecificLayerTypeArguments(self):
     """Tests arguments for specific layer types (GRU and LSTM)."""
     mock_layer_type = test.mock.Mock()
     with test.mock.patch.object(
-        rnn, '_LAYER_TYPES', {'custom-type': mock_layer_type}):
+        rnn, '_CELL_TYPE_TO_LAYER_MAPPING', {'custom-type': mock_layer_type}):
       _make_rnn_layer(
-          cell_type='custom-type', units='units-value',
+          cell_type='custom-type', units=11,
           return_sequences='return-seq-value')
       mock_layer_type.assert_called_once_with(
-          units='units-value', return_sequences='return-seq-value')
+          units=11, return_sequences='return-seq-value')
 
   @test.mock.patch.object(keras_layers, 'RNN')
   def testCustomCellProvided(self, mock_rnn_layer_type):
@@ -195,35 +198,20 @@ class RNNLayerFnTest(test.TestCase, parameterized.TestCase):
         cell='custom-cell', return_sequences='return-seq-value')
 
 
-def _mock_rnn_cell(kernel, recurrent, bias):
-  """Sets initialization values to `SimpleRNNCell` layers used in context."""
-
-  class _MockRNNCell(keras_layers.SimpleRNNCell):
-
-    def __init__(self, units):
-      super(_MockRNNCell, self).__init__(
-          units=units,
-          kernel_initializer=init_ops.Constant(kernel),
-          recurrent_initializer=init_ops.Constant(recurrent),
-          bias_initializer=init_ops.Constant(bias))
-
-  return test.mock.patch.object(keras_layers, 'SimpleRNNCell', _MockRNNCell)
-
-
 def _mock_logits_layer(kernel, bias):
   """Sets initialization values to dense `logits` layers used in context."""
 
   class _MockDenseLayer(keras_layers.Dense):
 
-    def __init__(self, units, name):
+    def __init__(self, units, activation, name):
       kwargs = {}
       if name == 'logits':
         kwargs = {
-            'kernel_initializer': init_ops.Constant(kernel),
-            'bias_initializer': init_ops.Constant(bias)}
+            'kernel_initializer': initializers.Constant(kernel),
+            'bias_initializer': initializers.Constant(bias)}
 
       super(_MockDenseLayer, self).__init__(
-          units=units, name=name, **kwargs)
+          units=units, name=name, activation=activation, **kwargs)
 
   return test.mock.patch.object(keras_layers, 'Dense', _MockDenseLayer)
 
@@ -238,9 +226,16 @@ def _default_features_fn():
   }
 
 
+def _get_mock_head():
+  mock_head = multi_head_lib.MultiClassHead(3)
+  mock_head.create_estimator_spec = test.mock.Mock(
+      return_value=model_fn.EstimatorSpec(None))
+  return mock_head
+
+
 @test_util.run_all_in_graph_and_eager_modes
 class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
-  """Tests correctness of logits calculated from _rnn_logit_fn_builder."""
+  """Tests correctness of logits calculated from RNNModel."""
 
   def setUp(self):
     # Sets layers default weights for testing purpose.
@@ -254,25 +249,28 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
     self.context_feature_columns = []
     super(RNNLogitFnTest, self).setUp()
 
-  def _mock_rnn_cell(self):
-    return _mock_rnn_cell(self.kernel, recurrent=self.recurrent, bias=self.bias)
-
   def _mock_logits_layer(self):
     return _mock_logits_layer(self.dense_kernel, bias=self.dense_bias)
 
-  def _test_logits(self, mode, rnn_units, logits_dimension, features_fn,
-                   expected_logits, return_sequences=False):
+  def _test_logits(self, logits_dimension, features_fn, expected_logits,
+                   expected_mask, return_sequences=False):
     """Tests that the expected logits are calculated."""
-    logit_fn = rnn._rnn_logit_fn_builder(
-        output_units=logits_dimension,
-        rnn_layer_fn=rnn._make_rnn_layer_fn(
-            units=rnn_units, cell_type=rnn.USE_DEFAULT,
-            return_sequences=return_sequences, rnn_cell_fn=None),
-        sequence_feature_columns=self.sequence_feature_columns,
-        context_feature_columns=self.context_feature_columns)
-    # Features are constructed within this function, otherwise the Tensors
-    # containing the features would be defined outside this graph.
-    logits = logit_fn(features=features_fn(), mode=mode)
+    rnn_layer = keras_layers.SimpleRNN(
+        2, return_sequences=return_sequences,
+        kernel_initializer=initializers.Constant(self.kernel),
+        recurrent_initializer=initializers.Constant(self.recurrent),
+        bias_initializer=initializers.Constant(self.bias))
+    with self._mock_logits_layer():
+      logit_layer = rnn.RNNModel(
+          rnn_layer=rnn_layer,
+          units=logits_dimension,
+          sequence_feature_columns=self.sequence_feature_columns,
+          context_feature_columns=self.context_feature_columns,
+          return_sequences=return_sequences)
+    logits = logit_layer(features_fn())
+    if return_sequences:
+      logits = (logits, logits._keras_mask)
+      expected_logits = (expected_logits, expected_mask)
     self.evaluate(variables_lib.global_variables_initializer())
     self.assertAllClose(expected_logits, self.evaluate(logits), atol=1e-4)
 
@@ -306,19 +304,12 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
     """
     expected_mask = [[1, 1]]
 
-    with self._mock_rnn_cell():
-      with self._mock_logits_layer():
-        for mode in [
-            model_fn.ModeKeys.TRAIN, model_fn.ModeKeys.EVAL,
-            model_fn.ModeKeys.PREDICT
-        ]:
-          self._test_logits(
-              mode,
-              rnn_units=[2],
-              logits_dimension=1,
-              features_fn=_default_features_fn,
-              expected_logits=(expected_logits, expected_mask),
-              return_sequences=return_sequences)
+    self._test_logits(
+        logits_dimension=1,
+        features_fn=_default_features_fn,
+        expected_mask=expected_mask,
+        expected_logits=expected_logits,
+        return_sequences=return_sequences)
 
   @parameterized.named_parameters(
       {'testcase_name': 'Static',
@@ -360,19 +351,12 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
 
     self.dense_kernel = [[-1., 0.5, 0.2], [1., -0.3, 0.1]]
     self.dense_bias = [0.3, 0.4, 0.5]
-    with self._mock_rnn_cell():
-      with self._mock_logits_layer():
-        for mode in [
-            model_fn.ModeKeys.TRAIN, model_fn.ModeKeys.EVAL,
-            model_fn.ModeKeys.PREDICT
-        ]:
-          self._test_logits(
-              mode,
-              rnn_units=[2],
-              logits_dimension=3,
-              features_fn=_default_features_fn,
-              expected_logits=(expected_logits, expected_mask),
-              return_sequences=return_sequences)
+    self._test_logits(
+        logits_dimension=3,
+        features_fn=_default_features_fn,
+        expected_mask=expected_mask,
+        expected_logits=expected_logits,
+        return_sequences=return_sequences)
 
   @parameterized.named_parameters(
       {'testcase_name': 'Static',
@@ -435,19 +419,12 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
 
     self.dense_kernel = [[-1., 0.5, 0.2], [1., -0.3, 0.1]]
     self.dense_bias = [0.3, 0.4, 0.5]
-    with self._mock_rnn_cell():
-      with self._mock_logits_layer():
-        for mode in [
-            model_fn.ModeKeys.TRAIN, model_fn.ModeKeys.EVAL,
-            model_fn.ModeKeys.PREDICT
-        ]:
-          self._test_logits(
-              mode,
-              rnn_units=[2],
-              logits_dimension=3,
-              features_fn=features_fn,
-              expected_logits=(expected_logits, expected_mask),
-              return_sequences=return_sequences)
+    self._test_logits(
+        logits_dimension=3,
+        features_fn=features_fn,
+        expected_mask=expected_mask,
+        expected_logits=expected_logits,
+        return_sequences=return_sequences)
 
   @parameterized.named_parameters(
       {'testcase_name': 'Static',
@@ -496,19 +473,12 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
                   dense_shape=[2, 2]),
       }
 
-    with self._mock_rnn_cell():
-      with self._mock_logits_layer():
-        for mode in [
-            model_fn.ModeKeys.TRAIN, model_fn.ModeKeys.EVAL,
-            model_fn.ModeKeys.PREDICT
-        ]:
-          self._test_logits(
-              mode,
-              rnn_units=[2],
-              logits_dimension=1,
-              features_fn=features_fn,
-              expected_logits=(expected_logits, expected_mask),
-              return_sequences=return_sequences)
+    self._test_logits(
+        logits_dimension=1,
+        features_fn=features_fn,
+        expected_mask=expected_mask,
+        expected_logits=expected_logits,
+        return_sequences=return_sequences)
 
   def testMultiExamplesWithContext(self):
     """Tests multiple examples with context features.
@@ -545,18 +515,11 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
     self.context_feature_columns = [fc.numeric_column('context', shape=(1,))]
 
     self.kernel = [[.1, -.2], [1., 0.9]]
-    with self._mock_rnn_cell():
-      with self._mock_logits_layer():
-        for mode in [
-            model_fn.ModeKeys.TRAIN, model_fn.ModeKeys.EVAL,
-            model_fn.ModeKeys.PREDICT
-        ]:
-          self._test_logits(
-              mode,
-              rnn_units=[2],
-              logits_dimension=1,
-              features_fn=features_fn,
-              expected_logits=([[-0.3662], [0.1414]], expected_mask))
+    self._test_logits(
+        logits_dimension=1,
+        features_fn=features_fn,
+        expected_mask=expected_mask,
+        expected_logits=[[-0.3662], [0.1414]])
 
   def testMultiExamplesMultiFeatures(self):
     """Tests examples with multiple sequential feature columns.
@@ -600,18 +563,11 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
     self.sequence_feature_columns = [price_column, on_sale_column]
 
     self.kernel = [[.5, -.5], [1., -1.], [.1, -.2]]
-    with self._mock_rnn_cell():
-      with self._mock_logits_layer():
-        for mode in [
-            model_fn.ModeKeys.TRAIN, model_fn.ModeKeys.EVAL,
-            model_fn.ModeKeys.PREDICT
-        ]:
-          self._test_logits(
-              mode,
-              rnn_units=[2],
-              logits_dimension=1,
-              features_fn=features_fn,
-              expected_logits=([[-1.5056], [-0.7962]], expected_mask))
+    self._test_logits(
+        logits_dimension=1,
+        features_fn=features_fn,
+        expected_mask=expected_mask,
+        expected_logits=[[-1.5056], [-0.7962]])
 
   @parameterized.parameters([
       (model_fn.ModeKeys.TRAIN, True),
@@ -632,15 +588,10 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
         return super(_MockRNNCell, self).call(
             inputs=inputs, states=states, training=training)
 
-    logit_fn = rnn._rnn_logit_fn_builder(
-        output_units=1,
-        rnn_layer_fn=rnn._make_rnn_layer_fn(
-            rnn_cell_fn=lambda: _MockRNNCell(self),
-            units=None,
-            cell_type=rnn.USE_DEFAULT,
-            return_sequences=False),
-        sequence_feature_columns=self.sequence_feature_columns,
-        context_feature_columns=None)
+    estimator = rnn.RNNEstimator(
+        head=_get_mock_head(),
+        rnn_cell_fn=lambda: _MockRNNCell(self),
+        sequence_feature_columns=self.sequence_feature_columns)
     features = {
         'price':
             sparse_tensor.SparseTensor(
@@ -648,7 +599,181 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
                 indices=[[0, 0]],
                 dense_shape=[1, 1]),
     }
-    logit_fn(features=features, mode=mode)
+    estimator.model_fn(features=features, labels=None, mode=mode, config=None)
+
+
+class RNNModelTest(test.TestCase, parameterized.TestCase):
+  """Tests for RNNModel."""
+
+  def setUp(self):
+    super(RNNModelTest, self).setUp()
+    self.kernel = [[.1, -.2]]
+    self.recurrent = [[.2, -.3], [.3, -.4]]
+    self.bias = [.2, .5]
+    self.dense_kernel = [[-1.], [1.]]
+    self.dense_bias = [0.3]
+    self.sequence_feature_columns = [
+        fc.sequence_numeric_column('price', shape=(1,))]
+    self.x = {
+        'price':
+            sparse_tensor.SparseTensor(
+                values=[10., 5., 2.],
+                indices=[[0, 0], [0, 1], [1, 0]],
+                dense_shape=[2, 2]),
+    }
+    self.y = ops.convert_to_tensor([[[0], [1]], [[0], [1]]])
+
+  def _get_compiled_model(self, return_sequences=False, **kwargs):
+    """Initializes and compiles a RNN model with specific weights."""
+    rnn_layer = keras_layers.SimpleRNN(
+        2, return_sequences=return_sequences,
+        kernel_initializer=initializers.Constant(self.kernel),
+        recurrent_initializer=initializers.Constant(self.recurrent),
+        bias_initializer=initializers.Constant(self.bias))
+    with _mock_logits_layer(self.dense_kernel, bias=self.dense_bias):
+      model = rnn.RNNModel(
+          units=1,
+          rnn_layer=rnn_layer,
+          sequence_feature_columns=self.sequence_feature_columns,
+          activation=activations.sigmoid,
+          return_sequences=return_sequences,
+          **kwargs)
+      model.compile(
+          optimizer=optimizers.Adam(),
+          loss=losses.BinaryCrossentropy(reduction='sum'),
+          metrics=['accuracy'])
+    return model
+
+  def testModelWeights(self):
+    """Tests that the layers weights are properly added to the model weights."""
+    col = fc.categorical_column_with_hash_bucket('tokens', hash_bucket_size=1)
+    context_feature_columns = [fc.embedding_column(col, dimension=1)]
+    seq_col = fc.sequence_categorical_column_with_hash_bucket(
+        'seq-tokens', hash_bucket_size=1)
+    self.sequence_feature_columns = [fc.embedding_column(seq_col, dimension=1)]
+    model = self._get_compiled_model(
+        context_feature_columns=context_feature_columns)
+    model.predict(x={
+        'tokens': ops.convert_to_tensor([['a']]),
+        'seq-tokens': ops.convert_to_tensor([[['a']]])}, steps=1)
+    # Weights included are:
+    # - recurrent, kernel and bias from RNN layer
+    # - kernel and bias from logits layer
+    # - sequential feature column embedding
+    # - context feature column embedding.
+    self.assertLen(model.get_weights(), 7)
+
+  def _testModelConfig(self, **kwargs):
+    """Tests the parameters of a RNNModel stored to and restored from config.
+
+    Args:
+      **kwargs: Additional keyword arguments to initialize the RNNModel before
+        calling `get_config`.
+
+    Returns:
+      A dictionary with RNNModel initialization arguments from the `from_config`
+      call.
+    """
+    seq_col = fc.sequence_categorical_column_with_hash_bucket(
+        'seq-tokens', hash_bucket_size=1)
+    sequence_feature_columns = [fc.embedding_column(
+        seq_col, dimension=1, initializer=initializers.Zeros())]
+    model = rnn.RNNModel(
+        units=11,
+        rnn_layer=keras_layers.SimpleRNN(3),
+        sequence_feature_columns=sequence_feature_columns,
+        return_sequences=True,
+        name='rnn-model',
+        **kwargs)
+
+    with test.mock.patch.object(
+        rnn.RNNModel, '__init__', return_value=None) as init:
+      rnn.RNNModel.from_config(
+          model.get_config(), custom_objects={'Zeros': initializers.Zeros})
+      return list(init.call_args_list[0])[1]
+
+  def testModelConfig(self):
+    """Tests that a RNNModel can be stored to and restored from config."""
+    init_kwargs = self._testModelConfig()
+    self.assertEqual(init_kwargs['name'], 'rnn-model')
+    self.assertEqual(init_kwargs['units'], 11)
+    self.assertEqual(init_kwargs['return_sequences'], True)
+    self.assertEqual(
+        init_kwargs['sequence_feature_columns'][0].categorical_column.name,
+        'seq-tokens')
+    self.assertEqual(init_kwargs['context_feature_columns'], None)
+    self.assertEqual(init_kwargs['activation'].__name__, 'linear')
+    self.assertEqual(init_kwargs['rnn_layer'].cell.units, 3)
+
+  def testModelConfigWithActivation(self):
+    """Tests store / restore from config with logits activation."""
+    init_kwargs = self._testModelConfig(activation=activations.sigmoid)
+    self.assertEqual(init_kwargs['activation'].__name__, 'sigmoid')
+
+  def testModelConfigWithContextFeatures(self):
+    """Tests store / restore from config with context features."""
+    init_kwargs = self._testModelConfig(
+        context_feature_columns=[fc.numeric_column('context', shape=(1,))])
+    self.assertEqual(init_kwargs['context_feature_columns'][0].name, 'context')
+
+  def DISABLED_testSaveModelWeights(self):  # See b/129842600.
+    """Tests that model weights can be saved and restored."""
+    model = self._get_compiled_model(return_sequences=True)
+    model.fit(x=self.x, y=self.y, batch_size=1, steps_per_epoch=1, epochs=1)
+    y1 = model.predict(x=self.x, steps=1)
+    model.save_weights(self.get_temp_dir() + 'model')
+
+    model = self._get_compiled_model(return_sequences=True, name='model-2')
+    model.load_weights(self.get_temp_dir() + 'model')
+    y2 = model.predict(x=self.x, steps=1)
+    self.assertAllClose(y1, y2)
+
+  def DISABLED_testEvaluationMetrics(self):  # See b/129842600.
+    """Tests evaluation metrics computation in non-sequential case."""
+    model = self._get_compiled_model()
+    metrics = model.evaluate(
+        x=self.x, y=ops.convert_to_tensor([[0], [1]]), steps=1)
+    # See `RNNClassifierEvaluationTest` for details on computation.
+    self.assertAllClose(metrics, (1.1196611, 1.), atol=1e-4)
+
+  def DISABLED_testEvaluationSequential(self):  # See b/129842600.
+    """Tests that the sequence mask is properly used to aggregate loss."""
+    model = self._get_compiled_model(return_sequences=True)
+    metrics = model.evaluate(x=self.x, y=self.y, steps=1)
+    # See `RNNClassifierEvaluationTest` for details on computation.
+    self.assertAllClose(metrics, (1.9556, 1./3.), atol=1e-4)
+
+  def DISABLED_testPredictions(self):  # See b/129842600.
+    """Tests predictions with RNN model."""
+    model = self._get_compiled_model()
+    # See `RNNClassifierPredictionTest` for details on computation.
+    self.assertAllClose(
+        model.predict(x=self.x, steps=1), [[0.353593], [0.5049296]], atol=1e-4)
+
+  def DISABLED_testPredictionsSequential(self):  # See b/129842600.
+    """Tests sequential predictions with RNN model."""
+    model = self._get_compiled_model(return_sequences=True)
+    # See `RNNClassifierPredictionTest` for details on computation.
+    self.assertAllClose(
+        model.predict(x=self.x, steps=1),
+        [[[0.191731], [0.353593]],
+         [[0.5049296], [0.5049296]]], atol=1e-4)
+
+  def DISABLED_testTraining(self):  # See b/129842600.
+    """Tests the loss computed in training step."""
+    model = self._get_compiled_model()
+    history = model.fit(
+        x=self.x, y=ops.convert_to_tensor([[0], [1]]), batch_size=1,
+        steps_per_epoch=1)
+    # See `RNNClassifierTrainingTest` for details on computation.
+    self.assertAllClose(history.history['loss'], [1.1196611], atol=1e-4)
+
+  def DISABLED_testTrainingSequential(self):  # See b/129842600.
+    """Tests the loss computed in training step in sequential case."""
+    model = self._get_compiled_model(return_sequences=True)
+    history = model.fit(x=self.x, y=self.y, batch_size=1, steps_per_epoch=1)
+    # See `RNNClassifierTrainingTest` for details on computation.
+    self.assertAllClose(history.history['loss'], [1.9556], atol=1e-4)
 
 
 @test_util.run_all_in_graph_and_eager_modes
@@ -1440,20 +1565,6 @@ class RNNEstimatorIntegrationTest(BaseRNNClassificationIntegrationTest,
     BaseRNNClassificationIntegrationTest.__init__(self, _rnn_estimator_fn)
 
 
-class _MockSeqHead(seq_head_lib._SequentialHead,
-                   multi_head_lib.MultiClassHead):
-  """Used to test that the sequence mask is properly passed to the head."""
-
-  @property
-  def input_sequence_mask_key(self,):
-    return 'sequence_mask'
-
-  def create_estimator_spec(
-      self, features, mode, logits, labels=None, optimizer=None,
-      train_op_fn=None, regularization_losses=None):
-    return features
-
-
 @test_util.run_all_in_graph_and_eager_modes
 class ModelFnTest(test.TestCase):
   """Tests correctness of RNNEstimator's model function."""
@@ -1470,17 +1581,18 @@ class ModelFnTest(test.TestCase):
 
     sequence_feature_columns = [fc.sequence_numeric_column('price', shape=(1,))]
 
-    passed_features = rnn._rnn_model_fn(
-        features=features,
-        labels=None,
-        mode=model_fn.ModeKeys.PREDICT,
-        head=_MockSeqHead(n_classes=3),
-        rnn_layer_fn=rnn._make_rnn_layer_fn(
-            rnn_cell_fn=None, units=[10], cell_type=rnn._SIMPLE_RNN_KEY,
-            return_sequences=True),
+    mock_head = _get_mock_head()
+    seq_head = seq_head_lib.SequentialHeadWrapper(
+        mock_head, sequence_length_mask='sequence_mask')
+    estimator = rnn.RNNEstimator(
+        head=seq_head, units=[10],
         sequence_feature_columns=sequence_feature_columns,
-        context_feature_columns=[],
         return_sequences=True)
+    estimator.model_fn(
+        features=features, labels=None, mode=model_fn.ModeKeys.PREDICT,
+        config=None)
+    passed_features = list(
+        mock_head.create_estimator_spec.call_args)[1]['features']
     self.assertIn('sequence_mask', passed_features)
     sequence_mask = self.evaluate(passed_features['sequence_mask'])
     self.assertAllEqual(sequence_mask, expected_mask)

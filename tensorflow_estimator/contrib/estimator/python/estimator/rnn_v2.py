@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Recurrent Neural Network estimators.
+"""Recurrent Neural Network model and estimators.
 
 NOTE: This API is under development, is subject to change, and should not be
 relied upon!
@@ -26,7 +26,9 @@ from __future__ import print_function
 
 from tensorflow.python.feature_column import feature_column_lib as fc
 from tensorflow.python.framework import ops
+from tensorflow.python.keras import activations
 from tensorflow.python.keras import layers as keras_layers
+from tensorflow.python.keras import models
 from tensorflow.python.keras.layers import recurrent_v2
 from tensorflow.python.keras.utils import losses_utils
 from tensorflow.python.ops import array_ops
@@ -51,9 +53,16 @@ _SIMPLE_RNN_KEY = 'simple_rnn'
 _LSTM_KEY = 'lstm'
 _GRU_KEY = 'gru'
 
-_LAYER_TYPES = {
+_CELL_TYPE_TO_LAYER_MAPPING = {
     _LSTM_KEY: recurrent_v2.LSTM,
-    _GRU_KEY: recurrent_v2.GRU}
+    _GRU_KEY: recurrent_v2.GRU,
+    _SIMPLE_RNN_KEY: keras_layers.SimpleRNN}
+
+_CELL_TYPES = {
+    _LSTM_KEY: keras_layers.LSTMCell,
+    _GRU_KEY: keras_layers.GRUCell,
+    _SIMPLE_RNN_KEY: keras_layers.SimpleRNNCell
+}
 
 
 # Indicates no value was provided by the user to a kwarg.
@@ -62,6 +71,7 @@ USE_DEFAULT = object()
 
 def _single_rnn_cell(units, cell_type):
   """Initializes a RNN cell."""
+  cell_type = _CELL_TYPES.get(cell_type, cell_type)
   if not callable(cell_type):
     raise ValueError(
         '`cell_type` should be a class producing a RNN cell, or a string '
@@ -95,76 +105,169 @@ def _make_rnn_cell_fn(units, cell_type=_SIMPLE_RNN_KEY):
   return rnn_cell_fn
 
 
-def _rnn_logit_fn_builder(output_units, rnn_layer_fn, sequence_feature_columns,
-                          context_feature_columns):
-  """Function builder for a rnn logit_fn.
+class RNNModel(models.Model):
+  """A Keras RNN model.
 
-  Args:
-    output_units: An int indicating the dimension of the logit layer.
-    rnn_layer_fn: A function that returns a tf.keras.layers.RNN layer.
-    sequence_feature_columns: An iterable containing the `FeatureColumn`s
-      that represent sequential input.
-    context_feature_columns: An iterable containing the `FeatureColumn`s
-      that represent contextual input.
+  Composition of layers to compute logits from RNN model, along with training
+  and inference features. See `tf.keras.models.Model` for more details on Keras
+  models.
 
-  Returns:
-    A logit_fn (see below).
+  Example of usage:
 
-  Raises:
-    ValueError: If output_units is not an int.
+  ```python
+  rating = tf.feature_column.embedding_column(
+      tf.feature_column.sequence_categorical_column_with_identity('rating', 5),
+      10)
+  rnn_layer = tf.keras.layers.SimpleRNN(20)
+  rnn_model = RNNModel(rnn_layer, units=1, sequence_feature_columns=[rating])
+
+  rnn_model.compile(
+      tf.keras.optimizers.Adam(), loss=tf.keras.losses.MeanSquaredError())
+  rnn_model.fit(generator(), epochs=10, steps_per_epoch=100)
+  rnn_model.predict({'rating': np.array([[0, 1], [2, 3]])}, steps=1)
+  ```
   """
-  if not isinstance(output_units, int):
-    raise ValueError('output_units must be an int.  Given type: {}'.format(
-        type(output_units)))
 
-  def rnn_logit_fn(features, mode):
-    """Recurrent Neural Network logit_fn.
+  # TODO(aarg): Update arguments to support multiple rnn layers.
+  def __init__(
+      self,
+      rnn_layer,
+      units,
+      sequence_feature_columns,
+      context_feature_columns=None,
+      activation=None,
+      return_sequences=False,
+      **kwargs):
+    """Initializes a RNNModel instance.
 
     Args:
-      features: This is the first item returned from the `input_fn`
-                passed to `train`, `evaluate`, and `predict`. This should be a
-                single `Tensor` or `dict` of same.
-      mode: Optional. Specifies if this training, evaluation or prediction. See
-            `ModeKeys`.
+      rnn_layer: A Keras RNN layer.
+      units: An int indicating the dimension of the logit layer, and of the
+        model output.
+      sequence_feature_columns: An iterable containing the `FeatureColumn`s
+        that represent sequential input. All items in the set should either be
+        sequence columns (e.g. `sequence_numeric_column`) or constructed from
+        one (e.g. `embedding_column` with `sequence_categorical_column_*` as
+        input).
+      context_feature_columns: An iterable containing the `FeatureColumn`s
+        for contextual input. The data represented by these columns will be
+        replicated and given to the RNN at each timestep. These columns must be
+        instances of classes derived from `DenseColumn` such as
+        `numeric_column`, not the sequential variants.
+      activation: Activation function to apply to the logit layer (for instance
+        `tf.keras.activations.sigmoid`). If you don't specify anything, no
+        activation is applied.
+      return_sequences: A boolean indicating whether to return the last output
+        in the output sequence, or the full sequence.
+      **kwargs: Additional arguments.
+
+    Raises:
+      ValueError: If `units` is not an int.
+    """
+    super(RNNModel, self).__init__(**kwargs)
+    if not isinstance(units, int):
+      raise ValueError('units must be an int.  Given type: {}'.format(
+          type(units)))
+    self._return_sequences = return_sequences
+    self._sequence_feature_columns = sequence_feature_columns
+    self._context_feature_columns = context_feature_columns
+    self._sequence_features_layer = fc.SequenceFeatures(
+        sequence_feature_columns)
+    self._dense_features_layer = None
+    if context_feature_columns:
+      self._dense_features_layer = fc.DenseFeatures(context_feature_columns)
+    self._rnn_layer = rnn_layer
+    self._logits_layer = keras_layers.Dense(
+        units=units, activation=activation, name='logits')
+
+  def call(self, inputs, training=None):
+    """Computes the RNN output.
+
+    By default no activation is applied and the logits are returned. To output
+    probabilites an activation needs to be specified such as sigmoid or softmax.
+
+    Args:
+      inputs: A dict mapping keys to input tensors.
+      training: Python boolean indicating whether the layers should behave in
+        training mode or in inference mode. This argument is passed to the
+        model's layers. This is for instance used with cells that use dropout.
 
     Returns:
-      A tuple of `Tensor` objects representing the logits and the sequence
-      length mask.
+      A `Tensor` with logits from RNN model. It has shape
+      (batch_size, time_step, logits_size) if `return_sequence` is `True`,
+      (batch_size, logits_size) otherwise.
     """
+    if not isinstance(inputs, dict):
+      raise ValueError('inputs should be a dictionary of `Tensor`s. '
+                       'Given type: {}'.format(type(inputs)))
     with ops.name_scope('sequence_input_layer'):
-      sequence_input, sequence_length = fc.SequenceFeatures(
-          sequence_feature_columns)(features)
+      sequence_input, sequence_length = self._sequence_features_layer(inputs)
       summary.histogram('sequence_length', sequence_length)
 
-      if context_feature_columns:
-        context_input = fc.DenseFeatures(context_feature_columns)(features)
+      if self._context_feature_columns:
+        context_input = self._dense_features_layer(inputs)
         sequence_input = fc.concatenate_context_input(
             context_input, sequence_input=sequence_input)
 
-    # Ignore output state.
     sequence_length_mask = array_ops.sequence_mask(sequence_length)
-    rnn_layer = rnn_layer_fn()
-    rnn_outputs = rnn_layer(sequence_input,
-                            mask=sequence_length_mask,
-                            training=(mode == model_fn.ModeKeys.TRAIN))
+    rnn_outputs = self._rnn_layer(
+        sequence_input, mask=sequence_length_mask, training=training)
 
-    logits = keras_layers.Dense(units=output_units, name='logits')(rnn_outputs)
-    return logits, sequence_length_mask
+    logits = self._logits_layer(rnn_outputs)
+    if self._return_sequences:
+      # Passes sequence mask as `_keras_mask` to be used in Keras model for
+      # loss and metrics aggregation to exclude padding in the sequential case.
+      logits._keras_mask = sequence_length_mask  # pylint: disable=protected-access
+    return logits
 
-  return rnn_logit_fn
+  def get_config(self):
+    """Returns a dictionary with the config of the model."""
+    config = {'name': self.name}
+    config['rnn_layer'] = {
+        'class_name': self._rnn_layer.__class__.__name__,
+        'config': self._rnn_layer.get_config()
+    }
+    config['units'] = self._logits_layer.units
+    config['return_sequences'] = self._return_sequences
+    config['activation'] = activations.serialize(self._logits_layer.activation)
+    config['sequence_feature_columns'] = fc.serialize_feature_columns(
+        self._sequence_feature_columns)
+    config['context_feature_columns'] = (
+        fc.serialize_feature_columns(self._context_feature_columns)
+        if self._context_feature_columns else None)
+    return config
+
+  @classmethod
+  def from_config(cls, config, custom_objects=None):
+    """Creates a RNNModel from its config.
+
+    Args:
+      config: A Python dictionary, typically the output of `get_config`.
+      custom_objects: Optional dictionary mapping names (strings) to custom
+        classes or functions to be considered during deserialization.
+
+    Returns:
+      A RNNModel.
+    """
+    rnn_layer = keras_layers.deserialize(
+        config.pop('rnn_layer'), custom_objects=custom_objects)
+    sequence_feature_columns = fc.deserialize_feature_columns(
+        config.pop('sequence_feature_columns'), custom_objects=custom_objects)
+    context_feature_columns = config.pop('context_feature_columns', None)
+    if context_feature_columns:
+      context_feature_columns = fc.deserialize_feature_columns(
+          context_feature_columns, custom_objects=custom_objects)
+    activation = activations.deserialize(
+        config.pop('activation', None), custom_objects=custom_objects)
+    return cls(
+        rnn_layer=rnn_layer, sequence_feature_columns=sequence_feature_columns,
+        context_feature_columns=context_feature_columns, activation=activation,
+        **config)
 
 
-# TODO(aarg): Adapt to use Keras Model here.
-def _rnn_model_fn(features,
-                  labels,
-                  mode,
-                  head,
-                  rnn_layer_fn,
-                  sequence_feature_columns,
-                  context_feature_columns,
-                  return_sequences=False,
-                  optimizer='Adagrad'):
-  """Recurrent Neural Net model_fn.
+def _get_rnn_estimator_spec(
+    features, labels, mode, head, rnn_model, optimizer, return_sequences):
+  """Computes `EstimatorSpec` from logits to use in estimator model function.
 
   Args:
     features: dict of `Tensor` and `SparseTensor` objects returned from
@@ -173,17 +276,13 @@ def _rnn_model_fn(features,
     mode: Defines whether this is training, evaluation or prediction.
       See `ModeKeys`.
     head: A `Head` instance.
-    rnn_layer_fn: A function that returns a tf.keras.layers.RNN layer.
-    sequence_feature_columns: Iterable containing `FeatureColumn`s that
-      represent sequential model inputs.
-    context_feature_columns: Iterable containing `FeatureColumn`s that
-      represent model inputs not associated with a specific timestep.
-    return_sequences: A boolean indicating whether to return the last output
-      in the output sequence, or the full sequence.
+    rnn_model: A Keras model that computes RNN logits from features.
     optimizer: String, `tf.Optimizer` object, or callable that creates the
       optimizer to use for training. If not specified, will use the Adagrad
       optimizer with a default learning rate of 0.05 and gradient clip norm of
       5.0.
+    return_sequences: A boolean indicating whether to return the last output
+      in the output sequence, or the full sequence.
 
   Returns:
     An `EstimatorSpec` instance.
@@ -191,10 +290,6 @@ def _rnn_model_fn(features,
   Raises:
     ValueError: If mode or optimizer is invalid, or features has the wrong type.
   """
-  if not isinstance(features, dict):
-    raise ValueError('features should be a dictionary of `Tensor`s. '
-                     'Given type: {}'.format(type(features)))
-
   # If user does not provide an optimizer instance, use the optimizer specified
   # by the string with default learning rate and gradient clipping.
   if not isinstance(optimizer, optimizer_lib.Optimizer):
@@ -202,21 +297,17 @@ def _rnn_model_fn(features,
         optimizer, learning_rate=_DEFAULT_LEARNING_RATE)
     optimizer = extenders.clip_gradients_by_norm(optimizer, _DEFAULT_CLIP_NORM)
 
-  logit_fn = _rnn_logit_fn_builder(
-      output_units=head.logits_dimension,
-      rnn_layer_fn=rnn_layer_fn,
-      sequence_feature_columns=sequence_feature_columns,
-      context_feature_columns=context_feature_columns)
-  logits, sequence_length_mask = logit_fn(features=features, mode=mode)
-
   def _train_op_fn(loss):
     """Returns the op to optimize the loss."""
     return optimizer.minimize(
         loss,
         global_step=training_util.get_global_step())
 
+  logits = rnn_model(features, training=(mode == model_fn.ModeKeys.TRAIN))
+
   if return_sequences and head.input_sequence_mask_key not in features:
-    features[head.input_sequence_mask_key] = sequence_length_mask
+    features[head.input_sequence_mask_key] = logits._keras_mask  # pylint: disable=protected-access
+
   return head.create_estimator_spec(
       features=features,
       mode=mode,
@@ -225,7 +316,13 @@ def _rnn_model_fn(features,
       logits=logits)
 
 
-def _make_rnn_layer_fn(rnn_cell_fn, units, cell_type, return_sequences):
+def _verify_rnn_cell_input(rnn_cell_fn, units, cell_type):
+  if rnn_cell_fn and (units or cell_type != USE_DEFAULT):
+    raise ValueError(
+        'units and cell_type must not be specified when using rnn_cell_fn')
+
+
+def _make_rnn_layer(rnn_cell_fn, units, cell_type, return_sequences):
   """Assert arguments are valid and return rnn_layer_fn.
 
   Args:
@@ -238,26 +335,18 @@ def _make_rnn_layer_fn(rnn_cell_fn, units, cell_type, return_sequences):
       in the output sequence, or the full sequence.:
 
   Returns:
-    A function that returns a tf.keras.layers.RNN layer.
+    A tf.keras.layers.RNN layer.
   """
-  if rnn_cell_fn and (units or cell_type != USE_DEFAULT):
-    raise ValueError(
-        'units and cell_type must not be specified when using rnn_cell_fn')
-  if cell_type in _LAYER_TYPES:
-    def _rnn_layer_fn():
-      return _LAYER_TYPES[cell_type](
-          units=units, return_sequences=return_sequences)
-    return _rnn_layer_fn
-
+  _verify_rnn_cell_input(rnn_cell_fn, units, cell_type)
+  if cell_type in _CELL_TYPE_TO_LAYER_MAPPING and isinstance(units, int):
+    return _CELL_TYPE_TO_LAYER_MAPPING[cell_type](
+        units=units, return_sequences=return_sequences)
   if not rnn_cell_fn:
-    if cell_type == USE_DEFAULT or cell_type == _SIMPLE_RNN_KEY:
-      cell_type = keras_layers.SimpleRNNCell
+    if cell_type == USE_DEFAULT:
+      cell_type = _SIMPLE_RNN_KEY
     rnn_cell_fn = _make_rnn_cell_fn(units, cell_type)
 
-  def _rnn_layer_fn():  # pylint: disable=function-redefined
-    return keras_layers.RNN(cell=rnn_cell_fn(),
-                            return_sequences=return_sequences)
-  return _rnn_layer_fn
+  return keras_layers.RNN(cell=rnn_cell_fn(), return_sequences=return_sequences)
 
 
 class RNNEstimator(estimator.Estimator):
@@ -377,27 +466,32 @@ class RNNEstimator(estimator.Estimator):
       ValueError: If `units`, `cell_type`, and `rnn_cell_fn` are not
         compatible.
     """
+
     # TODO(aarg): Instead of raising an error convert head to sequential head.
     if return_sequences and not isinstance(
         head, seq_head_lib._SequentialHead):  # pylint: disable=protected-access
       raise ValueError(
           'Provided head must be a `_SequentialHead` object when '
           '`return_sequences` is set to True.')
-    rnn_layer_fn = _make_rnn_layer_fn(
-        rnn_cell_fn, units, cell_type, return_sequences=return_sequences)
+    _verify_rnn_cell_input(rnn_cell_fn, units, cell_type)
 
     def _model_fn(features, labels, mode, config):
+      """RNNEstimator model function."""
       del config  # Unused.
-      return _rnn_model_fn(
-          features=features,
-          labels=labels,
-          mode=mode,
-          head=head,
-          rnn_layer_fn=rnn_layer_fn,
-          sequence_feature_columns=tuple(sequence_feature_columns or []),
-          context_feature_columns=tuple(context_feature_columns or []),
+      rnn_layer = _make_rnn_layer(
+          rnn_cell_fn=rnn_cell_fn, units=units, cell_type=cell_type,
+          return_sequences=return_sequences)
+      rnn_model = RNNModel(
+          rnn_layer=rnn_layer,
+          units=head.logits_dimension,
+          sequence_feature_columns=sequence_feature_columns,
+          context_feature_columns=context_feature_columns,
           return_sequences=return_sequences,
-          optimizer=optimizer)
+          name='rnn_model')
+      return _get_rnn_estimator_spec(
+          features, labels, mode, head=head, rnn_model=rnn_model,
+          optimizer=optimizer, return_sequences=return_sequences)
+
     super(RNNEstimator, self).__init__(
         model_fn=_model_fn, model_dir=model_dir, config=config)
 
