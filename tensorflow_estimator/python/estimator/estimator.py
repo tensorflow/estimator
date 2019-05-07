@@ -2246,6 +2246,13 @@ class WarmStartSettings(
       })
   ```
 
+  Warm-start all TRAINABLE variables:
+
+  ```
+  ws = WarmStartSettings(ckpt_to_initialize_from="/tmp",
+                         vars_to_warm_start=".*")
+  ```
+
   Warm-start all variables (including non-TRAINABLE):
 
   ```
@@ -2268,20 +2275,21 @@ class WarmStartSettings(
     vars_to_warm_start: [Optional] One of the following:
 
       - A regular expression (string) that captures which variables to
-        warm-start (see tf.get_collection).  This expression will only consider
-        variables in the TRAINABLE_VARIABLES collection -- if you need to
-        warm-start non_TRAINABLE vars (such as optimizer accumulators or batch
-        norm statistics), please use the below option.
+        warm-start (see tf.compat.v1.get_collection).  This expression will only
+        consider variables in the TRAINABLE_VARIABLES collection -- if you need
+        to warm-start non_TRAINABLE vars (such as optimizer accumulators or
+        batch norm statistics), please use the below option.
+      - A list of strings, each a regex scope provided to
+        tf.compat.v1.get_collection with GLOBAL_VARIABLES (please see
+        tf.compat.v1.get_collection).  For backwards compatibility reasons,
+        this is separate from the single-string argument type.
       - A list of Variables to warm-start.  If you do not have access to the
-        `Variable` objects at the call site, please use the below option.
-      - A list of strings, each a regex scope provided to tf.get_collection with
-        GLOBAL_VARIABLES.  For backwards compatibility reasons, this is separate
-        from the single-string argument type.
-      - `None`, in which case only variables specified in
+        `Variable` objects at the call site, please use the above option.
+      - `None`, in which case only TRAINABLE variables specified in
         `var_name_to_vocab_info` will be warm-started.
 
       Defaults to `'.*'`, which warm-starts all variables in the
-      TRAINABLE_VARIABLES collection.    Note that this excludes variables such
+      TRAINABLE_VARIABLES collection.  Note that this excludes variables such
       as accumulators and moving statistics from batch norm.
     var_name_to_vocab_info: [Optional] Dict of variable names (strings) to
       `tf.estimator.VocabInfo`. The variable names should be "full" variables,
