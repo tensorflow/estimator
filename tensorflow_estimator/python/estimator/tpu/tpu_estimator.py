@@ -2380,7 +2380,7 @@ class TPUEstimator(estimator_lib.Estimator):
   Exporting
   =========
 
-  `export_savedmodel` exports 2 metagraphs, one with `saved_model.SERVING`,
+  `export_saved_model` exports 2 metagraphs, one with `saved_model.SERVING`,
   and another with `saved_model.SERVING` and `saved_model.TPU`.
   At serving time, these tags are used to select metagraph to load.
 
@@ -2474,11 +2474,11 @@ class TPUEstimator(estimator_lib.Estimator):
         False or `PER_HOST_V2`, batch_axis is ignored.
       eval_on_tpu: If False, evaluation runs on CPU or GPU. In this case, the
         model_fn must return `EstimatorSpec` when called with `mode` as `EVAL`.
-      export_to_tpu: If True, `export_savedmodel()` exports a metagraph for
+      export_to_tpu: If True, `export_saved_model()` exports a metagraph for
         serving on TPU. Note that unsupported export modes such as EVAL will be
         ignored. For those modes, only a CPU model will be exported.
         Currently, export_to_tpu only supports PREDICT.
-      export_to_cpu: If True, `export_savedmodel()` exports a metagraph for
+      export_to_cpu: If True, `export_saved_model()` exports a metagraph for
         serving on CPU.
       warm_start_from: Optional string filepath to a checkpoint or SavedModel to
         warm-start from, or a `tf.estimator.WarmStartSettings` object to fully
@@ -2492,7 +2492,7 @@ class TPUEstimator(estimator_lib.Estimator):
       embedding_config_spec: Optional EmbeddingConfigSpec instance
         to support using TPU embedding.
       export_saved_model_api_version: ExportSavedModelApiVersion, V1 or V2.
-        With V1, `export_savedmodel()` adds rewrite() and TPUPartitionedCallOp()
+        With V1, `export_saved_model()` adds rewrite() and TPUPartitionedCallOp()
         for user; while in v2, user is expected to add rewrite(),
         TPUPartitionedCallOp() etc in their model_fn.
         A helper function `inference_on_tpu` is provided for V2.
@@ -2667,7 +2667,7 @@ class TPUEstimator(estimator_lib.Estimator):
                                                       config)
 
   def _call_model_fn_for_inference(self, features, labels, mode, config):
-    """Wraps `_call_model_fn` for `export_savedmodel`."""
+    """Wraps `_call_model_fn` for `export_saved_model`."""
     if mode != _INFERENCE_ON_TPU_MODE:
       raise ValueError('mode must be {}; '
                        'got {}.'.format(_INFERENCE_ON_TPU_MODE, mode))
@@ -2776,7 +2776,7 @@ class TPUEstimator(estimator_lib.Estimator):
         _add_item_to_params(kwargs['params'], _BATCH_SIZE_KEY,
                             batch_size_for_input_fn)
 
-      # For export_savedmodel, input_fn is never passed to Estimator. So,
+      # For export_saved_model, input_fn is never passed to Estimator. So,
       # `is_export_mode` must be False.
       if ctx.is_running_on_cpu(is_export_mode=False):
         with ops.device('/device:CPU:0'):
@@ -2883,7 +2883,7 @@ class TPUEstimator(estimator_lib.Estimator):
       """A Estimator `model_fn` for TPUEstimator."""
 
       # `input_fn` is called in `train()`, `evaluate()`, and `predict()`,
-      # but not in `export_savedmodel()`.
+      # but not in `export_saved_model()`.
       if self._is_input_fn_invoked:
         is_export_mode = False
       else:
@@ -3908,8 +3908,7 @@ def export_estimator_savedmodel(estimator,
                                 serving_input_receiver_fn,
                                 assets_extra=None,
                                 as_text=False,
-                                checkpoint_path=None,
-                                strip_default_attrs=False):
+                                checkpoint_path=None):
   """Export `Estimator` trained model for TPU inference.
 
   Args:
@@ -3923,8 +3922,6 @@ def export_estimator_savedmodel(estimator,
     as_text: whether to write the SavedModel proto in text format.
     checkpoint_path: The checkpoint path to export.  If `None` (the default),
       the most recent checkpoint found within the model directory is chosen.
-    strip_default_attrs: Boolean. If `True`, default-valued attributes will be
-      removed from the NodeDefs.
 
   Returns:
     The string path to the exported directory.
@@ -3940,9 +3937,8 @@ def export_estimator_savedmodel(estimator,
       train_batch_size=2048,  # Does not matter.
       eval_batch_size=2048,  # Does not matter.
   )
-  return est.export_savedmodel(export_dir_base, serving_input_receiver_fn,
-                               assets_extra, as_text, checkpoint_path,
-                               strip_default_attrs)
+  return est.export_saved_model(export_dir_base, serving_input_receiver_fn,
+                                assets_extra, as_text, checkpoint_path)
 
 
 def model_fn_inference_on_tpu(model_fn,
