@@ -32,6 +32,7 @@ from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import variables
 from tensorflow.python.platform import test
 from tensorflow.python.saved_model import signature_constants
+from tensorflow.python.training import adam as adam_v1
 from tensorflow_estimator.python.estimator import model_fn
 from tensorflow_estimator.python.estimator.head import base_head
 from tensorflow_estimator.python.estimator.head import binary_class_head as head_lib
@@ -274,6 +275,32 @@ class CreateEstimatorSpecTest(test.TestCase):
       self.assertEqual(0., var_values[0])
       for var in optimizer_variables:
         self.assertIn(expected_variable_name_prefix, var.name)
+
+  @test_util.deprecated_graph_mode_only
+  def test_head_with_invalid_optimizer(self):
+    head = head_lib.BinaryClassHead()
+
+    logits = np.array((
+        (45,),
+        (-41,),
+    ), dtype=np.float32)
+    labels = np.array((
+        (1,),
+        (1,),
+    ), dtype=np.float64)
+    features = {'x': np.array(((42,),), dtype=np.float32)}
+
+    with self.assertRaisesRegexp(
+        ValueError,
+        r'The given optimizer is not a tf.keras.optimizers.Optimizer instance'):
+      # Create estimator spec.
+      head.create_estimator_spec(
+          features=features,
+          mode=ModeKeys.TRAIN,
+          logits=logits,
+          labels=labels,
+          optimizer=adam_v1.AdamOptimizer())
+
 
 if __name__ == '__main__':
   test.main()

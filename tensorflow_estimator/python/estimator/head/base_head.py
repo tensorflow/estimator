@@ -39,7 +39,6 @@ from tensorflow.python.ops import string_ops
 from tensorflow.python.ops import weights_broadcast_ops
 from tensorflow.python.saved_model import signature_constants
 from tensorflow.python.summary import summary
-from tensorflow.python.training import training_util
 from tensorflow.python.util import function_utils
 from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.export import export_output
@@ -643,6 +642,13 @@ def validate_update_ops(update_ops=None):
         _VALIDATION_ERROR_MSG.format('update_ops', type(update_ops)))
 
 
+def validate_v2_optimizer(optimzier):
+  if not isinstance(optimzier, optimizer_v2.OptimizerV2):
+    raise ValueError(
+        'The given optimizer is not a tf.keras.optimizers.Optimizer instance. '
+        'Given: {}'.format(optimzier))
+
+
 def validate_trainable_variables(trainable_variables=None):
   if trainable_variables is None:
     raise ValueError('trainable_variables cannot be None. Given {}'.format(
@@ -833,26 +839,19 @@ def create_estimator_spec_train_op(
     if optimizer is not None:
       if train_op_fn is not None:
         raise ValueError('train_op_fn and optimizer cannot both be set.')
-      if isinstance(optimizer, optimizer_v2.OptimizerV2):
-        validate_trainable_variables(trainable_variables)
-        # Set the name of optimizer variable with name_scope to keep it
-        # consistent with Keras naming for optimizer variables as:
-        # "training/optimizer_name/model_variable_name/"
-        # "slot_name or hyperparameter_name"
-        with ops.name_scope(''):  # Reset name_scope.
-          with ops.name_scope('training'):
-            with ops.name_scope(optimizer.__class__.__name__):
-              # optimizer_v2.get_updates always returns a list, and the first
-              # element is the train_op.
-              train_op = optimizer.get_updates(
-                  regularized_training_loss, trainable_variables)[0]
-      else:
-        # TODO(yhliang): this is to support linear model that still relies on
-        # optimizer v1. Can be removed after optimizer v2 is supported in
-        # linear.
-        train_op = optimizer.minimize(
-            regularized_training_loss,
-            global_step=training_util.get_global_step())
+      validate_v2_optimizer(optimizer)
+      validate_trainable_variables(trainable_variables)
+      # Set the name of optimizer variable with name_scope to keep it
+      # consistent with Keras naming for optimizer variables as:
+      # "training/optimizer_name/model_variable_name/"
+      # "slot_name or hyperparameter_name"
+      with ops.name_scope(''):  # Reset name_scope.
+        with ops.name_scope('training'):
+          with ops.name_scope(optimizer.__class__.__name__):
+            # optimizer_v2.get_updates always returns a list, and the first
+            # element is the train_op.
+            train_op = optimizer.get_updates(regularized_training_loss,
+                                             trainable_variables)[0]
     elif train_op_fn is not None:
       train_op = train_op_fn(regularized_training_loss)
     else:
