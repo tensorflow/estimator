@@ -455,6 +455,28 @@ class EstimatorSpecEvalTest(test.TestCase):
             loss=loss,
             eval_metric_ops=eval_metric_ops)
 
+  def testMetricVariablesAddedToCollections(self):
+    def in_collection(collection_name, variables):
+      """Returns whether all variables are in the collection."""
+      return set(ops.get_collection(collection_name)).issuperset(set(variables))
+
+    with ops.Graph().as_default():
+      metric_obj = metrics.Mean()
+      metric_obj.update_state(constant_op.constant(1.))
+      self.assertFalse(
+          in_collection(ops.GraphKeys.LOCAL_VARIABLES, metric_obj.variables))
+      self.assertFalse(
+          in_collection(ops.GraphKeys.METRIC_VARIABLES, metric_obj.variables))
+      model_fn.EstimatorSpec(
+          mode=ModeKeys.EVAL,
+          predictions=constant_op.constant(1.),
+          loss=constant_op.constant(1.),
+          eval_metric_ops={'metric': metric_obj})
+      self.assertTrue(
+          in_collection(ops.GraphKeys.LOCAL_VARIABLES, metric_obj.variables))
+      self.assertTrue(
+          in_collection(ops.GraphKeys.METRIC_VARIABLES, metric_obj.variables))
+
 
 class EstimatorSpecInferTest(test.TestCase):
   """Tests EstimatorSpec in infer mode."""
