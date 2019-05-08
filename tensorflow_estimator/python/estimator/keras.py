@@ -30,7 +30,7 @@ from tensorflow.python.framework import sparse_tensor as sparse_tensor_lib
 from tensorflow.python.framework import tensor_util
 from tensorflow.python.keras import backend as K
 from tensorflow.python.keras import models
-from tensorflow.python.keras import optimizers
+from tensorflow.python.keras import optimizer_v2
 from tensorflow.python.ops import check_ops
 from tensorflow.python.ops import math_ops
 from tensorflow.python.platform import gfile
@@ -238,14 +238,6 @@ def _create_keras_model_fn(keras_model, custom_objects=None):
 
   def model_fn(features, labels, mode):
     """model_fn for keras Estimator."""
-    # Raise an error when users use DistributionStrategy with native Keras
-    # optimizers. Currently we only support native TensorFlow optimizers.
-    if distribution_strategy_context.has_strategy() and \
-        not isinstance(keras_model.optimizer,
-                       (tf_optimizer_module.Optimizer, optimizers.TFOptimizer)):
-      raise ValueError('Only TensorFlow native optimizers are supported with '
-                       'DistributionStrategy.')
-
     model = _clone_and_build_model(mode, keras_model, custom_objects, features,
                                    labels)
     model_output_names = []
