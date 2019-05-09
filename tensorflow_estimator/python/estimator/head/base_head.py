@@ -841,17 +841,9 @@ def create_estimator_spec_train_op(
         raise ValueError('train_op_fn and optimizer cannot both be set.')
       validate_v2_optimizer(optimizer)
       validate_trainable_variables(trainable_variables)
-      # Set the name of optimizer variable with name_scope to keep it
-      # consistent with Keras naming for optimizer variables as:
-      # "training/optimizer_name/model_variable_name/"
-      # "slot_name or hyperparameter_name"
       with ops.name_scope(''):  # Reset name_scope.
-        with ops.name_scope('training'):
-          with ops.name_scope(optimizer.__class__.__name__):
-            # optimizer_v2.get_updates always returns a list, and the first
-            # element is the train_op.
-            train_op = optimizer.get_updates(regularized_training_loss,
-                                             trainable_variables)[0]
+        train_op = optimizer.get_updates(regularized_training_loss,
+                                         trainable_variables)[0]
     elif train_op_fn is not None:
       train_op = train_op_fn(regularized_training_loss)
     else:

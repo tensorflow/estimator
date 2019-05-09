@@ -258,7 +258,7 @@ class CreateEstimatorSpecTest(test.TestCase):
 
     # Create estimator spec.
     optimizer = _Optimizer('my_optimizer')
-    expected_variable_name_prefix = 'training/' + optimizer.__class__.__name__
+    old_opt_variable_name_prefix = 'training/' + optimizer.__class__.__name__
     spec = head.create_estimator_spec(
         features=features,
         mode=ModeKeys.TRAIN,
@@ -274,7 +274,7 @@ class CreateEstimatorSpecTest(test.TestCase):
       var_values = sess.run(optimizer_variables)
       self.assertEqual(0., var_values[0])
       for var in optimizer_variables:
-        self.assertIn(expected_variable_name_prefix, var.name)
+        self.assertNotIn(old_opt_variable_name_prefix, var.name)
 
   @test_util.deprecated_graph_mode_only
   def test_head_with_invalid_optimizer(self):
