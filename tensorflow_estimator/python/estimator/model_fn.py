@@ -503,30 +503,21 @@ def _validate_eval_metric_ops(eval_metric_ops):
         raise ValueError(
             _default_graph_error_message_template.format(
                 'eval_metric_ops', '{0}: {1}'.format(key, val.name)))
-  # Metric variables are by default not added to any collections. The variables
-  # are appended to the LOCAL_VARIABLES collection for initialization, and
-  # METRIC_VARIABLES for TFMA compatibility. Note that although collections are
-  # officially deprecated in TensorFlow 2, Estimators will continue using
-  # collections as long as it supports V1 graph mode.
+  # Add metric variables to the `LOCAL_VARIABLES` collection. Metric variables
+  # are by default not added to any collections. We are doing this here, so that
+  # metric variables get initialized.
+  local_vars = set(ops.get_collection(ops.GraphKeys.LOCAL_VARIABLES))
   vars_to_add = set()
   for key, value in six.iteritems(eval_metric_ops):
     if isinstance(value, Metric):
       vars_to_add.update(value.variables)
       # Convert Metric instances to (value_tensor, update_op) tuple.
       eval_metric_ops[key] = (value.result(), value.updates[0])
-  _update_variable_collection(ops.GraphKeys.LOCAL_VARIABLES, vars_to_add)
-  _update_variable_collection(ops.GraphKeys.METRIC_VARIABLES, vars_to_add)
-
-  return eval_metric_ops
-
-
-def _update_variable_collection(collection_name, vars_to_add):
-  """Add variables to collection."""
-  collection = set(ops.get_collection(collection_name))
-  # Skip variables that are in the collection already.
-  vars_to_add = vars_to_add.difference(collection)
+  # Remove variables that are in the local variables collection already.
+  vars_to_add = vars_to_add.difference(local_vars)
   for v in vars_to_add:
-    ops.add_to_collection(collection_name, v)
+    ops.add_to_collection(ops.GraphKeys.LOCAL_VARIABLES, v)
+  return eval_metric_ops
 
 
 def _validate_scaffold(scaffold):
