@@ -2613,14 +2613,15 @@ class TPUEstimator(estimator_lib.Estimator):
       self._log_every_n_secs = self._iterations_per_training_loop.value
       self._log_every_n_steps = None
     elif self._iterations_per_training_loop.unit == 'count':
-      # Each session.run() lasts for iterations_per_loop. We can't log
-      # in-between a session.run(), and we can only log after the
-      # `iterations_per_loop` steps, so we can only approximate. If a user
-      # requests to log every N steps, we actually want to roughly log every
-      # N / `iterations_per_loop` steps to match the original intention.
-      self._log_every_n_steps = (
-          int(math.ceil(float(self._log_every_n_steps) /
-                        self._iterations_per_training_loop.value)))
+      if self._log_every_n_steps is not None:
+        # Each session.run() lasts for iterations_per_loop. We can't log
+        # in-between a session.run(), and we can only log after the
+        # `iterations_per_loop` steps, so we can only approximate. If a user
+        # requests to log every N steps, we actually want to roughly log every
+        # N / `iterations_per_loop` steps to match the original intention.
+        self._log_every_n_steps = (
+            int(math.ceil(float(self._log_every_n_steps) /
+                          self._iterations_per_training_loop.value)))
       self._log_every_n_secs = None
     else:
       assert False, ('Invalid TPUConfig `iterations_per_loop` value. '
