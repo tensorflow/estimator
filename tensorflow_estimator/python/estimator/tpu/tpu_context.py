@@ -408,9 +408,14 @@ class _InternalTPUContext(object):
     mode = self._assert_mode()
     return ((self._config.tpu_config.per_host_input_for_training is
              tpu_config.InputPipelineConfig.BROADCAST) or
-            (mode != model_fn_lib.ModeKeys.TRAIN and
-             self._config.tpu_config.eval_training_input_configuration is
-             tpu_config.InputPipelineConfig.SLICED))
+            (self.is_input_slice_broadcast_to_all_cores()))
+
+  def is_input_slice_broadcast_to_all_cores(self):
+    """Return true if input_fn is invoked once and broadcast to other hosts."""
+    mode = self._assert_mode()
+    return (mode != model_fn_lib.ModeKeys.TRAIN and
+            self._config.tpu_config.eval_training_input_configuration is
+            tpu_config.InputPipelineConfig.SLICED)
 
   def is_running_on_cpu(self, is_export_mode=False):
     """Determines whether the input_fn and model_fn should be invoked on CPU.
@@ -422,7 +427,7 @@ class _InternalTPUContext(object):
       is_export_mode: Indicates whether the current mode is for exporting the
         model, when mode == PREDICT. Only with this bool, we could
         tell whether user is calling the Estimator.predict or
-        Estimator.export_saved_model, which are running on TPU and CPU
+        Estimator.export_savedmodel, which are running on TPU and CPU
         respectively. Parent class Estimator does not distinguish these two.
 
     Returns:
@@ -469,12 +474,14 @@ class _InternalTPUContext(object):
   def batch_size_for_input_fn(self):
     """Returns the shard batch size for `input_fn`."""
     global_batch_size = self.global_batch_size
-    if (self.is_running_on_cpu() or self.is_input_broadcast_with_iterators()):
+    if (self.is_running_on_cpu() or self.is_input_broadcast_with_iterators()
+        and not self.is_input_slice_broadcast_to_all_cores()):
       return global_batch_size
 
     # On TPU
     if self.is_input_sharded_per_core() or (
-        self.is_input_per_host_with_iterators()):
+        self.is_input_per_host_with_iterators()) or (
+            self.is_input_slice_broadcast_to_all_cores()):
       return global_batch_size // self.num_replicas
     else:
       return global_batch_size // self.num_hosts
@@ -484,7 +491,8 @@ class _InternalTPUContext(object):
     """Returns the shard batch size for `model_fn`."""
     global_batch_size = self.global_batch_size
 
-    if (self.is_running_on_cpu() or self.is_input_broadcast_with_iterators()):
+    if (self.is_running_on_cpu() or self.is_input_broadcast_with_iterators() and
+        not self.is_input_slice_broadcast_to_all_cores()):
       return global_batch_size
 
     # On TPU. always sharded per shard.
