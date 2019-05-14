@@ -37,19 +37,18 @@ from tensorflow.python.keras import activations
 from tensorflow.python.keras import initializers
 from tensorflow.python.keras import layers as keras_layers
 from tensorflow.python.keras import losses
-from tensorflow.python.keras import optimizers
 from tensorflow.python.keras.layers import recurrent_v2
+from tensorflow.python.keras.optimizer_v2 import adam
+from tensorflow.python.keras.optimizer_v2 import optimizer_v2
 from tensorflow.python.keras.utils import losses_utils
 from tensorflow.python.lib.io import python_io
 from tensorflow.python.ops import check_ops
 from tensorflow.python.ops import math_ops
-from tensorflow.python.ops import state_ops
 from tensorflow.python.ops import variables as variables_lib
 from tensorflow.python.platform import gfile
 from tensorflow.python.platform import test
 from tensorflow.python.training import checkpoint_utils
 from tensorflow.python.training import monitored_session
-from tensorflow.python.training import optimizer as optimizer_lib
 from tensorflow.python.training import training_util
 from tensorflow_estimator.contrib.estimator.python.estimator import rnn_v2 as rnn
 from tensorflow_estimator.python.estimator import model_fn
@@ -623,7 +622,8 @@ class RNNModelTest(test.TestCase, parameterized.TestCase):
     }
     self.y = ops.convert_to_tensor([[[0], [1]], [[0], [1]]])
 
-  def _get_compiled_model(self, return_sequences=False, **kwargs):
+  def _get_compiled_model(
+      self, return_sequences=False, optimizer='Adam', **kwargs):
     """Initializes and compiles a RNN model with specific weights."""
     rnn_layer = keras_layers.SimpleRNN(
         2, return_sequences=return_sequences,
@@ -639,7 +639,7 @@ class RNNModelTest(test.TestCase, parameterized.TestCase):
           return_sequences=return_sequences,
           **kwargs)
       model.compile(
-          optimizer=optimizers.Adam(),
+          optimizer=optimizer,
           loss=losses.BinaryCrossentropy(reduction='sum'),
           metrics=['accuracy'])
     return model
@@ -759,9 +759,11 @@ class RNNModelTest(test.TestCase, parameterized.TestCase):
         [[[0.191731], [0.353593]],
          [[0.5049296], [0.5049296]]], atol=1e-4)
 
-  def DISABLED_testTraining(self):  # See b/129842600.
+  @parameterized.named_parameters(
+      ('StringOptimizer', 'Adam'), ('OptimizerInstance', adam.Adam()))
+  def DISABLED_testTraining(self, optimizer):  # See b/129842600.
     """Tests the loss computed in training step."""
-    model = self._get_compiled_model()
+    model = self._get_compiled_model(optimizer=optimizer)
     history = model.fit(
         x=self.x, y=ops.convert_to_tensor([[0], [1]]), batch_size=1,
         steps_per_epoch=1)
@@ -813,6 +815,15 @@ class RNNEstimatorInitTest(test.TestCase):
           sequence_feature_columns=self.feature_columns,
           return_sequences=True)
 
+  def testWrongOptimizerTypeProvided(self):
+    classifier = rnn.RNNClassifier(
+        self.feature_columns, units=[1], optimizer=object())
+    with self.assertRaisesRegexp(
+        ValueError,
+        'The given object is not a tf.keras.optimizers.Optimizer instance.'):
+      classifier.model_fn(
+          features=None, labels=None, mode=model_fn.ModeKeys.TRAIN, config=None)
+
 
 @test_util.run_all_in_graph_and_eager_modes
 class RNNClassifierTrainingTest(test.TestCase):
@@ -863,32 +874,36 @@ class RNNClassifierTrainingTest(test.TestCase):
                  LOGITS_BIAS_NAME, LOGITS_WEIGHTS_NAME)
     expected_var_names = ['%s:0' % name for name in var_names]
 
-    def _minimize(loss, global_step):
-      trainable_vars = ops.get_collection(ops.GraphKeys.TRAINABLE_VARIABLES)
-      self.assertItemsEqual(
-          expected_var_names,
-          [var.name for var in trainable_vars])
+    class _Optimizer(optimizer_v2.OptimizerV2):
+      """Mock optimizer checking that loss has the proper value."""
 
-      # Verify loss. We can't check the value directly, so we add an assert op.
-      self.assertEquals(0, loss.shape.ndims)
-      if expected_loss is None:
-        return state_ops.assign_add(global_step, 1).op
-      assert_loss = _assert_close(
-          math_ops.to_float(expected_loss, name='expected'),
-          loss,
-          name='assert_loss')
-      with ops.control_dependencies((assert_loss,)):
-        return state_ops.assign_add(global_step, 1).op
+      def __init__(self, test_case):
+        super(_Optimizer, self).__init__(name='my-optimizer')
+        self.call_count = 0
+        self._test_case = test_case
 
-    mock_optimizer = test.mock.NonCallableMock(
-        spec=optimizer_lib.Optimizer,
-        wraps=optimizer_lib.Optimizer(use_locking=False, name='my_optimizer'))
-    mock_optimizer.minimize = test.mock.MagicMock(wraps=_minimize)
+      def get_updates(self, loss, params):
+        self.call_count += 1
+        trainable_vars = ops.get_collection(ops.GraphKeys.TRAINABLE_VARIABLES)
+        self._test_case.assertItemsEqual(
+            expected_var_names,
+            [var.name for var in trainable_vars])
 
-    # NOTE: Estimator.params performs a deepcopy, which wreaks havoc with mocks.
-    # So, return mock_optimizer itself for deepcopy.
-    mock_optimizer.__deepcopy__ = lambda _: mock_optimizer
-    return mock_optimizer
+        # Verify loss. We can't check the value directly so we add an assert op.
+        self._test_case.assertEquals(0, loss.shape.ndims)
+        if expected_loss is None:
+          return [self.iterations.assign_add(1).op]
+        assert_loss = _assert_close(
+            math_ops.to_float(expected_loss, name='expected'),
+            loss,
+            name='assert_loss')
+        with ops.control_dependencies((assert_loss,)):
+          return [self.iterations.assign_add(1).op]
+
+      def get_config(self):
+        pass
+
+    return _Optimizer(test_case=self)
 
   def _testFromScratchWithDefaultOptimizer(self, n_classes):
     def train_input_fn():
@@ -1009,9 +1024,9 @@ class RNNClassifierTrainingTest(test.TestCase):
         optimizer=mock_optimizer,
         model_dir=self.get_temp_dir(),
         **kwargs)
-    self.assertEqual(0, mock_optimizer.minimize.call_count)
+    self.assertEqual(0, mock_optimizer.call_count)
     est.train(input_fn=input_fn, steps=10)
-    self.assertEqual(1, mock_optimizer.minimize.call_count)
+    self.assertEqual(1, mock_optimizer.call_count)
 
   def testBinaryClassFromCheckpoint(self):
     def train_input_fn():
@@ -1100,6 +1115,49 @@ class RNNClassifierTrainingTest(test.TestCase):
     self._testFromCheckpoint(
         train_input_fn, expected_loss=0.559831, return_sequences=True,
         weight_column='weights', loss_reduction=losses_utils.ReductionV2.SUM)
+
+  def testDefaultGradientClipping(self):
+    """Tests that optimizer applies default gradient clipping value."""
+    def train_input_fn():
+      return {
+          'price':
+              sparse_tensor.SparseTensor(
+                  values=[1.,],
+                  indices=[[0, 0]],
+                  dense_shape=[1, 1]),
+      }, [[1]]
+
+    def _wrap_create_estimator_spec(create_estimator_spec):
+      """Wraps function and asserts that the optimizer applies clipping."""
+      def _wrapped_create_estimator_spec(
+          obj, features, mode, logits, labels=None, optimizer=None,
+          trainable_variables=None, train_op_fn=None, update_ops=None,
+          regularization_losses=None):
+        var = variables_lib.Variable([1.0])
+        mock_loss = 10 * var
+        gradients = optimizer.get_gradients(mock_loss, [var])
+        self.assertLen(gradients, 1)
+        # Initial gradient value is 10 and expected to be clipped to 5 (default
+        # clipping value).
+        with ops.control_dependencies((check_ops.assert_equal(
+            gradients[0], 5.0),)):
+          return create_estimator_spec(
+              obj, features, mode, logits, labels, optimizer,
+              trainable_variables, train_op_fn, update_ops,
+              regularization_losses)
+
+      return _wrapped_create_estimator_spec
+
+    with test.mock.patch.object(
+        multi_head_lib.MultiClassHead, 'create_estimator_spec',
+        _wrap_create_estimator_spec(
+            multi_head_lib.MultiClassHead.create_estimator_spec)):
+      est = rnn.RNNClassifier(
+          n_classes=3,
+          sequence_feature_columns=[fc.sequence_numeric_column('price')],
+          units=[2],
+          model_dir=self.get_temp_dir())
+      est.train(input_fn=train_input_fn, steps=1)
 
 
 def sorted_key_dict(unsorted_dict):
@@ -1381,10 +1439,11 @@ class BaseRNNClassificationIntegrationTest(object):
     self._create_estimator_fn = _create_estimator_fn
 
   def _test_complete_flow(self, train_input_fn, eval_input_fn,
-                          predict_input_fn, n_classes, batch_size):
+                          predict_input_fn, n_classes, batch_size,
+                          optimizer='Adam'):
     cell_units = [4, 2]
     est = self._create_estimator_fn(self.feature_columns, n_classes, cell_units,
-                                    self.get_temp_dir())
+                                    self.get_temp_dir(), optimizer=optimizer)
 
     # TRAIN
     num_steps = 10
@@ -1413,7 +1472,7 @@ class BaseRNNClassificationIntegrationTest(object):
                                        serving_input_receiver_fn)
     self.assertTrue(gfile.Exists(export_dir))
 
-  def testNumpyInputFn(self):
+  def _testNumpyInputFn(self, optimizer):
     """Tests complete flow with numpy_input_fn."""
     n_classes = 3
     batch_size = 10
@@ -1451,7 +1510,14 @@ class BaseRNNClassificationIntegrationTest(object):
         eval_input_fn=eval_input_fn,
         predict_input_fn=predict_input_fn,
         n_classes=n_classes,
-        batch_size=batch_size)
+        batch_size=batch_size,
+        optimizer=optimizer)
+
+  def testNumpyInputFnStringOptimizer(self):
+    self._testNumpyInputFn(optimizer='Adam')
+
+  def testNumpyInputFnOptimizerInstance(self):
+    self._testNumpyInputFn(optimizer=adam.Adam())
 
   def testParseExampleInputFn(self):
     """Tests complete flow with input_fn constructed from parse_example."""
@@ -1506,11 +1572,13 @@ class BaseRNNClassificationIntegrationTest(object):
         batch_size=batch_size)
 
 
-def _rnn_classifier_fn(feature_columns, n_classes, cell_units, model_dir):
+def _rnn_classifier_fn(feature_columns, n_classes, cell_units, model_dir,
+                       optimizer):
   return rnn.RNNClassifier(
       units=cell_units,
       sequence_feature_columns=feature_columns,
       n_classes=n_classes,
+      optimizer=optimizer,
       model_dir=model_dir)
 
 
@@ -1524,7 +1592,7 @@ class RNNClassifierIntegrationTest(BaseRNNClassificationIntegrationTest,
 
 
 def _rnn_classifier_dropout_fn(
-    feature_columns, n_classes, cell_units, model_dir):
+    feature_columns, n_classes, cell_units, model_dir, optimizer):
   def _rnn_cell_fn():
     cells = []
     for units in cell_units:
@@ -1535,6 +1603,7 @@ def _rnn_classifier_dropout_fn(
       rnn_cell_fn=_rnn_cell_fn,
       sequence_feature_columns=feature_columns,
       n_classes=n_classes,
+      optimizer=optimizer,
       model_dir=model_dir)
 
 
@@ -1548,11 +1617,13 @@ class RNNClassifierDropoutIntegrationTest(BaseRNNClassificationIntegrationTest,
         self, _rnn_classifier_dropout_fn)
 
 
-def _rnn_estimator_fn(feature_columns, n_classes, cell_units, model_dir):
+def _rnn_estimator_fn(feature_columns, n_classes, cell_units, model_dir,
+                      optimizer):
   return rnn.RNNEstimator(
       head=multi_head_lib.MultiClassHead(n_classes=n_classes),
       units=cell_units,
       sequence_feature_columns=feature_columns,
+      optimizer=optimizer,
       model_dir=model_dir)
 
 

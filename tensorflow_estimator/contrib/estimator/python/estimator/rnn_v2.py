@@ -24,6 +24,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import six
+
 from tensorflow.python.feature_column import feature_column_lib as fc
 from tensorflow.python.framework import ops
 from tensorflow.python.keras import activations
@@ -34,9 +36,7 @@ from tensorflow.python.keras.utils import losses_utils
 from tensorflow.python.ops import array_ops
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.summary import summary
-from tensorflow.python.training import optimizer as optimizer_lib
 from tensorflow.python.training import training_util
-from tensorflow_estimator.contrib.estimator.python.estimator import extenders
 from tensorflow_estimator.python.estimator import estimator
 from tensorflow_estimator.python.estimator import model_fn
 from tensorflow_estimator.python.estimator.canned import optimizers
@@ -46,6 +46,9 @@ from tensorflow_estimator.python.estimator.head import sequential_head as seq_he
 
 # The defaults are historical artifacts of the initial implementation, but seem
 # reasonable choices.
+# TODO(aarg): Also apply default learning rate and clipping to Keras model so
+# they apply when the optimizer is set via `compile` and the model trained via
+# the `fit` method.
 _DEFAULT_LEARNING_RATE = 0.05
 _DEFAULT_CLIP_NORM = 5.0
 
@@ -277,10 +280,10 @@ def _get_rnn_estimator_spec(
       See `ModeKeys`.
     head: A `Head` instance.
     rnn_model: A Keras model that computes RNN logits from features.
-    optimizer: String, `tf.Optimizer` object, or callable that creates the
-      optimizer to use for training. If not specified, will use the Adagrad
-      optimizer with a default learning rate of 0.05 and gradient clip norm of
-      5.0.
+    optimizer: String, `tf.keras.optimizers.Optimizer` object, or callable that
+      creates the optimizer to use for training. If not specified, will use the
+      Adagrad optimizer with a default learning rate of 0.05 and gradient clip
+      norm of 5.0.
     return_sequences: A boolean indicating whether to return the last output
       in the output sequence, or the full sequence.
 
@@ -290,20 +293,25 @@ def _get_rnn_estimator_spec(
   Raises:
     ValueError: If mode or optimizer is invalid, or features has the wrong type.
   """
-  # If user does not provide an optimizer instance, use the optimizer specified
-  # by the string with default learning rate and gradient clipping.
-  if not isinstance(optimizer, optimizer_lib.Optimizer):
-    optimizer = optimizers.get_optimizer_instance(
-        optimizer, learning_rate=_DEFAULT_LEARNING_RATE)
-    optimizer = extenders.clip_gradients_by_norm(optimizer, _DEFAULT_CLIP_NORM)
+  training = (mode == model_fn.ModeKeys.TRAIN)
+  # In TRAIN mode, create optimizer and assign global_step variable to
+  # optimizer.iterations to make global_step increased correctly, as Hooks
+  # relies on global step as step counter - otherwise skip optimizer
+  # initialization and set it to None.
+  if training:
+    # If user does not provide an optimizer instance, use the optimizer
+    # specified by the string with default learning rate and gradient clipping.
+    if isinstance(optimizer, six.string_types):
+      optimizer = optimizers.get_optimizer_instance_v2(
+          optimizer, learning_rate=_DEFAULT_LEARNING_RATE)
+      optimizer.clipnorm = _DEFAULT_CLIP_NORM
+    else:
+      optimizer = optimizers.get_optimizer_instance_v2(optimizer)
+    optimizer.iterations = training_util.get_or_create_global_step()
+  else:
+    optimizer = None
 
-  def _train_op_fn(loss):
-    """Returns the op to optimize the loss."""
-    return optimizer.minimize(
-        loss,
-        global_step=training_util.get_global_step())
-
-  logits = rnn_model(features, training=(mode == model_fn.ModeKeys.TRAIN))
+  logits = rnn_model(features, training)
 
   if return_sequences and head.input_sequence_mask_key not in features:
     features[head.input_sequence_mask_key] = logits._keras_mask  # pylint: disable=protected-access
@@ -312,8 +320,10 @@ def _get_rnn_estimator_spec(
       features=features,
       mode=mode,
       labels=labels,
-      train_op_fn=_train_op_fn,
-      logits=logits)
+      optimizer=optimizer,
+      logits=logits,
+      update_ops=rnn_model.updates,
+      trainable_variables=rnn_model.trainable_variables)
 
 
 def _verify_rnn_cell_input(rnn_cell_fn, units, cell_type):
