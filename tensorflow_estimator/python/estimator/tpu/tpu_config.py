@@ -118,7 +118,7 @@ class TPUConfig(
       only get a slice of the data instead of a whole copy. If `PER_HOST_V1`,
       the behaviour is determined by per_host_input_for_training.
 
-    Raises:
+  Raises:
       ValueError: If `num_cores_per_replica` is not 1, 2, 4, 8 or 16.
   """
 

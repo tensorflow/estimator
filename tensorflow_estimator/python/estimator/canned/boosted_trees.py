@@ -1525,14 +1525,17 @@ class _BoostedTreesBase(estimator.Estimator):
     instance, DFCs indicate the aggregate contribution of each feature. See
     https://arxiv.org/abs/1312.1121 and
     http://blog.datadive.net/interpreting-random-forests/ for more details.
+
     Args:
       input_fn: A function that provides input data for predicting as
         minibatches. See [Premade Estimators](
         https://tensorflow.org/guide/premade_estimators#create_input_functions)
-          for more information. The function should construct and return one of
-        the following:  * A `tf.data.Dataset` object: Outputs of `Dataset`
+        for more information. The function should construct and return one of
+        the following:
+        * A `tf.data.Dataset` object: Outputs of `Dataset`
           object must be a tuple `(features, labels)` with same constraints as
-        below. * A tuple `(features, labels)`: Where `features` is a `tf.Tensor`
+          below.
+        * A tuple `(features, labels)`: Where `features` is a `tf.Tensor`
           or a dictionary of string feature name to `Tensor` and `labels` is a
           `Tensor` or a dictionary of string label name to `Tensor`. Both
           `features` and `labels` are consumed by `model_fn`. They should
