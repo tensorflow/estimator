@@ -26,20 +26,19 @@ import numpy as np
 import six
 
 from tensorflow.python.client import session as tf_session
-from tensorflow.python.feature_column import feature_column_lib
+from tensorflow.python.feature_column import feature_column_v2 as feature_column_lib
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
+from tensorflow.python.keras.optimizer_v2 import optimizer_v2
 from tensorflow.python.keras.utils import losses_utils
 from tensorflow.python.ops import check_ops
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import math_ops
-from tensorflow.python.ops import state_ops
 from tensorflow.python.ops import variables
 from tensorflow.python.platform import gfile
 from tensorflow.python.platform import test
 from tensorflow.python.summary.writer import writer_cache
 from tensorflow.python.training import checkpoint_utils
-from tensorflow.python.training import optimizer
 from tensorflow.python.training import saver
 from tensorflow_estimator.python.estimator.canned import baseline
 from tensorflow_estimator.python.estimator.canned import metric_keys
@@ -82,6 +81,49 @@ def _baseline_estimator_fn(weight_column=None,
           label_dimension=label_dimension,
           loss_reduction=losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE),
       **kwargs)
+
+
+def mock_optimizer_v2(testcase, expected_loss=None):
+  """Creates a mock optimizer to test the train method.
+
+  Args:
+    testcase: A TestCase instance.
+    expected_loss: If given, will assert the loss value.
+
+  Returns:
+    A mock Optimizer.
+  """
+  expected_var_names = ['%s:0' % BIAS_NAME]
+
+  class _Optimizer(optimizer_v2.OptimizerV2):
+
+    def get_updates(self, loss, params):
+      trainable_vars = params
+      testcase.assertItemsEqual(expected_var_names,
+                                [var.name for var in trainable_vars])
+
+      # Verify loss. We can't check the value directly, so we add an assert op.
+      testcase.assertEquals(0, loss.shape.ndims)
+      if expected_loss is None:
+        if self.iterations is not None:
+          return [self.iterations.assign_add(1).op]
+        return [control_flow_ops.no_op()]
+      assert_loss = assert_close(
+          math_ops.to_float(expected_loss, name='expected'),
+          loss,
+          name='assert_loss')
+      with ops.control_dependencies((assert_loss,)):
+        if self.iterations is not None:
+          return [self.iterations.assign_add(1).op]
+        return [control_flow_ops.no_op()]
+
+    def get_config(self):
+      config = super(_Optimizer, self).get_config()
+      return config
+
+  optimizer = _Optimizer(name='my_optimizer')
+
+  return optimizer
 
 
 class BaselineEstimatorEvaluationTest(test.TestCase):
@@ -270,7 +312,8 @@ class BaselineEstimatorIntegrationTest(test.TestCase):
     self.assertAllEqual((prediction_length, label_dimension), predictions.shape)
 
     # EXPORT
-    feature_spec = feature_column_lib.make_parse_example_spec(feature_columns)
+    feature_spec = feature_column_lib.make_parse_example_spec_v2(
+        feature_columns)
     serving_input_receiver_fn = export.build_parsing_serving_input_receiver_fn(
         feature_spec)
     export_dir = est.export_saved_model(tempfile.mkdtemp(),
@@ -324,42 +367,6 @@ class BaselineEstimatorTrainingTest(test.TestCase):
       writer_cache.FileWriterCache.clear()
       shutil.rmtree(self._model_dir)
 
-  def _mock_optimizer(self, expected_loss=None):
-    expected_var_names = [
-        '%s:0' % BIAS_NAME
-    ]
-
-    def _minimize(loss, global_step=None, var_list=None):
-      trainable_vars = var_list or ops.get_collection(
-          ops.GraphKeys.TRAINABLE_VARIABLES)
-      self.assertItemsEqual(expected_var_names,
-                            [var.name for var in trainable_vars])
-
-      # Verify loss. We can't check the value directly, so we add an assert op.
-      self.assertEquals(0, loss.shape.ndims)
-      if expected_loss is None:
-        if global_step is not None:
-          return state_ops.assign_add(global_step, 1).op
-        return control_flow_ops.no_op()
-      assert_loss = assert_close(
-          math_ops.to_float(expected_loss, name='expected'),
-          loss,
-          name='assert_loss')
-      with ops.control_dependencies((assert_loss,)):
-        if global_step is not None:
-          return state_ops.assign_add(global_step, 1).op
-        return control_flow_ops.no_op()
-
-    mock_optimizer = test.mock.NonCallableMock(
-        spec=optimizer.Optimizer,
-        wraps=optimizer.Optimizer(use_locking=False, name='my_optimizer'))
-    mock_optimizer.minimize = test.mock.MagicMock(wraps=_minimize)
-
-    # NOTE: Estimator.params performs a deepcopy, which wreaks havoc with mocks.
-    # So, return mock_optimizer itself for deepcopy.
-    mock_optimizer.__deepcopy__ = lambda _: mock_optimizer
-    return mock_optimizer
-
   def _assert_checkpoint(self,
                          label_dimension,
                          expected_global_step,
@@ -385,17 +392,18 @@ class BaselineEstimatorTrainingTest(test.TestCase):
     label = 5.
     age = 17
     # loss = (logits - label)^2 = (0 - 5.)^2 = 25.
-    mock_optimizer = self._mock_optimizer(expected_loss=25.)
+    mock_optimizer = mock_optimizer_v2(self, expected_loss=25.)
     baseline_estimator = _baseline_estimator_fn(
         model_dir=self._model_dir,
         optimizer=mock_optimizer)
-    self.assertEqual(0, mock_optimizer.minimize.call_count)
 
     # Train for a few steps, and validate optimizer and final checkpoint.
     num_steps = 10
     baseline_estimator.train(
         input_fn=lambda: ({'age': ((age,),)}, ((label,),)), steps=num_steps)
-    self.assertEqual(1, mock_optimizer.minimize.call_count)
+    self.assertEqual(
+        num_steps,
+        baseline_estimator.get_variable_value(mock_optimizer.iterations.name))
     self._assert_checkpoint(
         label_dimension=1,
         expected_global_step=num_steps,
@@ -415,17 +423,18 @@ class BaselineEstimatorTrainingTest(test.TestCase):
 
     # logits = bias = 6.
     # loss = (logits - label)^2 = (7 - 5)^2 = 4
-    mock_optimizer = self._mock_optimizer(expected_loss=4.)
+    mock_optimizer = mock_optimizer_v2(self, expected_loss=4.)
     baseline_estimator = _baseline_estimator_fn(
         model_dir=self._model_dir,
         optimizer=mock_optimizer)
-    self.assertEqual(0, mock_optimizer.minimize.call_count)
 
     # Train for a few steps, and validate optimizer and final checkpoint.
     num_steps = 10
     baseline_estimator.train(
         input_fn=lambda: ({'age': ((17,),)}, ((5.,),)), steps=num_steps)
-    self.assertEqual(1, mock_optimizer.minimize.call_count)
+    self.assertEqual(
+        initial_global_step + num_steps,
+        baseline_estimator.get_variable_value(mock_optimizer.iterations.name))
     self._assert_checkpoint(
         label_dimension=1,
         expected_global_step=initial_global_step + num_steps,

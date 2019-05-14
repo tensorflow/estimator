@@ -51,7 +51,8 @@ from __future__ import print_function
 
 import six
 
-from tensorflow.python.feature_column import feature_column as feature_column_lib
+from tensorflow.python.feature_column import feature_column as feature_column_v1
+from tensorflow.python.feature_column import feature_column_v2
 from tensorflow.python.framework import ops
 from tensorflow.python.keras.utils import losses_utils
 from tensorflow.python.ops import array_ops
@@ -59,6 +60,7 @@ from tensorflow.python.ops import check_ops
 from tensorflow.python.ops import init_ops
 from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import variable_scope
+from tensorflow.python.ops import variables
 from tensorflow.python.ops.losses import losses
 from tensorflow.python.training import training_util
 from tensorflow.python.util.tf_export import estimator_export
@@ -67,6 +69,7 @@ from tensorflow_estimator.python.estimator.canned import head as head_lib
 from tensorflow_estimator.python.estimator.canned import optimizers
 from tensorflow_estimator.python.estimator.head import head_utils
 from tensorflow_estimator.python.estimator.head import regression_head
+from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 
 # The default learning rate of 0.3 is a historical artifact of the initial
 # implementation, but seems a reasonable choice.
@@ -78,10 +81,42 @@ def _get_weight_column_key(weight_column):
     return None
   if isinstance(weight_column, six.string_types):
     return weight_column
-  if not isinstance(weight_column, feature_column_lib._NumericColumn):  # pylint: disable=protected-access
+  if not isinstance(weight_column, feature_column_v1._NumericColumn):  # pylint: disable=protected-access
     raise TypeError('Weight column must be either a string or _NumericColumn.'
                     ' Given type: {}.'.format(type(weight_column)))
   return weight_column.key()
+
+
+def _get_weight_column_key_v2(weight_column):
+  if weight_column is None:
+    return None
+  if isinstance(weight_column, six.string_types):
+    return weight_column
+  if not isinstance(weight_column, feature_column_v2.NumericColumn):
+    raise TypeError('Weight column must be either a string or NumericColumn. '
+                    'Given type: {}.'.format(type(weight_column)))
+  return weight_column.key()
+
+
+def _get_batch_size_and_size_checks(features, weight_column_key):
+  """Returns batch_size and size_checks."""
+  size_checks = []
+  batch_size = None
+
+  # The first dimension is assumed to be a batch size and must be consistent
+  # among all of the features.
+  for key, feature in features.items():
+    # Skip weight_column to ensure we don't add size checks to it.
+    # These would introduce a dependency on the weight at serving time.
+    if key == weight_column_key:
+      continue
+    first_dim = array_ops.shape(feature)[0]
+    if batch_size is None:
+      batch_size = first_dim
+    else:
+      size_checks.append(check_ops.assert_equal(batch_size, first_dim))
+
+  return size_checks, batch_size
 
 
 def _baseline_logit_fn_builder(num_outputs, weight_column=None):
@@ -110,24 +145,9 @@ def _baseline_logit_fn_builder(num_outputs, weight_column=None):
     Returns:
       A `Tensor` representing the logits.
     """
-    size_checks = []
-    batch_size = None
-
     weight_column_key = _get_weight_column_key(weight_column)
-
-    # The first dimension is assumed to be a batch size and must be consistent
-    # among all of the features.
-    for key, feature in features.items():
-      # Skip weight_column to ensure we don't add size checks to it.
-      # These would introduce a dependency on the weight at serving time.
-      if key == weight_column_key:
-        continue
-      first_dim = array_ops.shape(feature)[0]
-      if batch_size is None:
-        batch_size = first_dim
-      else:
-        size_checks.append(check_ops.assert_equal(batch_size, first_dim))
-
+    size_checks, batch_size = _get_batch_size_and_size_checks(
+        features, weight_column_key)
     with ops.control_dependencies(size_checks):
       with variable_scope.variable_scope('baseline'):
         bias = variable_scope.get_variable('bias', shape=[num_outputs],
@@ -172,6 +192,87 @@ def _baseline_model_fn(features, labels, mode, head, optimizer,
     opt = optimizers.get_optimizer_instance(
         optimizer, learning_rate=_LEARNING_RATE)
     return opt.minimize(loss, global_step=training_util.get_global_step())
+
+  return head.create_estimator_spec(
+      features=features,
+      mode=mode,
+      logits=logits,
+      labels=labels,
+      train_op_fn=train_op_fn)
+
+
+def _baseline_model_fn_builder_v2(features, num_outputs, weight_column=None):
+  """Function builder for a baseline logit_fn.
+
+  Args:
+    features: The first item returned from the `input_fn` passed to `train`,
+      `evaluate`, and `predict`. This should be a single `Tensor` or dict with
+      `Tensor` values.
+    num_outputs: Number of outputs for the model.
+    weight_column: A string or a `NumericColumn` created by
+      `tf.feature_column.numeric_column` defining feature column representing
+      weights. It will be multiplied by the loss of the example.
+
+  Returns:
+    A list of trainable variables and a `Tensor` representing the logits.
+  """
+  weight_column_key = _get_weight_column_key_v2(weight_column)
+  size_checks, batch_size = _get_batch_size_and_size_checks(
+      features, weight_column_key)
+  with ops.control_dependencies(size_checks):
+    with ops.name_scope('baseline'):
+      bias = variables.Variable(
+          initial_value=array_ops.zeros([num_outputs]), name='bias')
+      logits = math_ops.multiply(bias, array_ops.ones([batch_size,
+                                                       num_outputs]))
+  return [bias], logits
+
+
+def _baseline_model_fn_v2(features,
+                          labels,
+                          mode,
+                          head,
+                          optimizer,
+                          weight_column=None,
+                          config=None):
+  """Model_fn for baseline models.
+
+  Args:
+    features: `Tensor` or dict of `Tensor` (depends on data passed to `train`).
+    labels: `Tensor` of labels that are compatible with the `Head` instance.
+    mode: Defines whether this is training, evaluation or prediction. See
+      `ModeKeys`.
+    head: A `Head` instance.
+    optimizer: String, `tf.Optimizer` object, or callable that creates the
+      optimizer to use for training. If not specified, will use `FtrlOptimizer`
+      with a default learning rate of 0.3.
+    weight_column: A string or a `NumericColumn` created by
+      `tf.feature_column.numeric_column` defining feature column representing
+      weights. It will be multiplied by the loss of the example.
+    config: `RunConfig` object to configure the runtime settings.
+
+  Raises:
+    KeyError: If weight column is specified but not present.
+    ValueError: If features is an empty dictionary.
+
+  Returns:
+    An `EstimatorSpec` instance.
+  """
+  del config  # Unused.
+
+  trainable_variables, logits = _baseline_model_fn_builder_v2(
+      features, head.logits_dimension, weight_column)
+
+  # In TRAIN mode, create optimizer and assign global_step variable to
+  # optimizer.iterations to make global_step increased correctly, as Hooks
+  # relies on global step as step counter.
+  if mode == ModeKeys.TRAIN:
+    opt = optimizers.get_optimizer_instance_v2(
+        optimizer, learning_rate=_LEARNING_RATE)
+    opt.iterations = training_util.get_or_create_global_step()
+
+  def train_op_fn(loss):
+    return opt.get_updates(loss, trainable_variables)[0]
 
   return head.create_estimator_spec(
       features=features,
@@ -276,7 +377,7 @@ class BaselineClassifierV2(estimator.EstimatorV2):
         loss_reduction=loss_reduction)
 
     def _model_fn(features, labels, mode, config):
-      return _baseline_model_fn(
+      return _baseline_model_fn_v2(
           features=features,
           labels=labels,
           mode=mode,
@@ -394,7 +495,7 @@ class BaselineEstimatorV2(estimator.EstimatorV2):
       config: `RunConfig` object to configure the runtime settings.
     """
     def _model_fn(features, labels, mode, config):
-      return _baseline_model_fn(
+      return _baseline_model_fn_v2(
           features=features,
           labels=labels,
           mode=mode,
@@ -513,7 +614,7 @@ class BaselineRegressorV2(estimator.EstimatorV2):
         loss_reduction=loss_reduction)
 
     def _model_fn(features, labels, mode, config):
-      return _baseline_model_fn(
+      return _baseline_model_fn_v2(
           features=features,
           labels=labels,
           mode=mode,

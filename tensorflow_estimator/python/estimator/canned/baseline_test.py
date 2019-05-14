@@ -29,23 +29,22 @@ import six
 from tensorflow.core.example import example_pb2
 from tensorflow.core.example import feature_pb2
 from tensorflow.python.client import session as tf_session
-from tensorflow.python.feature_column import feature_column_lib
+from tensorflow.python.feature_column import feature_column_v2 as feature_column_lib
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
+from tensorflow.python.keras.optimizer_v2 import optimizer_v2
 from tensorflow.python.ops import check_ops
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import data_flow_ops
 from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import parsing_ops
 from tensorflow.python.ops import state_ops
-from tensorflow.python.ops import variable_scope
 from tensorflow.python.ops import variables
 from tensorflow.python.platform import gfile
 from tensorflow.python.platform import test
 from tensorflow.python.summary.writer import writer_cache
 from tensorflow.python.training import checkpoint_utils
 from tensorflow.python.training import input as input_lib
-from tensorflow.python.training import optimizer
 from tensorflow.python.training import queue_runner
 from tensorflow.python.training import saver
 from tensorflow_estimator.python.estimator.canned import baseline
@@ -123,6 +122,49 @@ def _baseline_regressor_fn(*args, **kwargs):
 
 def _baseline_classifier_fn(*args, **kwargs):
   return baseline.BaselineClassifierV2(*args, **kwargs)
+
+
+def mock_optimizer_v2(testcase, expected_loss=None):
+  """Creates a mock optimizer to test the train method.
+
+  Args:
+    testcase: A TestCase instance.
+    expected_loss: If given, will assert the loss value.
+
+  Returns:
+    A mock Optimizer.
+  """
+  expected_var_names = ['%s:0' % BIAS_NAME]
+
+  class _Optimizer(optimizer_v2.OptimizerV2):
+
+    def get_updates(self, loss, params):
+      trainable_vars = params
+      testcase.assertItemsEqual(expected_var_names,
+                                [var.name for var in trainable_vars])
+
+      # Verify loss. We can't check the value directly, so we add an assert op.
+      testcase.assertEquals(0, loss.shape.ndims)
+      if expected_loss is None:
+        if self.iterations is not None:
+          return [self.iterations.assign_add(1).op]
+        return [control_flow_ops.no_op()]
+      assert_loss = assert_close(
+          math_ops.to_float(expected_loss, name='expected'),
+          loss,
+          name='assert_loss')
+      with ops.control_dependencies((assert_loss,)):
+        if self.iterations is not None:
+          return [self.iterations.assign_add(1).op]
+        return [control_flow_ops.no_op()]
+
+    def get_config(self):
+      config = super(_Optimizer, self).get_config()
+      return config
+
+  optimizer = _Optimizer(name='my_optimizer')
+
+  return optimizer
 
 
 # Tests for Baseline Regressor.
@@ -336,7 +378,8 @@ class BaselineRegressorIntegrationTest(test.TestCase):
     self.assertAllEqual((prediction_length, label_dimension), predictions.shape)
 
     # EXPORT
-    feature_spec = feature_column_lib.make_parse_example_spec(feature_columns)
+    feature_spec = feature_column_lib.make_parse_example_spec_v2(
+        feature_columns)
     serving_input_receiver_fn = export.build_parsing_serving_input_receiver_fn(
         feature_spec)
     export_dir = est.export_saved_model(tempfile.mkdtemp(),
@@ -476,42 +519,6 @@ class BaselineRegressorTrainingTest(test.TestCase):
       writer_cache.FileWriterCache.clear()
       shutil.rmtree(self._model_dir)
 
-  def _mock_optimizer(self, expected_loss=None):
-    expected_var_names = [
-        '%s:0' % BIAS_NAME
-    ]
-
-    def _minimize(loss, global_step=None, var_list=None):
-      trainable_vars = var_list or ops.get_collection(
-          ops.GraphKeys.TRAINABLE_VARIABLES)
-      self.assertItemsEqual(expected_var_names,
-                            [var.name for var in trainable_vars])
-
-      # Verify loss. We can't check the value directly, so we add an assert op.
-      self.assertEquals(0, loss.shape.ndims)
-      if expected_loss is None:
-        if global_step is not None:
-          return state_ops.assign_add(global_step, 1).op
-        return control_flow_ops.no_op()
-      assert_loss = assert_close(
-          math_ops.to_float(expected_loss, name='expected'),
-          loss,
-          name='assert_loss')
-      with ops.control_dependencies((assert_loss,)):
-        if global_step is not None:
-          return state_ops.assign_add(global_step, 1).op
-        return control_flow_ops.no_op()
-
-    mock_optimizer = test.mock.NonCallableMock(
-        spec=optimizer.Optimizer,
-        wraps=optimizer.Optimizer(use_locking=False, name='my_optimizer'))
-    mock_optimizer.minimize = test.mock.MagicMock(wraps=_minimize)
-
-    # NOTE: Estimator.params performs a deepcopy, which wreaks havoc with mocks.
-    # So, return mock_optimizer itself for deepcopy.
-    mock_optimizer.__deepcopy__ = lambda _: mock_optimizer
-    return mock_optimizer
-
   def _assert_checkpoint(self,
                          label_dimension,
                          expected_global_step,
@@ -588,17 +595,18 @@ class BaselineRegressorTrainingTest(test.TestCase):
     label = 5.
     age = 17
     # loss = (logits - label)^2 = (0 - 5.)^2 = 25.
-    mock_optimizer = self._mock_optimizer(expected_loss=25.)
+    mock_optimizer = mock_optimizer_v2(self, expected_loss=25.)
     baseline_regressor = _baseline_regressor_fn(
         model_dir=self._model_dir,
         optimizer=mock_optimizer)
-    self.assertEqual(0, mock_optimizer.minimize.call_count)
 
     # Train for a few steps, and validate optimizer and final checkpoint.
     num_steps = 10
     baseline_regressor.train(
         input_fn=lambda: ({'age': ((age,),)}, ((label,),)), steps=num_steps)
-    self.assertEqual(1, mock_optimizer.minimize.call_count)
+    self.assertEqual(
+        num_steps,
+        baseline_regressor.get_variable_value(mock_optimizer.iterations.name))
     self._assert_checkpoint(
         label_dimension=1,
         expected_global_step=num_steps,
@@ -618,17 +626,18 @@ class BaselineRegressorTrainingTest(test.TestCase):
 
     # logits = bias = 6.
     # loss = (logits - label)^2 = (7 - 5)^2 = 4
-    mock_optimizer = self._mock_optimizer(expected_loss=4.)
+    mock_optimizer = mock_optimizer_v2(self, expected_loss=4.)
     baseline_regressor = _baseline_regressor_fn(
         model_dir=self._model_dir,
         optimizer=mock_optimizer)
-    self.assertEqual(0, mock_optimizer.minimize.call_count)
 
     # Train for a few steps, and validate optimizer and final checkpoint.
     num_steps = 10
     baseline_regressor.train(
         input_fn=lambda: ({'age': ((17,),)}, ((5.,),)), steps=num_steps)
-    self.assertEqual(1, mock_optimizer.minimize.call_count)
+    self.assertEqual(
+        initial_global_step + num_steps,
+        baseline_regressor.get_variable_value(mock_optimizer.iterations.name))
     self._assert_checkpoint(
         label_dimension=1,
         expected_global_step=initial_global_step + num_steps,
@@ -651,18 +660,19 @@ class BaselineRegressorTrainingTest(test.TestCase):
     # logits[1] = 5.
     # loss = (sum(logits - label)^2 = (5 - 5)^2 + (5 - 3)^2) / 2 (batch size)
     # loss = 2
-    mock_optimizer = self._mock_optimizer(expected_loss=2.)
+    mock_optimizer = mock_optimizer_v2(self, expected_loss=2.)
     baseline_regressor = _baseline_regressor_fn(
         model_dir=self._model_dir,
         optimizer=mock_optimizer)
-    self.assertEqual(0, mock_optimizer.minimize.call_count)
 
     # Train for a few steps, and validate optimizer and final checkpoint.
     num_steps = 10
     baseline_regressor.train(
         input_fn=lambda: ({'age': ((17,), (15,))}, ((5.,), (3.,))),
         steps=num_steps)
-    self.assertEqual(1, mock_optimizer.minimize.call_count)
+    self.assertEqual(
+        initial_global_step + num_steps,
+        baseline_regressor.get_variable_value(mock_optimizer.iterations.name))
     self._assert_checkpoint(
         label_dimension=1,
         expected_global_step=initial_global_step + num_steps,
@@ -680,38 +690,6 @@ class BaselineClassifierTrainingTest(test.TestCase):
   def tearDown(self):
     if self._model_dir:
       shutil.rmtree(self._model_dir)
-
-  def _mock_optimizer(self, expected_loss=None):
-    expected_var_names = [
-        '%s:0' % BIAS_NAME
-    ]
-
-    def _minimize(loss, global_step):
-      trainable_vars = ops.get_collection(ops.GraphKeys.TRAINABLE_VARIABLES)
-      self.assertItemsEqual(
-          expected_var_names,
-          [var.name for var in trainable_vars])
-
-      # Verify loss. We can't check the value directly, so we add an assert op.
-      self.assertEquals(0, loss.shape.ndims)
-      if expected_loss is None:
-        return state_ops.assign_add(global_step, 1).op
-      assert_loss = assert_close(
-          math_ops.to_float(expected_loss, name='expected'),
-          loss,
-          name='assert_loss')
-      with ops.control_dependencies((assert_loss,)):
-        return state_ops.assign_add(global_step, 1).op
-
-    mock_optimizer = test.mock.NonCallableMock(
-        spec=optimizer.Optimizer,
-        wraps=optimizer.Optimizer(use_locking=False, name='my_optimizer'))
-    mock_optimizer.minimize = test.mock.MagicMock(wraps=_minimize)
-
-    # NOTE: Estimator.params performs a deepcopy, which wreaks havoc with mocks.
-    # So, return mock_optimizer itself for deepcopy.
-    mock_optimizer.__deepcopy__ = lambda _: mock_optimizer
-    return mock_optimizer
 
   def _assert_checkpoint(
       self, n_classes, expected_global_step, expected_bias=None):
@@ -737,9 +715,8 @@ class BaselineClassifierTrainingTest(test.TestCase):
   def _testFromScratchWithDefaultOptimizer(self, n_classes):
     label = 0
     age = 17
-    est = baseline.BaselineClassifier(
-        n_classes=n_classes,
-        model_dir=self._model_dir)
+    est = baseline.BaselineClassifierV2(
+        n_classes=n_classes, model_dir=self._model_dir)
 
     # Train for a few steps, and validate final checkpoint.
     num_steps = 10
@@ -756,9 +733,8 @@ class BaselineClassifierTrainingTest(test.TestCase):
   def _testTrainWithTwoDimsLabel(self, n_classes):
     batch_size = 20
 
-    est = baseline.BaselineClassifier(
-        n_classes=n_classes,
-        model_dir=self._model_dir)
+    est = baseline.BaselineClassifierV2(
+        n_classes=n_classes, model_dir=self._model_dir)
     data_rank_1 = np.array([0, 1])
     data_rank_2 = np.array([[0], [1]])
     self.assertEqual((2,), data_rank_1.shape)
@@ -782,9 +758,8 @@ class BaselineClassifierTrainingTest(test.TestCase):
   def _testTrainWithOneDimLabel(self, n_classes):
     batch_size = 20
 
-    est = baseline.BaselineClassifier(
-        n_classes=n_classes,
-        model_dir=self._model_dir)
+    est = baseline.BaselineClassifierV2(
+        n_classes=n_classes, model_dir=self._model_dir)
     data_rank_1 = np.array([0, 1])
     self.assertEqual((2,), data_rank_1.shape)
 
@@ -806,10 +781,8 @@ class BaselineClassifierTrainingTest(test.TestCase):
   def _testTrainWithTwoDimsWeight(self, n_classes):
     batch_size = 20
 
-    est = baseline.BaselineClassifier(
-        weight_column='w',
-        n_classes=n_classes,
-        model_dir=self._model_dir)
+    est = baseline.BaselineClassifierV2(
+        weight_column='w', n_classes=n_classes, model_dir=self._model_dir)
     data_rank_1 = np.array([0, 1])
     data_rank_2 = np.array([[0], [1]])
     self.assertEqual((2,), data_rank_1.shape)
@@ -831,10 +804,8 @@ class BaselineClassifierTrainingTest(test.TestCase):
   def _testTrainWithOneDimWeight(self, n_classes):
     batch_size = 20
 
-    est = baseline.BaselineClassifier(
-        weight_column='w',
-        n_classes=n_classes,
-        model_dir=self._model_dir)
+    est = baseline.BaselineClassifierV2(
+        weight_column='w', n_classes=n_classes, model_dir=self._model_dir)
     data_rank_1 = np.array([0, 1])
     self.assertEqual((2,), data_rank_1.shape)
 
@@ -864,20 +835,20 @@ class BaselineClassifierTrainingTest(test.TestCase):
     #      loss = 1 * -log ( 1.0 / n_classes )
     # For this particular test case, as logits are same, the formula
     # 1 * -log ( 1.0 / n_classes ) covers both binary and multi class cases.
-    mock_optimizer = self._mock_optimizer(
-        expected_loss=-1 * math.log(1.0/n_classes))
+    mock_optimizer = mock_optimizer_v2(
+        self, expected_loss=-1 * math.log(1.0 / n_classes))
 
-    est = baseline.BaselineClassifier(
+    est = baseline.BaselineClassifierV2(
         n_classes=n_classes,
         optimizer=mock_optimizer,
         model_dir=self._model_dir)
-    self.assertEqual(0, mock_optimizer.minimize.call_count)
 
     # Train for a few steps, and validate optimizer and final checkpoint.
     num_steps = 10
     est.train(
         input_fn=lambda: ({'age': ((age,),)}, ((label,),)), steps=num_steps)
-    self.assertEqual(1, mock_optimizer.minimize.call_count)
+    self.assertEqual(num_steps,
+                     est.get_variable_value(mock_optimizer.iterations.name))
     self._assert_checkpoint(
         n_classes,
         expected_global_step=num_steps,
@@ -918,19 +889,19 @@ class BaselineClassifierTrainingTest(test.TestCase):
       softmax = logits_exp / logits_exp.sum()
       expected_loss = -1 * math.log(softmax[label])
 
-    mock_optimizer = self._mock_optimizer(expected_loss=expected_loss)
+    mock_optimizer = mock_optimizer_v2(self, expected_loss=expected_loss)
 
-    est = baseline.BaselineClassifier(
+    est = baseline.BaselineClassifierV2(
         n_classes=n_classes,
         optimizer=mock_optimizer,
         model_dir=self._model_dir)
-    self.assertEqual(0, mock_optimizer.minimize.call_count)
 
     # Train for a few steps, and validate optimizer and final checkpoint.
     num_steps = 10
     est.train(
         input_fn=lambda: ({'age': ((age,),)}, ((label,),)), steps=num_steps)
-    self.assertEqual(1, mock_optimizer.minimize.call_count)
+    self.assertEqual(initial_global_step + num_steps,
+                     est.get_variable_value(mock_optimizer.iterations.name))
     self._assert_checkpoint(
         n_classes,
         expected_global_step=initial_global_step + num_steps,
@@ -961,19 +932,19 @@ class BaselineClassifierTrainingTest(test.TestCase):
     # logits = bias = -1.
     # loss = sigmoid_cross_entropy(logits, label)
     # => loss = -0.8 * log(sigmoid(-1)) -0.2 * log(sigmoid(+1)) = 1.1132617
-    mock_optimizer = self._mock_optimizer(expected_loss=1.1132617)
+    mock_optimizer = mock_optimizer_v2(self, expected_loss=1.1132617)
 
-    est = baseline.BaselineClassifier(
+    est = baseline.BaselineClassifierV2(
         n_classes=n_classes,
         optimizer=mock_optimizer,
         model_dir=self._model_dir)
-    self.assertEqual(0, mock_optimizer.minimize.call_count)
 
     # Train for a few steps, and validate optimizer and final checkpoint.
     num_steps = 10
     est.train(
         input_fn=lambda: ({'age': ((age,),)}, ((label,),)), steps=num_steps)
-    self.assertEqual(1, mock_optimizer.minimize.call_count)
+    self.assertEqual(initial_global_step + num_steps,
+                     est.get_variable_value(mock_optimizer.iterations.name))
 
   def testBinaryClassesFromCheckpointFloatLabels(self):
     self._testFromCheckpointFloatLabels(n_classes=2)
@@ -985,6 +956,7 @@ class BaselineClassifierTrainingTest(test.TestCase):
     # Create initial checkpoint.
     label = [1, 0]
     age = [17, 18.5]
+    batch_size = 2
     # For binary case, the expected weight has shape (1,1). For multi class
     # case, the shape is (1, n_classes). In order to test the weights, set
     # weights as 2.0 * range(n_classes).
@@ -1009,7 +981,7 @@ class BaselineClassifierTrainingTest(test.TestCase):
     #   where logits = bias and label = [1, 0]
     #   so, loss = 1 * -log ( softmax(logits)[label] )
     if n_classes == 2:
-      expected_loss = (1.3133 + 0.3132)
+      expected_loss = (1.3133 + 0.3132) / 2
     else:
       # Expand logits since batch_size=2
       logits = bias * np.ones(shape=(2, 1))
@@ -1018,22 +990,22 @@ class BaselineClassifierTrainingTest(test.TestCase):
       softmax_row_1 = logits_exp[1] / logits_exp[1].sum()
       expected_loss_0 = -1 * math.log(softmax_row_0[label[0]])
       expected_loss_1 = -1 * math.log(softmax_row_1[label[1]])
-      expected_loss = expected_loss_0 + expected_loss_1
+      expected_loss = (expected_loss_0 + expected_loss_1) / 2
 
-    mock_optimizer = self._mock_optimizer(expected_loss=expected_loss)
+    mock_optimizer = mock_optimizer_v2(self, expected_loss=expected_loss)
 
-    est = baseline.BaselineClassifier(
+    est = baseline.BaselineClassifierV2(
         n_classes=n_classes,
         optimizer=mock_optimizer,
         model_dir=self._model_dir)
-    self.assertEqual(0, mock_optimizer.minimize.call_count)
 
     # Train for a few steps, and validate optimizer and final checkpoint.
     num_steps = 10
     est.train(
         input_fn=lambda: ({'age': (age)}, (label)),
         steps=num_steps)
-    self.assertEqual(1, mock_optimizer.minimize.call_count)
+    self.assertEqual(initial_global_step + num_steps,
+                     est.get_variable_value(mock_optimizer.iterations.name))
     self._assert_checkpoint(
         n_classes,
         expected_global_step=initial_global_step + num_steps,
@@ -1389,7 +1361,8 @@ class BaselineClassifierIntegrationTest(test.TestCase):
     self.assertAllEqual((prediction_length, 1), predictions.shape)
 
     # EXPORT
-    feature_spec = feature_column_lib.make_parse_example_spec(feature_columns)
+    feature_spec = feature_column_lib.make_parse_example_spec_v2(
+        feature_columns)
     serving_input_receiver_fn = export.build_parsing_serving_input_receiver_fn(
         feature_spec)
     export_dir = est.export_saved_model(tempfile.mkdtemp(),
@@ -1545,14 +1518,12 @@ class BaselineLogitFnTest(test.TestCase):
   def test_basic_logit_correctness(self):
     """baseline_logit_fn simply returns the bias variable."""
     with ops.Graph().as_default():
-      logit_fn = baseline._baseline_logit_fn_builder(num_outputs=2)
-      logits = logit_fn(features={'age': [[23.], [31.]]})
-      with variable_scope.variable_scope('baseline', reuse=True):
-        bias_var = variable_scope.get_variable('bias')
+      bias_var, logits = baseline._baseline_model_fn_builder_v2(
+          features={'age': [[23.], [31.]]}, num_outputs=2)
       with tf_session.Session() as sess:
         sess.run([variables.global_variables_initializer()])
         self.assertAllClose([[0., 0.], [0., 0.]], logits.eval())
-        sess.run(bias_var.assign([10., 5.]))
+        sess.run(bias_var[0].assign([10., 5.]))
         self.assertAllClose([[10., 5.], [10., 5.]], logits.eval())
 
 
