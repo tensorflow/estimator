@@ -50,6 +50,7 @@ from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import batch_ops
 from tensorflow.python.ops import check_ops
 from tensorflow.python.ops import control_flow_ops
+from tensorflow.python.ops import control_flow_util
 from tensorflow.python.ops import init_ops
 from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import resource_variable_ops
@@ -3480,6 +3481,9 @@ def _validate_tpu_training_graph():
   Raises:
     ValueError: If the graph seems invalid for running on device
   """
+  if control_flow_util.ENABLE_CONTROL_FLOW_V2:
+    return  # b/124241278
+
   operations = ops.get_default_graph().get_operations()
 
   # Check if there is atleast one CrossReplicaSum operation in the graph
