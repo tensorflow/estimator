@@ -2862,6 +2862,68 @@ class EstimatorExportTest(test.TestCase):
     # Clean up.
     gfile.DeleteRecursively(tmpdir)
 
+  def test_export_saved_model_int_feature_keys(self):
+    """Test that the `features` dict can contain int keys."""
+    tmpdir = tempfile.mkdtemp()
+
+    def _input_fn_with_int_keys():
+      features = {
+          'string_key': array_ops.constant([1], dtype=dtypes.float32),
+          42: array_ops.constant([43], dtype=dtypes.float32),
+      }
+      return (features, None)
+
+    def _model_fn_with_int_keys(features, labels, mode):
+      _ = labels
+      prediction = math_ops.maximum(features['string_key'], features[42])
+
+      return model_fn_lib.EstimatorSpec(
+          mode,
+          predictions=prediction,
+          loss=constant_op.constant(1.),
+          train_op=state_ops.assign_add(training.get_global_step(), 1),
+          export_outputs={
+              'test': export_lib.PredictOutput({'prediction': prediction})
+          })
+
+    def _serving_input_receiver_fn():
+      features = {
+          'string_key':
+              array_ops.placeholder(dtype=dtypes.float32),
+          42:
+              array_ops.placeholder(
+                  dtype=dtypes.float32, name='42_placeholder'),
+      }
+      # int is only allowed in the `features` dict, not the `receiver_tensors`.
+      receiver_tensors = {
+          'string_key': features['string_key'],
+          '42_key': features[42],
+      }
+      return export_lib.ServingInputReceiver(
+          features=features, receiver_tensors=receiver_tensors)
+
+    est = estimator.EstimatorV2(model_fn=_model_fn_with_int_keys)
+    est.train(input_fn=_input_fn_with_int_keys, steps=1)
+
+    # Perform the export.
+    export_dir_base = os.path.join(
+        compat.as_bytes(tmpdir), compat.as_bytes('export'))
+    export_dir = est.export_saved_model(export_dir_base,
+                                        _serving_input_receiver_fn)
+
+    # Restore, to validate that the export was well-formed.
+    with ops.Graph().as_default() as graph:
+      with session.Session(graph=graph) as sess:
+        meta_graph_def = loader.load(sess, [tag_constants.SERVING], export_dir)
+        graph_ops = [x.name.lower() for x in graph.get_operations()]
+        self.assertTrue('maximum' in graph_ops)
+        self.assertTrue('42_placeholder' in graph_ops)
+        self.assertTrue(
+            '42_key' in meta_graph_def.signature_def['serving_default'].inputs)
+
+    # Clean up.
+    gfile.DeleteRecursively(tmpdir)
+
   def test_scaffold_is_used_for_saver(self):
     tmpdir = tempfile.mkdtemp()
 

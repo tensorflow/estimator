@@ -53,10 +53,15 @@ class ServingInputReceiverTest(test_util.TensorFlowTestCase):
   def test_serving_input_receiver_constructor(self):
     """Tests that no errors are raised when input is expected."""
     features = {
-        "feature0": constant_op.constant([0]),
-        u"feature1": constant_op.constant([1]),
-        "feature2": sparse_tensor.SparseTensor(
-            indices=[[0, 0]], values=[1], dense_shape=[1, 1]),
+        "feature0":
+            constant_op.constant([0]),
+        u"feature1":
+            constant_op.constant([1]),
+        "feature2":
+            sparse_tensor.SparseTensor(
+                indices=[[0, 0]], values=[1], dense_shape=[1, 1]),
+        42:  # ints are allowed only in the `features` dict
+            constant_op.constant([3]),
     }
     receiver_tensors = {
         "example0": constant_op.constant(["test0"], name="example0"),
@@ -75,9 +80,10 @@ class ServingInputReceiverTest(test_util.TensorFlowTestCase):
           features=None,
           receiver_tensors=receiver_tensors)
 
-    with self.assertRaisesRegexp(ValueError, "feature keys must be strings"):
+    with self.assertRaisesRegexp(ValueError,
+                                 "feature keys must be strings or ints"):
       export.ServingInputReceiver(
-          features={1: constant_op.constant([1])},
+          features={42.2: constant_op.constant([1])},
           receiver_tensors=receiver_tensors)
 
     with self.assertRaisesRegexp(
@@ -172,6 +178,8 @@ class UnsupervisedInputReceiverTest(test_util.TensorFlowTestCase):
         "feature2":
             sparse_tensor.SparseTensor(
                 indices=[[0, 0]], values=[1], dense_shape=[1, 1]),
+        42:  # ints are allowed only in the `features` dict
+            constant_op.constant([3]),
     }
     receiver_tensors = {
         "example0": constant_op.constant(["test0"], name="example0"),
@@ -185,13 +193,20 @@ class SupervisedInputReceiverTest(test_util.TensorFlowTestCase):
   def test_input_receiver_constructor(self):
     """Tests that no errors are raised when input is expected."""
     features = {
-        "feature0": constant_op.constant([0]),
-        u"feature1": constant_op.constant([1]),
-        "feature2": sparse_tensor.SparseTensor(
-            indices=[[0, 0]], values=[1], dense_shape=[1, 1]),
+        "feature0":
+            constant_op.constant([0]),
+        u"feature1":
+            constant_op.constant([1]),
+        "feature2":
+            sparse_tensor.SparseTensor(
+                indices=[[0, 0]], values=[1], dense_shape=[1, 1]),
+        42:  # ints are allowed in the `features` dict
+            constant_op.constant([3]),
     }
     labels = {
         "classes": constant_op.constant([0] * 100),
+        43:  # ints are allowed in the `labels` dict
+            constant_op.constant([3]),
     }
 
     receiver_tensors = {
@@ -203,14 +218,21 @@ class SupervisedInputReceiverTest(test_util.TensorFlowTestCase):
   def test_input_receiver_raw_values(self):
     """Tests that no errors are raised when input is expected."""
     features = {
-        "feature0": constant_op.constant([0]),
-        u"feature1": constant_op.constant([1]),
-        "feature2": sparse_tensor.SparseTensor(
-            indices=[[0, 0]], values=[1], dense_shape=[1, 1]),
+        "feature0":
+            constant_op.constant([0]),
+        u"feature1":
+            constant_op.constant([1]),
+        "feature2":
+            sparse_tensor.SparseTensor(
+                indices=[[0, 0]], values=[1], dense_shape=[1, 1]),
+        42:  # ints are allowed in the `features` dict
+            constant_op.constant([3]),
     }
 
     labels = {
         "classes": constant_op.constant([0] * 100),
+        43:  # ints are allowed in the `labels` dict
+            constant_op.constant([3]),
     }
 
     receiver_tensors = {
@@ -239,16 +261,18 @@ class SupervisedInputReceiverTest(test_util.TensorFlowTestCase):
           labels=labels,
           receiver_tensors=receiver_tensors)
 
-    with self.assertRaisesRegexp(ValueError, "feature keys must be strings"):
+    with self.assertRaisesRegexp(ValueError,
+                                 "feature keys must be strings or ints"):
       export.SupervisedInputReceiver(
-          features={1: constant_op.constant([1])},
+          features={1.11: constant_op.constant([1])},
           labels=labels,
           receiver_tensors=receiver_tensors)
 
-    with self.assertRaisesRegexp(ValueError, "label keys must be strings"):
+    with self.assertRaisesRegexp(ValueError,
+                                 "label keys must be strings or ints"):
       export.SupervisedInputReceiver(
           features=features,
-          labels={1: constant_op.constant([1])},
+          labels={1.11: constant_op.constant([1])},
           receiver_tensors=receiver_tensors)
 
     with self.assertRaisesRegexp(
