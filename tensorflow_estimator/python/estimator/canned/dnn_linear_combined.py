@@ -784,6 +784,7 @@ class DNNLinearCombinedEstimatorV2(estimator.EstimatorV2):
                dnn_activation_fn=nn.relu,
                dnn_dropout=None,
                config=None,
+               batch_norm=False,
                linear_sparse_combiner='sum'):
     """Initializes a DNNLinearCombinedEstimator instance.
 
@@ -814,6 +815,7 @@ class DNNLinearCombinedEstimatorV2(estimator.EstimatorV2):
       dnn_dropout: When not None, the probability we will drop out
         a given coordinate.
       config: RunConfig object to configure the runtime settings.
+      batch_norm: Whether to use batch normalization after each hidden layer.
       linear_sparse_combiner: A string specifying how to reduce the linear model
         if a categorical column is multivalent.  One of "mean", "sqrtn", and
         "sum" -- these are effectively different ways to do example-level
@@ -843,6 +845,7 @@ class DNNLinearCombinedEstimatorV2(estimator.EstimatorV2):
           dnn_activation_fn=dnn_activation_fn,
           dnn_dropout=dnn_dropout,
           config=config,
+          batch_norm=batch_norm,
           linear_sparse_combiner=linear_sparse_combiner)
 
     super(DNNLinearCombinedEstimatorV2, self).__init__(
@@ -867,6 +870,7 @@ class DNNLinearCombinedEstimator(estimator.Estimator):
                dnn_dropout=None,
                input_layer_partitioner=None,
                config=None,
+               batch_norm=False,
                linear_sparse_combiner='sum'):
     self._feature_columns = _validate_feature_columns(
         linear_feature_columns=linear_feature_columns,
@@ -888,6 +892,7 @@ class DNNLinearCombinedEstimator(estimator.Estimator):
           dnn_dropout=dnn_dropout,
           input_layer_partitioner=input_layer_partitioner,
           config=config,
+          batch_norm=batch_norm,
           linear_sparse_combiner=linear_sparse_combiner)
 
     super(DNNLinearCombinedEstimator, self).__init__(
