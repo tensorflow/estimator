@@ -1758,3 +1758,88 @@ py_library(
     # `pip install tensorflow` or `pip install tensorflow_gpu`
     visibility = ["//visibility:public"],
 )
+
+# The following targets are emulating cuda_py_test from //third_party/tensorflow:tensorflow.google.bzl
+# cuda_py_test cannot be used directly because the bzl file cannot be imported into tensorflow_estimator
+
+py_test(
+    name = "distribute_strategy_estimator_integration_test",
+    size = "medium",
+    srcs = ["distribute_strategy_estimator_integration_test.py"],
+    main = "distribute_strategy_estimator_integration_test.py",
+    srcs_version = "PY2AND3",
+    tags = [
+        "tf_integration_test",
+    ],
+    deps = [
+        ":estimator_py",
+        "//tensorflow_estimator/python/estimator:expect_absl_installed",
+        "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
+py_test(
+    name = "distribute_strategy_estimator_integration_test_gpu",
+    size = "medium",
+    srcs = ["distribute_strategy_estimator_integration_test.py"],
+    main = "distribute_strategy_estimator_integration_test.py",
+    srcs_version = "PY2AND3",
+    tags = [
+        "cuda",
+        "gpu",
+        "multi_and_single_gpu",
+        "requires-gpu-sm35",
+        "tf_integration_test",
+    ],
+    deps = [
+        ":estimator_py",
+        "//tensorflow_estimator/python/estimator:expect_absl_installed",
+        "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
+py_test(
+    name = "distribute_strategy_estimator_training_test",
+    size = "medium",
+    srcs = ["distribute_strategy_estimator_training_test.py"],
+    main = "distribute_strategy_estimator_training_test.py",
+    shard_count = 48,
+    srcs_version = "PY2AND3",
+    tags = [
+        # TODO(b/118768923): Re-enable {a,m,t}san test.
+        "noasan",
+        "nomsan",
+        "notsan",
+    ],
+    deps = [
+        ":estimator_py",
+        "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
+py_test(
+    name = "distribute_strategy_estimator_training_test_gpu",
+    size = "medium",
+    srcs = ["distribute_strategy_estimator_training_test.py"],
+    main = "distribute_strategy_estimator_training_test.py",
+    shard_count = 48,
+    srcs_version = "PY2AND3",
+    tags = [
+        # TODO(b/118768923): Re-enable {a,m,t}san test.
+        "noasan",
+        "nomsan",
+        "notsan",
+        "cuda",
+        "requires-gpu-sm35",
+        "gpu",
+        "multi_and_single_gpu",
+    ],
+    deps = [
+        ":estimator_py",
+        "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
