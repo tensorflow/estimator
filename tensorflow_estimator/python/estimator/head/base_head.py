@@ -802,8 +802,13 @@ def create_eval_metrics_tuple(fn, kwargs):
 
 
 def create_estimator_spec_train_op(
-    head_name, optimizer=None, trainable_variables=None, train_op_fn=None,
-    update_ops=None, regularized_training_loss=None):
+    head_name,
+    optimizer=None,
+    trainable_variables=None,
+    train_op_fn=None,
+    update_ops=None,
+    regularized_training_loss=None,
+    loss_reduction=losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE):
   """Create train_op for estimator_spec.
 
   Args:
@@ -830,6 +835,8 @@ def create_estimator_spec_train_op(
       usually expressed as a batch average, so for best results users need to
       set `loss_reduction=SUM_OVER_BATCH_SIZE` when creating the head to
       avoid scaling errors.
+    loss_reduction: One of `tf.keras.losses.Reduction` except `NONE`. Describes
+      how to reduce training loss over batch. Defaults to `SUM_OVER_BATCH_SIZE`.
 
   Returns:
     A train op for EstimatorSpec.
@@ -842,6 +849,11 @@ def create_estimator_spec_train_op(
       validate_v2_optimizer(optimizer)
       validate_trainable_variables(trainable_variables)
       with ops.name_scope(''):  # Reset name_scope.
+        # Scale loss by number of replicas.
+        if loss_reduction == losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE:
+          regularized_training_loss = losses_utils.scale_loss_for_distribution(
+              regularized_training_loss)
+
         train_op = optimizer.get_updates(regularized_training_loss,
                                          trainable_variables)[0]
     elif train_op_fn is not None:

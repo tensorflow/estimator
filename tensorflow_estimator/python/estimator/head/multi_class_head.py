@@ -420,9 +420,13 @@ class MultiClassHead(base_head.Head):
                 }))
       # Train.
       train_op = base_head.create_estimator_spec_train_op(
-          head_name=self._name, optimizer=optimizer, train_op_fn=train_op_fn,
-          update_ops=update_ops, trainable_variables=trainable_variables,
-          regularized_training_loss=regularized_training_loss)
+          head_name=self._name,
+          optimizer=optimizer,
+          train_op_fn=train_op_fn,
+          update_ops=update_ops,
+          trainable_variables=trainable_variables,
+          regularized_training_loss=regularized_training_loss,
+          loss_reduction=self._loss_reduction)
     # Create summary.
     base_head.create_estimator_spec_summary(
         regularized_training_loss=regularized_training_loss,

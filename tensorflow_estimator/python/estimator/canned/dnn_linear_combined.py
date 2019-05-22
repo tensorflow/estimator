@@ -92,20 +92,22 @@ def _validate_feature_columns(linear_feature_columns, dnn_feature_columns):
   return feature_columns
 
 
-def _dnn_linear_combined_model_fn_v2(features,
-                                     labels,
-                                     mode,
-                                     head,
-                                     linear_feature_columns=None,
-                                     linear_optimizer='Ftrl',
-                                     dnn_feature_columns=None,
-                                     dnn_optimizer='Adagrad',
-                                     dnn_hidden_units=None,
-                                     dnn_activation_fn=nn.relu,
-                                     dnn_dropout=None,
-                                     config=None,
-                                     batch_norm=False,
-                                     linear_sparse_combiner='sum'):
+def _dnn_linear_combined_model_fn_v2(
+    features,
+    labels,
+    mode,
+    head,
+    linear_feature_columns=None,
+    linear_optimizer='Ftrl',
+    dnn_feature_columns=None,
+    dnn_optimizer='Adagrad',
+    dnn_hidden_units=None,
+    dnn_activation_fn=nn.relu,
+    dnn_dropout=None,
+    config=None,
+    batch_norm=False,
+    linear_sparse_combiner='sum',
+    loss_reduction=losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE):
   """Deep Neural Net and Linear combined model_fn.
 
   Args:
@@ -135,6 +137,8 @@ def _dnn_linear_combined_model_fn_v2(features,
     linear_sparse_combiner: A string specifying how to reduce the linear model
       if a categorical column is multivalent.  One of "mean", "sqrtn", and
       "sum".
+    loss_reduction: One of `tf.keras.losses.Reduction` except `NONE`. Describes
+      how to reduce training loss over batch. Defaults to `SUM_OVER_BATCH_SIZE`.
 
   Returns:
     An `EstimatorSpec` instance.
@@ -205,6 +209,10 @@ def _dnn_linear_combined_model_fn_v2(features,
   def _train_op_fn(loss):
     """Returns the op to optimize the loss."""
     train_ops = []
+    # Scale loss by number of replicas.
+    if loss_reduction == losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE:
+      loss = losses_utils.scale_loss_for_distribution(loss)
+
     if dnn_logits is not None:
       train_ops.extend(
           dnn_optimizer.get_updates(
@@ -582,7 +590,8 @@ class DNNLinearCombinedClassifierV2(estimator.EstimatorV2):
           dnn_dropout=dnn_dropout,
           config=config,
           batch_norm=batch_norm,
-          linear_sparse_combiner=linear_sparse_combiner)
+          linear_sparse_combiner=linear_sparse_combiner,
+          loss_reduction=loss_reduction)
 
     super(DNNLinearCombinedClassifierV2, self).__init__(
         model_fn=_model_fn,

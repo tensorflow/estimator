@@ -228,13 +228,15 @@ def _baseline_model_fn_builder_v2(features, num_outputs, weight_column=None):
   return [bias], logits
 
 
-def _baseline_model_fn_v2(features,
-                          labels,
-                          mode,
-                          head,
-                          optimizer,
-                          weight_column=None,
-                          config=None):
+def _baseline_model_fn_v2(
+    features,
+    labels,
+    mode,
+    head,
+    optimizer,
+    weight_column=None,
+    config=None,
+    loss_reduction=losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE):
   """Model_fn for baseline models.
 
   Args:
@@ -250,6 +252,9 @@ def _baseline_model_fn_v2(features,
       `tf.feature_column.numeric_column` defining feature column representing
       weights. It will be multiplied by the loss of the example.
     config: `RunConfig` object to configure the runtime settings.
+    loss_reduction: One of `tf.keras.losses.Reduction` except `NONE`.
+        Describes how to reduce training loss over batch. Defaults to
+        `SUM_OVER_BATCH_SIZE`.
 
   Raises:
     KeyError: If weight column is specified but not present.
@@ -272,6 +277,9 @@ def _baseline_model_fn_v2(features,
     opt.iterations = training_util.get_or_create_global_step()
 
   def train_op_fn(loss):
+    # Scale loss by number of replicas.
+    if loss_reduction == losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE:
+      loss = losses_utils.scale_loss_for_distribution(loss)
     return opt.get_updates(loss, trainable_variables)[0]
 
   return head.create_estimator_spec(
@@ -384,7 +392,8 @@ class BaselineClassifierV2(estimator.EstimatorV2):
           head=head,
           optimizer=optimizer,
           weight_column=weight_column,
-          config=config)
+          config=config,
+          loss_reduction=loss_reduction)
 
     super(BaselineClassifierV2, self).__init__(
         model_fn=_model_fn,
