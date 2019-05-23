@@ -38,6 +38,7 @@ py_test(
     name = "tpu_config_test",
     size = "small",
     srcs = ["tpu_config_test.py"],
+    python_version = "PY2",
     deps = [
         ":tpu_estimator",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
@@ -48,6 +49,7 @@ py_test(
     name = "tpu_estimator_signals_test",
     size = "small",
     srcs = ["tpu_estimator_signals_test.py"],
+    python_version = "PY2",
     # TODO(jhseu): Remove. Fails in OSS on Python 3.
     tags = [
         "no_oss",
