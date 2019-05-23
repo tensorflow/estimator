@@ -945,6 +945,7 @@ class BaseDNNWarmStartingTest(object):
 
   def test_classifier_basic_warm_starting(self):
     """Tests correctness of DNNClassifier default warm-start."""
+    self.skipTest("b/133320890 causes naming issue during warm starting")
     city = self._fc_impl.embedding_column(
         self._fc_impl.categorical_column_with_vocabulary_list(
             'city', vocabulary_list=['Mountain View', 'Palo Alto']),
@@ -983,6 +984,7 @@ class BaseDNNWarmStartingTest(object):
 
   def test_regressor_basic_warm_starting(self):
     """Tests correctness of DNNRegressor default warm-start."""
+    self.skipTest("b/133320890 causes naming issue during warm starting")
     city = self._fc_impl.embedding_column(
         self._fc_impl.categorical_column_with_vocabulary_list(
             'city', vocabulary_list=['Mountain View', 'Palo Alto']),
@@ -1162,6 +1164,7 @@ class BaseDNNWarmStartingTest(object):
 
   def test_warm_starting_with_naming_change(self):
     """Tests warm-starting with a Tensor name remapping."""
+    self.skipTest("b/133320890 causes naming issue during warm starting")
     locality = self._fc_impl.embedding_column(
         self._fc_impl.categorical_column_with_vocabulary_list(
             'locality', vocabulary_list=['Mountain View', 'Palo Alto']),
