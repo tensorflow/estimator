@@ -830,11 +830,10 @@ def create_estimator_spec_train_op(
       update ops that need to be run at training time. In Tensorflow 1.x,
       these are thrown into an UPDATE_OPS collection. As Tensorflow 2.x
       doesn't have collections, update_ops need to be passed explicitly here.
-    regularized_training_loss: A list of additional scalar losses to be added to
-      the training loss, such as regularization losses. These losses are
-      usually expressed as a batch average, so for best results users need to
-      set `loss_reduction=SUM_OVER_BATCH_SIZE` when creating the head to
-      avoid scaling errors.
+    regularized_training_loss: A scalar for total training loss that includes
+      all regularization losses. If you're not using optimizer to generate
+      train op, make sure to scale the loss correctly before passing it in. The
+      loss typically needs to be scaled down by the number of workers.
     loss_reduction: One of `tf.keras.losses.Reduction` except `NONE`. Describes
       how to reduce training loss over batch. Defaults to `SUM_OVER_BATCH_SIZE`.
 
