@@ -1863,6 +1863,7 @@ py_test(
         "noasan",
         "nomsan",
         "notsan",
+        "no_oss",
     ],
     deps = [
         ":estimator_py",
@@ -1887,6 +1888,7 @@ py_test(
         "requires-gpu-sm35",
         "gpu",
         "multi_and_single_gpu",
+        "no_oss",
     ],
     deps = [
         ":estimator_py",
