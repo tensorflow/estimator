@@ -22,6 +22,7 @@ import math
 import os
 import tempfile
 
+from absl.testing import parameterized
 import numpy as np
 
 from tensorflow.core.protobuf import config_pb2
@@ -40,8 +41,10 @@ from tensorflow.python.platform import gfile
 from tensorflow.python.platform import test
 from tensorflow.python.saved_model import utils_impl as saved_model_utils
 from tensorflow.python.summary.writer import writer_cache
+from tensorflow.python.training import checkpoint_management
 from tensorflow.python.training import rmsprop
 from tensorflow.python.training import session_run_hook
+from tensorflow.python.training import saver as saver_lib
 from tensorflow.python.training import training
 from tensorflow.python.training import training_util
 from tensorflow_estimator.python.estimator import keras as keras_lib
@@ -238,7 +241,7 @@ class MyHook(session_run_hook.SessionRunHook):
     _ = variable_scope.get_variable('temp', [1])
 
 
-class TestKerasEstimator(test_util.TensorFlowTestCase):
+class TestKerasEstimator(test_util.TensorFlowTestCase, parameterized.TestCase):
 
   def setUp(self):
     self._base_dir = os.path.join(self.get_temp_dir(), 'keras_estimator_test')
@@ -252,130 +255,70 @@ class TestKerasEstimator(test_util.TensorFlowTestCase):
     writer_cache.FileWriterCache.clear()
     if os.path.isdir(self._base_dir):
       gfile.DeleteRecursively(self._base_dir)
+    keras.backend.clear_session()
     super(TestKerasEstimator, self).tearDown()
 
-  def test_train(self):
-    for model_type in ['sequential', 'functional']:
-      keras_model, (_, _), (
-          _, _), train_input_fn, eval_input_fn = get_resource_for_simple_model(
-              model_type=model_type, is_evaluate=True)
-      keras_model.compile(
-          loss='categorical_crossentropy',
-          optimizer='rmsprop',
-          metrics=['mse', keras.metrics.CategoricalAccuracy()])
+  @parameterized.named_parameters(
+      dict(testcase_name='functional', model_type='functional',
+           checkpoint_format='saver'),
+      dict(testcase_name='sequential', model_type='sequential',
+           checkpoint_format='saver'),
+      dict(testcase_name='subclass', model_type='subclass',
+           optimizer='tf_rmsprop', checkpoint_format='saver'),
+      dict(testcase_name='functional_object_ckpt', model_type='functional',
+           checkpoint_format='checkpoint'),
+      dict(testcase_name='sequential_object_ckpt_w_fit',
+           model_type='sequential', checkpoint_format='checkpoint',
+           fit_before_export=True, optimizer='tf_rmsprop'),
+      dict(testcase_name='functional_w_fit', model_type='functional',
+           fit_before_export=True, optimizer='tf_rmsprop',
+           checkpoint_format='saver'),
+      dict(testcase_name='subclass_w_fit', model_type='subclass',
+           fit_before_export=True, optimizer='tf_rmsprop',
+           checkpoint_format='saver'),
+      # b/109935364
+      dict(testcase_name='hooks', model_type='subclass',
+           hook=MyHook, optimizer='tf_rmsprop', checkpoint_format='saver'),
+      dict(testcase_name='hooks_and_fit', model_type='subclass',
+           hook=MyHook, fit_before_export=True, optimizer='tf_rmsprop',
+           checkpoint_format='saver'),
+      dict(testcase_name='tf_optimizer', model_type='subclass',
+           hook=MyHook, optimizer='tf_rmsprop', fit_before_export=True,
+           checkpoint_format='saver'))
+  def test_train_keras_estimator(
+      self, model_type, checkpoint_format=None, fit_before_export=False,
+      optimizer='rmsprop', hook=None):
+    hooks = [hook()] if hook else None
+    tf_optimizer = False
+    if optimizer == 'tf_rmsprop':
+      tf_optimizer = True
+      optimizer = rmsprop.RMSPropOptimizer(1e-3)
 
-      est_keras = keras_lib.model_to_estimator(
-          keras_model=keras_model, config=self._config)
-      before_eval_results = est_keras.evaluate(input_fn=eval_input_fn, steps=1)
-      est_keras.train(input_fn=train_input_fn, steps=_TRAIN_SIZE / 16)
-      after_eval_results = est_keras.evaluate(input_fn=eval_input_fn, steps=1)
-      self.assertLess(after_eval_results['loss'], before_eval_results['loss'])
-
-      writer_cache.FileWriterCache.clear()
-      gfile.DeleteRecursively(self._config.model_dir)
-
-  # b/109935364
-  def test_train_with_hooks(self):
-    for model_type in ['sequential', 'functional']:
-      keras_model, (_, _), (
-          _, _), train_input_fn, eval_input_fn = get_resource_for_simple_model(
-              model_type=model_type, is_evaluate=True)
-      keras_model.compile(
-          loss='categorical_crossentropy',
-          optimizer=rmsprop.RMSPropOptimizer(1e-3),
-          metrics=['mse', keras.metrics.CategoricalAccuracy()])
-
-      my_hook = MyHook()
-      est_keras = keras_lib.model_to_estimator(
-          keras_model=keras_model, config=self._config)
-      before_eval_results = est_keras.evaluate(input_fn=eval_input_fn, steps=1)
-      est_keras.train(
-          input_fn=train_input_fn, hooks=[my_hook], steps=_TRAIN_SIZE / 16)
-      after_eval_results = est_keras.evaluate(input_fn=eval_input_fn, steps=1)
-      self.assertLess(after_eval_results['loss'], before_eval_results['loss'])
-
-      writer_cache.FileWriterCache.clear()
-      gfile.DeleteRecursively(self._config.model_dir)
-
-  def test_train_with_model_fit_and_hooks(self):
-    keras_model, (x_train, y_train), _, \
-      train_input_fn, eval_input_fn = get_resource_for_simple_model(
-          model_type='sequential', is_evaluate=True)
-
+    keras_model, (x_train, y_train), (_, _), train_input_fn, eval_input_fn = (
+        get_resource_for_simple_model(model_type=model_type, is_evaluate=True))
     keras_model.compile(
+        optimizer=optimizer,
         loss='categorical_crossentropy',
-        optimizer=rmsprop.RMSPropOptimizer(1e-3),
-        metrics=['mse', keras.metrics.CategoricalAccuracy()])
-    my_hook = MyHook()
-    keras_model.fit(x_train, y_train, epochs=1)
-
-    keras_est = keras_lib.model_to_estimator(
-        keras_model=keras_model, config=self._config)
-    before_eval_results = keras_est.evaluate(input_fn=eval_input_fn)
-    keras_est.train(input_fn=train_input_fn, hooks=[my_hook],
-                    steps=_TRAIN_SIZE / 16)
-    after_eval_results = keras_est.evaluate(input_fn=eval_input_fn, steps=1)
-    self.assertLess(after_eval_results['loss'], before_eval_results['loss'])
-
-  def test_train_with_tf_optimizer(self):
-    for model_type in ['sequential', 'functional']:
-      keras_model, (_, _), (
-          _, _), train_input_fn, eval_input_fn = get_resource_for_simple_model(
-              model_type=model_type, is_evaluate=True)
-      keras_model.compile(
-          loss='categorical_crossentropy',
-          optimizer=rmsprop.RMSPropOptimizer(1e-3),
-          metrics=['mse', keras.metrics.CategoricalAccuracy()])
-
-      est_keras = keras_lib.model_to_estimator(
-          keras_model=keras_model, config=self._config)
-      before_eval_results = est_keras.evaluate(input_fn=eval_input_fn, steps=1)
-      est_keras.train(input_fn=train_input_fn, steps=_TRAIN_SIZE / 16)
-      after_eval_results = est_keras.evaluate(input_fn=eval_input_fn, steps=1)
-      self.assertLess(after_eval_results['loss'], before_eval_results['loss'])
-
-      writer_cache.FileWriterCache.clear()
-      gfile.DeleteRecursively(self._config.model_dir)
-
-  def test_train_with_subclassed_model(self):
-    keras_model, (_, _), (
-        _, _), train_input_fn, eval_input_fn = get_resource_for_simple_model(
-            model_type='subclass', is_evaluate=True)
-    keras_model.compile(
-        loss='categorical_crossentropy',
-        optimizer=rmsprop.RMSPropOptimizer(1e-3),
-        metrics=['mse', keras.metrics.CategoricalAccuracy()])
+        metrics=['accuracy'])
+    if fit_before_export:
+      keras_model.fit(x_train, y_train, epochs=1)
 
     est_keras = keras_lib.model_to_estimator(
-        keras_model=keras_model, config=self._config)
-    est_keras.train(input_fn=train_input_fn, steps=_TRAIN_SIZE / 16)
+        keras_model=keras_model, config=self._config,
+        checkpoint_format=checkpoint_format)
+
+    est_keras.train(input_fn=train_input_fn, steps=_TRAIN_SIZE / 16,
+                    hooks=hooks)
     before_eval_results = est_keras.evaluate(input_fn=eval_input_fn, steps=1)
-    est_keras.train(input_fn=train_input_fn, steps=_TRAIN_SIZE / 16)
+    est_keras.train(input_fn=train_input_fn, steps=_TRAIN_SIZE / 16,
+                    hooks=hooks)
     after_eval_results = est_keras.evaluate(input_fn=eval_input_fn, steps=1)
     self.assertLess(after_eval_results['loss'], before_eval_results['loss'])
 
-  def test_train_with_subclassed_model_with_existing_state(self):
-    keras_model, (_, _), (
-        _, _), train_input_fn, eval_input_fn = get_resource_for_simple_model(
-            model_type='subclass', is_evaluate=True)
-    keras_model.compile(
-        loss='categorical_crossentropy',
-        optimizer=rmsprop.RMSPropOptimizer(1e-3),
-        metrics=['mse', keras.metrics.CategoricalAccuracy()])
-
-    # Create state
-    keras_model.train_on_batch(np.random.random((10,) + _INPUT_SIZE),
-                               np.random.random((10, _NUM_CLASS)))
-    _ = keras_model.predict(np.ones((10,) + _INPUT_SIZE))
-
-    est_keras = keras_lib.model_to_estimator(
-        keras_model=keras_model, config=self._config)
-    est_keras.train(input_fn=train_input_fn, steps=_TRAIN_SIZE / 16)
-    before_eval_results = est_keras.evaluate(
-        input_fn=eval_input_fn, steps=1)
-    est_keras.train(input_fn=train_input_fn, steps=_TRAIN_SIZE / 16)
-    after_eval_results = est_keras.evaluate(input_fn=eval_input_fn, steps=1)
-    self.assertLess(after_eval_results['loss'], before_eval_results['loss'])
+    if checkpoint_format == 'object' and tf_optimizer:
+      latest_checkpoint = checkpoint_management.latest_checkpoint(
+          est_keras.model_dir)
+      keras_model.load_weights(latest_checkpoint)
 
   def test_evaluate(self):
     keras_model, (x_train, y_train), (
@@ -426,16 +369,6 @@ class TestKerasEstimator(test_util.TensorFlowTestCase):
         loss='categorical_crossentropy',
         optimizer='adam',
         metrics=['accuracy'])
-    keras_model.fit(x_train, y_train, epochs=1)
-    keras_pred = [np.argmax(y) for y in keras_model.predict(x_test)]
-
-    keras_est = keras_lib.model_to_estimator(
-        keras_model=keras_model, config=self._config)
-    est_pred = [
-        np.argmax(y[keras_model.output_names[0]])
-        for y in keras_est.predict(input_fn=pred_input_fn)
-    ]
-    self.assertAllEqual(est_pred, keras_pred)
 
   def test_multi_inputs_multi_outputs_with_input_fn_as_dict(self):
     train_data, test_data = get_multi_inputs_multi_outputs_data()
@@ -762,7 +695,10 @@ class TestKerasEstimator(test_util.TensorFlowTestCase):
   def test_model_fn_increments_global_step_keras_optimizer(self):
     self.assert_increasing_global_step('rmsprop')
 
-  def test_export_keras_estimator(self):
+  @parameterized.named_parameters(
+      dict(testcase_name='object_ckpt', checkpoint_format='checkpoint'),
+      dict(testcase_name='name_ckpt', checkpoint_format='saver'))
+  def test_export_keras_estimator(self, checkpoint_format):
     keras_model, (x_train, y_train), (
         _, _), train_input_fn, _ = get_resource_for_simple_model(
             model_type='sequential', is_evaluate=False)
@@ -776,7 +712,8 @@ class TestKerasEstimator(test_util.TensorFlowTestCase):
 
     est_keras = keras_lib.model_to_estimator(
         keras_model=keras_model,
-        model_dir=tempfile.mkdtemp(dir=self._base_dir))
+        model_dir=tempfile.mkdtemp(dir=self._base_dir),
+        checkpoint_format=checkpoint_format)
 
     def serving_input_receiver_fn():
       feature_spec = {
@@ -789,17 +726,71 @@ class TestKerasEstimator(test_util.TensorFlowTestCase):
     # model directory.
     saved_model_dir = est_keras.export_saved_model(
         tempfile.mkdtemp(dir=self._base_dir), serving_input_receiver_fn())
-    variable_dir = saved_model_utils.get_variables_path(saved_model_dir)
+    variables_path = saved_model_utils.get_variables_path(saved_model_dir)
+
+    variable_name = 'dense/bias'
+    if checkpoint_format == 'checkpoint':
+      names_to_keys = saver_lib.object_graph_key_mapping(variables_path)
+      variable_name = names_to_keys[variable_name]
+
     self.assertAllClose(
-        bias_value, training.load_variable(variable_dir, 'dense/bias'))
+        bias_value, training.load_variable(variables_path, variable_name))
 
     # Export the estimator after training a bit.
     est_keras.train(input_fn=train_input_fn, steps=_TRAIN_SIZE / 16)
     saved_model_dir = est_keras.export_saved_model(
         tempfile.mkdtemp(dir=self._base_dir), serving_input_receiver_fn())
-    variable_dir = saved_model_utils.get_variables_path(saved_model_dir)
+    variables_path = saved_model_utils.get_variables_path(saved_model_dir)
     self.assertNotAllClose(
-        bias_value, training.load_variable(variable_dir, 'dense/bias'))
+        bias_value, training.load_variable(variables_path, variable_name))
+
+  def test_export_subclassed_model_retains_model_state(self):
+    keras_model, (x_train, y_train), (
+        _, _), train_input_fn, eval_input_fn = get_resource_for_simple_model(
+            model_type='subclass', is_evaluate=True)
+    keras_model.compile(
+        optimizer=rmsprop.RMSPropOptimizer(1e-3),
+        loss='categorical_crossentropy',
+        metrics=['accuracy'])
+    keras_model.fit(x_train, y_train, epochs=1)
+    iterations = keras.backend.get_value(keras_model.optimizer.iterations)
+    optimizer = keras_model.optimizer
+    est_keras = keras_lib.model_to_estimator(
+        keras_model=keras_model, config=self._config, checkpoint_format='saver')
+    est_keras.train(input_fn=train_input_fn, steps=_TRAIN_SIZE / 16)
+
+    # Subclassed models resets the model object. Assert that attributes are
+    # properly restored.
+    iterations_after = keras.backend.get_value(keras_model.optimizer.iterations)
+    self.assertEqual(optimizer, keras_model.optimizer)
+    self.assertEqual(iterations, iterations_after)
+    # TODO(b/132839451): model.fit results in an error after model_to_estimator.
+    # keras_model.fit(x_train, y_train, epochs=1)
+
+  def test_warm_start_from_keras_ckpt(self):
+    keras_model, (x_train, y_train), (
+        _, _), train_input_fn, eval_input_fn = get_resource_for_simple_model(
+            model_type='functional', is_evaluate=True)
+    keras_model.compile(
+        optimizer=rmsprop.RMSPropOptimizer(1e-3),
+        loss='categorical_crossentropy',
+        metrics=['accuracy'])
+    keras_model.fit(x_train, y_train, epochs=1)
+
+    warm_start_path = os.path.join(
+        self._config.model_dir, 'keras', 'warm_start.ckpt')
+    keras_model.save_weights(warm_start_path)
+
+    est_keras = keras_lib.model_to_estimator(
+        keras_model=keras_model, config=self._config,
+        checkpoint_format='saver')
+
+    self.assertEqual(warm_start_path,
+                     est_keras._warm_start_settings.ckpt_to_initialize_from)
+    before_eval_results = est_keras.evaluate(input_fn=eval_input_fn, steps=1)
+    est_keras.train(input_fn=train_input_fn, steps=_TRAIN_SIZE / 16)
+    after_eval_results = est_keras.evaluate(input_fn=eval_input_fn, steps=1)
+    self.assertLess(after_eval_results['loss'], before_eval_results['loss'])
 
 
 if __name__ == '__main__':

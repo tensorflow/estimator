@@ -30,16 +30,17 @@ from tensorflow.python.framework import sparse_tensor as sparse_tensor_lib
 from tensorflow.python.framework import tensor_util
 from tensorflow.python.keras import backend as K
 from tensorflow.python.keras import models
-from tensorflow.python.keras import optimizer_v2
 from tensorflow.python.ops import check_ops
 from tensorflow.python.ops import math_ops
 from tensorflow.python.platform import gfile
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.saved_model import signature_constants
 from tensorflow.python.training import checkpoint_management
-from tensorflow.python.training import optimizer as tf_optimizer_module
+from tensorflow.python.training import monitored_session
 from tensorflow.python.training import saver as saver_lib
 from tensorflow.python.training import training_util
+from tensorflow.python.training.tracking import graph_view
+from tensorflow.python.training.tracking import util as trackable_util
 from tensorflow_estimator.python.estimator import estimator as estimator_lib
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
 from tensorflow_estimator.python.estimator.export import export_lib
@@ -167,7 +168,8 @@ def _clone_and_build_model(mode,
                            keras_model,
                            custom_objects,
                            features=None,
-                           labels=None):
+                           labels=None,
+                           optimizer_config=None):
   """Clone and build the given keras_model.
 
   Args:
@@ -176,6 +178,11 @@ def _clone_and_build_model(mode,
     custom_objects: Dictionary for custom objects.
     features: Dict of tensors.
     labels: Dict of tensors, or single tensor instance.
+    optimizer_config: Optimizer config dictionary, returned by
+      `optimizer.get_config()`. This is used when cloning a model with
+      an optimizer. Since `_clone_and_build_model` is called in a different
+      graph and session from the model, `optimizer.get_config()` may raise an
+      error during the attempt to serialize the optimizer hyperparameter values.
 
   Returns:
     The newly built model.
@@ -198,7 +205,8 @@ def _clone_and_build_model(mode,
       keras_model, input_tensors, target_tensors, custom_objects,
       compile_clone=compile_clone,
       in_place_reset=(not keras_model._is_graph_network),
-      optimizer_iterations=global_step)
+      optimizer_iterations=global_step,
+      optimizer_config=optimizer_config)
 
   return clone
 
@@ -225,21 +233,37 @@ def _convert_keras_metrics_to_estimator(model):
   return {m.name: m for m in model._compile_metric_functions}
 
 
-def _create_keras_model_fn(keras_model, custom_objects=None):
+def _create_keras_model_fn(keras_model, custom_objects=None,
+                           save_object_ckpt=False):
   """Creates model_fn for keras Estimator.
 
   Args:
     keras_model: an instance of compiled keras model.
     custom_objects: Dictionary for custom objects.
+    save_object_ckpt: Whether to save an object-based checkpoint.
 
   Returns:
     The model_fn for a keras Estimator.
   """
+  # Get optimizer config in the current context (since model_fn is called in the
+  # estimator graph and session). OptimizerV2 objects serialize variable/tensor
+  # hyperparameters in their configs, resulting to wrong-session errors during
+  # model cloning.
+  try:
+    optimizer_config = keras_model.optimizer.get_config()
+  except (NotImplementedError, AttributeError):
+    # TFOptimizers and other custom optimizers do not have a config.
+    optimizer_config = None
 
   def model_fn(features, labels, mode):
     """model_fn for keras Estimator."""
-    model = _clone_and_build_model(mode, keras_model, custom_objects, features,
-                                   labels)
+    model = _clone_and_build_model(
+        mode=mode,
+        keras_model=keras_model,
+        custom_objects=custom_objects,
+        features=features,
+        labels=labels,
+        optimizer_config=optimizer_config)
     model_output_names = []
     # We need to make sure that the output names of the last layer in the model
     # is the same for each of the cloned models. This is required for mirrored
@@ -276,6 +300,18 @@ def _create_keras_model_fn(keras_model, custom_objects=None):
       # Reset model state to original state,
       # to avoid `model_fn` being destructive for the initial model argument.
       models.in_place_subclassed_model_state_restoration(keras_model)
+
+    scaffold = None
+    if save_object_ckpt:
+      model._track_trackable(training_util.get_global_step(),
+                             'estimator_global_step')
+      # Create saver that maps variable names to object-checkpoint keys.
+      object_graph = graph_view.ObjectGraphView(model)
+      var_list = object_graph.frozen_saveable_objects()
+      saver = saver_lib.Saver(var_list=var_list, sharded=True)
+      saver._object_restore_saver = trackable_util.frozen_saver(model)
+      scaffold = monitored_session.Scaffold(saver=saver)
+
     return model_fn_lib.EstimatorSpec(
         mode=mode,
         predictions=predictions,
@@ -285,18 +321,22 @@ def _create_keras_model_fn(keras_model, custom_objects=None):
         export_outputs={
             _DEFAULT_SERVING_KEY:
             export_lib.PredictOutput(predictions)
-        })
+        },
+        scaffold=scaffold
+    )
 
   return model_fn
 
 
-def _save_first_checkpoint(keras_model, custom_objects, config):
+def _save_first_checkpoint(keras_model, custom_objects, config,
+                           save_object_ckpt):
   """Save first checkpoint for the keras Estimator.
 
   Args:
     keras_model: an instance of compiled keras model.
     custom_objects: Dictionary for custom objects.
     config: Estimator config.
+    save_object_ckpt: Whether to save an object-based checkpoint.
 
   Returns:
     The path where keras model checkpoint is saved.
@@ -326,9 +366,17 @@ def _save_first_checkpoint(keras_model, custom_objects, config):
           model._make_train_function()
           K._initialize_variables(sess)
           # pylint: enable=protected-access
-        saver = saver_lib.Saver()
-        latest_path = os.path.join(keras_model_dir, 'keras_model.ckpt')
-        saver.save(sess, latest_path)
+
+        if save_object_ckpt:
+          model._track_trackable(  # pylint: disable=protected-access
+              training_util.get_global_step(), 'estimator_global_step')
+          latest_path = os.path.join(keras_model_dir, 'keras_model.ckpt')
+          model.save_weights(latest_path)
+        else:
+          saver = saver_lib.Saver()
+          latest_path = os.path.join(keras_model_dir, 'keras_model.ckpt')
+          saver.save(sess, latest_path)
+
   return latest_path
 
 
@@ -375,8 +423,9 @@ def model_to_estimator(keras_model=None,
                        keras_model_path=None,
                        custom_objects=None,
                        model_dir=None,
-                       config=None):
-  # LINT.ThenChange(//third_party/tensorflow/python/keras/estimator/__init__.py)
+                       config=None,
+                       checkpoint_format=None):
+  # LINT.ThenChange(//tensorflow/python/keras/estimator/__init__.py)
   """Constructs an `Estimator` instance from given keras model.
 
   For usage example, please see:
@@ -393,6 +442,14 @@ def model_to_estimator(keras_model=None,
     model_dir: Directory to save `Estimator` model parameters, graph, summary
       files for TensorBoard, etc.
     config: `RunConfig` to config `Estimator`.
+    checkpoint_format: Sets the format of the checkpoint saved by the estimator
+      when training. May be `saver` or `checkpoint`, depending on whether to
+      save checkpoints from `tf.compat.v1.train.Saver` or `tf.train.Checkpoint`.
+      The default is `checkpoint`. Estimators use name-based `tf.train.Saver`
+      checkpoints, while Keras models use object-based checkpoints from
+      `tf.train.Checkpoint`. Currently, saving object-based checkpoints from
+      `model_to_estimator` is only supported by Functional and Sequential
+      models.
 
   Returns:
     An Estimator from given keras model.
@@ -402,6 +459,7 @@ def model_to_estimator(keras_model=None,
     ValueError: if both keras_model and keras_model_path was given.
     ValueError: if the keras_model_path is a GCS URI.
     ValueError: if keras_model has not been compiled.
+    ValueError: if an invalid checkpoint_format was given.
   """
   if not (keras_model or keras_model_path):
     raise ValueError(
@@ -424,13 +482,27 @@ def model_to_estimator(keras_model=None,
     logging.info('Using the Keras model provided.')
     keras_model = keras_model
 
+  if checkpoint_format is None or checkpoint_format == 'checkpoint':
+    if not (keras_model._is_graph_network or
+            isinstance(keras_model, models.Sequential)):
+      raise ValueError('Object-based checkpoints are currently not supported '
+                       'with subclassed models.')
+    save_object_ckpt = True
+  elif checkpoint_format == 'saver':
+    save_object_ckpt = False
+  else:
+    raise ValueError(
+        'Checkpoint format must be one of "checkpoint" or "saver". Got {}'
+        .format(checkpoint_format))
+
   if not hasattr(keras_model, 'optimizer') or not keras_model.optimizer:
     raise ValueError(
         'The given keras model has not been compiled yet. '
         'Please compile the model with `model.compile()` '
         'before calling `model_to_estimator()`.')
 
-  keras_model_fn = _create_keras_model_fn(keras_model, custom_objects)
+  keras_model_fn = _create_keras_model_fn(keras_model, custom_objects,
+                                          save_object_ckpt)
   if _any_weight_initialized(keras_model):
     # Warn if config passed to estimator tries to update GPUOptions. If a
     # session has already been created, the GPUOptions passed to the first
@@ -447,7 +519,7 @@ def model_to_estimator(keras_model=None,
   warm_start_path = None
   if keras_model._is_graph_network:
     warm_start_path = _save_first_checkpoint(keras_model, custom_objects,
-                                             config)
+                                             config, save_object_ckpt)
   elif keras_model.built:
     logging.warning('You are creating an Estimator from a Keras model manually '
                     'subclassed from `Model`, that was already called on some '
