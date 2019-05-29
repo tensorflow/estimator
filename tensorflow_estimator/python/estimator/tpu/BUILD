@@ -46,6 +46,15 @@ py_test(
 )
 
 py_test(
+    name = "error_handling_test",
+    size = "small",
+    srcs = ["error_handling_test.py"],
+    deps = [
+        ":tpu_estimator",
+    ],
+)
+
+py_test(
     name = "tpu_estimator_signals_test",
     size = "small",
     srcs = ["tpu_estimator_signals_test.py"],

@@ -29,6 +29,7 @@ from tensorflow.python.framework import errors
 from tensorflow.python.platform import tf_logging as logging
 
 _UNINTERESTING_ERRORS = (errors.CancelledError,)
+_IGNORED_ERRORS = (errors.AbortedError, errors.UnavailableError,)
 
 
 class ErrorRendezvous(object):
@@ -66,6 +67,10 @@ class ErrorRendezvous(object):
       session: Session to close after delay.
     """
     _, value, _ = exc_info
+    # Ignore errors already handled by MonitoredSession
+    if isinstance(value, _IGNORED_ERRORS):
+      return
+
     self._errors[source] = exc_info
     logging.error('Error recorded from %s: %s', source, value)
 
