@@ -474,14 +474,12 @@ class _InternalTPUContext(object):
   def batch_size_for_input_fn(self):
     """Returns the shard batch size for `input_fn`."""
     global_batch_size = self.global_batch_size
-    if (self.is_running_on_cpu() or self.is_input_broadcast_with_iterators()
-        and not self.is_input_slice_broadcast_to_all_cores()):
+    if (self.is_running_on_cpu() or self.is_input_broadcast_with_iterators()):
       return global_batch_size
 
     # On TPU
     if self.is_input_sharded_per_core() or (
-        self.is_input_per_host_with_iterators()) or (
-            self.is_input_slice_broadcast_to_all_cores()):
+        self.is_input_per_host_with_iterators()):
       return global_batch_size // self.num_replicas
     else:
       return global_batch_size // self.num_hosts

@@ -2818,8 +2818,17 @@ class TPUEstimator(estimator_lib.Estimator):
       # input_fn for use_tpu=True/False.
       batch_size_for_input_fn = ctx.batch_size_for_input_fn
       if batch_size_for_input_fn is not None:
-        _add_item_to_params(kwargs['params'], _BATCH_SIZE_KEY,
-                            batch_size_for_input_fn)
+        # For SLICE mode (Eval/Predict), the batch_size within TPUEstimator is
+        # not the same as in user input_fn. In TPUEstimator, the batch_size is
+        # `per_replica_batch_size` * `num_replicas`, while in user input_fn,
+        # the batch_size is just `per_replica_batch_size`. Here, the value of
+        # params['batch_size'] always refer to the value in user input_fn.
+        if ctx.is_input_slice_broadcast_to_all_cores():
+          _add_item_to_params(kwargs['params'], _BATCH_SIZE_KEY,
+                              batch_size_for_input_fn // ctx.num_replicas)
+        else:
+          _add_item_to_params(kwargs['params'], _BATCH_SIZE_KEY,
+                              batch_size_for_input_fn)
 
       # For export_saved_model, input_fn is never passed to Estimator. So,
       # `is_export_mode` must be False.
