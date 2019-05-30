@@ -363,7 +363,9 @@ class MultiClassHead(test.TestCase):
     expected_probabilities = [[0.576117, 0.2119416, 0.2119416],
                               [0.2119416, 0.2119416, 0.576117]]
     expected_class_ids = [[0], [2]]
+    expected_all_class_ids = [[0, 1, 2]] * 2
     expected_classes = [[b'0'], [b'2']]
+    expected_all_classes = [[b'0', b'1', b'2']] * 2
     expected_export_classes = [[b'0', b'1', b'2']] * 2
 
     keys = prediction_keys.PredictionKeys
@@ -374,6 +376,10 @@ class MultiClassHead(test.TestCase):
     self.assertAllClose(expected_class_ids,
                         self.evaluate(preds[keys.CLASS_IDS]))
     self.assertAllEqual(expected_classes, self.evaluate(preds[keys.CLASSES]))
+    self.assertAllClose(expected_all_class_ids,
+                        self.evaluate(preds[keys.ALL_CLASS_IDS]))
+    self.assertAllEqual(expected_all_classes,
+                        self.evaluate(preds[keys.ALL_CLASSES]))
     if context.executing_eagerly():
       return
 
@@ -398,6 +404,9 @@ class MultiClassHead(test.TestCase):
                           predictions[keys.PROBABILITIES])
       self.assertAllClose(expected_class_ids, predictions[keys.CLASS_IDS])
       self.assertAllEqual(expected_classes, predictions[keys.CLASSES])
+      self.assertAllClose(expected_all_class_ids,
+                          predictions[keys.ALL_CLASS_IDS])
+      self.assertAllEqual(expected_all_classes, predictions[keys.ALL_CLASSES])
 
       self.assertAllClose(
           expected_probabilities,

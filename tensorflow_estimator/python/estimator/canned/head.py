@@ -520,6 +520,25 @@ def _indicator_labels_mean(labels, weights=None, name=None):
     return metrics_lib.mean(labels, weights=weights, name=scope)
 
 
+def _all_class_ids(logits, n_classes):
+  batch_size = array_ops.shape(logits)[0]
+  class_id_list = math_ops.range(n_classes)
+  return array_ops.tile(
+      input=array_ops.expand_dims(input=class_id_list, axis=0),
+      multiples=[batch_size, 1])
+
+
+def _all_classes(logits, n_classes, label_vocabulary=None):
+  batch_size = array_ops.shape(logits)[0]
+  if label_vocabulary:
+    classes_list = label_vocabulary
+  else:
+    classes_list = string_ops.as_string(math_ops.range(n_classes))
+  return array_ops.tile(
+      input=array_ops.expand_dims(input=classes_list, axis=0),
+      multiples=[batch_size, 1])
+
+
 def _classification_output(scores, n_classes, label_vocabulary=None):
   batch_size = array_ops.shape(scores)[0]
   if label_vocabulary:
@@ -810,6 +829,9 @@ class _MultiClassHeadWithSoftmaxCrossEntropyLoss(_Head):
       # Predict.
       pred_keys = prediction_keys.PredictionKeys
       with ops.name_scope(None, 'predictions', (logits,)):
+        all_class_ids = _all_class_ids(logits, self._n_classes)
+        all_classes = _all_classes(logits, self._n_classes,
+                                   label_vocabulary=self._label_vocabulary)
         # class_ids's shape is [D0, D1, ... DN].
         class_ids = math_ops.argmax(logits, axis=-1, name=pred_keys.CLASS_IDS)
         class_ids = array_ops.expand_dims(class_ids, axis=-1)
@@ -828,6 +850,8 @@ class _MultiClassHeadWithSoftmaxCrossEntropyLoss(_Head):
             # Expand to [batch_size, 1]
             pred_keys.CLASS_IDS: class_ids,
             pred_keys.CLASSES: classes,
+            pred_keys.ALL_CLASS_IDS: all_class_ids,
+            pred_keys.ALL_CLASSES: all_classes,
         }
       if mode == ModeKeys.PREDICT:
         classifier_output = _classification_output(
@@ -1178,6 +1202,10 @@ class _BinaryLogisticHeadWithSigmoidCrossEntropyLoss(_Head):
         class_ids = math_ops.argmax(
             two_class_logits, axis=-1, name=pred_keys.CLASS_IDS)
         class_ids = array_ops.expand_dims(class_ids, axis=-1)
+        all_class_ids = _all_class_ids(logits, n_classes=2)
+        all_classes = _all_classes(logits, n_classes=2,
+                                   label_vocabulary=self._label_vocabulary)
+
         if self._label_vocabulary:
           table = lookup_ops.index_to_string_table_from_tensor(
               vocabulary_list=self._label_vocabulary,
@@ -1191,6 +1219,8 @@ class _BinaryLogisticHeadWithSigmoidCrossEntropyLoss(_Head):
             pred_keys.PROBABILITIES: probabilities,
             pred_keys.CLASS_IDS: class_ids,
             pred_keys.CLASSES: classes,
+            pred_keys.ALL_CLASS_IDS: all_class_ids,
+            pred_keys.ALL_CLASSES: all_classes,
         }
       if mode == ModeKeys.PREDICT:
         classifier_output = _classification_output(

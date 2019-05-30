@@ -721,6 +721,25 @@ def check_prediction_keys(pred_keys, valid_keys):
           'Valid prediction keys include {}.'.format(key, valid_keys))
 
 
+def all_class_ids(logits, n_classes):
+  batch_size = array_ops.shape(logits)[0]
+  class_id_list = math_ops.range(n_classes)
+  return array_ops.tile(
+      input=array_ops.expand_dims(input=class_id_list, axis=0),
+      multiples=[batch_size, 1])
+
+
+def all_classes(logits, n_classes, label_vocabulary=None):
+  batch_size = array_ops.shape(logits)[0]
+  if label_vocabulary:
+    classes_list = label_vocabulary
+  else:
+    classes_list = string_ops.as_string(math_ops.range(n_classes))
+  return array_ops.tile(
+      input=array_ops.expand_dims(input=classes_list, axis=0),
+      multiples=[batch_size, 1])
+
+
 def classification_output(scores, n_classes, label_vocabulary=None):
   batch_size = array_ops.shape(scores)[0]
   if label_vocabulary:

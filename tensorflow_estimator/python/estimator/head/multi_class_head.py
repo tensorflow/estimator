@@ -272,7 +272,8 @@ class MultiClassHead(base_head.Head):
     """
     pred_keys = prediction_keys.PredictionKeys
     valid_keys = [pred_keys.LOGITS, pred_keys.PROBABILITIES,
-                  pred_keys.CLASS_IDS, pred_keys.CLASSES]
+                  pred_keys.CLASS_IDS, pred_keys.CLASSES,
+                  pred_keys.ALL_CLASS_IDS, pred_keys.ALL_CLASSES]
     if keys:
       base_head.check_prediction_keys(keys, valid_keys)
     else:
@@ -298,6 +299,13 @@ class MultiClassHead(base_head.Head):
           else:
             classes = string_ops.as_string(class_ids, name='str_classes')
           predictions[pred_keys.CLASSES] = classes
+      if pred_keys.ALL_CLASS_IDS in keys:
+        predictions[pred_keys.ALL_CLASS_IDS] = base_head.all_class_ids(
+            logits, n_classes=self._n_classes)
+      if pred_keys.ALL_CLASSES in keys:
+        predictions[pred_keys.ALL_CLASSES] = base_head.all_classes(
+            logits, n_classes=self._n_classes,
+            label_vocabulary=self._label_vocabulary)
       return predictions
 
   def metrics(self, regularization_losses=None):

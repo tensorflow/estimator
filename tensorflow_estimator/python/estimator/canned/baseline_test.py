@@ -1273,7 +1273,9 @@ class BaselineClassifierPredictTest(test.TestCase):
 
       expected_predictions = {
           'class_ids': [1],
+          'all_class_ids': [0, 1],
           'classes': [label_output_fn(1)],
+          'all_classes': [label_output_fn(0), label_output_fn(1)],
           'logistic': [sigmoid(np.array(scalar_logits))],
           'logits': [scalar_logits],
           'probabilities': softmax,
@@ -1281,11 +1283,14 @@ class BaselineClassifierPredictTest(test.TestCase):
     else:
       onedim_logits = np.array(bias)
       class_ids = onedim_logits.argmax()
+      all_class_ids = list(range(len(onedim_logits)))
       logits_exp = np.exp(onedim_logits)
       softmax = logits_exp / logits_exp.sum()
       expected_predictions = {
           'class_ids': [class_ids],
+          'all_class_ids': all_class_ids,
           'classes': [label_output_fn(class_ids)],
+          'all_classes': [label_output_fn(i) for i in all_class_ids],
           'logits': onedim_logits,
           'probabilities': softmax,
       }
@@ -1295,6 +1300,10 @@ class BaselineClassifierPredictTest(test.TestCase):
     self.assertEqual(expected_predictions['classes'], predictions[0]['classes'])
     expected_predictions.pop('classes')
     predictions[0].pop('classes')
+    self.assertAllEqual(expected_predictions['all_classes'],
+                        predictions[0]['all_classes'])
+    expected_predictions.pop('all_classes')
+    predictions[0].pop('all_classes')
     self.assertAllClose(sorted_key_dict(expected_predictions),
                         sorted_key_dict(predictions[0]))
 
