@@ -1519,6 +1519,10 @@ class BaseDNNClassifierPredictTest(object):
                         predictions[prediction_keys.PredictionKeys.CLASS_IDS])
     self.assertAllEqual([label_output_fn(0)],
                         predictions[prediction_keys.PredictionKeys.CLASSES])
+    self.assertAllClose(
+        [0, 1], predictions[prediction_keys.PredictionKeys.ALL_CLASS_IDS])
+    self.assertAllEqual([label_output_fn(0), label_output_fn(1)],
+                        predictions[prediction_keys.PredictionKeys.ALL_CLASSES])
 
   def test_one_dim_without_label_vocabulary(self):
     self._test_one_dim(label_vocabulary=None,
@@ -1562,7 +1566,9 @@ class BaseDNNClassifierPredictTest(object):
         [prediction_keys.PredictionKeys.LOGITS,
          prediction_keys.PredictionKeys.PROBABILITIES,
          prediction_keys.PredictionKeys.CLASS_IDS,
-         prediction_keys.PredictionKeys.CLASSES],
+         prediction_keys.PredictionKeys.CLASSES,
+         prediction_keys.PredictionKeys.ALL_CLASS_IDS,
+         prediction_keys.PredictionKeys.ALL_CLASSES],
         six.iterkeys(predictions))
     self.assertAllClose(
         [-0.48, 0.48, 0.39], predictions[prediction_keys.PredictionKeys.LOGITS])
@@ -1574,6 +1580,11 @@ class BaseDNNClassifierPredictTest(object):
     self.assertAllEqual(
         [label_output_fn(1)],
         predictions[prediction_keys.PredictionKeys.CLASSES])
+    self.assertAllEqual(
+        [0, 1, 2], predictions[prediction_keys.PredictionKeys.ALL_CLASS_IDS])
+    self.assertAllEqual(
+        [label_output_fn(0), label_output_fn(1), label_output_fn(2)],
+        predictions[prediction_keys.PredictionKeys.ALL_CLASSES])
 
   def test_multi_dim_with_3_classes_but_no_label_vocab(self):
     self._test_multi_dim_with_3_classes(

@@ -1555,7 +1555,9 @@ class BaseDNNClassifierPredictTest(object):
         [prediction_keys.PredictionKeys.LOGITS,
          prediction_keys.PredictionKeys.PROBABILITIES,
          prediction_keys.PredictionKeys.CLASS_IDS,
-         prediction_keys.PredictionKeys.CLASSES],
+         prediction_keys.PredictionKeys.CLASSES,
+         prediction_keys.PredictionKeys.ALL_CLASS_IDS,
+         prediction_keys.PredictionKeys.ALL_CLASSES],
         six.iterkeys(predictions))
     self.assertAllClose(
         [-0.48, 0.48, 0.39], predictions[prediction_keys.PredictionKeys.LOGITS])

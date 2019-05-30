@@ -239,12 +239,14 @@ class BinaryClassHeadTest(test.TestCase):
     expected_probabilities = [[0.425557, 0.574443], [0.598688, 0.401312]]
     expected_class_ids = [[1], [0]]
     expected_classes = [[b'1'], [b'0']]
+    expected_all_class_ids = [[0, 1]] * 2
+    expected_all_classes = [[b'0', b'1']] * 2
     expected_export_classes = [[b'0', b'1']] * 2
 
     keys = prediction_keys.PredictionKeys
     preds = head.predictions(
         logits, [keys.LOGITS, keys.LOGISTIC, keys.PROBABILITIES, keys.CLASS_IDS,
-                 keys.CLASSES])
+                 keys.CLASSES, keys.ALL_CLASS_IDS, keys.ALL_CLASSES])
     self.assertAllClose(logits, self.evaluate(preds[keys.LOGITS]))
     self.assertAllClose(expected_logistics,
                         self.evaluate(preds[keys.LOGISTIC]))
@@ -252,7 +254,11 @@ class BinaryClassHeadTest(test.TestCase):
                         self.evaluate(preds[keys.PROBABILITIES]))
     self.assertAllClose(expected_class_ids,
                         self.evaluate(preds[keys.CLASS_IDS]))
+    self.assertAllClose(expected_all_class_ids,
+                        self.evaluate(preds[keys.ALL_CLASS_IDS]))
     self.assertAllEqual(expected_classes, self.evaluate(preds[keys.CLASSES]))
+    self.assertAllEqual(expected_all_classes,
+                        self.evaluate(preds[keys.ALL_CLASSES]))
     if context.executing_eagerly():
       return
 
@@ -289,6 +295,12 @@ class BinaryClassHeadTest(test.TestCase):
                           predictions[prediction_keys.PredictionKeys.CLASS_IDS])
       self.assertAllEqual(expected_classes,
                           predictions[prediction_keys.PredictionKeys.CLASSES])
+      self.assertAllClose(
+          expected_all_class_ids,
+          predictions[prediction_keys.PredictionKeys.ALL_CLASS_IDS])
+      self.assertAllEqual(
+          expected_all_classes,
+          predictions[prediction_keys.PredictionKeys.ALL_CLASSES])
       self.assertAllClose(
           expected_probabilities,
           sess.run(spec.export_outputs[test_lib._DEFAULT_SERVING_KEY].scores))

@@ -440,7 +440,9 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
     expected_probabilities = [[0.576117, 0.2119416, 0.2119416],
                               [0.2119416, 0.2119416, 0.576117]]
     expected_class_ids = [[0], [2]]
+    expected_all_class_ids = [[0, 1, 2]] * 2
     expected_classes = [[b'0'], [b'2']]
+    expected_all_classes = [[b'0', b'1', b'2']] * 2
     expected_export_classes = [[b'0', b'1', b'2']] * 2
 
     spec = head.create_estimator_spec(
@@ -466,6 +468,12 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
                           predictions[prediction_keys.PredictionKeys.CLASS_IDS])
       self.assertAllEqual(expected_classes,
                           predictions[prediction_keys.PredictionKeys.CLASSES])
+      self.assertAllClose(
+          expected_all_class_ids,
+          predictions[prediction_keys.PredictionKeys.ALL_CLASS_IDS])
+      self.assertAllEqual(
+          expected_all_classes,
+          predictions[prediction_keys.PredictionKeys.ALL_CLASSES])
 
       self.assertAllClose(
           expected_probabilities,
@@ -1613,7 +1621,9 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
     expected_logistics = [[0.574443], [0.401312]]
     expected_probabilities = [[0.425557, 0.574443], [0.598688, 0.401312]]
     expected_class_ids = [[1], [0]]
+    expected_all_class_ids = [[0, 1]] * 2
     expected_classes = [[b'1'], [b'0']]
+    expected_all_classes = [[b'0', b'1']] * 2
     expected_export_classes = [[b'0', b'1']] * 2
     spec = head.create_estimator_spec(
         features={'x': np.array(((42,),), dtype=np.int32)},
@@ -1644,6 +1654,12 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
                           predictions[prediction_keys.PredictionKeys.CLASS_IDS])
       self.assertAllEqual(expected_classes,
                           predictions[prediction_keys.PredictionKeys.CLASSES])
+      self.assertAllClose(
+          expected_all_class_ids,
+          predictions[prediction_keys.PredictionKeys.ALL_CLASS_IDS])
+      self.assertAllEqual(
+          expected_all_classes,
+          predictions[prediction_keys.PredictionKeys.ALL_CLASSES])
       self.assertAllClose(
           expected_probabilities,
           sess.run(spec.export_outputs[_DEFAULT_SERVING_KEY].scores))

@@ -28,6 +28,8 @@ class PredictionKeys(object):
 
   CLASSES = 'classes'
   CLASS_IDS = 'class_ids'
+  ALL_CLASSES = 'all_classes'
+  ALL_CLASS_IDS = 'all_class_ids'
   LOGISTIC = 'logistic'
   LOGITS = 'logits'
   PREDICTIONS = 'predictions'
