@@ -840,28 +840,29 @@ def create_estimator_spec_train_op(
   Returns:
     A train op for EstimatorSpec.
   """
+  del head_name
   validate_update_ops(update_ops)
-  with ops.name_scope(head_name, 'head'):
-    if optimizer is not None:
-      if train_op_fn is not None:
-        raise ValueError('train_op_fn and optimizer cannot both be set.')
-      validate_v2_optimizer(optimizer)
-      validate_trainable_variables(trainable_variables)
-      with ops.name_scope(''):  # Reset name_scope.
+  with ops.name_scope(''):  # Reset all previous name_scope.
+    # Add training as the name_scope to be compatible with Keras.
+    with ops.name_scope('training'):
+      if optimizer is not None:
+        if train_op_fn is not None:
+          raise ValueError('train_op_fn and optimizer cannot both be set.')
+        validate_v2_optimizer(optimizer)
+        validate_trainable_variables(trainable_variables)
         # Scale loss by number of replicas.
         if loss_reduction == losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE:
           regularized_training_loss = losses_utils.scale_loss_for_distribution(
               regularized_training_loss)
-
         train_op = optimizer.get_updates(regularized_training_loss,
                                          trainable_variables)[0]
-    elif train_op_fn is not None:
-      train_op = train_op_fn(regularized_training_loss)
-    else:
-      raise ValueError('train_op_fn and optimizer cannot both be None.')
-    if update_ops is not None:
-      train_op = control_flow_ops.group(train_op, *update_ops)
-    return train_op
+      elif train_op_fn is not None:
+        train_op = train_op_fn(regularized_training_loss)
+      else:
+        raise ValueError('train_op_fn and optimizer cannot both be None.')
+      if update_ops is not None:
+        train_op = control_flow_ops.group(train_op, *update_ops)
+      return train_op
 
 
 def create_estimator_spec_summary(
