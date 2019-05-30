@@ -361,6 +361,17 @@ def _generate_feature_col_name_mapping(sorted_feature_columns):
   # pylint:enable=protected-access
 
 
+# A dirty hack to work around dead branches that are possible when var's value
+# changes. See b/32827037. Using resource vars does not fix the retval[0] error.
+# This creates a copy of the var.
+def _cond(var, true_branch, false_branch, name=None):
+  return control_flow_ops.cond(
+      math_ops.logical_and(var, array_ops.constant(True)),
+      true_branch,
+      false_branch,
+      name=name)
+
+
 def _cache_transformed_features(features, sorted_feature_columns, cat_columns,
                                 other_columns, batch_size,
                                 bucket_boundaries_dict, are_boundaries_ready):
@@ -419,12 +430,13 @@ def _cache_transformed_features(features, sorted_feature_columns, cat_columns,
         cache_flip_op = are_features_cached.assign(True)
       return cached, cache_flip_op
 
-    return control_flow_ops.cond(
-        are_features_cached, lambda: (cached_features, control_flow_ops.no_op()
-                                     ), _cache_features_and_return)
+    return _cond(are_features_cached, lambda: (cached_features,
+                                               control_flow_ops.no_op()),
+                 _cache_features_and_return)
 
-  input_feature_list, cache_flip_op = control_flow_ops.cond(
-      are_boundaries_ready, get_features_without_cache, get_features_with_cache)
+  input_feature_list, cache_flip_op = _cond(are_boundaries_ready,
+                                            get_features_without_cache,
+                                            get_features_with_cache)
 
   return input_feature_list, cache_flip_op
 
@@ -831,7 +843,7 @@ class _AccumulatorEnsembleGrower(_EnsembleGrower):
         boundaries_ready_op = are_boundaries_ready.assign(True).op
         return control_flow_ops.group(flush_op, grad, boundaries_ready_op)
 
-      finalize_quantile_op = control_flow_ops.cond(
+      finalize_quantile_op = _cond(
           math_ops.greater_equal(cond_accum.num_accumulated(),
                                  self._n_batches_per_layer),
           flush_fn,
@@ -871,11 +883,10 @@ class _AccumulatorEnsembleGrower(_EnsembleGrower):
             array_ops.expand_dims(accumulated[0], 0),
             array_ops.expand_dims(accumulated[1], 0))
         with ops.control_dependencies([center_bias_op]):
-          return control_flow_ops.cond(center_bias_var,
-                                       control_flow_ops.no_op,
-                                       _set_accumulators_stamp)
+          return _cond(center_bias_var, control_flow_ops.no_op,
+                       _set_accumulators_stamp)
 
-      center_bias_op = control_flow_ops.cond(
+      center_bias_op = _cond(
           math_ops.greater_equal(self._bias_accumulator.num_accumulated(),
                                  self._n_batches_per_layer),
           center_bias_from_accumulator,
@@ -913,7 +924,7 @@ class _AccumulatorEnsembleGrower(_EnsembleGrower):
         )
         return grow_op
 
-      grow_model = control_flow_ops.cond(
+      grow_model = _cond(
           math_ops.greater_equal(min_accumulated, self._n_batches_per_layer),
           grow_tree_from_accumulated_summaries_fn,
           control_flow_ops.no_op,
@@ -1160,8 +1171,7 @@ def _bt_model_fn(
             return training_state_cache.insert(tree_ids, node_ids, logits)
 
           grow_op.append(
-              control_flow_ops.cond(center_bias_var, control_flow_ops.no_op,
-                                    insert_fn))
+              _cond(center_bias_var, control_flow_ops.no_op, insert_fn))
 
         if closed_form_grad_and_hess_fn:
           gradients, hessians = closed_form_grad_and_hess_fn(logits, labels)
@@ -1192,7 +1202,7 @@ def _bt_model_fn(
           ]
           stats_summaries_list.append(summaries)
         if center_bias:
-          update_model = control_flow_ops.cond(
+          update_model = _cond(
               center_bias_var,
               functools.partial(
                   grower.center_bias,
@@ -1216,8 +1226,7 @@ def _bt_model_fn(
       if not float_columns:
         return _grow_tree_fn()
       else:
-        return control_flow_ops.cond(are_boundaries_ready, _grow_tree_fn,
-                                     _update_quantile_fn)
+        return _cond(are_boundaries_ready, _grow_tree_fn, _update_quantile_fn)
 
   estimator_spec = head.create_estimator_spec(
       features=features,
