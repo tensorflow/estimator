@@ -2814,6 +2814,10 @@ class TPUEstimator(estimator_lib.Estimator):
     self._is_input_fn_invoked = True
 
     with self._ctx.with_mode(mode) as ctx:
+      if (ctx.is_running_on_cpu() and
+          ctx.is_input_slice_broadcast_to_all_cores()):
+        raise ValueError('Invalid TPUConfig `eval_training_input_configuration`'
+                         ' value. SLICED mode only works on use_tpu = True.')
       # Setting the batch size in params first. This helps user to have same
       # input_fn for use_tpu=True/False.
       batch_size_for_input_fn = ctx.batch_size_for_input_fn
@@ -2823,7 +2827,7 @@ class TPUEstimator(estimator_lib.Estimator):
         # `per_replica_batch_size` * `num_replicas`, while in user input_fn,
         # the batch_size is just `per_replica_batch_size`. Here, the value of
         # params['batch_size'] always refer to the value in user input_fn.
-        if ctx.is_input_slice_broadcast_to_all_cores():
+        if ctx.is_input_slice_broadcast_to_all_cores() and ctx.num_replicas > 0:
           _add_item_to_params(kwargs['params'], _BATCH_SIZE_KEY,
                               batch_size_for_input_fn // ctx.num_replicas)
         else:
