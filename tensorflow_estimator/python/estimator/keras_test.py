@@ -33,6 +33,7 @@ from tensorflow.python.framework import ops
 from tensorflow.python.framework import test_util
 from tensorflow.python.keras import testing_utils
 from tensorflow.python.keras.optimizers import SGD
+from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import parsing_ops
 from tensorflow.python.ops import variable_scope
 from tensorflow.python.ops import variables
@@ -791,6 +792,37 @@ class TestKerasEstimator(test_util.TensorFlowTestCase, parameterized.TestCase):
     est_keras.train(input_fn=train_input_fn, steps=_TRAIN_SIZE / 16)
     after_eval_results = est_keras.evaluate(input_fn=eval_input_fn, steps=1)
     self.assertLess(after_eval_results['loss'], before_eval_results['loss'])
+
+  def test_sample_weights(self):
+    # Create simple pass-through model
+    input_layer = keras.layers.Input(shape=1, name='input_layer')
+    keras_model = keras.Model(inputs=input_layer, outputs=input_layer)
+
+    keras_model.compile(
+        loss='mean_absolute_error',
+        optimizer='adam')
+
+    features = [[0], [0], [1], [1]]
+    sample_weights = [0, .4, 1, 1]
+    targets = [[0], [1], [0], [1]]
+
+    expected_loss = keras_model.test_on_batch(
+        array_ops.constant(features),
+        array_ops.constant(targets),
+        array_ops.constant(sample_weights))
+
+    def input_fn():
+      dataset = dataset_ops.Dataset.from_tensors(
+          ({'features': features,
+            'sample_weights': sample_weights},
+           targets))
+      return dataset
+
+    est_keras = keras_lib.model_to_estimator(
+        keras_model=keras_model,
+        model_dir=tempfile.mkdtemp(dir=self._base_dir))
+    eval_results = est_keras.evaluate(input_fn, steps=1)
+    self.assertAllClose(expected_loss, eval_results['loss'])
 
 
 if __name__ == '__main__':

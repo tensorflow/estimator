@@ -30,6 +30,7 @@ from tensorflow.python.framework import sparse_tensor as sparse_tensor_lib
 from tensorflow.python.framework import tensor_util
 from tensorflow.python.keras import backend as K
 from tensorflow.python.keras import models
+from tensorflow.python.keras.engine import training_utils
 from tensorflow.python.ops import check_ops
 from tensorflow.python.ops import math_ops
 from tensorflow.python.platform import gfile
@@ -102,7 +103,8 @@ def _convert_estimator_io_to_keras(keras_model, features, labels):
   Returns:
     Tuple of (
       list of input tensors or `None`,
-      list of target tensors or `None`)
+      list of target tensors or `None`,
+      list of sample weight tensors or `None`)
     The order of tensors is determined by the order set in the keras model.
   """
 
@@ -145,6 +147,7 @@ def _convert_estimator_io_to_keras(keras_model, features, labels):
     else:  # Assume obj is a tensor.
       return [_convert_tensor(obj)]
 
+  features, sample_weight_tensors = _extract_sample_weight_tensors(features)
   input_names = None
   output_names = None
   if isinstance(features, dict):
@@ -161,7 +164,18 @@ def _convert_estimator_io_to_keras(keras_model, features, labels):
   target_tensors = _to_ordered_tensor_list(
       labels, output_names, 'labels', 'outputs')
 
-  return input_tensors, target_tensors
+  return input_tensors, target_tensors, sample_weight_tensors
+
+
+def _extract_sample_weight_tensors(features):
+  if isinstance(features, dict) and set(features.keys()) == {
+      'features', 'sample_weights'}:
+    feature_tensor = features['features']
+    sample_weight_tensors = features['sample_weights']
+  else:
+    feature_tensor = features
+    sample_weight_tensors = None
+  return feature_tensor, sample_weight_tensors
 
 
 def _clone_and_build_model(mode,
@@ -189,8 +203,8 @@ def _clone_and_build_model(mode,
   """
   # Set to True during training, False for inference or testing.
   K.set_learning_phase(mode == ModeKeys.TRAIN)
-  input_tensors, target_tensors = _convert_estimator_io_to_keras(
-      keras_model, features, labels)
+  input_tensors, target_tensors, sample_weight_tensors = (
+      _convert_estimator_io_to_keras(keras_model, features, labels))
 
   compile_clone = (mode != ModeKeys.PREDICT)
 
@@ -208,6 +222,11 @@ def _clone_and_build_model(mode,
       optimizer_iterations=global_step,
       optimizer_config=optimizer_config)
 
+  if sample_weight_tensors is not None:
+    sample_weight_tensors = training_utils.standardize_sample_weights(
+        sample_weight_tensors, clone.output_names)
+    # Update calculated loss (model.total_loss) to include sample weights.
+    clone._compile_weights_loss_and_weighted_metrics(sample_weight_tensors)
   return clone
 
 
@@ -431,6 +450,27 @@ def model_to_estimator(keras_model=None,
   For usage example, please see:
   [Creating estimators from Keras
   Models](https://tensorflow.org/guide/estimators#model_to_estimator).
+
+  __Sample Weights__
+  Estimators returned by `model_to_estimator` are configured to handle sample
+  weights (similar to `keras_model.fit(x, y, sample_weights)`). To pass sample
+  weights when training or evaluating the Estimator, the first item returned by
+  the input function should be a dictionary with keys `features` and
+  `sample_weights`. Example below:
+
+  ```
+  keras_model = tf.keras.Model(...)
+  keras_model.compile(...)
+
+  estimator = tf.keras.estimator.model_to_estimator(keras_model)
+
+  def input_fn():
+    return dataset_ops.Dataset.from_tensors(
+        ({'features': features, 'sample_weights': sample_weights},
+         targets))
+
+  estimator.train(input_fn, steps=1)
+  ```
 
   Args:
     keras_model: A compiled Keras model object. This argument is mutually
