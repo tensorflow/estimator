@@ -824,6 +824,31 @@ class TestKerasEstimator(test_util.TensorFlowTestCase, parameterized.TestCase):
     eval_results = est_keras.evaluate(input_fn, steps=1)
     self.assertAllClose(expected_loss, eval_results['loss'])
 
+    # Test multiple with outputs and sample weights.
+    keras_model = keras.Model(inputs=input_layer,
+                              outputs=[input_layer, input_layer])
+    keras_model.compile(
+        loss='mean_absolute_error',
+        optimizer='adam')
+    expected_loss = keras_model.test_on_batch(
+        array_ops.constant(features),
+        [array_ops.constant(targets), array_ops.constant(targets)],
+        [array_ops.constant(sample_weights),
+         array_ops.constant(sample_weights)])[0]
+
+    def input_fn_multiple_targets():
+      dataset = dataset_ops.Dataset.from_tensors(
+          (features, sample_weights, targets))
+      dataset = dataset.map(
+          lambda x, y, z: ({'features': x, 'sample_weights': (y, y)}, (z, z)))
+      return dataset
+
+    est_keras = keras_lib.model_to_estimator(
+        keras_model=keras_model,
+        model_dir=tempfile.mkdtemp(dir=self._base_dir))
+    eval_results = est_keras.evaluate(input_fn_multiple_targets, steps=1)
+    self.assertAllClose(expected_loss, eval_results['loss'])
+
 
 if __name__ == '__main__':
   test.main()
