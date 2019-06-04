@@ -18,6 +18,7 @@ py_library(
         ":basic_session_run_hooks",
         ":binary_class_head",
         ":boosted_trees",
+        ":checkpoint_converter",
         ":dnn",
         ":dnn_linear_combined",
         ":early_stopping",
@@ -792,6 +793,35 @@ py_test(
         "//tensorflow_estimator/python/estimator:expect_six_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
+    ],
+)
+
+py_library(
+    name = "checkpoint_converter",
+    srcs = ["tools/checkpoint_converter.py"],
+    srcs_version = "PY2AND3",
+    deps = [
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
+    ],
+)
+
+py_test(
+    name = "checkpoint_converter_test",
+    srcs = ["tools/checkpoint_converter_test.py"],
+    shard_count = 4,
+    srcs_version = "PY2AND3",
+    deps = [
+        ":checkpoint_converter",
+        ":dnn",
+        ":dnn_linear_combined",
+        ":head",
+        ":linear",
+        ":numpy_io",
+        ":regression_head",
+        "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_six_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
     ],
 )
 
