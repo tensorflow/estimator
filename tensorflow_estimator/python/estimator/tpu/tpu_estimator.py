@@ -2262,7 +2262,7 @@ class BatchConfig(
               batch_timeout_micros,
               allowed_batch_sizes,
               max_enqueued_batches=10):
-    """Creates an EmbeddingConfigSpec instance.
+    """Creates an BatchConfig instance.
 
     Args:
      num_batch_threads: Number of scheduling threads for processing batches of
@@ -2648,6 +2648,12 @@ class TPUEstimator(estimator_lib.Estimator):
           raise ValueError('Only PER_HOST_V2 is supported when using TPU '
                            'Embedding; got {}.'.format(
                                config.tpu_config.per_host_input_for_training))
+        self._embedding_from_feature_columns = (
+            embedding_config_spec.feature_columns is not None)
+        if (not (use_tpu and eval_on_tpu) and
+            embedding_config_spec.partition_strategy == 'mod'):
+          raise ValueError('Mod sharding of embedding tables not supported on '
+                           'CPU.')
 
     # Verifies the model_fn signature according to Estimator framework.
     estimator_lib._verify_model_fn_args(model_fn, params)  # pylint: disable=protected-access
@@ -3084,11 +3090,15 @@ class TPUEstimator(estimator_lib.Estimator):
                 ctx.embedding_config.tpu_embedding.table_to_config_dict)
             optimization_parameters = (
                 ctx.embedding_config.tpu_embedding.optimization_parameters)
-            embedding_variable_name_by_table, slot_variable_names_by_table = (
-                _tpu_estimator_embedding.get_full_variable_names(
-                    g, table_to_config_dict, optimization_parameters
-                )
-            )
+            if self._embedding_from_feature_columns:
+              embedding_variable_name_by_table, slot_variable_names_by_table = (
+                  _tpu_estimator_embedding.get_full_variable_names(
+                      g, table_to_config_dict, optimization_parameters
+                  )
+              )
+            else:
+              embedding_variable_name_by_table = None
+              slot_variable_names_by_table = None
             embedding_variables_and_ops = (
                 ctx.embedding_config.tpu_embedding.create_variables_and_ops(
                     embedding_variable_name_by_table,
@@ -3215,10 +3225,13 @@ class TPUEstimator(estimator_lib.Estimator):
             g = ops.get_default_graph()
             table_to_config_dict = (
                 ctx.embedding_config.tpu_embedding.table_to_config_dict)
-            embedding_variable_name_by_table, _ = (
-                _tpu_estimator_embedding.get_full_variable_names(
-                    g, table_to_config_dict)
-            )
+            if self._embedding_from_feature_columns:
+              embedding_variable_name_by_table, _ = (
+                  _tpu_estimator_embedding.get_full_variable_names(
+                      g, table_to_config_dict)
+              )
+            else:
+              embedding_variable_name_by_table = None
             embedding_variables_and_ops = (
                 ctx.embedding_config.tpu_embedding.create_variables_and_ops(
                     embedding_variable_name_by_table

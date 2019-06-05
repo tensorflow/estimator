@@ -116,7 +116,7 @@ def get_configs_from_feature_columns(feature_columns):
 
   Returns:
     A tuple of dicts, the first maps tables to their config, the second maps
-    features to their config, and the third maps features to weight key names.
+    features to their config.
   """
 
   allowed = (tpu_fc._TPUEmbeddingColumn, tpu_fc._TPUSharedEmbeddingColumn)  # pylint: disable=protected-access
@@ -129,7 +129,6 @@ def get_configs_from_feature_columns(feature_columns):
 
   table_to_config = {}
   feature_to_config = {}
-  feature_to_weight_key_name = {}
   for column in feature_columns:
     feature_name = column.get_feature_key_name()
     table_name = _get_table_name_from_embedding_var_name(
@@ -140,8 +139,8 @@ def get_configs_from_feature_columns(feature_columns):
           'not supported.'.format(feature_name))
     feature_to_config[feature_name] = tpu_embedding.FeatureConfig(
         table_id=table_name,
-        max_sequence_length=column.get_max_sequence_length())
-    feature_to_weight_key_name[feature_name] = column.get_weight_key_name()
+        max_sequence_length=column.get_max_sequence_length(),
+        weight_key=column.get_weight_key_name())
     vocabulary_size, dimension = column.get_embedding_table_size()
     table_to_config[table_name] = tpu_embedding.TableConfig(
         vocabulary_size=vocabulary_size,
@@ -149,27 +148,31 @@ def get_configs_from_feature_columns(feature_columns):
         initializer=column.get_initializer(),
         combiner=column.get_combiner())
 
-  return table_to_config, feature_to_config, feature_to_weight_key_name
+  return table_to_config, feature_to_config
 
 
 class EmbeddingConfigSpec(
     collections.namedtuple('EmbeddingConfigSpec', [
         'feature_columns', 'optimization_parameters', 'clipping_limit',
         'pipeline_execution_with_tensor_core',
-        'experimental_gradient_multiplier_fn'
+        'experimental_gradient_multiplier_fn',
+        'feature_to_config_dict', 'table_to_config_dict', 'partition_strategy'
     ])):
   """Class to keep track of embedding config specification."""
 
   def __new__(cls,
-              feature_columns,
-              optimization_parameters,
+              feature_columns=None,
+              optimization_parameters=None,
               clipping_limit=None,
               pipeline_execution_with_tensor_core=False,
-              experimental_gradient_multiplier_fn=None):
+              experimental_gradient_multiplier_fn=None,
+              feature_to_config_dict=None,
+              table_to_config_dict=None,
+              partition_strategy='div'):
     """Creates an EmbeddingConfigSpec instance.
 
     Args:
-      feature_columns: All `FeatureColumn`s used by model.
+      feature_columns: All embedding `FeatureColumn`s used by model.
       optimization_parameters: An instance of `AdagradParameters`,
         `AdamParameters` or `StochasticGradientDescentParameters`. This
         optimizer will be applied to all embedding variables specified by
@@ -181,6 +184,16 @@ class EmbeddingConfigSpec(
         `tpu_embedding_configuration.proto` for details.
       experimental_gradient_multiplier_fn: (Optional) A Fn taking global step as
         input returning the current multiplier for all embedding gradients.
+      feature_to_config_dict: A dictionary mapping features names to instances
+        of the class `FeatureConfig`. Either features_columns or the pair of
+        `feature_to_config_dict` and `table_to_config_dict` must be specified.
+      table_to_config_dict: A dictionary mapping features names to instances of
+        the class `TableConfig`. Either features_columns or the pair of
+        `feature_to_config_dict` and `table_to_config_dict` must be specified.
+      partition_strategy: A string, determining how tensors are sharded to the
+        tpu hosts. See `tf.nn.safe_embedding_lookup_sparse` for more details.
+        Allowed value are `"div"` and `"mod"'. If `"mod"` is used, evaluation
+        and exporting the model to CPU will not work as expected.
 
     Returns:
       An EmbeddingConfigSpec instance.
@@ -192,25 +205,51 @@ class EmbeddingConfigSpec(
         _EMBEDDING_COLUMN_CLASSES).
       ValueError: If `optimization_parameters` is not one of the required types.
     """
-    if not feature_columns:
-      raise ValueError('`feature_columns` cannot be `None` or empty.')
+    if (not feature_columns and not (feature_to_config_dict and
+                                     table_to_config_dict)
+        or (feature_columns and (feature_to_config_dict
+                                 and table_to_config_dict))):
+      raise ValueError('Exactly one of `feature_columns` and the pair '
+                       '`feature_to_config_dict` and `table_to_config_dict` '
+                       'must be be specified.')
 
-    # It is unknown at this moment, whether the TPUEstimator is running in CPU
-    # or TPU mode. So allow non-TPU embedding columns also.
-    supported_classes = tuple(
-        list(_SUPPORTED_FEATURE_COLUMNS) + list(_TPU_EMBEDDING_COLUMN_CLASSES) +
-        list(_EMBEDDING_COLUMN_CLASSES))
+    if partition_strategy not in ('div', 'mod'):
+      raise ValueError('Invalid partition_strategy {}. Must be one of "mod" or '
+                       '"div".'.format(partition_strategy))
 
-    for column in feature_columns:
-      if not isinstance(column, supported_classes):
-        raise TypeError(
-            'All feature columns must be supported types in {}. Got {}'.format(
-                supported_classes, type(column)))
+    if feature_columns:
+      # It is unknown at this moment, whether the TPUEstimator is running in CPU
+      # or TPU mode. So allow non-TPU embedding columns also.
+      supported_classes = tuple(
+          list(_SUPPORTED_FEATURE_COLUMNS) +
+          list(_TPU_EMBEDDING_COLUMN_CLASSES) +
+          list(_EMBEDDING_COLUMN_CLASSES))
 
-    if not isinstance(optimization_parameters, _SUPPORTED_OPTIMIZERS):
-      raise ValueError('optimization_parameters must be an instance of type '
-                       '{}. Got {}.'.format(_SUPPORTED_OPTIMIZERS,
-                                            type(optimization_parameters)))
+      for column in feature_columns:
+        if not isinstance(column, supported_classes):
+          raise TypeError(
+              'All feature columns must be supported types in {}. Got {}'
+              .format(supported_classes, type(column)))
+
+      if not isinstance(optimization_parameters, _SUPPORTED_OPTIMIZERS):
+        raise ValueError('optimization_parameters must be an instance of type '
+                         '{}. Got {}.'.format(_SUPPORTED_OPTIMIZERS,
+                                              type(optimization_parameters)))
+    else:
+      for feature, config in feature_to_config_dict.items():
+        if not isinstance(config, tpu_embedding.FeatureConfig):
+          raise TypeError(
+              'Config for feature {} must be of type `FeatureConfig`. Got {}'
+              .format(feature, type(config)))
+        if config.table_id not in table_to_config_dict:
+          raise ValueError('Feature {} refers to table {} which is not in the '
+                           'table_to_config_dict.'.format(feature,
+                                                          config.table_id))
+      for table, config in table_to_config_dict.items():
+        if not isinstance(config, tpu_embedding.TableConfig):
+          raise TypeError(
+              'Config for table {} must be of type `TableConfig`. Got '
+              '{}'.format(table, type(config)))
 
     return super(EmbeddingConfigSpec, cls).__new__(
         cls,
@@ -218,7 +257,10 @@ class EmbeddingConfigSpec(
         optimization_parameters=optimization_parameters,
         clipping_limit=clipping_limit,
         pipeline_execution_with_tensor_core=pipeline_execution_with_tensor_core,
-        experimental_gradient_multiplier_fn=experimental_gradient_multiplier_fn)
+        experimental_gradient_multiplier_fn=experimental_gradient_multiplier_fn,
+        feature_to_config_dict=feature_to_config_dict,
+        table_to_config_dict=table_to_config_dict,
+        partition_strategy=partition_strategy)
 
 
 class EmbeddingConfig(object):
@@ -241,26 +283,19 @@ class EmbeddingConfig(object):
     self._num_cores = num_cores
     self._run_config = run_config
 
-    (self._table_to_config_dict, self._feature_to_config_dict,
-     self.feature_to_weight_key_name_dict) = (
-         get_configs_from_feature_columns(
-             embedding_config_spec.feature_columns))
+    if embedding_config_spec.feature_columns:
+      (self._table_to_config_dict, self._feature_to_config_dict) = (
+          get_configs_from_feature_columns(
+              embedding_config_spec.feature_columns))
+    else:
+      self._table_to_config_dict = embedding_config_spec.table_to_config_dict
+      self._feature_to_config_dict = embedding_config_spec.feature_to_config_dict
+    self._partition_strategy = embedding_config_spec.partition_strategy
     self._mode_to_tpu_embedding_dict = {}
     self.dummy_table_variables = None
 
     self._grad_multiplier_fn = (
         embedding_config_spec.experimental_gradient_multiplier_fn)
-
-    self._partition_strategy = embedding_config_spec.feature_columns[
-        0].get_partition_strategy()
-    for column in embedding_config_spec.feature_columns:
-      if self._partition_strategy != column.get_partition_strategy():
-        raise ValueError(
-            'All feature columns must have the same partition_strategy. Got '
-            '{} for column {} and {} for column {}.'.format(
-                self._partition_strategy,
-                embedding_config_spec.feature_columns[0].name,
-                column.get_partition_strategy(), column.name))
 
   def get_grad_multiplier(self):
     if self._grad_multiplier_fn:
@@ -323,8 +358,6 @@ def split_inputs(ctx, features, labels):
   enqueue_datas = collections.OrderedDict()
   if ctx.embedding_config:
     tpu_embedding_ = ctx.embedding_config.tpu_embedding
-    feature_to_weight_key_name_dict = (
-        ctx.embedding_config.feature_to_weight_key_name_dict)
     for feature_key in tpu_embedding_.feature_to_config_dict:
       sparse_feature = _get_sparse_feature_from_feature(feature_key, features)
       max_sequence_length = tpu_embedding_.feature_to_config_dict[
@@ -338,17 +371,17 @@ def split_inputs(ctx, features, labels):
             max_sequence_length)
         length_feature.set_shape(ctx.batch_size_for_input_fn)
         features[length_feature_name] = length_feature
-      weight_key_name = feature_to_weight_key_name_dict[feature_key]
+      weight_key = tpu_embedding_.feature_to_config_dict[feature_key].weight_key
       if isinstance(sparse_feature, sparse_tensor.SparseTensor):
-        weights = _get_weights_from_features(weight_key_name, features)
+        weights = _get_weights_from_features(weight_key, features)
         enqueue_data = tpu_embedding.EnqueueData.from_sparse_tensor(
             sparse_feature, weights)
       else:
-        if weight_key_name is not None:
+        if weight_key is not None:
           raise ValueError(
               'Found weights {} for weighted_categorical_column, which is not'
               'compatible with sparse feature {} enqueued as dense tensor.'
-              .format(weight_key_name, feature_key))
+              .format(weight_key, feature_key))
         enqueue_data = tpu_embedding.EnqueueData(sparse_feature)
       enqueue_datas[feature_key] = enqueue_data
 
