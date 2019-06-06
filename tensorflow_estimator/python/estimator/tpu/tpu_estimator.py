@@ -1529,7 +1529,6 @@ class _InputPipeline(object):
 
 def call_computation(computation_inputs,
                      computation,
-                     experimental_export_device_assignment,
                      batch_config=None):
   """Call computation.
 
@@ -1539,18 +1538,12 @@ def call_computation(computation_inputs,
     computation: A Python function that takes no inputs and builds computation
       graph. If `computation` returns m outputs, this function will return a
       list of m Tensors.
-    experimental_export_device_assignment: If `True`, use user-provided device
-      assignment. If `False`, round-robin computation among all TPU cores
-      visible to the host.
     batch_config: A BatchConfig named tuple specifying the batching
       configuration to use for inference batching.
 
   Returns:
     A list of output tensors.
   """
-  if experimental_export_device_assignment:
-    return computation(computation_inputs)
-
   # Using `TPUPartitionedCall` makes it possible to target a different
   # TPU core with every `Session.run()` call. Note that the entire inference
   # graph executes on a single core, and that invocations of this graph
@@ -2542,7 +2535,6 @@ class TPUEstimator(estimator_lib.Estimator):
                export_to_tpu=True,
                export_to_cpu=True,
                warm_start_from=None,
-               experimental_export_device_assignment=False,
                embedding_config_spec=None,
                export_saved_model_api_version=ExportSavedModelApiVersion.V1):
     """Constructs an `TPUEstimator` instance.
@@ -2597,10 +2589,6 @@ class TPUEstimator(estimator_lib.Estimator):
         configure warm-starting.  If the string filepath is provided instead of
         a `WarmStartSettings`, then all variables are warm-started, and it is
         assumed that vocabularies and Tensor names are unchanged.
-      experimental_export_device_assignment: Whether to include the device
-        assignment in the exported model. Doing so is useful in case of model
-        parallel inference but will tie the exported model to the TPU topology
-        used to export the model.
       embedding_config_spec: Optional EmbeddingConfigSpec instance
         to support using TPU embedding.
       export_saved_model_api_version: ExportSavedModelApiVersion, V1 or V2.
@@ -2711,8 +2699,6 @@ class TPUEstimator(estimator_lib.Estimator):
 
     self._export_to_cpu = export_to_cpu
     self._export_to_tpu = export_to_tpu
-    self._experimental_export_device_assignment = (
-        experimental_export_device_assignment)
 
     if not isinstance(export_saved_model_api_version,
                       ExportSavedModelApiVersion):
@@ -2796,10 +2782,7 @@ class TPUEstimator(estimator_lib.Estimator):
         labels,
         config,
         self._params,
-        batch_config=None,
-        experimental_export_device_assignment=self
-        ._experimental_export_device_assignment,
-        call_context=self._ctx)
+        batch_config=None)
 
   def _create_global_step(self, graph):
     """Creates a global step suitable for TPUs.
@@ -4079,9 +4062,7 @@ def model_fn_inference_on_tpu(model_fn,
                               labels=None,
                               config=None,
                               params=None,
-                              batch_config=None,
-                              experimental_export_device_assignment=False,
-                              call_context=None):
+                              batch_config=None):
   """Convenience wrapper for export_saved_model API v2 for a model_fn.
 
   It attempts to execute the entire model function on the TPU for prediction.
@@ -4099,24 +4080,15 @@ def model_fn_inference_on_tpu(model_fn,
     params: hparams that we want to pass to the model_fn.
     batch_config: a named tuple to wrap the inference batching configuration
       inputs.
-    experimental_export_device_assignment: Whether to include the device
-      assignment in the exported model. Doing so is useful in case of model
-      parallel inference but will tie the exported model to the TPU topology
-      used to export the model.
-    call_context: an optional TPUContext under which the TPU run configuartion
-      is stored.
 
   Returns:
     An EstimatorSpec containing the outputs in export_outputs and predictions.
   """
   computation, capture = _build_computation_for_inference(
-      model_fn, labels, config, params, experimental_export_device_assignment,
-      call_context)
+      model_fn, labels, config, params)
   tensors = call_computation(
       features,
       computation,
-      experimental_export_device_assignment=
-      experimental_export_device_assignment,
       batch_config=batch_config)
   estimator_spec, export_outputs_dict, predictions_dict, none_indices = (
       capture.get())
@@ -4153,9 +4125,7 @@ def model_fn_inference_on_tpu(model_fn,
 def _build_computation_for_inference(model_fn,
                                      labels,
                                      config,
-                                     params,
-                                     experimental_export_device_assignment,
-                                     call_context=None):
+                                     params):
   """Builds the computation with calls the model_fn for inference."""
   capture = _CapturedObject()
 
@@ -4164,22 +4134,8 @@ def _build_computation_for_inference(model_fn,
     tpu_computation, tpu_capture = _build_tpu_computation_for_inference(
         model_fn, computation_input, labels, config, params)
 
-    if experimental_export_device_assignment and call_context:
-      # Export the device assignment as part of the model. This is useful for
-      # model parallel usecases where the model relies on the mapping between
-      # logical and physical devices.
-      with call_context.with_mode(_INFERENCE_ON_TPU_MODE) as ctx:
-        device_assignment = ctx.device_assignment
-    else:
-      device_assignment = None
-
-    if experimental_export_device_assignment:
-      tensors_on_cpu = tpu.rewrite_for_inference(
-          tpu_computation, device_assignment=device_assignment)
-    else:
-      tensors_on_cpu = tpu.rewrite(
-          tpu_computation, device_assignment=device_assignment)
-      tpu.prune_unconnected_ops_from_xla(ops.get_default_graph())
+    tensors_on_cpu = tpu.rewrite(tpu_computation)
+    tpu.prune_unconnected_ops_from_xla(ops.get_default_graph())
 
     (estimator_spec, export_outputs_dict, export_outputs_list,
      predictions_dict) = (
