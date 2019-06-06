@@ -485,6 +485,7 @@ class TPUInfeedOutfeedSessionHook(session_run_hook.SessionRunHook):
     self._run_infeed_loop_on_coordinator = run_infeed_loop_on_coordinator
     self._initial_infeed_sleep_secs = (
         ctx.config.tpu_config.initial_infeed_sleep_secs)
+    self._tpu_compile_op = tpu_compile_op
 
     # When using model parallelism, the TPU is pre-initialized at startup to
     # fetch mesh information. We skip re-initializing it here for
