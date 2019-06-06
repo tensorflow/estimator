@@ -301,14 +301,14 @@ class Estimator(object):
         See [Premade Estimators](
         https://tensorflow.org/guide/premade_estimators#create_input_functions)
         for more information. The function should construct and return one of
-        the following:  * A
-        `tf.data.Dataset` object: Outputs of `Dataset` object must be a tuple
-        `(features, labels)` with same constraints as below. * A tuple
-        `(features, labels)`: Where `features` is a `tf.Tensor` or a dictionary
-        of string feature name to `Tensor` and `labels` is a `Tensor` or a
-        dictionary of string label name to `Tensor`. Both `features` and
-        `labels` are consumed by `model_fn`. They should satisfy the expectation
-        of `model_fn` from inputs.
+        the following:
+          * A `tf.data.Dataset` object: Outputs of `Dataset` object must be
+            a tuple `(features, labels)` with same constraints as below.
+          * A tuple `(features, labels)`: Where `features` is a `tf.Tensor` or
+            a dictionary of string feature name to `Tensor` and `labels` is a
+            `Tensor` or a dictionary of string label name to `Tensor`. Both
+            `features` and `labels` are consumed by `model_fn`. They should
+            satisfy the expectation of `model_fn` from inputs.
       hooks: List of `tf.train.SessionRunHook` subclass instances. Used for
         callbacks inside the training loop.
       steps: Number of steps for which to train the model. If `None`, train
