@@ -828,7 +828,6 @@ class DNNLinearCombinedWarmStartingTest(test.TestCase):
 
   def test_classifier_basic_warm_starting(self, fc_impl):
     """Tests correctness of DNNLinearCombinedClassifier default warm-start."""
-    self.skipTest("b/133320890 causes naming issue during warm starting")
     age = fc_impl.numeric_column('age')
     city = fc_impl.embedding_column(
         fc_impl.categorical_column_with_vocabulary_list(
@@ -849,17 +848,24 @@ class DNNLinearCombinedWarmStartingTest(test.TestCase):
     # Create a second DNNLinearCombinedClassifier, warm-started from the first.
     # Use a learning_rate = 0.0 optimizer to check values (use SGD so we don't
     # have accumulator values that change).
-    warm_started_dnn_lc_classifier = (
-        dnn_linear_combined.DNNLinearCombinedClassifierV2(
-            linear_feature_columns=[age],
-            dnn_feature_columns=[city],
-            dnn_hidden_units=[256, 128],
-            n_classes=4,
-            linear_optimizer=gradient_descent_v2.SGD(
-                learning_rate=0.0),
-            dnn_optimizer=gradient_descent_v2.SGD(
-                learning_rate=0.0),
-            warm_start_from=dnn_lc_classifier.model_dir))
+    # To avoid optimizer naming issue during warm start, when to create the
+    # optimizer instance, the dnn_optimizer needs to be created first
+    # before the linear_optimizer, since this is the order pre-defined
+    # in the model function.
+    # Create a default graph context to make sure the optimizer instance is
+    # created within Graph v1 to make it consistent with estimator Graph.
+    with ops.Graph().as_default():
+      warm_started_dnn_lc_classifier = (
+          dnn_linear_combined.DNNLinearCombinedClassifierV2(
+              linear_feature_columns=[age],
+              dnn_feature_columns=[city],
+              dnn_hidden_units=[256, 128],
+              n_classes=4,
+              dnn_optimizer=gradient_descent_v2.SGD(
+                  learning_rate=0.0),
+              linear_optimizer=gradient_descent_v2.SGD(
+                  learning_rate=0.0),
+              warm_start_from=dnn_lc_classifier.model_dir))
 
     warm_started_dnn_lc_classifier.train(input_fn=self._input_fn, max_steps=1)
     for variable_name in warm_started_dnn_lc_classifier.get_variable_names():
@@ -874,7 +880,6 @@ class DNNLinearCombinedWarmStartingTest(test.TestCase):
 
   def test_regressor_basic_warm_starting(self, fc_impl):
     """Tests correctness of DNNLinearCombinedRegressor default warm-start."""
-    self.skipTest("b/133320890 causes naming issue during warm starting")
     age = fc_impl.numeric_column('age')
     city = fc_impl.embedding_column(
         fc_impl.categorical_column_with_vocabulary_list(
@@ -894,16 +899,23 @@ class DNNLinearCombinedWarmStartingTest(test.TestCase):
     # Create a second DNNLinearCombinedRegressor, warm-started from the first.
     # Use a learning_rate = 0.0 optimizer to check values (use SGD so we don't
     # have accumulator values that change).
-    warm_started_dnn_lc_regressor = (
-        dnn_linear_combined.DNNLinearCombinedRegressorV2(
-            linear_feature_columns=[age],
-            dnn_feature_columns=[city],
-            dnn_hidden_units=[256, 128],
-            linear_optimizer=gradient_descent_v2.SGD(
-                learning_rate=0.0),
-            dnn_optimizer=gradient_descent_v2.SGD(
-                learning_rate=0.0),
-            warm_start_from=dnn_lc_regressor.model_dir))
+    # To avoid optimizer naming issue during warm start, when to create the
+    # optimizer instance, the dnn_optimizer needs to be created first
+    # before the linear_optimizer, since this is the order pre-defined
+    # in the model function.
+    # Create a default graph context to make sure the optimizer instance is
+    # created within Graph v1 to make it consistent with estimator Graph.
+    with ops.Graph().as_default():
+      warm_started_dnn_lc_regressor = (
+          dnn_linear_combined.DNNLinearCombinedRegressorV2(
+              linear_feature_columns=[age],
+              dnn_feature_columns=[city],
+              dnn_hidden_units=[256, 128],
+              dnn_optimizer=gradient_descent_v2.SGD(
+                  learning_rate=0.0),
+              linear_optimizer=gradient_descent_v2.SGD(
+                  learning_rate=0.0),
+              warm_start_from=dnn_lc_regressor.model_dir))
 
     warm_started_dnn_lc_regressor.train(input_fn=self._input_fn, max_steps=1)
     for variable_name in warm_started_dnn_lc_regressor.get_variable_names():

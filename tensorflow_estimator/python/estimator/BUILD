@@ -623,7 +623,6 @@ py_test(
     python_version = "PY2",
     srcs_version = "PY2AND3",
     tags = [
-        "no_oss",  # for 1.14 release, fails with Key SGD/iter not found in checkpoint
         "no_pip",
         "notsan",
         "optonly",  # times out http://b/79220679
@@ -747,7 +746,6 @@ py_test(
     shard_count = 32,
     srcs_version = "PY2AND3",
     tags = [
-        "no_oss",  # b/134391415
         "no_pip",
         "notsan",  # TODO(b/67510291)
     ],
