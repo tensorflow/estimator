@@ -915,6 +915,9 @@ class BaseDNNWarmStartingTest(object):
   def setUp(self):
     # Create a directory to save our old checkpoint and vocabularies to.
     self._ckpt_and_vocab_dir = tempfile.mkdtemp()
+    # Reset the default graph in each test method to avoid the Keras optimizer
+    # naming issue during warm starting.
+    ops.reset_default_graph()
 
     # Make a dummy input_fn.
     def _input_fn():
