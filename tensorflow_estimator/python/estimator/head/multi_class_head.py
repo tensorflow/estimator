@@ -84,7 +84,7 @@ class MultiClassHead(base_head.Head):
         features=features,
         mode=mode,
         labels=labels,
-        optimizer=tf.AdagradOptimizer(learning_rate=0.1),
+        optimizer=tf.keras.optimizers.Adagrad(lr=0.1),
         logits=logits)
 
   my_estimator = tf.estimator.Estimator(model_fn=_my_model_fn)

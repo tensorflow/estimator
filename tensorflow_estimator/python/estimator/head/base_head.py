@@ -102,32 +102,6 @@ class Head(object):
           logits=logits,
           optimizer=optimizer)
     ```
-
-  There are cases where computing and applying gradients can not be meaningfully
-  captured with `Optimizer`s or `train_op_fn`s that Tensorflow supports (for
-  example, with sync optimizer). In such case, you can take the responsibility
-  to define your own way to manipulate gradients and update the `train_op` in
-  `model_fn`. Here is a common use case:
-    ```python
-    def _my_model_fn(features, labels, mode, params, config=None):
-      head = tf.estimator.MultiClassHead(n_classes=3)
-      estimator_spec = head.create_estimator_spec(
-          features=features,
-          labels=labels,
-          mode=mode,
-          logits=logits,
-          train_op_fn=lambda _: tf.no_op())
-      if mode == ModeKeys.TRAIN:
-        optimizer = ...
-        sync_opt = tf.train.SyncReplicasOptimizer(opt=optimizer, ...)
-        update_op = sync_opt.minimize(
-            estimator_spec.loss, global_step=tf.get_global_step())
-        hooks = [sync.make_session_run_hook(is_chief)]
-        # update train_op and hooks in EstimatorSpec
-        estimator_spec.train_op = update_op
-        estimator_spec.training_hooks = hooks
-        return estimator_spec
-    ```
   """
   __metaclass__ = abc.ABCMeta
 
