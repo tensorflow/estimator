@@ -107,6 +107,9 @@ _TPU_ENQUEUE_OPS = '_tpu_enqueue_ops'
 _TPU_TRAIN_OP = '_tpu_train_op'
 _INFERENCE_ON_TPU_MODE = '_inference_on_tpu'
 _KEY_WHEN_PREDICTIONS_IS_A_TENSOR = '_key_when_predictions_is_a_tensor'
+_TENSOR_PACKER_SMALL_FEATURE_DIM_SIZE = 1
+_TENSOR_PACKER_MINIMUM_NUM_SMALL_FEATURES_TO_GROUP = 5
+_TENSOR_PACKER_CONCATENATED_SMALL_FEATURES_KEY = '_concatenated_small_features'
 
 # Ideally _USE_TPU_KEY should be reserved as well. However there are already
 # models that make use of this key, thus it can not be reserved now to prevent
@@ -1140,6 +1143,64 @@ def generate_broadcast_enqueue_ops_fn(ctx, input_fn, inputs_structure_recorder,
   return enqueue_ops_fn, captured_infeed_queue, dataset_initializer
 
 
+class TensorPacker(object):
+  """Pack and unpack small tensors into a big one for efficiency."""
+
+  def __init__(self, small_feature_dim_size,
+               minimum_num_small_features_to_group):
+    self._small_feature_dim_size = small_feature_dim_size
+    self._minimum_num_small_features_to_group = (
+        minimum_num_small_features_to_group)
+
+  def maybe_concatenate_features(self, features):
+    """If there are enough small tensors, concat them for performance."""
+    self._small_feature_names = []
+    self._small_feature_sizes = []
+    feature_names = _extract_key_names(features)
+    if feature_names:  # Not a single tensor.
+      # First pass: see if it is worth concatenating the small features.
+      for name in feature_names:
+        tensor = features[name]
+        # We do not handle nested inputs here.
+        if not isinstance(tensor, ops.Tensor):
+          return
+        shape = tensor.get_shape().as_list()
+        if (len(shape) == 2 and
+            shape[1] <= self._small_feature_dim_size):
+          logging.info('Found small feature: %s %s', name, shape)
+          self._small_feature_names.append(name)
+          self._small_feature_sizes.append(shape[1])
+
+      # If we could find 5 (or more) [batch_size, 1] dense features,
+      # we will group them.
+      if (len(self._small_feature_names)
+          < self._minimum_num_small_features_to_group):
+        self._small_feature_names = []  # reset
+        self._small_feature_sizes = []  # reset
+
+      # Second pass: separate small features out
+      small_feature_tensors = []
+      for name in self._small_feature_names:
+        small_feature_tensors.append(features.pop(name))
+
+      # Add the concat Tensor to features with a special key.
+      if small_feature_tensors:
+        if _TENSOR_PACKER_CONCATENATED_SMALL_FEATURES_KEY in features:
+          raise ValueError('{} is reserved as feature key for concatenated'
+                           'small features.')
+        features[_TENSOR_PACKER_CONCATENATED_SMALL_FEATURES_KEY] = (
+            array_ops.concat(small_feature_tensors, axis=1))
+
+  def maybe_split_features(self, maybe_concatenated_features):
+    if self._small_feature_names:
+      concatenated_small_features = maybe_concatenated_features.pop(
+          _TENSOR_PACKER_CONCATENATED_SMALL_FEATURES_KEY)
+      splits = array_ops.split(
+          concatenated_small_features, self._small_feature_sizes, axis=1)
+      for name, split in zip(self._small_feature_names, splits):
+        maybe_concatenated_features[name] = split
+
+
 class _InputPipeline(object):
   """`_InputPipeline` handles invoking `input_fn` and piping to infeed queue.
 
@@ -1263,6 +1324,10 @@ class _InputPipeline(object):
 
     def flatten_features_and_labels(self, features, labels, signals=None):
       """Flattens the `features` and `labels` to a single tensor list."""
+      self.tensor_packer = TensorPacker(
+          _TENSOR_PACKER_SMALL_FEATURE_DIM_SIZE,
+          _TENSOR_PACKER_MINIMUM_NUM_SMALL_FEATURES_TO_GROUP)
+      self.tensor_packer.maybe_concatenate_features(features)
       self._feature_structure['features'] = features
       if labels is not None:
         self._feature_structure['labels'] = labels
@@ -1288,8 +1353,10 @@ class _InputPipeline(object):
 
       unflattened_inputs = data_nest.pack_sequence_as(self._feature_structure,
                                                       flattened_inputs)
+      features = unflattened_inputs['features']
+      self.tensor_packer.maybe_split_features(features)
       return _Inputs(
-          unflattened_inputs['features'],
+          features,
           unflattened_inputs.get('labels'),
           signals=unflattened_inputs.get('signals'))
 
