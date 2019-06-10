@@ -1154,8 +1154,8 @@ class TensorPacker(object):
 
   def maybe_concatenate_features(self, features):
     """If there are enough small tensors, concat them for performance."""
-    self._small_feature_names = []
-    self._small_feature_sizes = []
+    self._small_feature_names = {}
+    self._small_feature_sizes = {}
     feature_names = _extract_key_names(features)
     if feature_names:  # Not a single tensor.
       # First pass: see if it is worth concatenating the small features.
@@ -1165,40 +1165,51 @@ class TensorPacker(object):
         if not isinstance(tensor, ops.Tensor):
           return
         shape = tensor.get_shape().as_list()
+        dtype = tensor.dtype
         if (len(shape) == 2 and
             shape[1] <= self._small_feature_dim_size):
           logging.info('Found small feature: %s %s', name, shape)
-          self._small_feature_names.append(name)
-          self._small_feature_sizes.append(shape[1])
+          if tensor.dtype not in self._small_feature_names:
+            self._small_feature_names[dtype] = []
+            self._small_feature_sizes[dtype] = []
+          self._small_feature_names[dtype].append(name)
+          self._small_feature_sizes[dtype].append(shape[1])
 
-      # If we could find 5 (or more) [batch_size, 1] dense features,
-      # we will group them.
-      if (len(self._small_feature_names)
-          < self._minimum_num_small_features_to_group):
-        self._small_feature_names = []  # reset
-        self._small_feature_sizes = []  # reset
+      dtypes_ = list(self._small_feature_names.keys())
+      for dtype in dtypes_:
+        # If we could find 5 (or more) [batch_size, 1] dense features,
+        # we will group them.
+        if (len(self._small_feature_names[dtype]) <
+            self._minimum_num_small_features_to_group):
+          self._small_feature_names.pop(dtype)  # reset
+          self._small_feature_sizes.pop(dtype)  # reset
 
       # Second pass: separate small features out
-      small_feature_tensors = []
-      for name in self._small_feature_names:
-        small_feature_tensors.append(features.pop(name))
+      small_feature_tensors = {}
+      for dtype in self._small_feature_names:
+        small_feature_tensors[dtype] = []
+        for name in self._small_feature_names[dtype]:
+          small_feature_tensors[dtype].append(features.pop(name))
 
       # Add the concat Tensor to features with a special key.
-      if small_feature_tensors:
-        if _TENSOR_PACKER_CONCATENATED_SMALL_FEATURES_KEY in features:
+      for dtype in self._small_feature_names:
+        key = self._get_small_feature_key(dtype)
+        if key in features:
           raise ValueError('{} is reserved as feature key for concatenated'
                            'small features.')
-        features[_TENSOR_PACKER_CONCATENATED_SMALL_FEATURES_KEY] = (
-            array_ops.concat(small_feature_tensors, axis=1))
+        features[key] = (array_ops.concat(small_feature_tensors[dtype], axis=1))
 
   def maybe_split_features(self, maybe_concatenated_features):
-    if self._small_feature_names:
-      concatenated_small_features = maybe_concatenated_features.pop(
-          _TENSOR_PACKER_CONCATENATED_SMALL_FEATURES_KEY)
+    for dtype in self._small_feature_names:
+      key = self._get_small_feature_key(dtype)
+      concatenated_small_features = maybe_concatenated_features.pop(key)
       splits = array_ops.split(
-          concatenated_small_features, self._small_feature_sizes, axis=1)
-      for name, split in zip(self._small_feature_names, splits):
+          concatenated_small_features, self._small_feature_sizes[dtype], axis=1)
+      for name, split in zip(self._small_feature_names[dtype], splits):
         maybe_concatenated_features[name] = split
+
+  def _get_small_feature_key(self, dtype):
+    return _TENSOR_PACKER_CONCATENATED_SMALL_FEATURES_KEY + '_' + str(dtype)
 
 
 class _InputPipeline(object):
