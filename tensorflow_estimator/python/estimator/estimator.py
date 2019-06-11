@@ -156,7 +156,7 @@ class Estimator(object):
                  be passed. If the `model_fn`'s signature does not accept
                  `mode`, the `model_fn` must still be able to handle
                  `labels=None`.
-          * `mode`: Optional. Specifies if this training, evaluation or
+          * `mode`: Optional. Specifies if this is training, evaluation or
                  prediction. See `tf.estimator.ModeKeys`.
           * `params`: Optional `dict` of hyperparameters.  Will receive what
                  is passed to Estimator in `params` parameter. This allows
