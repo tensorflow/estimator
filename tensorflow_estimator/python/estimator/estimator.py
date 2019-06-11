@@ -1309,7 +1309,8 @@ class Estimator(object):
         # TODO(yuefengz): add a test for unwrapping per_device_hooks.
         def get_hooks_from_the_first_device(per_device_hooks):
           return [
-              self._train_distribution.unwrap(per_device_hook)[0]
+              self._train_distribution.experimental_local_results(
+                  per_device_hook)[0]
               for per_device_hook in per_device_hooks
           ]
 
@@ -1592,7 +1593,7 @@ class Estimator(object):
 
     scaffold = _combine_distributed_scaffold(
         grouped_estimator_spec.scaffold, self._eval_distribution)
-    evaluation_hooks = self._eval_distribution.unwrap(
+    evaluation_hooks = self._eval_distribution.experimental_local_results(
         grouped_estimator_spec.evaluation_hooks)[0]
     return (scaffold, evaluation_hooks, input_hooks, update_op, eval_dict)
 
@@ -1833,7 +1834,7 @@ def _combine_distributed_scaffold(grouped_scaffold, distribution):
 
   # TODO(anjalisridhar): Figure out how to resolve the following scaffold
   # parameters: init_feed_dict, init_fn.
-  scaffold_list = distribution.unwrap(grouped_scaffold)
+  scaffold_list = distribution.experimental_local_results(grouped_scaffold)
   init_feed_dict = [
       s.init_feed_dict
       for s in scaffold_list
@@ -1859,7 +1860,7 @@ def _combine_distributed_scaffold(grouped_scaffold, distribution):
     init_op = None
 
   def _unwrap_and_concat(value):
-    value = nest.flatten(distribution.unwrap(value))
+    value = nest.flatten(distribution.experimental_local_results(value))
     if len(value) != 1:
       return array_ops.concat(value, 0)
     return value[0]
