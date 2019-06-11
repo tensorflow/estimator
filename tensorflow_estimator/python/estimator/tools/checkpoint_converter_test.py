@@ -167,6 +167,7 @@ class LinearCheckpointConverterTest(test.TestCase):
     if os.path.exists(self._new_ckpt_dir):
       writer_cache.FileWriterCache.clear()
       shutil.rmtree(self._new_ckpt_dir)
+
   def _test_ckpt_converter(self, train_input_fn, eval_input_fn,
                            predict_input_fn, input_dimension, label_dimension,
                            batch_size, optimizer):

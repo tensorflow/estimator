@@ -85,8 +85,8 @@ OPT_NAME_V1_TO_V2 = {
 # Hyper-paratmeters of optimizer in checkpoint.
 HP_IN_CKPT = {
     'Adam': {
-        'beta1_power': 'Adam/beta_1',
-        'beta2_power': 'Adam/beta_2',
+        'beta1_power': 'training/Adam/beta_1',
+        'beta2_power': 'training/Adam/beta_2',
     },
 }
 
@@ -142,7 +142,7 @@ def _add_new_variable(initial_value, var_name_v2, var_name_v1, var_map,
 def _add_opt_variable(opt_name_v2, var_name_v1, idx, suffix_v2, reader, var_map,
                       var_names_map):
   """Adds a new optimizer v2 variable."""
-  var_name_v2 = opt_name_v2 + '/' + var_name_v1[:idx] + suffix_v2
+  var_name_v2 = 'training/' + opt_name_v2 + '/' + var_name_v1[:idx] + suffix_v2
   tensor = reader.get_tensor(var_name_v1)
   _add_new_variable(tensor, var_name_v2, var_name_v1, var_map, var_names_map)
 
@@ -236,7 +236,7 @@ def _convert_hyper_params_in_graph(graph_from_path, opt_name_v1, var_map,
     # variable value, and added to the new variable list.
     if opt_name_v1 + '/' + node_name in nodes_full:
       hp_value = node.attr.get('value').tensor.float_val[0]
-      hp_name_v2 = opt_name_v2 + '/' + node_name
+      hp_name_v2 = 'training/' + opt_name_v2 + '/' + node_name
       logging.info('Hyper parameter {} with value {} found in Graph.'.format(
           hp_name_v2, hp_value))
       _add_new_variable(hp_value, hp_name_v2, node_name, var_map, var_names_map)
@@ -249,7 +249,7 @@ def _convert_hyper_params_in_graph(graph_from_path, opt_name_v1, var_map,
   opt_v2_config = OPT_V2_INSTANCE[opt_name_v1].get_config()
   logging.info('For hyper parameter variables that are NOT in Graph:')
   for node_name in nodes_not_in_graph:
-    hp_name_v2 = opt_name_v2 + '/' + node_name
+    hp_name_v2 = 'training/' + opt_name_v2 + '/' + node_name
     logging.info('Hyper parameter {} with default value {} is added.'.format(
         hp_name_v2, opt_v2_config[node_name]))
     _add_new_variable(opt_v2_config[node_name], hp_name_v2, node_name, var_map,
@@ -315,7 +315,7 @@ def convert_checkpoint(estimator_type, source_checkpoint, source_graph,
       # Add the 'iter' hyper parameter to the new checkpoint for
       # linear_optimizer. Note dnn_optimizer uses global_step.
       tensor = reader.get_tensor('global_step')
-      var_name_v2 = OPT_NAME_V1_TO_V2[linear_opt_v1] + '/iter'
+      var_name_v2 = 'training/' + OPT_NAME_V1_TO_V2[linear_opt_v1] + '/iter'
       var_name_v1 = 'global_step'
       _add_new_variable(tensor, var_name_v2, var_name_v1, var_map,
                         var_names_map)
