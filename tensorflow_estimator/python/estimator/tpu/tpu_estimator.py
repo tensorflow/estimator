@@ -470,7 +470,8 @@ class TPUInfeedOutfeedSessionHook(session_run_hook.SessionRunHook):
                rendezvous=None,
                master=None,
                session_config=None,
-               tpu_init_ops=None):
+               tpu_init_ops=None,
+               outfeed_every_n_steps=1):
     self._master_job = ctx.master_job
     self._enqueue_ops = enqueue_ops
     self._dequeue_ops = dequeue_ops
@@ -499,6 +500,7 @@ class TPUInfeedOutfeedSessionHook(session_run_hook.SessionRunHook):
       self._should_initialize_tpu = False
     else:
       self._should_initialize_tpu = True
+    self._outfeed_every_n_steps = outfeed_every_n_steps
 
   def begin(self):
     logging.info('TPU job name %s', self._master_job)
@@ -539,9 +541,12 @@ class TPUInfeedOutfeedSessionHook(session_run_hook.SessionRunHook):
     status_logger = PeriodicLogger(seconds=60)
     with self._rendezvous.catch_errors(source='outfeed', session=session):
       for count, steps in enumerate(queue_ctx.read_iteration_counts()):
+        step_counter = 0
         for i in xrange(steps):
           logging.debug('Outfeed dequeue for iteration (%d, %d)', count, i)
-          session.run(self._dequeue_ops)
+          if step_counter % self._outfeed_every_n_steps == 0:
+            session.run(self._dequeue_ops)
+          step_counter += 1
           status_logger.log('Outfeed finished for iteration (%d, %d)', count, i)
       logging.info('Outfeed thread finished, shutting down.')
 
@@ -1658,13 +1663,14 @@ class _ModelFnWrapper(object):
       representing the train step for TPU.
     """
 
-    host_call = _OutfeedHostCall(self._ctx)
+    host_call = _OutfeedHostCall(
+        self._ctx, outfeed_every_n_steps=self._config.tpu_config
+        .experimental_host_call_every_n_steps)
     captured_scaffold_fn = _CapturedObject()
     captured_training_hooks = _CapturedObject()
 
-    def train_step(loss):
+    def train_step(step):
       """Training step function for use inside a while loop."""
-      del loss  # unused; required in function signature.
       inputs = dequeue_fn()
       features, labels = inputs.features_and_labels()
       self._add_embedding_features(features, True)
@@ -1712,7 +1718,7 @@ class _ModelFnWrapper(object):
           # Ignore dummy hostcalls (no arguments)
           if host_call_args:
             host_call.record({'host_call': estimator_spec.host_call})
-            host_call_outfeed_ops = host_call.create_enqueue_op()
+            host_call_outfeed_ops = host_call.create_enqueue_op(step)
         else:
           # Create a host call for the loss to track execution progress
           # Without this, we don't have any indication of the state of the
@@ -1721,7 +1727,7 @@ class _ModelFnWrapper(object):
               'host_call': (lambda loss_t: loss_t,
                             [array_ops.reshape(loss, [1])])
           })
-          host_call_outfeed_ops = host_call.create_enqueue_op()
+          host_call_outfeed_ops = host_call.create_enqueue_op(step)
 
         with ops.control_dependencies(host_call_outfeed_ops):
           return array_ops.identity(loss)
@@ -1966,7 +1972,7 @@ class _ModelFnWrapper(object):
 class _OutfeedHostCall(object):
   """Support for `eval_metrics` and `host_call` in TPUEstimatorSpec."""
 
-  def __init__(self, ctx):
+  def __init__(self, ctx, outfeed_every_n_steps=1):
     self._ctx = ctx
     self._names = []
     # All of these are dictionaries of lists keyed on the name.
@@ -1975,6 +1981,7 @@ class _OutfeedHostCall(object):
     self._tensors = collections.defaultdict(list)
     self._tensor_dtypes = collections.defaultdict(list)
     self._tensor_shapes = collections.defaultdict(list)
+    self._outfeed_every_n_steps = outfeed_every_n_steps
 
   @staticmethod
   def validate(host_calls):
@@ -2044,7 +2051,7 @@ class _OutfeedHostCall(object):
           self._tensor_dtypes[name].append(tensor.dtype)
           self._tensor_shapes[name].append(tensor.shape)
 
-  def create_enqueue_op(self):
+  def create_enqueue_op(self, step=None):
     """Create the op to enqueue the recorded host_calls.
 
     Returns:
@@ -2058,8 +2065,19 @@ class _OutfeedHostCall(object):
     for name in self._names:
       tensors.extend(self._tensors[name])
 
+    if self._outfeed_every_n_steps > 1 and step is None:
+      raise ValueError('If outfeed is requested every n steps, you must pass '
+                       'a tensor whose value is the step number within the '
+                       'current training loop.')
     with ops.device(tpu.core(0)):
-      return [tpu_ops.outfeed_enqueue_tuple(tensors)]
+      if self._outfeed_every_n_steps == 1:
+        return [tpu_ops.outfeed_enqueue_tuple(tensors)]
+      else:
+        return [control_flow_ops.cond(
+            math_ops.equal(math_ops.mod(step, self._outfeed_every_n_steps), 0),
+            lambda: tpu_ops.outfeed_enqueue_tuple(tensors),
+            lambda: control_flow_ops.no_op())]
+
 
   def create_tpu_hostcall(self):
     """Sends the tensors through outfeed and runs the host_fn on CPU.
@@ -3141,7 +3159,9 @@ class TPUEstimator(estimator_lib.Estimator):
                   rendezvous=self._rendezvous[mode],
                   master=self._config.master,
                   session_config=self._session_config,
-                  tpu_init_ops=tpu_init_ops),
+                  tpu_init_ops=tpu_init_ops,
+                  outfeed_every_n_steps=self._config.tpu_config
+                  .experimental_host_call_every_n_steps),
               InstallSignalHandlerHook()
           ])
           if tpu_cluster_resolver.is_running_in_gce():
@@ -3469,8 +3489,11 @@ def _train_on_tpu_system(ctx, model_fn_wrapper, dequeue_fn):
 
   @tpu_function.on_device_training_loop
   def multi_tpu_train_steps_on_single_shard():
-    return training_loop.repeat(iterations_per_loop_var, single_tpu_train_step,
-                                [_INITIAL_LOSS])
+    outputs = training_loop.while_loop(
+        lambda i, loss : i < iterations_per_loop_var,
+        lambda i, loss : [i + 1, single_tpu_train_step(i)],
+        inputs=[0, _INITIAL_LOSS])
+    return outputs[1:]
 
   (compile_op, loss,) = tpu.split_compile_and_shard(
       multi_tpu_train_steps_on_single_shard,
