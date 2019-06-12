@@ -24,7 +24,9 @@ import six
 from tensorflow.python.eager import context
 from tensorflow.python.framework import constant_op
 from tensorflow.python.framework import dtypes
+from tensorflow.python.framework import test_util
 from tensorflow.python.keras.optimizer_v2 import optimizer_v2
+from tensorflow.python.keras.utils import losses_utils
 from tensorflow.python.ops import nn
 from tensorflow.python.ops import string_ops
 from tensorflow.python.ops import variables
@@ -853,6 +855,37 @@ class MultiHeadTest(test.TestCase):
           keys.LOSS + '/head1': expected_loss_head1,
           keys.LOSS + '/head2': expected_loss_head2,
       }, summary_str, tol)
+
+
+@test_util.deprecated_graph_mode_only
+class MultiHeadForEstimator(test.TestCase):
+  """Tests for create_estimator_spec running in Graph mode only."""
+
+  def test_loss_reduction_must_be_same(self):
+    """Tests the loss reduction must be the same for different heads."""
+    head1 = multi_label_head.MultiLabelHead(
+        n_classes=2,
+        name='head1',
+        loss_reduction=losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE)
+    head2 = multi_label_head.MultiLabelHead(
+        n_classes=3, name='head2', loss_reduction=losses_utils.ReductionV2.AUTO)
+    multi_head = multi_head_lib.MultiHead([head1, head2])
+    logits = {
+        'head1':
+            np.array([[-10., 10.], [-15., 10.]], dtype=np.float32),
+        'head2':
+            np.array([[20., -20., 20.], [-30., 20., -20.]], dtype=np.float32),
+    }
+    labels = {
+        'head1': np.array([[1, 0], [1, 1]], dtype=np.int64),
+        'head2': np.array([[0, 1, 0], [1, 1, 0]], dtype=np.int64),
+    }
+    with self.assertRaisesRegexp(ValueError, 'must be the same'):
+      multi_head.create_estimator_spec(
+          features={'x': np.array(((42,),), dtype=np.int32)},
+          mode=ModeKeys.TRAIN,
+          logits=logits,
+          labels=labels)
 
 
 if __name__ == '__main__':

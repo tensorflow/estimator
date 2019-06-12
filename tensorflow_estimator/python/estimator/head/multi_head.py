@@ -23,11 +23,9 @@ import six
 from tensorflow.python.eager import context
 from tensorflow.python.framework import ops
 from tensorflow.python.keras import metrics
-from tensorflow.python.keras.optimizer_v2 import optimizer_v2
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import math_ops
-from tensorflow.python.training import training_util
 from tensorflow_estimator.python.estimator import model_fn
 from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.export import export_output
@@ -167,7 +165,12 @@ class MultiHead(base_head.Head):
   @property
   def loss_reduction(self):
     """See `base_head.Head` for details."""
-    return None
+    loss_reductions = [head.loss_reduction for head in self._heads]
+    if len(set(loss_reductions)) > 1:
+      raise ValueError(
+          'The loss_reduction must be the same for different heads. '
+          'Given: {}'.format(loss_reductions))
+    return loss_reductions[0]
 
   def _split_logits(self, logits):
     """Splits logits along the last dimension and returns a dict.
@@ -420,24 +423,14 @@ class MultiHead(base_head.Head):
             eval_metric_ops=updated_metrics)
       # Train.
       if mode == ModeKeys.TRAIN:
-        # train_op.
-        if optimizer is not None:
-          if train_op_fn is not None:
-            raise ValueError('train_op_fn and optimizer cannot both be set.')
-          if isinstance(optimizer, optimizer_v2.OptimizerV2):
-            base_head.validate_trainable_variables(trainable_variables)
-            # optimizer_v2.get_updates always returns a list, and the first
-            # element is the train_op.
-            train_op = optimizer.get_updates(
-                loss, trainable_variables)[0]
-          else:
-            train_op = optimizer.minimize(
-                loss,
-                global_step=training_util.get_global_step())
-        elif train_op_fn is not None:
-          train_op = train_op_fn(loss)
-        else:
-          raise ValueError('train_op_fn and optimizer cannot both be None.')
+        train_op = base_head.create_estimator_spec_train_op(
+            head_name=self.name,
+            optimizer=optimizer,
+            train_op_fn=train_op_fn,
+            update_ops=update_ops,
+            trainable_variables=trainable_variables,
+            regularized_training_loss=loss,
+            loss_reduction=self.loss_reduction)
         # Create summary.
         base_head.create_estimator_spec_summary(loss, regularization_losses)
         # eval_metrics.
