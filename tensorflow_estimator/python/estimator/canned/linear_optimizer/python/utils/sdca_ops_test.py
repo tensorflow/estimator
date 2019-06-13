@@ -412,7 +412,7 @@ class SdcaWithLogisticLossTest(_SDCAModelTest):
       for _ in range(10):
         train_op.run()
       lr.update_weights(train_op).run()
-      self.assertNear(0.0, lr.approximate_duality_gap().eval(), err=1e-3)
+      self.assertNear(0.0, lr.approximate_duality_gap().eval(), err=1e-2)
 
   def testSparseDuplicate(self):
     # Setup test data
