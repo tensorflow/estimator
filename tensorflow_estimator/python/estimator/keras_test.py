@@ -32,6 +32,7 @@ from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import test_util
 from tensorflow.python.keras import testing_utils
+from tensorflow.python.keras.layers import recurrent_v2 as rnn_v2
 from tensorflow.python.keras.optimizers import SGD
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import parsing_ops
@@ -44,8 +45,8 @@ from tensorflow.python.saved_model import utils_impl as saved_model_utils
 from tensorflow.python.summary.writer import writer_cache
 from tensorflow.python.training import checkpoint_management
 from tensorflow.python.training import rmsprop
-from tensorflow.python.training import session_run_hook
 from tensorflow.python.training import saver as saver_lib
+from tensorflow.python.training import session_run_hook
 from tensorflow.python.training import training
 from tensorflow.python.training import training_util
 from tensorflow_estimator.python.estimator import keras as keras_lib
@@ -848,6 +849,26 @@ class TestKerasEstimator(test_util.TensorFlowTestCase, parameterized.TestCase):
         model_dir=tempfile.mkdtemp(dir=self._base_dir))
     eval_results = est_keras.evaluate(input_fn_multiple_targets, steps=1)
     self.assertAllClose(expected_loss, eval_results['loss'])
+
+  @parameterized.parameters([rnn_v2.LSTM, rnn_v2.GRU])
+  def test_model_to_estimator_with_rnn(self, layer):
+    # See https://github.com/tensorflow/tensorflow/issues/27750 for details.
+    timestep = 10
+    rnn_cell_size = 8
+
+    layers = [
+        keras.layers.Reshape([timestep, 1], input_shape=[timestep,]),
+        layer(rnn_cell_size, return_sequences=True),
+        layer(rnn_cell_size),
+        keras.layers.Dense(1)
+    ]
+
+    model = keras.Sequential(layers)
+    model.compile(loss='mse', optimizer='sgd')
+    keras_lib.model_to_estimator(
+        keras_model=model,
+        checkpoint_format='checkpoint',
+        model_dir=tempfile.mkdtemp(dir=self._base_dir))
 
 
 if __name__ == '__main__':

@@ -375,16 +375,22 @@ def _save_first_checkpoint(keras_model, custom_objects, config,
       training_util.create_global_step()
       model = _clone_and_build_model(ModeKeys.TRAIN, keras_model,
                                      custom_objects)
+
+      # Init the train_function outside of the context of session. This is due
+      # to the fact that train function will update the graph by adding backprop
+      # parts. This will potentially trying to update the node in forward graph
+      # which will fail if it is done within same session.
+      # Always create the train_function here since the model is just cloned.
+      # See https://github.com/tensorflow/tensorflow/issues/27750 for details.
+      model._make_train_function()  # pylint: disable=protected-access
+
       # save to checkpoint
       with session.Session(config=config.session_config) as sess:
         if keras_weights:
           model.set_weights(keras_weights)
-        # Make update ops and initialize all variables.
-        if not model.train_function:
-          # pylint: disable=protected-access
-          model._make_train_function()
-          K._initialize_variables(sess)
-          # pylint: enable=protected-access
+        # model._make_train_function() will potentially create the optimizer
+        # variable, which will require another variable initialization.
+        K._initialize_variables(sess)   # pylint: disable=protected-access
 
         if save_object_ckpt:
           model._track_trackable(  # pylint: disable=protected-access
