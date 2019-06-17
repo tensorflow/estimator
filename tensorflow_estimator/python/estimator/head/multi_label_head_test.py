@@ -383,7 +383,7 @@ class MultiLabelHead(test.TestCase):
     tol = 1e-3
     if context.executing_eagerly():
       loss = head.loss(
-          logits, labels, features=features or {}, mode=ModeKeys.EVAL,
+          labels, logits, features=features or {}, mode=ModeKeys.EVAL,
           regularization_losses=regularization_losses)
       self.assertIsNotNone(loss)
       self.assertAllClose(expected_loss, loss, rtol=tol, atol=tol)

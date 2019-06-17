@@ -29,6 +29,7 @@ from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import nn
 from tensorflow.python.ops import string_ops
 from tensorflow.python.ops import weights_broadcast_ops
+from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator import model_fn
 from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.canned import prediction_keys
@@ -37,6 +38,7 @@ from tensorflow_estimator.python.estimator.head import base_head
 from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 
 
+@estimator_export('estimator.BinaryClassHead')
 class BinaryClassHead(base_head.Head):
   """Creates a `Head` for single label binary classification.
 
@@ -217,7 +219,7 @@ class BinaryClassHead(base_head.Head):
         features=features, weight_column=self._weight_column, logits=logits)
     return unweighted_loss, weights
 
-  def loss(self, logits, labels, features=None, mode=None,
+  def loss(self, labels, logits, features=None, mode=None,
            regularization_losses=None):
     """Returns regularized training loss. See `base_head.Head` for details."""
     del mode  # Unused for this head.

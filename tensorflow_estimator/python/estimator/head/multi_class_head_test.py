@@ -612,7 +612,7 @@ class MultiClassHead(test.TestCase):
           rtol=tol,
           atol=tol)
       loss = head.loss(
-          logits, labels, features=features, mode=ModeKeys.EVAL)
+          labels, logits, features=features, mode=ModeKeys.EVAL)
       self.assertIsNotNone(loss)
       self.assertAllClose(expected_loss, loss, rtol=tol, atol=tol)
       return
@@ -909,7 +909,7 @@ class MultiClassHead(test.TestCase):
     expected_training_loss = 5.
     tol = 1e-2
     if context.executing_eagerly():
-      training_loss = head.loss(logits, labels, features)
+      training_loss = head.loss(labels, logits, features)
       self.assertAllClose(
           expected_training_loss, training_loss, rtol=tol, atol=tol)
       unreduced_loss, actual_weights = head._unweighted_loss_and_weights(
@@ -919,7 +919,7 @@ class MultiClassHead(test.TestCase):
       self.assertAllClose(expected_weights, actual_weights)
       return
 
-    training_loss = head.loss(logits, labels, features)
+    training_loss = head.loss(labels, logits, features)
     unreduced_loss, actual_weights = head._unweighted_loss_and_weights(
         logits, labels, features)
     with self.cached_session():
@@ -950,7 +950,7 @@ class MultiClassHead(test.TestCase):
     expected_training_loss = 10.
     tol = 1e-2
     if context.executing_eagerly():
-      training_loss = head.loss(logits, labels, features)
+      training_loss = head.loss(labels, logits, features)
       self.assertAllClose(
           expected_training_loss, training_loss, rtol=tol, atol=tol)
       unreduced_loss, actual_weights = head._unweighted_loss_and_weights(
@@ -960,7 +960,7 @@ class MultiClassHead(test.TestCase):
       self.assertAllClose(expected_weights, actual_weights)
       return
 
-    training_loss = head.loss(logits, labels, features)
+    training_loss = head.loss(labels, logits, features)
     unreduced_loss, actual_weights = head._unweighted_loss_and_weights(
         logits, labels, features)
     with self.cached_session():
@@ -1145,12 +1145,12 @@ class MultiClassHead(test.TestCase):
     tol = 1e-2
 
     if context.executing_eagerly():
-      training_loss = head.loss(logits, labels_rank_1, features)
+      training_loss = head.loss(labels_rank_1, logits, features)
       self.assertAllClose(
           expected_training_loss, training_loss, rtol=tol, atol=tol)
       return
 
-    training_loss = head.loss(logits, labels_rank_1, features)
+    training_loss = head.loss(labels_rank_1, logits, features)
     with self.cached_session():
       test_lib._initialize_variables(self, monitored_session.Scaffold())
       self.assertAllClose(
@@ -1393,12 +1393,12 @@ class MultiClassHead(test.TestCase):
     expected_training_loss = 13.875
     tol = 1e-2
     if context.executing_eagerly():
-      training_loss = head.loss(logits, labels, features={'weights': weights})
+      training_loss = head.loss(labels, logits, features={'weights': weights})
       self.assertAllClose(
           expected_training_loss, training_loss, rtol=tol, atol=tol)
       return
 
-    training_loss = head.loss(logits, labels, features={'weights': weights})
+    training_loss = head.loss(labels, logits, features={'weights': weights})
     with self.cached_session():
       test_lib._initialize_variables(self, monitored_session.Scaffold())
       self.assertAllClose(

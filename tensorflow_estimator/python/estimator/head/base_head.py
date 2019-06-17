@@ -40,6 +40,7 @@ from tensorflow.python.ops import weights_broadcast_ops
 from tensorflow.python.saved_model import signature_constants
 from tensorflow.python.summary import summary
 from tensorflow.python.util import function_utils
+from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.export import export_output
 
@@ -52,6 +53,8 @@ REGRESS_SERVING_KEY = 'regression'
 PREDICT_SERVING_KEY = 'predict'
 
 
+@estimator_export('estimator.Head')
+@six.add_metaclass(abc.ABCMeta)
 class Head(object):
   """Interface for the head/top of a model.
 
@@ -103,7 +106,6 @@ class Head(object):
           optimizer=optimizer)
     ```
   """
-  __metaclass__ = abc.ABCMeta
 
   @abc.abstractproperty
   def name(self):
@@ -138,7 +140,7 @@ class Head(object):
     raise NotImplementedError('Calling an abstract method.')
 
   @abc.abstractmethod
-  def loss(self, logits, labels, features=None, mode=None,
+  def loss(self, labels, logits, features=None, mode=None,
            regularization_losses=None):
     """Returns a loss `Tensor` from provided arguments.
 
@@ -146,9 +148,9 @@ class Head(object):
     some Head implementations may require them.
 
     Args:
-      logits: Logits `Tensor` to be used for loss construction.
       labels: Labels `Tensor`, or `dict` mapping string label names to `Tensor`
         objects of the label values.
+      logits: Logits `Tensor` to be used for loss construction.
       features: Input `dict` mapping string feature names to `Tensor` or
         `SparseTensor` objects containing the values for that feature in a
         minibatch. Often to be used to fetch example-weight tensor.

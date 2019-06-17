@@ -26,6 +26,7 @@ from tensorflow.python.keras import metrics
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import math_ops
+from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator import model_fn
 from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.export import export_output
@@ -53,6 +54,7 @@ def _default_export_output(export_outputs, head_name):
             head_name, export_outputs, base_head.DEFAULT_SERVING_KEY))
 
 
+@estimator_export('estimator.MultiHead')
 class MultiHead(base_head.Head):
   """Creates a `Head` for multi-objective learning.
 
@@ -259,7 +261,7 @@ class MultiHead(base_head.Head):
             labels_missing_names))
     return logits_dict
 
-  def loss(self, logits, labels, features=None, mode=None,
+  def loss(self, labels, logits, features=None, mode=None,
            regularization_losses=None):
     """Returns regularized training loss. See `base_head.Head` for details."""
     logits_dict = self._check_logits_and_labels(logits, labels)
@@ -409,7 +411,7 @@ class MultiHead(base_head.Head):
             mode=ModeKeys.PREDICT,
             predictions=predictions,
             export_outputs=export_outputs)
-      loss = self.loss(logits, labels, features, mode, regularization_losses)
+      loss = self.loss(labels, logits, features, mode, regularization_losses)
       # Eval.
       if mode == ModeKeys.EVAL:
         eval_metrics = self.metrics(regularization_losses=regularization_losses)

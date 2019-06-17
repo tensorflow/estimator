@@ -24,6 +24,7 @@ from tensorflow.python.keras.utils import losses_utils
 from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import nn
 from tensorflow.python.ops.losses import losses
+from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator import model_fn
 from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.canned import prediction_keys
@@ -32,6 +33,7 @@ from tensorflow_estimator.python.estimator.head import base_head
 from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 
 
+@estimator_export('estimator.RegressionHead')
 class RegressionHead(base_head.Head):
   """Creates a `Head` for regression using the `mean_squared_error` loss.
 
@@ -168,7 +170,7 @@ class RegressionHead(base_head.Head):
         allow_per_logit_weights=True)
     return unweighted_loss, weights
 
-  def loss(self, logits, labels, features=None, mode=None,
+  def loss(self, labels, logits, features=None, mode=None,
            regularization_losses=None):
     """Return predictions based on keys. See `base_head.Head` for details."""
     del mode  # Unused for this head.
@@ -355,6 +357,7 @@ class RegressionHead(base_head.Head):
         train_op=train_op)
 
 
+@estimator_export('estimator.PoissonRegressionHead')
 class PoissonRegressionHead(RegressionHead):
   """Creates a `Head` for poisson regression using `tf.nn.log_poisson_loss`.
 
@@ -443,6 +446,7 @@ class PoissonRegressionHead(RegressionHead):
         compute_full_loss=self._compute_full_loss)
 
 
+@estimator_export('estimator.LogisticRegressionHead')
 class LogisticRegressionHead(RegressionHead):
   """Creates a `Head` for logistic regression.
 

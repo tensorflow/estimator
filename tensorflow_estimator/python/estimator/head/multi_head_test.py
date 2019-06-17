@@ -326,7 +326,7 @@ class MultiHeadTest(test.TestCase):
 
     if context.executing_eagerly():
       loss = multi_head.loss(
-          logits, labels, features=features, mode=ModeKeys.EVAL)
+          labels, logits, features=features, mode=ModeKeys.EVAL)
       self.assertIsNotNone(loss)
       self.assertAllClose(expected_loss, loss, rtol=tol, atol=tol)
 
@@ -373,8 +373,8 @@ class MultiHeadTest(test.TestCase):
     logits = {'head1': np.array([[-10., 10.], [-15., 10.]], dtype=np.float32)}
     labels = {'head1': np.array([[1, 0], [1, 1]], dtype=np.int64)}
     loss = multi_head.loss(
-        logits=logits,
         labels=labels,
+        logits=logits,
         features={'x': np.array(((42,),), dtype=np.int32)},
         mode=ModeKeys.TRAIN)
     tol = 1e-3

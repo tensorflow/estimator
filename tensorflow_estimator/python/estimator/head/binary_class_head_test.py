@@ -438,7 +438,7 @@ class BinaryClassHeadTest(test.TestCase):
           expected_metrics,
           {k: updated_metrics[k].result() for k in updated_metrics})
       loss = head.loss(
-          logits, labels, features=features, mode=ModeKeys.EVAL)
+          labels, logits, features=features, mode=ModeKeys.EVAL)
       self.assertIsNotNone(loss)
       self.assertAllClose(expected_loss, loss)
       return
@@ -720,12 +720,12 @@ class BinaryClassHeadTest(test.TestCase):
     expected_training_loss = 20.5
     # Create loss.
     if context.executing_eagerly():
-      training_loss = head.loss(logits, labels, features)
+      training_loss = head.loss(labels, logits, features)
       self.assertAllClose(
           expected_training_loss, training_loss)
       return
 
-    training_loss = head.loss(logits, labels, features)
+    training_loss = head.loss(labels, logits, features)
     with self.cached_session():
       test_lib._initialize_variables(self, monitored_session.Scaffold())
       self.assertAllClose(expected_training_loss, training_loss.eval())
@@ -743,12 +743,12 @@ class BinaryClassHeadTest(test.TestCase):
     expected_training_loss = 41.
     # Create loss.
     if context.executing_eagerly():
-      training_loss = head.loss(logits, labels, features)
+      training_loss = head.loss(labels, logits, features)
       self.assertAllClose(
           expected_training_loss, training_loss)
       return
 
-    training_loss = head.loss(logits, labels, features)
+    training_loss = head.loss(labels, logits, features)
     with self.cached_session():
       test_lib._initialize_variables(self, monitored_session.Scaffold())
       self.assertAllClose(expected_training_loss, training_loss.eval())
@@ -836,12 +836,12 @@ class BinaryClassHeadTest(test.TestCase):
     expected_training_loss = 23.366666667
     # Create loss.
     if context.executing_eagerly():
-      training_loss = head.loss(logits, labels_rank_1, features)
+      training_loss = head.loss(labels_rank_1, logits, features)
       self.assertAllClose(
           expected_training_loss, training_loss)
       return
 
-    training_loss = head.loss(logits, labels_rank_1, features)
+    training_loss = head.loss(labels_rank_1, logits, features)
     self.assertAllClose(
         expected_training_loss, self.evaluate(training_loss))
 
@@ -1183,7 +1183,7 @@ class BinaryClassHeadTest(test.TestCase):
           expected_metrics,
           {k: updated_metrics[k].result() for k in updated_metrics})
       loss = head.loss(
-          logits, labels, features=features, mode=ModeKeys.EVAL)
+          labels, logits, features=features, mode=ModeKeys.EVAL)
       self.assertIsNotNone(loss)
       self.assertAllClose(expected_loss, loss)
       return
@@ -1281,13 +1281,13 @@ class BinaryClassHeadTest(test.TestCase):
     tol = 1e-2
     # Create loss.
     if context.executing_eagerly():
-      training_loss = head.loss(logits, labels, features,
+      training_loss = head.loss(labels, logits, features,
                                 mode=ModeKeys.TRAIN)
       self.assertAllClose(
           expected_training_loss, training_loss, rtol=tol, atol=tol)
       return
 
-    training_loss = head.loss(logits, labels, features)
+    training_loss = head.loss(labels, logits, features)
     with self.cached_session():
       test_lib._initialize_variables(self, monitored_session.Scaffold())
       self.assertAllClose(
@@ -1309,7 +1309,7 @@ class BinaryClassHeadTest(test.TestCase):
     tol = 1e-2
     # Create loss.
     if context.executing_eagerly():
-      training_loss = head.loss(logits, labels, features,
+      training_loss = head.loss(labels, logits, features,
                                 mode=ModeKeys.TRAIN)
       self.assertAllClose(
           expected_loss, training_loss, rtol=tol, atol=tol)

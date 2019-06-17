@@ -431,7 +431,7 @@ class RegressionHead(test.TestCase):
           expected_loss_mean,
           update_metrics[metric_keys.MetricKeys.LOSS_MEAN].result())
       loss = head.loss(
-          logits, labels, features=features, mode=ModeKeys.EVAL)
+          labels, logits, features=features, mode=ModeKeys.EVAL)
       self.assertIsNotNone(loss)
       self.assertAllClose(expected_loss, loss)
     else:
@@ -606,7 +606,7 @@ class RegressionHead(test.TestCase):
         return constant_op.constant(expected_train_result)
 
     preds = head.predictions(logits)
-    loss = head.loss(logits, labels, features=features)
+    loss = head.loss(labels, logits, features=features)
     prediction_key = prediction_keys.PredictionKeys.PREDICTIONS
     self.assertItemsEqual((prediction_key,), preds.keys())
     self.assertEqual(dtypes.float32, preds[prediction_key].dtype)
@@ -660,7 +660,7 @@ class RegressionHead(test.TestCase):
     # loss = unregularized_loss + regularization_loss = 8.5
     expected_loss = 8.5
     prediction_key = prediction_keys.PredictionKeys.PREDICTIONS
-    loss = head.loss(logits, labels, features=features,
+    loss = head.loss(labels, logits, features=features,
                      mode=ModeKeys.TRAIN,
                      regularization_losses=regularization_losses)
     preds = head.predictions(logits)
@@ -737,7 +737,7 @@ class RegressionHead(test.TestCase):
           expected_loss_mean,
           updated_metrics[metric_keys.MetricKeys.LOSS_MEAN].result())
       loss = head.loss(
-          logits, labels, features=features, mode=ModeKeys.EVAL)
+          labels, logits, features=features, mode=ModeKeys.EVAL)
       self.assertIsNotNone(loss)
       self.assertAllClose(expected_loss, loss)
     else:
@@ -780,7 +780,7 @@ class RegressionHead(test.TestCase):
     }
     labels = np.array(((35,), (42,), (45,)), dtype=np.int32)
 
-    loss = head.loss(logits, labels, features=features)
+    loss = head.loss(labels, logits, features=features)
     # weighted_loss = 1*(35-45)^2 + .1*(42-41)^2 + 1.5*(45-44)^2
     #               = 100+.1+1.5 = 101.6
     # loss = weighted_loss / batch_size = 101.6 / 3 = 33.8666667
@@ -802,7 +802,7 @@ class RegressionHead(test.TestCase):
     # expected_loss = weighted_loss / batch_size = 101.6 / 3 = 33.8666667
     expected_loss = 33.8666667
     preds = head.predictions(logits)
-    loss = head.loss(logits, labels, features=features,
+    loss = head.loss(labels, logits, features=features,
                      mode=ModeKeys.TRAIN)
 
     prediction_key = prediction_keys.PredictionKeys.PREDICTIONS
@@ -886,7 +886,7 @@ class RegressionHead(test.TestCase):
     self.assertEqual((3,), weight_rank_1.shape)
     self.assertEqual((3,), labels_rank_1.shape)
     preds = head.predictions(logits)
-    loss = head.loss(logits, labels=labels_rank_1, features=features,
+    loss = head.loss(labels=labels_rank_1, logits=logits, features=features,
                      mode=ModeKeys.TRAIN)
     prediction_key = prediction_keys.PredictionKeys.PREDICTIONS
     self.assertItemsEqual((prediction_key,), preds.keys())
@@ -990,7 +990,7 @@ class RegressionHead(test.TestCase):
           expected_loss_mean,
           updated_metrics[metric_keys.MetricKeys.LOSS_MEAN].result())
       loss = head.loss(
-          logits, labels, features=features, mode=ModeKeys.EVAL)
+          labels, logits, features=features, mode=ModeKeys.EVAL)
       self.assertIsNotNone(loss)
       self.assertAllClose(expected_loss, loss)
     else:
@@ -1064,7 +1064,7 @@ class RegressionHead(test.TestCase):
         'label_weights': np.array(((1., .1, 1.5),)),
     }
     preds = head.predictions(logits)
-    loss = head.loss(logits, labels, features=features,
+    loss = head.loss(labels, logits, features=features,
                      mode=ModeKeys.TRAIN)
     prediction_key = prediction_keys.PredictionKeys.PREDICTIONS
     self.assertItemsEqual((prediction_key,), preds.keys())
@@ -1164,7 +1164,7 @@ class RegressionHead(test.TestCase):
       expected_losses = np.array((100, .1, 1.5))
       for (batch, (features, labels)) in enumerate(dataset):
         logits = features['logits']
-        loss = head.loss(logits, labels, features=features)
+        loss = head.loss(labels, logits, features=features)
         self.assertAllClose(expected_losses[batch], loss)
 
   def test_multi_dim_weighted_train_create_loss(self):
@@ -1209,7 +1209,7 @@ class RegressionHead(test.TestCase):
     # weighted_loss_sum = (1*3*1^2 + 1.5*3*2^2 + 2*3*3^2 +2.5*3*4^2) = 195
     # loss = weighted_loss_sum / batch_size = 195 / (2*2*3) = 16.25
     expected_loss = 16.25
-    loss = head.loss(logits, labels, features=features,
+    loss = head.loss(labels, logits, features=features,
                      mode=ModeKeys.TRAIN)
     self.assertAllClose(expected_loss, self.evaluate(loss))
     if context.executing_eagerly():
