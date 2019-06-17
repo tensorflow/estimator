@@ -24,6 +24,7 @@ import tempfile
 import numpy as np
 
 from google.protobuf import text_format
+from tensorflow.python.compat import compat
 from tensorflow.core.kernels.boosted_trees import boosted_trees_pb2
 from tensorflow.python.client import session
 from tensorflow.python.data.ops import dataset_ops
@@ -49,6 +50,8 @@ from tensorflow_estimator.python.estimator.export import export_lib
 from tensorflow_estimator.python.estimator.inputs import numpy_io
 from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 from tensorflow.python.framework import test_util
+from tensorflow.python.ops import control_flow_util
+from tensorflow.python.ops import variable_scope
 
 NUM_FEATURES = 3
 
@@ -155,6 +158,100 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
                 str(i)))
 
     return ensemble_proto
+  
+  @test_util.run_in_graph_and_eager_modes()
+  def testV2(self):
+    # Test into the future.
+    with compat.forward_compatibility_horizon(2019, 7, 9):
+      control_flow_util.enable_control_flow_v2()
+      variable_scope.enable_resource_variables()
+
+      categorical = feature_column.categorical_column_with_vocabulary_list(
+          key='f_0', vocabulary_list=('bad', 'good', 'ok'))
+      indicator_col = feature_column.indicator_column(categorical)
+      bucketized_col = feature_column.bucketized_column(
+          feature_column.numeric_column('f_1', dtype=dtypes.float32),
+          BUCKET_BOUNDARIES)
+      numeric_col = feature_column.numeric_column('f_2', dtype=dtypes.float32)
+
+      labels = np.array([[0], [1], [1], [1], [1]], dtype=np.float32)
+      input_fn = numpy_io.numpy_input_fn(
+          x={
+              'f_0': np.array(['bad', 'good', 'good', 'ok', 'bad']),
+              'f_1': np.array([1, 1, 1, 1, 1]),
+              'f_2': np.array([12.5, 1.0, -2.001, -2.0001, -1.999]),
+          },
+          y=labels,
+          num_epochs=None,
+          batch_size=5,
+          shuffle=False)
+      feature_columns = [numeric_col, bucketized_col, indicator_col]
+
+      est = boosted_trees.BoostedTreesClassifier(
+          feature_columns=feature_columns,
+          n_batches_per_layer=1,
+          n_trees=1,
+          max_depth=5,
+          quantile_sketch_epsilon=0.33)
+
+      # It will stop after 5 steps because of the max depth and num trees.
+      num_steps = 100
+      # Train for a few steps, and validate final checkpoint.
+      est.train(input_fn, steps=num_steps)
+      self._assert_checkpoint_and_return_model(
+          est.model_dir,
+          global_step=5,
+          finalized_trees=1,
+          attempted_layers=5,
+          bucket_boundaries=[[-2.001, -1.999, 12.5]])
+      eval_res = est.evaluate(input_fn=input_fn, steps=1)
+      self.assertAllClose(eval_res['accuracy'], 1.0)
+      
+  @test_util.run_in_graph_and_eager_modes()
+  def testSwitchingConditionalAccumulatorForV1(self):
+    # Test into the future.
+    with compat.forward_compatibility_horizon(2019, 7, 9):
+      categorical = feature_column.categorical_column_with_vocabulary_list(
+          key='f_0', vocabulary_list=('bad', 'good', 'ok'))
+      indicator_col = feature_column.indicator_column(categorical)
+      bucketized_col = feature_column.bucketized_column(
+          feature_column.numeric_column('f_1', dtype=dtypes.float32),
+          BUCKET_BOUNDARIES)
+      numeric_col = feature_column.numeric_column('f_2', dtype=dtypes.float32)
+
+      labels = np.array([[0], [1], [1], [1], [1]], dtype=np.float32)
+      input_fn = numpy_io.numpy_input_fn(
+          x={
+              'f_0': np.array(['bad', 'good', 'good', 'ok', 'bad']),
+              'f_1': np.array([1, 1, 1, 1, 1]),
+              'f_2': np.array([12.5, 1.0, -2.001, -2.0001, -1.999]),
+          },
+          y=labels,
+          num_epochs=None,
+          batch_size=5,
+          shuffle=False)
+      feature_columns = [numeric_col, bucketized_col, indicator_col]
+
+      est = boosted_trees.BoostedTreesClassifier(
+          feature_columns=feature_columns,
+          n_batches_per_layer=1,
+          n_trees=1,
+          max_depth=5,
+          quantile_sketch_epsilon=0.33)
+
+      # It will stop after 5 steps because of the max depth and num trees.
+      num_steps = 100
+      # Train for a few steps, and validate final checkpoint.
+      est.train(input_fn, steps=num_steps)
+      self._assert_checkpoint_and_return_model(
+          est.model_dir,
+          global_step=5,
+          finalized_trees=1,
+          attempted_layers=5,
+          bucket_boundaries=[[-2.001, -1.999, 12.5]])
+      eval_res = est.evaluate(input_fn=input_fn, steps=1)
+      self.assertAllClose(eval_res['accuracy'], 1.0)
+    
 
   @test_util.run_in_graph_and_eager_modes()
   def testSavedModel(self):

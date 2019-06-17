@@ -21,6 +21,7 @@ import collections
 
 import numpy as np
 
+from tensorflow.python.compat import compat
 from tensorflow.core.kernels.boosted_trees import boosted_trees_pb2
 from tensorflow.python.data.ops import dataset_ops
 from tensorflow.python.feature_column import feature_column_lib as feature_column
@@ -32,6 +33,8 @@ from tensorflow.python.training import checkpoint_utils
 from tensorflow_estimator.contrib.estimator.python.estimator import boosted_trees
 from tensorflow_estimator.python.estimator.canned import boosted_trees as canned_boosted_trees
 from tensorflow_estimator.python.estimator.inputs import numpy_io
+from tensorflow.python.ops import control_flow_util
+from tensorflow.python.ops import variable_scope
 
 NUM_FEATURES = 3
 
@@ -338,6 +341,64 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
     self.assertAllClose(
         [[0.571619], [0.262821], [0.124549], [0.956801], [1.769801]],
         [pred['predictions'] for pred in predictions])
+
+  def testV2(self):
+    with compat.forward_compatibility_horizon(2019, 7, 9):
+      control_flow_util.enable_control_flow_v2()
+      variable_scope.enable_resource_variables()
+
+      train_input_fn = _make_train_input_fn_dataset(is_classification=True)
+      predict_input_fn = numpy_io.numpy_input_fn(
+          x=FEATURES_DICT, y=None, batch_size=1, num_epochs=1, shuffle=False)
+
+      est = boosted_trees.boosted_trees_classifier_train_in_memory(
+          train_input_fn=train_input_fn,
+          feature_columns=self._numeric_feature_columns,
+          n_trees=1,
+          max_depth=5,
+          quantile_sketch_epsilon=0.33)
+
+      # It will stop after 5 steps because of the max depth and num trees.
+      self._assert_checkpoint(
+          est.model_dir,
+          global_step=5,
+          finalized_trees=1,
+          attempted_layers=5,
+          bucket_boundaries=[[-2.001, -1.999, 12.5], [-3., 0.4995, 2.],
+                             [-100., 20., 102.75]])
+      eval_res = est.evaluate(input_fn=train_input_fn, steps=1)
+      self.assertAllClose(eval_res['accuracy'], 1.0)
+      predictions = list(est.predict(input_fn=predict_input_fn))
+      self.assertAllClose([[0], [1], [1], [0], [0]],
+                          [pred['class_ids'] for pred in predictions])
+
+  def testSwitchingConditionalAccumulatorForV1(self):
+    # Test into the future.
+    with compat.forward_compatibility_horizon(2019, 7, 9):
+      train_input_fn = _make_train_input_fn_dataset(is_classification=True)
+      predict_input_fn = numpy_io.numpy_input_fn(
+          x=FEATURES_DICT, y=None, batch_size=1, num_epochs=1, shuffle=False)
+
+      est = boosted_trees.boosted_trees_classifier_train_in_memory(
+          train_input_fn=train_input_fn,
+          feature_columns=self._numeric_feature_columns,
+          n_trees=1,
+          max_depth=5,
+          quantile_sketch_epsilon=0.33)
+
+      # It will stop after 5 steps because of the max depth and num trees.
+      self._assert_checkpoint(
+          est.model_dir,
+          global_step=5,
+          finalized_trees=1,
+          attempted_layers=5,
+          bucket_boundaries=[[-2.001, -1.999, 12.5], [-3., 0.4995, 2.],
+                             [-100., 20., 102.75]])
+      eval_res = est.evaluate(input_fn=train_input_fn, steps=1)
+      self.assertAllClose(eval_res['accuracy'], 1.0)
+      predictions = list(est.predict(input_fn=predict_input_fn))
+      self.assertAllClose([[0], [1], [1], [0], [0]],
+                          [pred['class_ids'] for pred in predictions])    
 
 
 if __name__ == '__main__':
