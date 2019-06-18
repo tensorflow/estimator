@@ -27,7 +27,9 @@ from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import sparse_tensor
 from tensorflow.python.ops import math_ops
+from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.tpu import feature_column as tpu_fc
+from tensorflow.python.tpu import feature_column_v2 as tpu_fc_v2
 from tensorflow.python.tpu import tpu_embedding
 from tensorflow.python.tpu.tpu_embedding import AdagradParameters
 from tensorflow.python.tpu.tpu_embedding import AdamParameters
@@ -37,7 +39,9 @@ from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
 
 # pylint: disable=protected-access
 _TPU_EMBEDDING_COLUMN_CLASSES = (tpu_fc._TPUEmbeddingColumn,
-                                 tpu_fc._TPUSharedEmbeddingColumn)
+                                 tpu_fc._TPUSharedEmbeddingColumn,
+                                 tpu_fc_v2._TPUEmbeddingColumnV2,
+                                 tpu_fc_v2._TPUSharedEmbeddingColumnV2)
 _EMBEDDING_COLUMN_CLASSES = (core_fc._EmbeddingColumn,
                              core_fc_lib.EmbeddingColumn,
                              core_fc._SharedEmbeddingColumn)
@@ -60,19 +64,23 @@ def _get_embedding_var_name_from_table_name(table_name):
 
 
 def _get_embedding_variable_name(scope_name, var_name):
-  return '{}/{}'.format(scope_name, var_name)
+  if scope_name:
+    scope_name = scope_name + '/'
+  return '{}{}'.format(scope_name, var_name)
 
 
 def _get_slot_variable_names(scope_name, var_name, optimization_parameters):
   """Return embedding variable names which are consistent with CPU runs."""
+  if scope_name:
+    scope_name = scope_name + '/'
   if isinstance(optimization_parameters, tpu_embedding.AdagradParameters):
     return tpu_embedding.AdagradSlotVariableName(
-        '{}/{}/Adagrad'.format(scope_name, var_name)
+        '{}{}/Adagrad'.format(scope_name, var_name)
     )
   elif isinstance(optimization_parameters, tpu_embedding.AdamParameters):
     return tpu_embedding.AdamSlotVariableNames(
-        '{}/{}/Adam/m'.format(scope_name, var_name),
-        '{}/{}/Adam/v'.format(scope_name, var_name)
+        '{}{}/Adam/m'.format(scope_name, var_name),
+        '{}{}/Adam/v'.format(scope_name, var_name)
     )
   elif isinstance(optimization_parameters,
                   tpu_embedding.StochasticGradientDescentParameters):
@@ -119,12 +127,18 @@ def get_configs_from_feature_columns(feature_columns):
     features to their config.
   """
 
-  allowed = (tpu_fc._TPUEmbeddingColumn, tpu_fc._TPUSharedEmbeddingColumn)  # pylint: disable=protected-access
+  allowed = (tpu_fc_v2._TPUEmbeddingColumnV2,  # pylint: disable=protected-access
+             tpu_fc_v2._TPUSharedEmbeddingColumnV2)  # pylint: disable=protected-access
+  warn = (tpu_fc._TPUEmbeddingColumn, tpu_fc._TPUSharedEmbeddingColumn)  # pylint: disable=protected-access
 
   for column in feature_columns:
-    if not isinstance(column, allowed):
+    if not isinstance(column, allowed + warn):
       raise TypeError(
           'Unsupported feature column {}. Supported types are {}.'.format(
+              type(column), allowed))
+    if isinstance(column, warn):
+      logging.warn(
+          'Columns of type {} are deprecated. Supported types are {}.'.format(
               type(column), allowed))
 
   table_to_config = {}
