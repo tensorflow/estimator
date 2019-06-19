@@ -1284,36 +1284,35 @@ class _InputPipeline(object):
     def has_labels(self):
       return 'labels' in self._feature_structure
 
-    def _flatten_input_dims(self, feature_dims, feature_dims_names, label_dims,
-                            label_dims_names, label_names, has_labels):
+    def _flatten_input_dims(self, features, labels, feature_dims, label_dims):
       """Flatten input dims with the same order as flattened input tensors."""
-      flattened_input_dims = []
-      if feature_dims_names:
-        # We need a fixed ordering for matching the tensors in features.
-        flattened_input_dims.extend(
-            [feature_dims[name] for name in feature_dims_names])
-      else:
-        flattened_input_dims.append(feature_dims)
 
-      if label_dims_names:
-        # We need a fixed ordering for matching the tensors in labels.
-        flattened_input_dims.extend(
-            [label_dims[name] for name in label_dims_names])
-      else:
-        if label_names:
-          num_tensors_in_label = len(label_names)
+      try:
+        flattened_input_dims = data_nest.flatten_up_to(features, feature_dims)
+      except TypeError as e:
+        raise ValueError(
+            'TPUConfig.input_partition_dims[0] mismatched the structure of'
+            ' features. input_partition_dims[0]: {}, features {}. {}'.format(
+                feature_dims, features, e))
+
+      if labels is not None:
+        if label_dims is not None:
+          try:
+            flattened_input_dims.extend(
+                data_nest.flatten_up_to(labels, self._label_dims))
+          except TypeError as e:
+            raise ValueError(
+                'TPUConfig.input_partition_dims[1] mismatched the structure of'
+                ' labels. input_partition_dims[1]: {}, labels: {}. {}'.format(
+                    label_dims, labels, e))
         else:
-          num_tensors_in_label = int(has_labels)
-        # Setting `None` in input_partition_dims[1] will apply `None` to
-        # all the tensors in labels, regardless of internal structure.
-        flattened_input_dims.extend([label_dims] * num_tensors_in_label)
-
+          num_label_tensors = len(data_nest.flatten(labels))
+          flattened_input_dims.extend([None] * num_label_tensors)
       return flattened_input_dims
 
     def validate_and_record_structure(self, features, labels):
       """Validates and records the structure of `features` and `labels`."""
       # Extract structure.
-      has_labels = labels is not None
       feature_names = _extract_key_names(features)
       label_names = _extract_key_names(labels)
 
@@ -1327,17 +1326,14 @@ class _InputPipeline(object):
                 'TPUConfig.input_partition_dims[0] mismatched feature'
                 ' keys. Expected {}, got {}'.format(feature_names,
                                                     feature_dims_names))
-
           label_dims_names = _extract_key_names(self._label_dims)
           if self._label_dims is not None and label_dims_names != label_names:
             raise ValueError(
                 'TPUConfig.input_partition_dims[1] mismatched label'
                 ' keys. Expected {}, got {}'.format(label_names,
                                                     label_dims_names))
-
           self._flattened_input_dims = self._flatten_input_dims(
-              self._feature_dims, feature_dims_names, self._label_dims,
-              label_dims_names, label_names, has_labels)
+              features, labels, self._feature_dims, self._label_dims)
 
     def flatten_features_and_labels(self, features, labels, signals=None):
       """Flattens the `features` and `labels` to a single tensor list."""
