@@ -417,12 +417,12 @@ class DistributeCoordinatorIntegrationTest(
     if (train_distribute_cls == parameter_server_strategy
         .ParameterServerStrategy):
       cluster_spec = multi_worker_test_base.create_cluster_spec(
-          num_workers=3, num_ps=2, has_eval=True)
+          num_workers=3, num_ps=2, has_eval=True, test_obj=self)
       # 3 workers, 2 ps and 1 evaluator.
       self._barrier = dc._Barrier(6)
     else:
       cluster_spec = multi_worker_test_base.create_cluster_spec(
-          num_workers=3, num_ps=0, has_eval=True)
+          num_workers=3, num_ps=0, has_eval=True, test_obj=self)
       # 3 workers and 1 evaluator.
       self._barrier = dc._Barrier(4)
 
@@ -471,7 +471,7 @@ class DistributeCoordinatorIntegrationTest(
       eval_distribute = None
 
     cluster_spec = multi_worker_test_base.create_cluster_spec(
-        num_workers=3, num_ps=0, has_eval=True)
+        num_workers=3, num_ps=0, has_eval=True, test_obj=self)
     # 3 workers and 1 evaluator.
     self._barrier = dc._Barrier(4)
     threads = self.run_multiple_tasks_in_threads(self._independent_worker_fn,
