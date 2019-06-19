@@ -16,6 +16,7 @@ ESTIMATOR_API_INIT_FILES_V1 = [
     "estimator/export/__init__.py",
     "estimator/inputs/__init__.py",
     "estimator/tpu/__init__.py",
+    "estimator/tpu/experimental/__init__.py",
 ]
 
 ESTIMATOR_API_INIT_FILES_V2 = [
