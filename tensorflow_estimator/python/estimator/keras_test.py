@@ -28,6 +28,7 @@ import numpy as np
 from tensorflow.core.protobuf import config_pb2
 from tensorflow.python import keras
 from tensorflow.python.data.ops import dataset_ops
+from tensorflow.python.feature_column import feature_column_v2 as feature_column
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import test_util
@@ -52,6 +53,7 @@ from tensorflow.python.training import training_util
 from tensorflow_estimator.python.estimator import keras as keras_lib
 from tensorflow_estimator.python.estimator import run_config as run_config_lib
 from tensorflow_estimator.python.estimator.export import export_lib
+from tensorflow_estimator.python.estimator.inputs import numpy_io
 from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 
 
@@ -321,6 +323,38 @@ class TestKerasEstimator(test_util.TensorFlowTestCase, parameterized.TestCase):
       latest_checkpoint = checkpoint_management.latest_checkpoint(
           est_keras.model_dir)
       keras_model.load_weights(latest_checkpoint)
+
+  def test_train_with_dense_features(self):
+    feature_dict = {
+        'sex': np.int64([1, 1, 1, 1, 0]),
+        'cp': np.int64([0, 3, 3, 2, 1]),
+        'slope': np.int64([3, 2, 0, 3, 1]),
+    }
+    label = np.int64([0, 1, 0, 0, 0])
+    train_input_fn = numpy_io.numpy_input_fn(
+        x=feature_dict, y=label, num_epochs=1, shuffle=False)
+    feature_columns = list()
+    input_features = dict()
+    for feature_name, data_array in feature_dict.items():
+      feature_columns.append(
+          feature_column.indicator_column(
+              feature_column.categorical_column_with_identity(
+                  key=feature_name,
+                  num_buckets=np.size(np.unique(data_array)))))
+      input_features[feature_name] = keras.layers.Input(
+          name=feature_name,
+          shape=(np.size(np.unique(data_array)),),
+          dtype=dtypes.int64)
+
+    x = feature_column.DenseFeatures(feature_columns)(input_features)
+    x = keras.layers.Dense(16, activation='relu')(x)
+    logits = keras.layers.Dense(1, activation='linear')(x)
+    model = keras.Model(inputs=input_features, outputs=logits)
+
+    model.compile(
+        optimizer='rmsprop', loss='binary_crossentropy', metrics=['accuracy'])
+    estimator_model = keras_lib.model_to_estimator(keras_model=model)
+    estimator_model.train(input_fn=train_input_fn, steps=5)
 
   def test_evaluate(self):
     keras_model, (x_train, y_train), (
@@ -803,7 +837,7 @@ class TestKerasEstimator(test_util.TensorFlowTestCase, parameterized.TestCase):
         loss='mean_absolute_error',
         optimizer='adam')
 
-    features = [[0], [0], [1], [1]]
+    features = [[0.], [0], [1], [1]]
     sample_weights = [0, .4, 1, 1]
     targets = [[0], [1], [0], [1]]
 

@@ -31,7 +31,6 @@ from tensorflow.python.framework import tensor_util
 from tensorflow.python.keras import backend as K
 from tensorflow.python.keras import models
 from tensorflow.python.keras.engine import training_utils
-from tensorflow.python.ops import check_ops
 from tensorflow.python.ops import math_ops
 from tensorflow.python.platform import gfile
 from tensorflow.python.platform import tf_logging as logging
@@ -64,9 +63,6 @@ def _convert_tensor(x):
   if not tensor_util.is_tensor(x):
     # x is a numpy array
     x = sparse_tensor_lib.convert_to_tensor_or_sparse_tensor(x)
-  if check_ops.is_numeric_tensor(x):
-    # is_numeric_tensor returns False if provided with a numpy array
-    x = _cast_tensor_to_floatx(x)
   return x
 
 
