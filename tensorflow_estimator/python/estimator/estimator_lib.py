@@ -38,6 +38,8 @@ from tensorflow_estimator.python.estimator.canned.linear import LinearEstimator
 from tensorflow_estimator.python.estimator.canned.linear import LinearRegressor
 from tensorflow_estimator.python.estimator.canned.parsing_utils import classifier_parse_example_spec
 from tensorflow_estimator.python.estimator.canned.parsing_utils import regressor_parse_example_spec
+from tensorflow_estimator.python.estimator.canned.rnn import RNNClassifier
+from tensorflow_estimator.python.estimator.canned.rnn import RNNEstimator
 from tensorflow_estimator.python.estimator.early_stopping import *
 from tensorflow_estimator.python.estimator.estimator import Estimator
 from tensorflow_estimator.python.estimator.estimator import VocabInfo

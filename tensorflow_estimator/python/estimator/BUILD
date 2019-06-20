@@ -40,6 +40,7 @@ py_library(
         ":multi_label_head",
         ":parsing_utils",
         ":regression_head",
+        ":rnn",
         ":run_config",
         ":saved_model_estimator",
         ":sequential_head",
@@ -1788,6 +1789,52 @@ py_library(
     srcs_version = "PY2AND3",
     deps = [
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
+    ],
+)
+
+py_library(
+    name = "rnn",
+    srcs = ["canned/rnn.py"],
+    srcs_version = "PY2AND3",
+    deps = [
+        ":binary_class_head",
+        ":estimator",
+        ":multi_class_head",
+        ":optimizers",
+        ":sequential_head",
+        "//tensorflow_estimator/python/estimator:expect_six_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
+    ],
+)
+
+py_test(
+    name = "rnn_test",
+    size = "medium",
+    srcs = ["canned/rnn_test.py"],
+    python_version = "PY2",
+    srcs_version = "PY2AND3",
+    tags = [
+        "no_pip",
+        "noasan",  # times out
+        "notsan",
+        "optonly",  # times out http://b/79220679
+    ],
+    deps = [
+        ":export",
+        ":head",
+        ":metric_keys",
+        ":multi_class_head",
+        ":numpy_io",
+        ":parsing_utils",
+        ":prediction_keys",
+        ":rnn",
+        ":sequential_head",
+        "//tensorflow_estimator/python/estimator:expect_absl_installed",
+        "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_six_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
     ],

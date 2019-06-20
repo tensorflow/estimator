@@ -50,11 +50,11 @@ from tensorflow.python.platform import test
 from tensorflow.python.training import checkpoint_utils
 from tensorflow.python.training import monitored_session
 from tensorflow.python.training import training_util
-from tensorflow_estimator.contrib.estimator.python.estimator import rnn_v2 as rnn
 from tensorflow_estimator.python.estimator import model_fn
 from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.canned import parsing_utils
 from tensorflow_estimator.python.estimator.canned import prediction_keys
+from tensorflow_estimator.python.estimator.canned import rnn
 from tensorflow_estimator.python.estimator.export import export
 from tensorflow_estimator.python.estimator.head import multi_class_head as multi_head_lib
 from tensorflow_estimator.python.estimator.head import sequential_head as seq_head_lib

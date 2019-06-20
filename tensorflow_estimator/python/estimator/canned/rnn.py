@@ -12,13 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Recurrent Neural Network model and estimators.
-
-NOTE: This API is under development, is subject to change, and should not be
-relied upon!
-This version will eventually be moved to TensorFlow core and the original one be
-deprecated.
-"""
+"""Recurrent Neural Network model and estimators."""
 
 from __future__ import absolute_import
 from __future__ import division
@@ -37,6 +31,7 @@ from tensorflow.python.ops import array_ops
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.summary import summary
 from tensorflow.python.training import training_util
+from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator import estimator
 from tensorflow_estimator.python.estimator import model_fn
 from tensorflow_estimator.python.estimator.canned import optimizers
@@ -313,6 +308,8 @@ def _get_rnn_estimator_spec(
 
   logits = rnn_model(features, training)
 
+  logits = rnn_model(features, training=(mode == model_fn.ModeKeys.TRAIN))
+
   if return_sequences and head.input_sequence_mask_key not in features:
     features[head.input_sequence_mask_key] = logits._keras_mask  # pylint: disable=protected-access
 
@@ -359,6 +356,7 @@ def _make_rnn_layer(rnn_cell_fn, units, cell_type, return_sequences):
   return keras_layers.RNN(cell=rnn_cell_fn(), return_sequences=return_sequences)
 
 
+@estimator_export('estimator.experimental.RNNEstimator', v1=[])
 class RNNEstimator(estimator.Estimator):
   """An Estimator for TensorFlow RNN models with user-specified head.
 
@@ -506,6 +504,7 @@ class RNNEstimator(estimator.Estimator):
         model_fn=_model_fn, model_dir=model_dir, config=config)
 
 
+@estimator_export('estimator.experimental.RNNClassifier', v1=[])
 class RNNClassifier(RNNEstimator):
   """A classifier for TensorFlow RNN models.
 
