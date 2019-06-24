@@ -38,6 +38,9 @@ _NUM_CORES_TO_COMPUTATION_SHAPE = {
     4: [1, 2, 2],
     8: [2, 2, 2],
     16: [4, 2, 2],
+    32: [4, 4, 2],
+    64: [8, 4, 2],
+    128: [8, 8, 2],
 }
 
 
@@ -79,7 +82,7 @@ class TPUContext(object):
            current invocation is 1. For per-host v2 input pipeline deployment,
            total invocation count is equal to the number of hosts in the system
            and num replicas consumed by current invocation is equal to number of
-           cores per host.
+           replicas per host.
 
     Raises:
       RuntimeError: If this method must not be called from input_fn.
@@ -95,6 +98,9 @@ class TPUContext(object):
     elif self._internal_ctx.is_input_broadcast_with_iterators():
       total_invocation_count = 1
       replicas_consumed = self._internal_ctx.num_replicas
+    elif self._internal_ctx.is_replica_across_hosts():
+      total_invocation_count = self._internal_ctx.num_replicas
+      replicas_consumed = 1
     else:
       total_invocation_count = self._internal_ctx.num_hosts
       replicas_consumed = self._internal_ctx.num_of_replicas_per_host
@@ -353,12 +359,14 @@ class _InternalTPUContext(object):
   def num_of_replicas_per_host(self):
     """Return the number of replicas per host."""
     if self.model_parallelism_enabled:
+      # There can be fewer replicas. This might return 0!
       return self.num_replicas // self.num_hosts
     else:
       return self.num_of_cores_per_host
 
   @property
   def num_replicas(self):
+    """Compute the total number of replicas."""
     num_cores_in_system = self.num_cores
 
     if self.model_parallelism_enabled:
@@ -405,7 +413,6 @@ class _InternalTPUContext(object):
 
   def is_input_broadcast_with_iterators(self):
     """Return true if input_fn should be run in the full_replicae config."""
-    mode = self._assert_mode()
     return ((self._config.tpu_config.per_host_input_for_training is
              tpu_config.InputPipelineConfig.BROADCAST) or
             (self.is_input_slice_broadcast_to_all_cores()))
@@ -416,6 +423,14 @@ class _InternalTPUContext(object):
     return (mode != model_fn_lib.ModeKeys.TRAIN and
             self._config.tpu_config.eval_training_input_configuration is
             tpu_config.InputPipelineConfig.SLICED)
+
+  def is_replica_across_hosts(self):
+    """Return true if single replica is across multiple hosts."""
+    # For example, when num_cores_per_replica > num_cores_per_host.
+    num_cores_per_replica = self._config.tpu_config.num_cores_per_replica
+    num_cores_per_host = self._get_tpu_system_metadata().num_of_cores_per_host
+    return (num_cores_per_replica is not None and
+            num_cores_per_replica > num_cores_per_host)
 
   def is_running_on_cpu(self, is_export_mode=False):
     """Determines whether the input_fn and model_fn should be invoked on CPU.
@@ -479,7 +494,8 @@ class _InternalTPUContext(object):
 
     # On TPU
     if self.is_input_sharded_per_core() or (
-        self.is_input_per_host_with_iterators()):
+        self.is_input_per_host_with_iterators()) or (
+            self.is_replica_across_hosts()):
       return global_batch_size // self.num_replicas
     else:
       return global_batch_size // self.num_hosts
@@ -630,12 +646,19 @@ class _InternalTPUContext(object):
       num_cores_per_replica = self._config.tpu_config.num_cores_per_replica
       num_cores_per_host = self._get_tpu_system_metadata().num_of_cores_per_host
       if num_cores_per_replica > num_cores_per_host:
-        raise ValueError(
-            'The num of cores required by the model parallelism, specified by '
-            'TPUConfig.num_cores_per_replica, is larger than the '
-            'num_cores_per_host. num_cores_per_replica: {}, '
-            'num_cores_per_host: {}'.format(num_cores_per_replica,
-                                            num_cores_per_host))
+        if not self.is_input_per_host_with_iterators():
+          raise ValueError(
+              'Except the PER_HOST_V2 mode, the num of cores required by '
+              'model parallelism specified by TPUConfig.num_cores_per_replica '
+              'should be less than or equal to the num_cores_per_host. '
+              'num_cores_per_replica: {}, num_cores_per_host: {}'.format(
+                  num_cores_per_replica, num_cores_per_host))
+        if self.input_partition_dims is not None:
+          raise ValueError(
+              'Spatial partitioning is currently not supported when single '
+              'replica is across multiple hosts '
+              '(i.e. num_cores_per_replica:{} > num_cores_per_host:{}'.format(
+                  num_cores_per_replica, num_cores_per_host))
 
     if mode == model_fn_lib.ModeKeys.TRAIN:
       if (self._train_batch_size % num_replicas != 0 and
@@ -698,6 +721,8 @@ class _InternalTPUContext(object):
     job_device = '' if master is None else ('/job:%s' % master)
 
     num_of_replicas_per_host = self.num_of_replicas_per_host
+    assert num_of_replicas_per_host > 0, (
+        'Got num_of_replicas_per_host: {}'.format(num_of_replicas_per_host))
     host_id = replica_id / num_of_replicas_per_host
     ordinal_id = replica_id % num_of_replicas_per_host
 

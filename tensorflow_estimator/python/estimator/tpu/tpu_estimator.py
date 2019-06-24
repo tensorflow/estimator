@@ -977,22 +977,40 @@ def generate_per_host_v2_enqueue_ops_fn_for_host(
       raise TypeError('`input_fn` must return a `Dataset` for the PER_HOST_V2 '
                       'input pipeline configuration.')
 
+    # Be aware that when num_cores_per_replica > num_cores_per_host,
+    # ctx.num_of_replicas_per_host is 0.
     if ctx.mode == model_fn_lib.ModeKeys.PREDICT:
       inputs = _InputsWithStoppingSignals(
           dataset=inputs.dataset,
           batch_size=ctx.batch_size_for_input_fn,
           add_padding=True,
-          num_invocations_per_step=ctx.num_of_replicas_per_host)
+          num_invocations_per_step=max(1, ctx.num_of_replicas_per_host))
 
     dataset_initializer = inputs.dataset_initializer()
+
     tpu_ordinal_function_impl = ctx.tpu_ordinal_function(host_id)
+
+    def device_function_impl(shard_id):
+      if ctx.device_assignment is not None:
+        # Find the replica_id of the host's logical core 0.
+        # The current host_id is guaranteed to contain the logical core 0,
+        # even when num_cores_per_replica > num_cores_per_host -- the function
+        # caller makes sure that this host_id will must be receiving data (calls
+        # input_fn).
+        replica_id = ctx.device_assignment.lookup_replicas(
+            task_id=host_id, logical_core=0)[shard_id]
+        return ctx.tpu_host_placement_function(replica_id=replica_id)
+      else:
+        return None
 
   def enqueue_ops_fn():
     """Generates the per_host enqueue ops."""
     control_deps = []
     per_host_sharded_inputs = []
     enqueue_datas_list = []
-    num_replicas_per_host = ctx.num_of_replicas_per_host
+    # Be aware that when num_cores_per_replica > num_cores_per_host,
+    # ctx.num_of_replicas_per_host is 0.
+    num_replicas_per_host = max(1, ctx.num_of_replicas_per_host)
     cached_signals = None
     with ops.device(device):
       if not inputs.is_dataset:
@@ -1039,7 +1057,9 @@ def generate_per_host_v2_enqueue_ops_fn_for_host(
             number_of_tuple_elements=len(per_host_sharded_inputs[0]))
         per_host_enqueue_ops = infeed_queue.generate_enqueue_ops(
             per_host_sharded_inputs,
-            tpu_ordinal_function=tpu_ordinal_function_impl)
+            tpu_ordinal_function=tpu_ordinal_function_impl,
+            placement_function=device_function_impl)
+
       captured_infeed_queue.capture(infeed_queue)
 
     if ctx.embedding_config:
@@ -1085,14 +1105,18 @@ def generate_broadcast_enqueue_ops_fn(ctx, input_fn, inputs_structure_recorder,
       dataset_initializer = inputs.dataset_initializer()
     num_replicas_per_host = ctx.num_of_replicas_per_host
 
-  def tpu_ordinal_function_impl(replica_id):
+  def tpu_ordinal_function_impl(shard_id):
     if ctx.device_assignment:
-      return ctx.device_assignment.tpu_ordinal(replica=replica_id)
+      return ctx.device_assignment.tpu_ordinal(replica=shard_id)
     else:
-      return replica_id % num_replicas_per_host
+      return shard_id % num_replicas_per_host
 
-  def device_function_impl(replica_id):
-    return ctx.tpu_host_placement_function(replica_id=replica_id)
+  def device_function_impl(shard_id):
+    # shard_id ranges from 0 to num_of_replicas_per_host - 1.
+    # A shard is a replica inside a host.
+    # In broadcast mode (generate_broadcast_enqueue_ops_fn), the enqueue ops
+    # are always executed on the first host. Thus shard_id equals to replica_id.
+    return ctx.tpu_host_placement_function(replica_id=shard_id)
 
   def enqueue_ops_fn():
     """Generates enqueue ops for all the hosts."""
@@ -1468,8 +1492,23 @@ class _InputPipeline(object):
       else:
         enqueue_ops.append(enqueue_ops_fn())
       infeed_queues.append(captured_infeed_queue.get())
+
     else:
-      for host_id in range(num_hosts):
+      # This branch handles two senarios:
+      #       num_cores_per_replica > num_cores_per_host
+      #   and num_cores_per_replica <= num_cores_per_host
+      # First, get the set of host_ids, by iterating replicas.
+      # We only want and will get the set of *unique* host_ids
+      # *that will call input_fn*. For each replica, we only call the input_fn
+      # from the CPU host that contains logical core 0.
+      host_device_ids = set()
+      for replica_id in xrange(self._ctx.num_replicas):
+        host_device, _ = self._ctx.device_for_replica(replica_id)
+        # TODO(lehou): Get host_id in a better way.
+        host_id = int(host_device.split('/task:')[1].split('/device:')[0])
+        host_device_ids.add(host_id)
+
+      for host_id in host_device_ids:
         host_device = tpu_host_placement_fn(host_id=host_id)
         with ops.device(host_device):
           with ops.name_scope('input_pipeline_task%d' % (host_id)):
@@ -1509,6 +1548,7 @@ class _InputPipeline(object):
             else:
               enqueue_ops.append(enqueue_ops_fn())
             infeed_queues.append(captured_infeed_queue.get())
+
     # infeed_queue is used to generate dequeue ops. The only thing it uses for
     # dequeue is dtypes and types. So, any one can be used. Here, grab the
     # first one.

@@ -83,9 +83,13 @@ class TPUConfig(
       is required by model-parallelism which enables partitioning
       the model to multiple cores. Currently num_cores_per_replica must be
       1, 2, 4, or 8.
-    per_host_input_for_training: If `True`, `PER_HOST_V1`, or `PER_HOST_V2`,
-      `input_fn` is invoked once on each host. With the per-core input pipeline
-      configuration, it is invoked once for each core.
+    per_host_input_for_training: If `True`, for `PER_HOST_V1`, the `input_fn` is
+      invoked once on each host, and the number of hosts must be smaller or
+      equal to the number of replicas. For PER_HOST_V2, the `input_fn` is
+      invoked once for each host (if the number of hosts is less than the number
+      of replicas) or replica (if the number of replicas is less than the number
+      of hosts. With the per-core input pipeline configuration, it is invoked
+      once for each core.
       With a global batch size `train_batch_size` in `TPUEstimator` constructor,
       the batch size for each shard is `train_batch_size` // #hosts in the
       `True` or `PER_HOST_V1` mode. In `PER_HOST_V2` mode, it is
@@ -124,7 +128,7 @@ class TPUConfig(
       this argument.
 
   Raises:
-      ValueError: If `num_cores_per_replica` is not 1, 2, 4, 8 or 16.
+      ValueError: If `num_cores_per_replica` is not 1, 2, 4, 8, ..., 128.
   """
 
   def __new__(
@@ -162,10 +166,10 @@ class TPUConfig(
 
     # Check num_cores_per_replica
     if num_cores_per_replica is not None:
-      if num_cores_per_replica not in [1, 2, 4, 8, 16]:
+      if num_cores_per_replica not in ([1, 2, 4, 8, 16, 32, 64, 128]):
         raise ValueError(
-            'num_cores_per_replica must be 1, 2, 4, 8, or 16; got {}'.format(
-                str(num_cores_per_replica)))
+            'num_cores_per_replica must be 1, 2, 4, 8, 16, 32, 64, 128; '
+            'got {}'.format(str(num_cores_per_replica)))
 
     if eval_training_input_configuration not in [
         InputPipelineConfig.PER_HOST_V1, InputPipelineConfig.SLICED
