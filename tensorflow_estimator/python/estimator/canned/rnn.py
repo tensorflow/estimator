@@ -308,8 +308,6 @@ def _get_rnn_estimator_spec(
 
   logits = rnn_model(features, training)
 
-  logits = rnn_model(features, training=(mode == model_fn.ModeKeys.TRAIN))
-
   if return_sequences and head.input_sequence_mask_key not in features:
     features[head.input_sequence_mask_key] = logits._keras_mask  # pylint: disable=protected-access
 
