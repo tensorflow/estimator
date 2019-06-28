@@ -642,23 +642,17 @@ class _InternalTPUContext(object):
 
         raise ValueError(message)
 
-    if self._config.tpu_config.num_cores_per_replica:
+    if self._config.tpu_config.num_cores_per_replica and (
+        not self.is_input_per_host_with_iterators()):
       num_cores_per_replica = self._config.tpu_config.num_cores_per_replica
       num_cores_per_host = self._get_tpu_system_metadata().num_of_cores_per_host
       if num_cores_per_replica > num_cores_per_host:
-        if not self.is_input_per_host_with_iterators():
-          raise ValueError(
-              'Except the PER_HOST_V2 mode, the num of cores required by '
-              'model parallelism specified by TPUConfig.num_cores_per_replica '
-              'should be less than or equal to the num_cores_per_host. '
-              'num_cores_per_replica: {}, num_cores_per_host: {}'.format(
-                  num_cores_per_replica, num_cores_per_host))
-        if self.input_partition_dims is not None:
-          raise ValueError(
-              'Spatial partitioning is currently not supported when single '
-              'replica is across multiple hosts '
-              '(i.e. num_cores_per_replica:{} > num_cores_per_host:{}'.format(
-                  num_cores_per_replica, num_cores_per_host))
+        raise ValueError(
+            'Except the PER_HOST_V2 mode, the num of cores required by '
+            'model parallelism specified by TPUConfig.num_cores_per_replica '
+            'should be less than or equal to the num_cores_per_host. '
+            'num_cores_per_replica: {}, num_cores_per_host: {}'.format(
+                num_cores_per_replica, num_cores_per_host))
 
     if mode == model_fn_lib.ModeKeys.TRAIN:
       if (self._train_batch_size % num_replicas != 0 and
@@ -670,32 +664,44 @@ class _InternalTPUContext(object):
     elif mode == model_fn_lib.ModeKeys.EVAL:
       if self._eval_batch_size is None:
         raise ValueError(
-            'eval_batch_size in TPUEstimator constructor cannot be `None`'
+            'eval_batch_size in TPUEstimator constructor cannot be `None` '
             'if .evaluate is running on TPU.')
       if (self._eval_batch_size % num_replicas != 0 and
           not self.is_input_broadcast_with_iterators()):
         raise ValueError(
             'eval batch size {} must be divisible by number of replicas {}'
             .format(self._eval_batch_size, num_replicas))
-      if num_hosts > 1 and not self.is_input_broadcast_with_iterators():
+      if num_hosts != 1 and not (
+          self.is_input_broadcast_with_iterators()) and not (
+              num_replicas == 1 and self.is_input_per_host_with_iterators()):
         raise ValueError(
-            'TPUEstimator.evaluate should be running on single TPU'
-            ' instead of a Pod.')
+            'TPUEstimator.evaluate is only supported under three conditions: '
+            '1. num_hosts=1; 2. BROADCAST mode; '
+            '3. PER_HOST_V2 mode with num_replicas=1. '
+            'mode: {}; num_hosts: {}; num_replicas=1:{}'.format(
+                self._config.tpu_config.per_host_input_for_training,
+                num_hosts, num_replicas))
     else:
       assert mode == model_fn_lib.ModeKeys.PREDICT
       if self._predict_batch_size is None:
         raise ValueError(
-            'predict_batch_size in TPUEstimator constructor should not be '
-            '`None` if .predict is running on TPU.')
+            'predict_batch_size in TPUEstimator constructor cannot be `None` '
+            'if .predict is running on TPU.')
       if (self._predict_batch_size % num_replicas != 0 and
           not self.is_input_broadcast_with_iterators()):
         raise ValueError(
             'predict batch size {} must be divisible by number of replicas {}'
             .format(self._predict_batch_size, num_replicas))
-      if num_hosts > 1 and not self.is_input_broadcast_with_iterators():
+      if num_hosts != 1 and not (
+          self.is_input_broadcast_with_iterators()) and not (
+              num_replicas == 1 and self.is_input_per_host_with_iterators()):
         raise ValueError(
-            'TPUEstimator.predict should be running on single TPU worker. '
-            'got {}.'.format(num_hosts))
+            'TPUEstimator.predict is only supported under three conditions: '
+            '1. num_hosts=1; 2. BROADCAST mode; '
+            '3. PER_HOST_V2 mode with num_replicas=1. '
+            'mode: {}; num_hosts: {}; num_replicas=1:{}'.format(
+                self._config.tpu_config.per_host_input_for_training,
+                num_hosts, num_replicas))
 
     # Record the state "validated" into lazy dictionary.
     self._lazy_validation_dict[mode] = True
