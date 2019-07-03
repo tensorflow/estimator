@@ -268,6 +268,7 @@ class BestExporter(Exporter):
     self._event_file_pattern = event_file_pattern
     self._model_dir = None
     self._best_eval_result = None
+    self._is_first_export = True
 
     self._exports_to_keep = exports_to_keep
     if exports_to_keep is not None and exports_to_keep <= 0:
@@ -292,10 +293,11 @@ class BestExporter(Exporter):
                                              self._event_file_pattern)
       self._best_eval_result = self._get_best_eval_result(
           full_event_file_pattern)
-
+    
     if self._best_eval_result is None or self._compare_fn(
         best_eval_result=self._best_eval_result,
-        current_eval_result=eval_result):
+        current_eval_result=eval_result) or self._is_first_export:
+      self._is_first_export = False
       tf_logging.info('Performing best model export.')
       self._best_eval_result = eval_result
       export_result = self._saved_model_exporter.export(
