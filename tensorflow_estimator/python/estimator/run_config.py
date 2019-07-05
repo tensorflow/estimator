@@ -311,8 +311,9 @@ def _validate_properties(run_config):
                     ' one argument "op".')
 
   _validate('protocol',
-            lambda protocol: protocol in (None, "grpc", "grpc+verbs"),
-            message='protocol should be grpc or grpc+verbs')
+            lambda protocol: protocol in (
+                None, "grpc", "grpc+verbs", "grpc+gdr", "grpc+mpi", "grpc+seastar"),
+            message='protocol should be either grpc, grpc+verbs, grpc+gdr, grpc+mpi, or grpc+seastar')
 
 
 def get_default_session_config():
