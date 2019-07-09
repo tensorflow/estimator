@@ -805,7 +805,7 @@ class LinearClassifierV2(estimator.EstimatorV2):
   estimator = LinearClassifier(
       feature_columns=[categorical_column_a,
                        categorical_feature_a_x_categorical_feature_b],
-      optimizer=lambda: tf.train.FtrlOptimizer(
+      optimizer=lambda: tf.keras.optimizers.Ftrl(
           learning_rate=tf.exponential_decay(
               learning_rate=0.1,
               global_step=tf.get_global_step(),
@@ -1022,7 +1022,7 @@ class LinearEstimatorV2(estimator.EstimatorV2):
       head=tf.contrib.estimator.multi_label_head(n_classes=3),
       feature_columns=[categorical_column_a,
                        categorical_feature_a_x_categorical_feature_b],
-      optimizer=lambda: tf.train.FtrlOptimizer(
+      optimizer=lambda: tf.keras.optimizers.Ftrl(
           learning_rate=tf.exponential_decay(
               learning_rate=0.1,
               global_step=tf.get_global_step(),
@@ -1034,7 +1034,7 @@ class LinearEstimatorV2(estimator.EstimatorV2):
       head=tf.contrib.estimator.multi_label_head(n_classes=3),
       feature_columns=[categorical_column_a,
                        categorical_feature_a_x_categorical_feature_b])
-      optimizer=tf.train.FtrlOptimizer(
+      optimizer=tf.keras.optimizers.Ftrl(
           learning_rate=0.1,
           l1_regularization_strength=0.001
       ))
@@ -1212,7 +1212,7 @@ class LinearRegressorV2(estimator.EstimatorV2):
   estimator = LinearRegressor(
       feature_columns=[categorical_column_a,
                        categorical_feature_a_x_categorical_feature_b],
-      optimizer=tf.train.FtrlOptimizer(
+      optimizer=tf.keras.optimizers.Ftrl(
         learning_rate=0.1,
         l1_regularization_strength=0.001
       ))
@@ -1221,7 +1221,7 @@ class LinearRegressorV2(estimator.EstimatorV2):
   estimator = LinearRegressor(
       feature_columns=[categorical_column_a,
                        categorical_feature_a_x_categorical_feature_b],
-      optimizer=lambda: tf.train.FtrlOptimizer(
+      optimizer=lambda: tf.keras.optimizers.Ftrl(
           learning_rate=tf.exponential_decay(
               learning_rate=0.1,
               global_step=tf.get_global_step(),
