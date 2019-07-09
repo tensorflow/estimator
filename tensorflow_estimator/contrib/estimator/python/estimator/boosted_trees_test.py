@@ -343,7 +343,7 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
         [pred['predictions'] for pred in predictions])
 
   def testV2(self):
-    with compat.forward_compatibility_horizon(2019, 7, 9):
+    with compat.forward_compatibility_horizon(2019, 8, 9):
       control_flow_util.enable_control_flow_v2()
       variable_scope.enable_resource_variables()
 
@@ -374,7 +374,7 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
 
   def testSwitchingConditionalAccumulatorForV1(self):
     # Test into the future.
-    with compat.forward_compatibility_horizon(2019, 7, 9):
+    with compat.forward_compatibility_horizon(2019, 8, 9):
       train_input_fn = _make_train_input_fn_dataset(is_classification=True)
       predict_input_fn = numpy_io.numpy_input_fn(
           x=FEATURES_DICT, y=None, batch_size=1, num_epochs=1, shuffle=False)

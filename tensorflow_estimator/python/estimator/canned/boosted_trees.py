@@ -192,7 +192,7 @@ def _get_transformed_features_and_merge_with_previously_transformed(
 
 def _variable(initial_value, trainable=False, name=None):
   """Stores a tensor as a local Variable for faster read."""
-  if compat.forward_compatible(2019, 7, 8):
+  if compat.forward_compatible(2019, 8, 8):
     return variable_scope.variable(
         initial_value=initial_value,
         trainable=trainable,
@@ -366,7 +366,7 @@ def _generate_feature_col_name_mapping(sorted_feature_columns):
 
 
 def _cond(var, true_branch, false_branch, name=None):
-  if compat.forward_compatible(2019, 7, 8):
+  if compat.forward_compatible(2019, 8, 8):
     # Always force to use cond v2 (even in v1 setting).
     return cond_v2.cond_v2(var, true_branch, false_branch, name=name)
 

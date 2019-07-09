@@ -162,7 +162,7 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
   @test_util.run_in_graph_and_eager_modes()
   def testV2(self):
     # Test into the future.
-    with compat.forward_compatibility_horizon(2019, 7, 9):
+    with compat.forward_compatibility_horizon(2019, 8, 9):
       control_flow_util.enable_control_flow_v2()
       variable_scope.enable_resource_variables()
 
@@ -210,7 +210,7 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
   @test_util.run_in_graph_and_eager_modes()
   def testSwitchingConditionalAccumulatorForV1(self):
     # Test into the future.
-    with compat.forward_compatibility_horizon(2019, 7, 9):
+    with compat.forward_compatibility_horizon(2019, 8, 9):
       categorical = feature_column.categorical_column_with_vocabulary_list(
           key='f_0', vocabulary_list=('bad', 'good', 'ok'))
       indicator_col = feature_column.indicator_column(categorical)
