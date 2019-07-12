@@ -2622,7 +2622,7 @@ class TPUEstimator(estimator_lib.Estimator):
         including 'batch_size'.
       use_tpu: A bool indicating whether TPU support is enabled. Currently, -
         TPU training and evaluation respect this bit, but eval_on_tpu can
-        override execution of eval. See below. - Predict still happens on CPU.
+        override execution of eval. See below.
       train_batch_size: An int representing the global training batch size.
         TPUEstimator transforms this global batch size to a per-shard batch
         size, as params['batch_size'], when calling `input_fn` and `model_fn`.
