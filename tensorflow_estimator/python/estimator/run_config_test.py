@@ -47,8 +47,6 @@ _TF_RANDOM_SEED_ERR = 'tf_random_seed must be integer'
 _DEVICE_FN_ERR = 'device_fn must be callable with exactly one argument "op".'
 _ONE_CHIEF_ERR = 'The "cluster" in TF_CONFIG must have only one "chief" node.'
 _ONE_MASTER_ERR = 'The "cluster" in TF_CONFIG must have only one "master" node.'
-_INVALID_TASK_TYPE_FOR_EVAL_MASTER = (
-    'Key.*eval.*master.*should not be set for task type other than')
 _MISSING_CHIEF_ERR = 'If "cluster" is set .* it must have one "chief" node'
 _MISSING_TASK_TYPE_ERR = 'If "cluster" is set .* task type must be set'
 _MISSING_TASK_ID_ERR = 'If "cluster" is set .* task index must be set'
@@ -403,21 +401,6 @@ class RunConfigDistributedSettingTest(test.TestCase):
     self.assertEqual('_my_master',
                      _create_run_config_with_cluster_spec(tf_config).master)
 
-  def test_fail_with_eval_session_master_for_non_evaluator(self):
-    tf_config = {
-        'cluster': {
-            run_config_lib.TaskType.CHIEF: ['host0:0'],
-        },
-        'task': {
-            'type': run_config_lib.TaskType.CHIEF,
-            'index': 0
-        },
-        'eval_session_master': 'grpc://123',
-    }
-    with self.assertRaisesRegexp(
-        ValueError, _INVALID_TASK_TYPE_FOR_EVAL_MASTER):
-      _create_run_config_with_cluster_spec(tf_config)
-
   def test_fail_with_multiple_chief_nodes(self):
     tf_config = {
         'cluster': {
@@ -766,21 +749,6 @@ class RunConfigDistributedSettingWithMasterTest(test.TestCase):
     }
     self.assertEqual('_my_master',
                      _create_run_config_with_cluster_spec(tf_config).master)
-
-  def test_fail_with_eval_session_master(self):
-    tf_config = {
-        'cluster': {
-            run_config_lib.TaskType.MASTER: ['host0:0'],
-        },
-        'task': {
-            'type': run_config_lib.TaskType.MASTER,
-            'index': 0
-        },
-        'eval_session_master': 'grpc://123',
-    }
-    with self.assertRaisesRegexp(
-        ValueError, _INVALID_TASK_TYPE_FOR_EVAL_MASTER):
-      _create_run_config_with_cluster_spec(tf_config)
 
   def test_fail_with_multiple_master_nodes(self):
     tf_config = {

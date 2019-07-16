@@ -121,10 +121,6 @@ def _get_eval_session_master(task_type, tf_config):
   if task_type == TaskType.EVALUATOR:
     return tf_config.get(_EVAL_SESSION_MASTER_KEY, _LOCAL_MASTER)
 
-  if _EVAL_SESSION_MASTER_KEY in tf_config:
-    raise ValueError('Key ({}) should not be set for task type other than {}. '
-                     'Task type: {}'.format(_EVAL_SESSION_MASTER_KEY,
-                                            TaskType.EVALUATOR, task_type))
   return _LOCAL_MASTER
 
 
