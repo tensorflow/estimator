@@ -103,7 +103,9 @@ class MultiClassHead(base_head.Head):
       values. If it is not given, that means labels are already encoded as an
       integer within [0, n_classes). If given, labels must be of string type and
       have any value in `label_vocabulary`. Note that errors will be raised if
-      `label_vocabulary` is not provided but labels are strings.
+      `label_vocabulary` is not provided but labels are strings. If both
+      `n_classes` and `label_vocabulary` are provided, `label_vocabulary` should
+      contain exactly `n_classes` items.
     loss_reduction: One of `tf.losses.Reduction` except `NONE`. Decides how to
       reduce training loss over batch. Defaults to `SUM_OVER_BATCH_SIZE`, namely
       weighted sum of losses divided by `batch size * label_dimension`.
@@ -126,6 +128,11 @@ class MultiClassHead(base_head.Head):
       raise ValueError(
           'label_vocabulary should be a list or a tuple. Given type: {}'.format(
               type(label_vocabulary)))
+    if label_vocabulary is not None and len(label_vocabulary) != n_classes:
+      raise ValueError(
+          '"label_vocabulary" does not have "n_classes" items. '
+          'len(label_vocabulary)={}, n_classes={}, label_vocabulary={}'.format(
+              len(label_vocabulary), n_classes, label_vocabulary))
     base_head.validate_loss_reduction(loss_reduction)
     if loss_fn:
       base_head.validate_loss_fn_args(loss_fn)

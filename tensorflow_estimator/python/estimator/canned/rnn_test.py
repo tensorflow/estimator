@@ -1339,7 +1339,13 @@ class RNNClassifierPredictionTest(test.TestCase):
         global_step=100,
         model_dir=self.get_temp_dir())
 
-    label_vocabulary = ['class_0', 'class_1']
+    n_classes = 2
+    if 'n_classes' in kwargs:
+      n_classes = kwargs['n_classes']
+      assert n_classes >= 2
+    label_vocabulary = [
+        'class_{}'.format(class_idx) for class_idx in range(n_classes)
+    ]
 
     est = rnn.RNNClassifier(
         units=[2],

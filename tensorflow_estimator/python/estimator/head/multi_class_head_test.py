@@ -1787,6 +1787,11 @@ class MultiClassHeadForEstimator(test.TestCase):
     # Predict.
     est.predict(input_fn)
 
+  def test_missmatch_n_classes_label_vocabulary(self):
+    with self.assertRaises(ValueError):
+      head_lib.MultiClassHead(
+          n_classes=3, label_vocabulary=['a', 'b', 'c', 'd'])
+
 
 if __name__ == '__main__':
   test.main()
