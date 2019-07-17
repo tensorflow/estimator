@@ -186,12 +186,10 @@ class InMemoryEvaluatorHook(training.SessionRunHook):
         for v_name in var_name_to_value
     }
 
-    def feed_variables(scaffold, session):
-      del scaffold
-      session.run(self._var_feed_op, feed_dict=placeholder_to_value)
-
     scaffold = training.Scaffold(
-        init_fn=feed_variables, copy_from_scaffold=self._scaffold)
+        init_op=self._var_feed_op,
+        init_feed_dict=placeholder_to_value,
+        copy_from_scaffold=self._scaffold)
 
     with self._graph.as_default():
       self._estimator._evaluate_run(
