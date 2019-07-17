@@ -445,7 +445,8 @@ def model_to_estimator(keras_model=None,
                        custom_objects=None,
                        model_dir=None,
                        config=None,
-                       checkpoint_format=None):
+                       checkpoint_format=None,
+                       use_v2_estimator=False):
   # LINT.ThenChange(//tensorflow/python/keras/estimator/__init__.py)
   """Constructs an `Estimator` instance from given keras model.
 
@@ -492,6 +493,8 @@ def model_to_estimator(keras_model=None,
       `tf.train.Checkpoint`. Currently, saving object-based checkpoints from
       `model_to_estimator` is only supported by Functional and Sequential
       models.
+    use_v2_estimator: Whether to convert the model to a V2 Estimator or V1
+      Estimator.
 
   Returns:
     An Estimator from given keras model.
@@ -572,9 +575,12 @@ def model_to_estimator(keras_model=None,
                     'version of your model.\n'
                     'Note that this doesn\'t affect the state of the model '
                     'instance you passed as `keras_model` argument.')
+  if use_v2_estimator:
+    estimator_cls = estimator_lib.EstimatorV2
+  else:
+    estimator_cls = estimator_lib.Estimator
 
-  estimator = estimator_lib.Estimator(keras_model_fn,
-                                      config=config,
-                                      warm_start_from=warm_start_path)
+  estimator = estimator_cls(
+      keras_model_fn, config=config, warm_start_from=warm_start_path)
 
   return estimator
