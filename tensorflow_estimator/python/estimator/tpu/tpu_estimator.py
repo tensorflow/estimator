@@ -149,7 +149,7 @@ class CatchInvalidHostcallFunctions(control_flow_ops.XLAControlFlowContext):
         'AudioSummary', 'AudioSummaryV2', 'HistogramSummary', 'ImageSummary',
         'MergeSummary', 'ScalarSummary', 'TensorSummary', 'TensorSummaryV2'
     ]:
-      raise ValueError('Please use tf.contrib.summary instead of tf.summary'
+      raise ValueError('Please use tf.contrib.summary instead of tf.summary '
                        'inside of host_calls.')
 
 
