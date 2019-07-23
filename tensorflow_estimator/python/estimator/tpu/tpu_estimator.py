@@ -2705,10 +2705,11 @@ class TPUEstimator(estimator_lib.Estimator):
                                config.tpu_config.per_host_input_for_training))
         self._embedding_from_feature_columns = (
             embedding_config_spec.feature_columns is not None)
-        if (not (use_tpu and eval_on_tpu) and
-            embedding_config_spec.partition_strategy == 'mod'):
-          raise ValueError('Mod sharding of embedding tables not supported on '
-                           'CPU.')
+
+    if (not (use_tpu and eval_on_tpu) and embedding_config_spec and
+        embedding_config_spec.partition_strategy == 'mod'):
+      raise ValueError('Mod sharding of embedding tables not supported on '
+                       'CPU.')
 
     # Verifies the model_fn signature according to Estimator framework.
     estimator_lib._verify_model_fn_args(model_fn, params)  # pylint: disable=protected-access
