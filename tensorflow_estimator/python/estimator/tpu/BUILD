@@ -49,6 +49,7 @@ py_test(
     name = "error_handling_test",
     size = "small",
     srcs = ["error_handling_test.py"],
+    python_version = "PY2",
     deps = [
         ":tpu_estimator",
     ],
@@ -73,6 +74,7 @@ py_test(
     name = "autotuning_iterations_per_loop_test",
     size = "small",
     srcs = ["autotuning_iterations_per_loop_test.py"],
+    python_version = "PY2",
     deps = [
         ":tpu_estimator",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",

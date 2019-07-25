@@ -808,6 +808,7 @@ py_library(
 py_test(
     name = "checkpoint_converter_test",
     srcs = ["tools/checkpoint_converter_test.py"],
+    python_version = "PY2",
     shard_count = 4,
     srcs_version = "PY2AND3",
     deps = [
@@ -1912,6 +1913,7 @@ py_test(
     size = "medium",
     srcs = ["distribute_strategy_estimator_integration_test.py"],
     main = "distribute_strategy_estimator_integration_test.py",
+    python_version = "PY2",
     srcs_version = "PY2AND3",
     tags = [
         "tf_integration_test",
@@ -1929,6 +1931,7 @@ py_test(
     size = "medium",
     srcs = ["distribute_strategy_estimator_integration_test.py"],
     main = "distribute_strategy_estimator_integration_test.py",
+    python_version = "PY2",
     srcs_version = "PY2AND3",
     tags = [
         "cuda",
@@ -1950,6 +1953,7 @@ py_test(
     size = "medium",
     srcs = ["distribute_strategy_estimator_training_test.py"],
     main = "distribute_strategy_estimator_training_test.py",
+    python_version = "PY2",
     shard_count = 48,
     srcs_version = "PY2AND3",
     tags = [
@@ -1971,6 +1975,7 @@ py_test(
     size = "medium",
     srcs = ["distribute_strategy_estimator_training_test.py"],
     main = "distribute_strategy_estimator_training_test.py",
+    python_version = "PY2",
     shard_count = 48,
     srcs_version = "PY2AND3",
     tags = [
