@@ -28,6 +28,7 @@ import numpy as np
 from tensorflow.core.protobuf import config_pb2
 from tensorflow.python import keras
 from tensorflow.python.data.ops import dataset_ops
+from tensorflow.python.feature_column import dense_features
 from tensorflow.python.feature_column import feature_column_v2 as feature_column
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
@@ -346,7 +347,7 @@ class TestKerasEstimator(test_util.TensorFlowTestCase, parameterized.TestCase):
           shape=(np.size(np.unique(data_array)),),
           dtype=dtypes.int64)
 
-    x = feature_column.DenseFeatures(feature_columns)(input_features)
+    x = dense_features.DenseFeatures(feature_columns)(input_features)
     x = keras.layers.Dense(16, activation='relu')(x)
     logits = keras.layers.Dense(1, activation='linear')(x)
     model = keras.Model(inputs=input_features, outputs=logits)

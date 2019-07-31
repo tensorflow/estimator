@@ -20,6 +20,7 @@ from __future__ import print_function
 
 import six
 
+from tensorflow.python.feature_column import dense_features
 from tensorflow.python.feature_column import feature_column_lib as fc
 from tensorflow.python.framework import ops
 from tensorflow.python.keras import activations
@@ -173,7 +174,8 @@ class RNNModel(models.Model):
         sequence_feature_columns)
     self._dense_features_layer = None
     if context_feature_columns:
-      self._dense_features_layer = fc.DenseFeatures(context_feature_columns)
+      self._dense_features_layer = dense_features.DenseFeatures(
+          context_feature_columns)
     self._rnn_layer = rnn_layer
     self._logits_layer = keras_layers.Dense(
         units=units, activation=activation, name='logits')

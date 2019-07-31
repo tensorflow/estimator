@@ -20,6 +20,8 @@ from __future__ import print_function
 
 import six
 
+from tensorflow.python.feature_column import dense_features
+from tensorflow.python.feature_column import dense_features_v2
 from tensorflow.python.feature_column import feature_column
 from tensorflow.python.feature_column import feature_column_lib
 from tensorflow.python.framework import ops
@@ -180,7 +182,7 @@ class _DNNModel(training.Model):
                **kwargs):
     super(_DNNModel, self).__init__(name=name, **kwargs)
     if feature_column_lib.is_feature_column_v2(feature_columns):
-      self._input_layer = feature_column_lib.DenseFeatures(
+      self._input_layer = dense_features.DenseFeatures(
           feature_columns=feature_columns, name='input_layer')
     else:
       self._input_layer = feature_column.InputLayer(
@@ -293,14 +295,11 @@ class _DNNModelV2(training.Model):
                **kwargs):
     super(_DNNModelV2, self).__init__(name=name, **kwargs)
 
-    # Current DenseFeatures is not a pure Keras layer, as it still relies on
-    # variable_scope and get_variables. Here we need to manually add 'dnn' (the
-    # Keras model name) as prefix for backward compatibility.
     with ops.name_scope(
-        'dnn/input_from_feature_columns') as input_feature_column_scope:
+        'input_from_feature_columns') as input_feature_column_scope:
       layer_name = input_feature_column_scope + 'input_layer'
       if feature_column_lib.is_feature_column_v2(feature_columns):
-        self._input_layer = feature_column_lib.DenseFeatures(
+        self._input_layer = dense_features_v2.DenseFeatures(
             feature_columns=feature_columns, name=layer_name)
       else:
         raise ValueError(
