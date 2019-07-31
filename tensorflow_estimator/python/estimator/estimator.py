@@ -1849,7 +1849,7 @@ def _combine_distributed_scaffold(grouped_scaffold, distribution):
       s._user_init_fn for s in scaffold_list if s._user_init_fn is not None  # pylint: disable=protected-access
   ]
   if init_fn:
-    init_fn = distribution.group(init_fn)
+    init_fn = init_fn[0]
   else:
     init_fn = None
 
