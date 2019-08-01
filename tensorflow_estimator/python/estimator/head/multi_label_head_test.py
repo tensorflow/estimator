@@ -817,20 +817,20 @@ class MultiLabelHead(test.TestCase):
     def _train_op_fn(loss):
       del loss
       return control_flow_ops.no_op()
-    spec = head.create_estimator_spec(
-        features={},
-        mode=ModeKeys.TRAIN,
-        logits=logits,
-        labels=labels,
-        train_op_fn=_train_op_fn,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
     with self.cached_session() as sess:
-      test_lib._initialize_variables(self, spec.scaffold)
       with self.assertRaisesRegexp(
           errors.InvalidArgumentError,
           r'labels must be an integer indicator Tensor with values in '
           r'\[0, 1\]'):
+        spec = head.create_estimator_spec(
+            features={},
+            mode=ModeKeys.TRAIN,
+            logits=logits,
+            labels=labels,
+            train_op_fn=_train_op_fn,
+            trainable_variables=[
+                variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        test_lib._initialize_variables(self, spec.scaffold)
         sess.run(spec.loss)
 
   def test_train_invalid_sparse_labels(self):
@@ -855,19 +855,19 @@ class MultiLabelHead(test.TestCase):
     def _train_op_fn(loss):
       del loss
       return control_flow_ops.no_op()
-    spec = head.create_estimator_spec(
-        features={},
-        mode=ModeKeys.TRAIN,
-        logits=logits,
-        labels=labels,
-        train_op_fn=_train_op_fn,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
     with self.cached_session() as sess:
-      test_lib._initialize_variables(self, spec.scaffold)
       with self.assertRaisesRegexp(
           errors.InvalidArgumentError,
           r'labels must be an integer SparseTensor with values in \[0, 2\)'):
+        spec = head.create_estimator_spec(
+            features={},
+            mode=ModeKeys.TRAIN,
+            logits=logits,
+            labels=labels,
+            train_op_fn=_train_op_fn,
+            trainable_variables=[
+                variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        test_lib._initialize_variables(self, spec.scaffold)
         sess.run(spec.loss)
 
   def _test_train(self, head, logits, labels, expected_loss):

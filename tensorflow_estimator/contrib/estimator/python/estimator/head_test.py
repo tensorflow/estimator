@@ -858,18 +858,18 @@ class MultiLabelHead(test.TestCase):
       del loss
       return control_flow_ops.no_op()
 
-    spec = head.create_estimator_spec(
-        features={},
-        mode=model_fn.ModeKeys.TRAIN,
-        logits=logits,
-        labels=labels,
-        train_op_fn=_train_op_fn)
     with self.cached_session() as sess:
-      _initialize_variables(self, spec.scaffold)
       with self.assertRaisesRegexp(
           errors.InvalidArgumentError,
           r'labels must be an integer indicator Tensor with values in '
           r'\[0, 1\]'):
+        spec = head.create_estimator_spec(
+            features={},
+            mode=model_fn.ModeKeys.TRAIN,
+            logits=logits,
+            labels=labels,
+            train_op_fn=_train_op_fn)
+        _initialize_variables(self, spec.scaffold)
         sess.run(spec.loss)
 
   def test_train_invalid_sparse_labels(self):
@@ -884,17 +884,17 @@ class MultiLabelHead(test.TestCase):
       del loss
       return control_flow_ops.no_op()
 
-    spec = head.create_estimator_spec(
-        features={},
-        mode=model_fn.ModeKeys.TRAIN,
-        logits=logits,
-        labels=labels,
-        train_op_fn=_train_op_fn)
     with self.cached_session() as sess:
-      _initialize_variables(self, spec.scaffold)
       with self.assertRaisesRegexp(
           errors.InvalidArgumentError,
           r'labels must be an integer SparseTensor with values in \[0, 2\)'):
+        spec = head.create_estimator_spec(
+            features={},
+            mode=model_fn.ModeKeys.TRAIN,
+            logits=logits,
+            labels=labels,
+            train_op_fn=_train_op_fn)
+        _initialize_variables(self, spec.scaffold)
         sess.run(spec.loss)
 
   def _test_train(self, head, logits, labels, expected_loss):
