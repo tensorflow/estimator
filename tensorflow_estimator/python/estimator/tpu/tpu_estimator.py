@@ -1715,6 +1715,14 @@ class _ModelFnWrapper(object):
           self._call_model_fn(features, labels))
       loss, train_op = estimator_spec.loss, estimator_spec.train_op
 
+      if tensor_tracer.TensorTracer.is_enabled():
+        tt = tensor_tracer.TensorTracer()
+        loss = tt.trace_tpu(ops.get_default_graph(), loss, train_op,
+                            self._ctx.num_replicas)
+        tracer_host_call = tt.host_call_deps_and_fn()
+      else:
+        tracer_host_call = {}
+
       if isinstance(estimator_spec, model_fn_lib._TPUEstimatorSpec):  # pylint: disable=protected-access
         captured_scaffold_fn.capture(estimator_spec.scaffold_fn)
       else:
@@ -1753,16 +1761,18 @@ class _ModelFnWrapper(object):
         if host_call_fn:
           # Ignore dummy hostcalls (no arguments)
           if host_call_args:
-            host_call.record({'host_call': estimator_spec.host_call})
+            tracer_host_call.update({'host_call': estimator_spec.host_call})
+            host_call.record(tracer_host_call)
             host_call_outfeed_ops = host_call.create_enqueue_op(step)
         else:
           # Create a host call for the loss to track execution progress
           # Without this, we don't have any indication of the state of the
           # TPU program.
-          host_call.record({
+          tracer_host_call.update({
               'host_call': (lambda loss_t: loss_t,
                             [array_ops.reshape(loss, [1])])
           })
+          host_call.record(tracer_host_call)
           host_call_outfeed_ops = host_call.create_enqueue_op(step)
 
         with ops.control_dependencies(host_call_outfeed_ops):
