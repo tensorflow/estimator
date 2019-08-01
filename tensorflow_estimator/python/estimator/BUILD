@@ -392,6 +392,7 @@ py_library(
         ":mode_keys",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
+        "//third_party/py/contextlib2",
     ],
 )
 

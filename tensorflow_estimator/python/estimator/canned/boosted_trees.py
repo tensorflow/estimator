@@ -19,6 +19,7 @@ from __future__ import print_function
 
 import abc
 import collections
+import contextlib
 import functools
 
 import numpy as np
@@ -33,6 +34,7 @@ from tensorflow.python.framework import ops
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import boosted_trees_ops
 from tensorflow.python.ops import control_flow_ops
+from tensorflow.python.ops import control_flow_v2_toggles
 from tensorflow.python.ops import data_flow_ops
 from tensorflow.python.ops import gradients_impl
 from tensorflow.python.ops import lookup_ops
@@ -370,11 +372,20 @@ def _cond(var, true_branch, false_branch, name=None):
     # Always force to use cond v2 (even in v1 setting).
     return cond_v2.cond_v2(var, true_branch, false_branch, name=name)
 
-  return control_flow_ops.cond(
-      math_ops.logical_and(var, array_ops.constant(True)),
-      true_branch,
-      false_branch,
-      name=name)
+  @contextlib.contextmanager
+  def disable_control_flow_v2():
+    control_flow_v2_enabled = control_flow_v2_toggles.control_flow_v2_enabled()
+    control_flow_v2_toggles.disable_control_flow_v2()
+    yield
+    if control_flow_v2_enabled:
+      control_flow_v2_toggles.enable_control_flow_v2()
+
+  with disable_control_flow_v2():
+    return control_flow_ops.cond(
+        math_ops.logical_and(var, array_ops.constant(True)),
+        true_branch,
+        false_branch,
+        name=name)
 
 
 def _accumulator(dtype, shape, shared_name):
