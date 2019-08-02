@@ -3211,7 +3211,7 @@ class TPUEstimator(estimator_lib.Estimator):
                   .experimental_host_call_every_n_steps),
               InstallSignalHandlerHook()
           ])
-          if tpu_cluster_resolver.is_running_in_gce():
+          if self._config.cluster and self._config.cluster._should_resolve:
             hooks.extend(
                 [preempted_hook.CloudTPUPreemptedHook(self._config.cluster)])
           if (self._log_every_n_steps is not None
@@ -3349,8 +3349,7 @@ class TPUEstimator(estimator_lib.Estimator):
                   session_config=self._session_config,
                   tpu_init_ops=tpu_init_ops)
           ] + input_hooks
-
-          if tpu_cluster_resolver.is_running_in_gce():
+          if self._config.cluster and self._config.cluster._should_resolve:
             hooks.extend(
                 [preempted_hook.CloudTPUPreemptedHook(self._config.cluster)])
 
