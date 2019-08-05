@@ -16,7 +16,9 @@ See our Estimator [getting started guide](https://www.tensorflow.org/guide/estim
 
 ## Developing
 
-If you want to build TensorFlow Estimator locally, you will need to [install Bazel](https://docs.bazel.build/versions/master/install.html) and [install TensorFlow]((https://www.tensorflow.org/get_started/os_setup.html)).
+If you want to build TensorFlow Estimator locally, you will need to
+[install Bazel](https://docs.bazel.build/versions/master/install.html) and
+[install TensorFlow](https://www.tensorflow.org/install/pip).
 
 ```sh
 # To build TensorFlow Estimator whl file.
