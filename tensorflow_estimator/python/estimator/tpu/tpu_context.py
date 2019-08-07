@@ -21,6 +21,11 @@ from __future__ import print_function
 from contextlib import contextmanager
 import copy
 
+from tensorflow.python.distribute import distribute_lib
+from tensorflow.python.distribute import distribution_strategy_context
+from tensorflow.python.eager import context as eager_context
+from tensorflow.python.framework import constant_op
+from tensorflow.python.ops import math_ops
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.tpu import device_assignment as tpu_device_assignment
 from tensorflow.python.tpu import tpu_system_metadata as tpu_system_metadata_lib
@@ -763,6 +768,46 @@ class _OneCoreTPUContext(_InternalTPUContext):
 
     self._lazy_tpu_system_metadata_dict[master] = tpu_system_metadata
     return tpu_system_metadata
+
+
+class _TPUEstimatorReplicaContext(distribute_lib.ReplicaContext):
+  """Internal context for storing replica id.
+
+  This is to set eager.context.Context() so that only summary ops from
+  0th replica is executed.
+  """
+
+  def __init__(self, replica_id_in_sync):
+    """Creates internal replica context for TPUEstimator.
+
+    Args:
+      replica_id_in_sync: Zero indexed integer id of replica that is running the
+        TPU compuation.
+    """
+    super(_TPUEstimatorReplicaContext, self).__init__(None, replica_id_in_sync)
+    # Use default strategy and replica context when variables are
+    # accessed/watched for backpropagation.
+    # pylint: disable=protected-access
+    self._thread_context = distribution_strategy_context._DefaultReplicaThreadMode(
+    )
+    self._strategy = self._thread_context.strategy
+    # pylint: enable=protected-access
+
+  def __enter__(self):
+    ctx = eager_context.context()
+
+    def replica_id_is_zero():
+      return math_ops.equal(self._replica_id_in_sync_group,
+                            constant_op.constant(0))
+
+    self._summary_recording_distribution_strategy = (
+        ctx.summary_recording_distribution_strategy)
+    ctx.summary_recording_distribution_strategy = replica_id_is_zero
+
+  def __exit__(self, exception_type, exception_value, traceback):
+    ctx = eager_context.context()
+    ctx.summary_recording_distribution_strategy = (
+        self._summary_recording_distribution_strategy)
 
 
 def _get_tpu_context(config, train_batch_size, eval_batch_size,

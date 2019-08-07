@@ -3510,13 +3510,28 @@ def _eval_on_tpu_system(ctx, model_fn_wrapper, dequeue_fn):
   ) = model_fn_wrapper.convert_to_single_tpu_eval_step(dequeue_fn)
 
   @tpu_function.on_device_training_loop
-  def multi_tpu_eval_steps_on_single_shard():
-    return training_loop.repeat(iterations_per_loop_var, single_tpu_eval_step,
-                                [_ZERO_LOSS])
+  def multi_tpu_eval_steps_on_single_shard(replica_id):
+    # `tpu.split_compile_and_shard()` splits and passes input for each
+    # replica as an array. As so, correctly reshape the input to be a
+    # scalar.
+    replica_id = array_ops.reshape(replica_id, [])
+    with tpu_context._TPUEstimatorReplicaContext(replica_id):  # pylint: disable=protected-access
+      return training_loop.repeat(iterations_per_loop_var, single_tpu_eval_step,
+                                  [_ZERO_LOSS])
 
-  (compile_op, loss,) = tpu.split_compile_and_shard(
+  # Add input that represents id for each replica in sync so that
+  # _TPUEstimatorReplicaContext can be correctly entered during
+  # replicated computation.
+  replica_id_inputs = []
+  replica_id_inputs.append(
+      [constant_op.constant(i) for i in range(ctx.num_replicas)])
+
+  (
+      compile_op,
+      loss,
+  ) = tpu.split_compile_and_shard(
       multi_tpu_eval_steps_on_single_shard,
-      inputs=[],
+      inputs=replica_id_inputs,
       num_shards=ctx.num_replicas,
       outputs_from_all_shards=False,
       device_assignment=ctx.device_assignment)
@@ -3535,16 +3550,28 @@ def _train_on_tpu_system(ctx, model_fn_wrapper, dequeue_fn):
        model_fn_wrapper.convert_to_single_tpu_train_step(dequeue_fn))
 
   @tpu_function.on_device_training_loop
-  def multi_tpu_train_steps_on_single_shard():
-    outputs = training_loop.while_loop(
-        lambda i, loss : i < iterations_per_loop_var,
-        lambda i, loss : [i + 1, single_tpu_train_step(i)],
-        inputs=[0, _INITIAL_LOSS])
-    return outputs[1:]
+  def multi_tpu_train_steps_on_single_shard(replica_id):
+    # `tpu.split_compile_and_shard()` splits and passes input for each
+    # replica as an array. As so, correctly reshape the input to be a
+    # scalar.
+    replica_id = array_ops.reshape(replica_id, [])
+    with tpu_context._TPUEstimatorReplicaContext(replica_id):  # pylint: disable=protected-access
+      outputs = training_loop.while_loop(
+          lambda i, loss: i < iterations_per_loop_var,
+          lambda i, loss: [i + 1, single_tpu_train_step(i)],
+          inputs=[0, _INITIAL_LOSS])
+      return outputs[1:]
 
-  (compile_op, loss,) = tpu.split_compile_and_shard(
+  # Add input that represents id for each replica in sync so that
+  # _TPUEstimatorReplicaContext can be correctly entered during
+  # replicated computation.
+  replica_id_inputs = []
+  replica_id_inputs.append(
+      [constant_op.constant(i) for i in range(ctx.num_replicas)])
+
+  (compile_op, loss) = tpu.split_compile_and_shard(
       multi_tpu_train_steps_on_single_shard,
-      inputs=[],
+      inputs=replica_id_inputs,
       num_shards=ctx.num_replicas,
       outputs_from_all_shards=False,
       device_assignment=ctx.device_assignment)
@@ -3561,20 +3588,34 @@ def _predict_on_tpu_system(ctx, model_fn_wrapper, dequeue_fn):
   ) = model_fn_wrapper.convert_to_single_tpu_predict_step(dequeue_fn)
 
   @tpu_function.on_device_training_loop
-  def multi_tpu_predict_steps_on_single_shard():
+  def multi_tpu_predict_steps_on_single_shard(replica_id):
+    # `tpu.split_compile_and_shard()` splits and passes input for each
+    # replica as an array. As so, correctly reshape the input to be a
+    # scalar.
+    replica_id = array_ops.reshape(replica_id, [])
+    with tpu_context._TPUEstimatorReplicaContext(replica_id):  # pylint: disable=protected-access
 
-    def cond(scalar_stopping_signal):
-      return math_ops.logical_not(
-          _StopSignals.should_stop(scalar_stopping_signal))
+      def cond(scalar_stopping_signal):
+        return math_ops.logical_not(
+            _StopSignals.should_stop(scalar_stopping_signal))
 
-    inputs = [_StopSignals.NON_STOPPING_SIGNAL]
-    outputs = training_loop.while_loop(
-        cond, single_tpu_predict_step, inputs=inputs, name=b'loop')
-    return outputs
+      inputs = [_StopSignals.NON_STOPPING_SIGNAL]
+      outputs = training_loop.while_loop(
+          cond, single_tpu_predict_step, inputs=inputs, name=b'loop')
+      return outputs
 
-  (compile_op, dummy_predict_op,) = tpu.split_compile_and_shard(
+  # Add input that represents id for each replica in sync so that
+  # _TPUEstimatorReplicaContext can be correctly entered during
+  # replicated computation.
+  replica_id_inputs = []
+  replica_id_inputs.append(
+      [constant_op.constant(i) for i in range(ctx.num_replicas)])
+  (
+      compile_op,
+      dummy_predict_op,
+  ) = tpu.split_compile_and_shard(
       multi_tpu_predict_steps_on_single_shard,
-      inputs=[],
+      inputs=replica_id_inputs,
       num_shards=ctx.num_replicas,
       outputs_from_all_shards=False,
       device_assignment=ctx.device_assignment)
