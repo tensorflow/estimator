@@ -189,7 +189,7 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
     ops.reset_default_graph()
 
   def test_n_classes_is_none(self):
-    with self.assertRaisesRegexp(ValueError, 'n_classes must be > 2'):
+    with self.assertRaisesRegexp(ValueError, 'n_classes cannot be None'):
       head_lib._multi_class_head_with_softmax_cross_entropy_loss(
           n_classes=None)
 
@@ -433,6 +433,57 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
 
   def test_predict(self):
     n_classes = 3
+    head = head_lib._multi_class_head_with_softmax_cross_entropy_loss(n_classes)
+    self.assertEqual(n_classes, head.logits_dimension)
+
+    logits = [[1., 0., 0.], [0., 0., 1.]]
+    expected_probabilities = [[0.576117, 0.2119416, 0.2119416],
+                              [0.2119416, 0.2119416, 0.576117]]
+    expected_class_ids = [[0], [2]]
+    expected_all_class_ids = [[0, 1, 2]] * 2
+    expected_classes = [[b'0'], [b'2']]
+    expected_all_classes = [[b'0', b'1', b'2']] * 2
+    expected_export_classes = [[b'0', b'1', b'2']] * 2
+
+    spec = head.create_estimator_spec(
+        features={'x': np.array(((42,),), dtype=np.int32)},
+        mode=ModeKeys.PREDICT,
+        logits=logits)
+
+    self.assertItemsEqual(
+        (_DEFAULT_SERVING_KEY, 'predict', 'classification'),
+        spec.export_outputs.keys())
+
+    # Assert predictions and export_outputs.
+    with self.cached_session() as sess:
+      _initialize_variables(self, spec.scaffold)
+      self.assertIsNone(spec.scaffold.summary_op)
+      predictions = sess.run(spec.predictions)
+      self.assertAllClose(logits,
+                          predictions[prediction_keys.PredictionKeys.LOGITS])
+      self.assertAllClose(
+          expected_probabilities,
+          predictions[prediction_keys.PredictionKeys.PROBABILITIES])
+      self.assertAllClose(expected_class_ids,
+                          predictions[prediction_keys.PredictionKeys.CLASS_IDS])
+      self.assertAllEqual(expected_classes,
+                          predictions[prediction_keys.PredictionKeys.CLASSES])
+      self.assertAllClose(
+          expected_all_class_ids,
+          predictions[prediction_keys.PredictionKeys.ALL_CLASS_IDS])
+      self.assertAllEqual(
+          expected_all_classes,
+          predictions[prediction_keys.PredictionKeys.ALL_CLASSES])
+
+      self.assertAllClose(
+          expected_probabilities,
+          sess.run(spec.export_outputs[_DEFAULT_SERVING_KEY].scores))
+      self.assertAllEqual(
+          expected_export_classes,
+          sess.run(spec.export_outputs[_DEFAULT_SERVING_KEY].classes))
+
+  def test_predict_with_tensor_n_classes(self):
+    n_classes = constant_op.constant(3, dtype=dtypes.int32)
     head = head_lib._multi_class_head_with_softmax_cross_entropy_loss(n_classes)
     self.assertEqual(n_classes, head.logits_dimension)
 

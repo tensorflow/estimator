@@ -555,7 +555,8 @@ def check_logits_final_dim(logits, expected_logits_dimension):
       if logits_rank < 2:
         raise ValueError('logits must have rank at least 2.  Received rank {}, '
                          'shape {}'.format(logits_rank, logits_shape))
-      if logits_shape[-1] != expected_logits_dimension:
+      if (isinstance(expected_logits_dimension, int) and
+          logits_shape[-1] != expected_logits_dimension):
         raise ValueError(
             'logits shape must be [D0, D1, ... DN, logits_dimension], '
             'got {}.'.format(logits_shape))
@@ -568,7 +569,8 @@ def check_logits_final_dim(logits, expected_logits_dimension):
     with ops.control_dependencies([assert_rank]):
       static_shape = logits.shape
       if static_shape.ndims is not None and static_shape[-1] is not None:
-        if static_shape[-1] != expected_logits_dimension:
+        if (isinstance(expected_logits_dimension, int) and
+            static_shape[-1] != expected_logits_dimension):
           raise ValueError(
               'logits shape must be [D0, D1, ... DN, logits_dimension], '
               'got {}.'.format(static_shape))
@@ -633,6 +635,32 @@ def validate_trainable_variables(trainable_variables=None):
     raise ValueError(
         _VALIDATION_ERROR_MSG.format(
             'trainable_variables', type(trainable_variables)))
+
+
+def validate_n_classes(n_classes):
+  """Validates n_classes argument.
+
+  Required arguments: n_classes.
+
+  Args:
+    n_classes: The number of classes.
+
+  Raises:
+    ValueError: If n_classes is <= 2 and n_classes is a Python integer.
+  Returns:
+    n_classes in its original type.
+  """
+  if isinstance(n_classes, int) and (n_classes <= 2):
+    raise ValueError('n_classes must be > 2: %s.' % n_classes)
+
+  n_classes_as_tensor = ops.convert_to_tensor(n_classes)
+  assert_n_classes = check_ops.assert_greater(
+      n_classes_as_tensor, 2, message='n_classes must be greater than 2')
+  with ops.control_dependencies([assert_n_classes]):
+    control_flow_ops.no_op()
+  # Return n_classes in its original type, so that any code
+  # using the accessor logits_dimension() has the original type.
+  return n_classes
 
 
 def call_loss_fn(loss_fn, labels, logits, features, expected_loss_dim=1):

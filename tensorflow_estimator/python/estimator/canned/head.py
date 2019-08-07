@@ -442,7 +442,8 @@ def _check_logits_final_dim(logits, expected_logits_dimension):
     with ops.control_dependencies([assert_rank]):
       static_shape = logits.shape
       if static_shape.ndims is not None and static_shape[-1] is not None:
-        if static_shape[-1] != expected_logits_dimension:
+        if (isinstance(expected_logits_dimension, int)
+            and static_shape[-1] != expected_logits_dimension):
           raise ValueError(
               'logits shape must be [D0, D1, ... DN, logits_dimension], '
               'got %s.' % (static_shape,))
@@ -474,6 +475,31 @@ def _validate_loss_fn_args(loss_fn):
   invalid_args = list(set(loss_fn_args) - set(['labels', 'logits', 'features']))
   if invalid_args:
     raise ValueError('loss_fn has unexpected args: {}'.format(invalid_args))
+
+
+def _validate_n_classes(n_classes):
+  """Validates n_classes argument.
+
+  Required arguments: n_classes.
+
+  Args:
+    n_classes: The number of classes.
+  Raises:
+    ValueError: If n_classes is <= 2 and n_classes is a Python integer.
+  Returns:
+    n_classes in its original type.
+  """
+  if isinstance(n_classes, int) and (n_classes <= 2):
+      raise ValueError('n_classes must be > 2: %s.' % n_classes)
+
+  n_classes_as_tensor = ops.convert_to_tensor(n_classes)
+  assert_n_classes = check_ops.assert_greater(
+      n_classes_as_tensor, 2, message='n_classes must be greater than 2')
+  with ops.control_dependencies([assert_n_classes]):
+    control_flow_ops.no_op()
+  # Return n_classes in its original type, so that any code
+  # using the accessor logits_dimension() has the original type.
+  return n_classes
 
 
 def _call_loss_fn(loss_fn, labels, logits, features, expected_loss_dim=1):
@@ -706,9 +732,9 @@ class _MultiClassHeadWithSoftmaxCrossEntropyLoss(_Head):
                loss_reduction=losses.Reduction.SUM,
                loss_fn=None,
                name=None):
-    if (n_classes is None) or (n_classes <= 2):
-      raise ValueError('n_classes must be > 2: %s.' % n_classes)
-    self._n_classes = n_classes
+    if n_classes is None:
+      raise ValueError('n_classes cannot be None')
+    self._n_classes = _validate_n_classes(n_classes)
     self._weight_column = weight_column
     self._label_vocabulary = label_vocabulary
     self._loss_reduction = loss_reduction

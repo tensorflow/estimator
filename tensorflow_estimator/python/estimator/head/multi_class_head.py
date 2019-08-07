@@ -121,8 +121,8 @@ class MultiClassHead(base_head.Head):
                loss_reduction=losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE,
                loss_fn=None,
                name=None):
-    if (n_classes is None) or (n_classes <= 2):
-      raise ValueError('n_classes must be > 2: {}.'.format(n_classes))
+    if n_classes is None:
+      raise ValueError('n_classes cannot be None')
     if label_vocabulary is not None and not isinstance(label_vocabulary,
                                                        (list, tuple)):
       raise ValueError(
@@ -136,7 +136,7 @@ class MultiClassHead(base_head.Head):
     base_head.validate_loss_reduction(loss_reduction)
     if loss_fn:
       base_head.validate_loss_fn_args(loss_fn)
-    self._n_classes = n_classes
+    self._n_classes = base_head.validate_n_classes(n_classes)
     self._weight_column = weight_column
     self._label_vocabulary = label_vocabulary
     self._loss_reduction = loss_reduction

@@ -49,7 +49,7 @@ from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 class MultiClassHead(test.TestCase):
 
   def test_n_classes_is_none(self):
-    with self.assertRaisesRegexp(ValueError, 'n_classes must be > 2'):
+    with self.assertRaisesRegexp(ValueError, 'n_classes cannot be None'):
       head_lib.MultiClassHead(n_classes=None)
 
   def test_n_classes_is_2(self):
@@ -356,6 +356,67 @@ class MultiClassHead(test.TestCase):
 
   def test_predict(self):
     n_classes = 3
+    head = head_lib.MultiClassHead(n_classes)
+    self.assertEqual(n_classes, head.logits_dimension)
+
+    logits = [[1., 0., 0.], [0., 0., 1.]]
+    expected_probabilities = [[0.576117, 0.2119416, 0.2119416],
+                              [0.2119416, 0.2119416, 0.576117]]
+    expected_class_ids = [[0], [2]]
+    expected_all_class_ids = [[0, 1, 2]] * 2
+    expected_classes = [[b'0'], [b'2']]
+    expected_all_classes = [[b'0', b'1', b'2']] * 2
+    expected_export_classes = [[b'0', b'1', b'2']] * 2
+
+    keys = prediction_keys.PredictionKeys
+    preds = head.predictions(logits)
+    self.assertAllClose(logits, self.evaluate(preds[keys.LOGITS]))
+    self.assertAllClose(expected_probabilities,
+                        self.evaluate(preds[keys.PROBABILITIES]))
+    self.assertAllClose(expected_class_ids,
+                        self.evaluate(preds[keys.CLASS_IDS]))
+    self.assertAllEqual(expected_classes, self.evaluate(preds[keys.CLASSES]))
+    self.assertAllClose(expected_all_class_ids,
+                        self.evaluate(preds[keys.ALL_CLASS_IDS]))
+    self.assertAllEqual(expected_all_classes,
+                        self.evaluate(preds[keys.ALL_CLASSES]))
+    if context.executing_eagerly():
+      return
+
+    spec = head.create_estimator_spec(
+        features={'x': np.array(((42,),), dtype=np.int32)},
+        mode=ModeKeys.PREDICT,
+        logits=logits,
+        trainable_variables=[
+            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+
+    self.assertItemsEqual(
+        (test_lib._DEFAULT_SERVING_KEY, 'predict', 'classification'),
+        spec.export_outputs.keys())
+
+    # Assert predictions and export_outputs.
+    with self.cached_session() as sess:
+      test_lib._initialize_variables(self, spec.scaffold)
+      self.assertIsNone(spec.scaffold.summary_op)
+      predictions = sess.run(spec.predictions)
+      self.assertAllClose(logits, predictions[keys.LOGITS])
+      self.assertAllClose(expected_probabilities,
+                          predictions[keys.PROBABILITIES])
+      self.assertAllClose(expected_class_ids, predictions[keys.CLASS_IDS])
+      self.assertAllEqual(expected_classes, predictions[keys.CLASSES])
+      self.assertAllClose(expected_all_class_ids,
+                          predictions[keys.ALL_CLASS_IDS])
+      self.assertAllEqual(expected_all_classes, predictions[keys.ALL_CLASSES])
+
+      self.assertAllClose(
+          expected_probabilities,
+          sess.run(spec.export_outputs[test_lib._DEFAULT_SERVING_KEY].scores))
+      self.assertAllEqual(
+          expected_export_classes,
+          sess.run(spec.export_outputs[test_lib._DEFAULT_SERVING_KEY].classes))
+
+  def test_predict_with_tensor_n_classes(self):
+    n_classes = constant_op.constant(3, dtype=dtypes.int32)
     head = head_lib.MultiClassHead(n_classes)
     self.assertEqual(n_classes, head.logits_dimension)
 
