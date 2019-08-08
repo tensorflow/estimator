@@ -241,10 +241,6 @@ def _convert_keras_metrics_to_estimator(model):
 
   # We are not using model.metrics here because we want to exclude the metrics
   # added using `add_metric` API.
-  # TODO(psv): Remove this condition here after
-  # _compile_stateful_metric_functions becomes obsolete with the Estimator repo.
-  if hasattr(model, '_compile_stateful_metric_functions'):
-    return {m.name: m for m in model._compile_stateful_metric_functions}
   return {m.name: m for m in model._compile_metric_functions}
 
 
