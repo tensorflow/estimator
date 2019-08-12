@@ -1430,7 +1430,11 @@ class Estimator(object):
       else:
         # It is expected to have one CheckpointSaverHook. If multiple, we pick
         # up the first one to add listener.
-        saver_hooks[0]._listeners.extend(saving_listeners)  # pylint: disable=protected-access
+        for listener in saving_listeners:
+          # pylint: disable=protected-access
+          if listener not in saver_hooks[0]._listeners:
+            saver_hooks[0]._listeners.append(listener)
+          # pylint: disable=protected-access
 
     # Add summary hooks to worker 0 if we are running with a master, to ensure
     # that summaries are written at correct intervals even with long-running
