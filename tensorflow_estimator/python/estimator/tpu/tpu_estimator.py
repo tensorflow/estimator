@@ -3230,7 +3230,7 @@ class TPUEstimator(estimator_lib.Estimator):
                   .experimental_host_call_every_n_steps),
               InstallSignalHandlerHook()
           ])
-          if tpu_cluster_resolver.is_running_in_gce():
+          if _check_add_preemption_hook(self._config.cluster):
             hooks.extend(
                 [preempted_hook.CloudTPUPreemptedHook(self._config.cluster)])
           if (self._log_every_n_steps is not None
@@ -3369,7 +3369,7 @@ class TPUEstimator(estimator_lib.Estimator):
                   tpu_init_ops=tpu_init_ops)
           ] + input_hooks
 
-          if tpu_cluster_resolver.is_running_in_gce():
+          if _check_add_preemption_hook(self._config.cluster):
             hooks.extend(
                 [preempted_hook.CloudTPUPreemptedHook(self._config.cluster)])
 
@@ -3460,6 +3460,12 @@ class TPUEstimator(estimator_lib.Estimator):
 
     return _model_fn
 
+
+def _check_add_preemption_hook(cluster):
+  return (tpu_cluster_resolver.is_running_in_gce() and
+          cluster and
+          isinstance(cluster, tpu_cluster_resolver.TPUClusterResolver) and
+          cluster._should_resolve)
 
 def _export_output_to_tensors(export_output):
   """Get a list of `Tensors` used in `export_output`.
