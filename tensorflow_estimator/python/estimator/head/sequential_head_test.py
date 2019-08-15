@@ -236,7 +236,7 @@ class TestSequentialHead(test.TestCase):
         self.assertAllClose(session.run(d[key]) if session else d[key],
                             ref_item)
       else:
-        self.assertAllEqual(d[key], ref_item)
+        self.assertEqual(d[key], ref_item)
 
   def test_predictions(self):
     """Tests predictions output.
