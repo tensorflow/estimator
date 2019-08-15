@@ -231,7 +231,8 @@ class TimeSeriesRegressionHead(head_lib._Head):  # pylint:disable=protected-acce
   def create_estimator_spec(self, features, mode, labels=None):
     """Performs basic error checking and returns an EstimatorSpec."""
     with ops.name_scope(self._name, "head"):
-      if labels is not None and labels != {}:  # for better error messages.
+        # for better error messages.
+      if labels is not None and not (isinstance(labels, dict) and labels == {}):  # pylint: disable=g-explicit-bool-comparison
         raise ValueError(
             "The model received a `labels`, which is not supported. "
             "Pass '{}' and '{}' as features.".format(
