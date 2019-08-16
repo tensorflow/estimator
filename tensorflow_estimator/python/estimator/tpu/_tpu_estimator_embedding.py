@@ -19,6 +19,7 @@ from __future__ import division
 from __future__ import print_function
 
 import collections
+import six
 
 from tensorflow.python.feature_column import feature_column as core_fc
 from tensorflow.python.feature_column import feature_column_lib as core_fc_lib
@@ -117,6 +118,14 @@ def get_full_variable_names(
   return embedding_variable_name_by_table, slot_variable_names_by_table
 
 
+def get_lr(feature_columns):
+  lrs = list({col.get_learning_rate_fn() for col in feature_columns
+              if col.get_learning_rate_fn() is not None})
+  lr_key_to_fn = {str(i): lr for i, lr in enumerate(lrs)}
+  lr_fn_to_key = {v: k for k, v in six.iteritems(lr_key_to_fn)}
+  return lr_key_to_fn, lr_fn_to_key
+
+
 def get_configs_from_feature_columns(feature_columns):
   """Create configs for TPUEmbedding etc from a list of feature columns.
 
@@ -125,7 +134,8 @@ def get_configs_from_feature_columns(feature_columns):
 
   Returns:
     A tuple of dicts, the first maps tables to their config, the second maps
-    features to their config.
+    features to their config, the third maps learning rate key to callback that
+    takes global step and outputs dynamic learning rate.
   """
 
   allowed = (tpu_fc_v2._TPUEmbeddingColumnV2,  # pylint: disable=protected-access
@@ -144,6 +154,8 @@ def get_configs_from_feature_columns(feature_columns):
 
   table_to_config = {}
   feature_to_config = {}
+  lr_key_to_fn, lr_fn_to_key = get_lr(feature_columns)
+  lr_fn_to_key[None] = None
   for column in feature_columns:
     feature_name = column.get_feature_key_name()
     table_name = _get_table_name_from_embedding_var_name(
@@ -161,9 +173,10 @@ def get_configs_from_feature_columns(feature_columns):
         vocabulary_size=vocabulary_size,
         dimension=dimension,
         initializer=column.get_initializer(),
-        combiner=column.get_combiner())
+        combiner=column.get_combiner(),
+        learning_rate_key=lr_fn_to_key[column.get_learning_rate_fn()])
 
-  return table_to_config, feature_to_config
+  return table_to_config, feature_to_config, lr_key_to_fn
 
 
 @estimator_export(v1=['estimator.tpu.experimental.EmbeddingConfigSpec'])
@@ -338,12 +351,14 @@ class EmbeddingConfig(object):
     self._run_config = run_config
 
     if embedding_config_spec.feature_columns:
-      (self._table_to_config_dict, self._feature_to_config_dict) = (
-          get_configs_from_feature_columns(
-              embedding_config_spec.feature_columns))
+      (self._table_to_config_dict, self._feature_to_config_dict,
+       self._lr_key_to_fn) = (
+           get_configs_from_feature_columns(
+               embedding_config_spec.feature_columns))
     else:
       self._table_to_config_dict = embedding_config_spec.table_to_config_dict
       self._feature_to_config_dict = embedding_config_spec.feature_to_config_dict
+      self._lr_key_to_fn = {}
     self._partition_strategy = embedding_config_spec.partition_strategy
     self._mode_to_tpu_embedding_dict = {}
     self.dummy_table_variables = None
@@ -356,6 +371,11 @@ class EmbeddingConfig(object):
       return ops.convert_to_tensor(
           self._grad_multiplier_fn(training.get_global_step()),
           dtype=dtypes.float32)
+
+  def get_dynamic_learning_rates(self):
+    return {k: math_ops.cast(
+        fn(training.get_global_step()), dtype=dtypes.float32)
+            for k, fn in six.iteritems(self._lr_key_to_fn)}
 
   def has_embedding_tables(self):
     return bool(self._table_to_config_dict)
