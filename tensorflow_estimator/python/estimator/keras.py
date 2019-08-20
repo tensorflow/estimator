@@ -155,8 +155,16 @@ def _convert_estimator_io_to_keras(keras_model, features, labels):
         keras_model.output_names if keras_model._is_graph_network else
         ['output_%d' % i for i in range(1, len(labels) + 1)])
 
-  input_tensors = _to_ordered_tensor_list(
-      features, input_names, 'features', 'inputs')
+  if isinstance(keras_model.inputs, dict):
+    # convert input tensors into dict if keras_model is built with dict input.
+    input_tensors = {
+        k: _convert_tensor(features[k])
+        for (k, v) in keras_model.inputs.items()
+    }
+  else:
+    # converting input tensors into sorted list.
+    input_tensors = _to_ordered_tensor_list(features, input_names, 'features',
+                                            'inputs')
   target_tensors = _to_ordered_tensor_list(
       labels, output_names, 'labels', 'outputs')
 
@@ -261,7 +269,10 @@ def _create_keras_model_fn(keras_model, custom_objects=None,
   # hyperparameters in their configs, resulting to wrong-session errors during
   # model cloning.
   try:
-    optimizer_config = keras_model.optimizer.get_config()
+    if isinstance(keras_model.optimizer, (tuple, list)):
+      optimizer_config = [opt.get_config() for opt in keras_model.optimizer]
+    else:
+      optimizer_config = keras_model.optimizer.get_config()
   except (NotImplementedError, AttributeError):
     # TFOptimizers and other custom optimizers do not have a config.
     optimizer_config = None
@@ -307,9 +318,10 @@ def _create_keras_model_fn(keras_model, custom_objects=None,
     if mode is ModeKeys.TRAIN:
       train_op = model.train_function.updates_op
 
-    if not model._is_graph_network:
-      # Reset model state to original state,
-      # to avoid `model_fn` being destructive for the initial model argument.
+    if (not model._is_graph_network and
+        hasattr(keras_model, '_original_attributes_cache') and
+        keras_model._original_attributes_cache is not None):
+      # To avoid `model_fn` being destructive for the initial model argument.
       models.in_place_subclassed_model_state_restoration(keras_model)
 
     scaffold = None
@@ -436,6 +448,7 @@ def _get_file_from_google_storage(keras_model_path, model_dir):
 
 
 # LINT.IfChange
+# TODO(b/139699640): let model_to_estimator only rely on public Keras APIs.
 def model_to_estimator(keras_model=None,
                        keras_model_path=None,
                        custom_objects=None,

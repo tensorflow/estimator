@@ -1678,15 +1678,34 @@ py_library(
 
 py_test(
     name = "keras_test",
-    size = "large",
+    size = "medium",
     srcs = ["keras_test.py"],
     python_version = "PY2",
-    shard_count = 5,
+    shard_count = 8,
     srcs_version = "PY2AND3",
     tags = [
         "no_windows",
         "notsan",  # b/67510291
     ],
+    deps = [
+        ":export",
+        ":keras",
+        ":mode_keys",
+        ":numpy_io",
+        ":run_config",
+        "//tensorflow_estimator/python/estimator:expect_h5py_installed",
+        "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
+    ],
+)
+
+py_test(
+    name = "keras_premade_model_test",
+    size = "medium",
+    srcs = ["keras_premade_model_test.py"],
+    python_version = "PY2",
+    shard_count = 4,
     deps = [
         ":export",
         ":keras",

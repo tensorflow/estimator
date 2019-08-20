@@ -36,7 +36,7 @@ from tensorflow.python.framework import test_util
 from tensorflow.python.keras import testing_utils
 from tensorflow.python.keras.layers import recurrent_v2 as rnn_v2
 from tensorflow.python.keras.optimizers import SGD
-from tensorflow.python.keras.premade import linear
+
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import parsing_ops
 from tensorflow.python.ops import variable_scope
@@ -325,40 +325,6 @@ class TestKerasEstimator(test_util.TensorFlowTestCase, parameterized.TestCase):
       latest_checkpoint = checkpoint_management.latest_checkpoint(
           est_keras.model_dir)
       keras_model.load_weights(latest_checkpoint)
-
-  def test_train_premade_linear_model_with_dense_features(self):
-    vocab_list = ['alpha', 'beta', 'gamma']
-    vocab_val = [0.4, 0.6, 0.9]
-    data = np.random.choice(vocab_list, size=256)
-    y = np.zeros_like(data, dtype=np.float32)
-    for vocab, val in zip(vocab_list, vocab_val):
-      indices = np.where(data == vocab)
-      y[indices] = val + np.random.uniform(
-          low=-0.01, high=0.01, size=indices[0].shape)
-    cat_column = feature_column.categorical_column_with_vocabulary_list(
-        key='symbol', vocabulary_list=vocab_list)
-    ind_column = feature_column.indicator_column(cat_column)
-    keras_input = keras.layers.Input(
-        name='symbol', shape=3, dtype=dtypes.string)
-    feature_layer = dense_features.DenseFeatures([ind_column])
-    h = feature_layer({'symbol': keras_input})
-    linear_model = linear.LinearModel(units=1)
-    h = linear_model(h)
-
-    model = keras.Model(inputs=keras_input, outputs=h)
-    opt = rmsprop.RMSPropOptimizer(0.1)
-    model.compile(opt, 'mse', ['mse'])
-    train_input_fn = numpy_io.numpy_input_fn(
-        x={'symbol': data}, y=y, num_epochs=20, shuffle=False)
-    eval_input_fn = numpy_io.numpy_input_fn(
-        x={'symbol': data}, y=y, num_epochs=20, shuffle=False)
-    est = keras_lib.model_to_estimator(
-        keras_model=model, config=self._config, checkpoint_format='saver')
-    before_eval_results = est.evaluate(input_fn=eval_input_fn, steps=1)
-    est.train(input_fn=train_input_fn, steps=30)
-    after_eval_results = est.evaluate(input_fn=eval_input_fn, steps=1)
-    self.assertLess(after_eval_results['loss'], before_eval_results['loss'])
-    self.assertLess(after_eval_results['loss'], 0.05)
 
   def test_train_with_dense_features(self):
     feature_dict = {
