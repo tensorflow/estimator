@@ -27,8 +27,10 @@ genrule(
     }),
     outs = ["__init__.py"],
     cmd = select({
-        "api_version_2": "cp $(@D)/_v2/v2.py $(OUTS)",
-        "//conditions:default": "cp $(@D)/_v1/v1.py $(OUTS)",
+        # Copy the right init file and replace 'from . import'
+        # with 'from ._vN import'.
+        "api_version_2": "cp $(@D)/_v2/v2.py $(OUTS) && sed -i 's/from . import/from ._v2 import/g' $(OUTS)",
+        "//conditions:default": "cp $(@D)/_v1/v1.py $(OUTS) && sed -i 's/from . import/from ._v1 import/g' $(OUTS)",
     }),
     visibility = ["//visibility:public"],
 )
