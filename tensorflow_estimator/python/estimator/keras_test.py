@@ -359,7 +359,8 @@ class TestKerasEstimator(test_util.TensorFlowTestCase, parameterized.TestCase):
     estimator_model = keras_lib.model_to_estimator(keras_model=model)
     estimator_model.train(input_fn=train_input_fn, steps=5)
 
-  def test_train_with_dense_features_embedding(self):
+  # TODO(b/139845232): Enable after TF2 nightly's start.
+  def DISABLED_test_train_with_dense_features_embedding(self):
     feature_dict = {
         'sex': np.int64([1, 1, 1, 1, 0]),
         'cp': np.int64([0, 3, 3, 2, 1]),
@@ -399,7 +400,8 @@ class TestKerasEstimator(test_util.TensorFlowTestCase, parameterized.TestCase):
     self.assertIn('sex_embedding/embedding_weights', dependency_names)
     self.assertIn('slope_embedding/embedding_weights', dependency_names)
 
-  def test_train_with_dense_features_v2(self):
+  # TODO(b/139845232): Enable after TF2 nightly's start.
+  def DISABLED_test_train_with_dense_features_v2(self):
     feature_dict = {
         'sex': np.int64([1, 1, 1, 1, 0]),
         'cp': np.int64([0, 3, 3, 2, 1]),
