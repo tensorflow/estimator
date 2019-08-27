@@ -29,6 +29,7 @@ from tensorflow.core.kernels.boosted_trees import boosted_trees_pb2
 from tensorflow.python.compat import compat
 from tensorflow.python.feature_column import feature_column as fc_old
 from tensorflow.python.feature_column import feature_column_lib
+from tensorflow.python.feature_column import feature_column_v2
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
 from tensorflow.python.ops import array_ops
@@ -64,7 +65,6 @@ _HOLD_FOR_MULTI_CLASS_SUPPORT = object()
 _HOLD_FOR_MULTI_DIM_SUPPORT = object()
 _DUMMY_NUM_BUCKETS = -1
 _DUMMY_NODE_ID = -1
-_SUPPORTED_COLUMNS = 'bucketized_column, indicator_column, numeric_column'
 _QUANTILE_ACCUMULATOR_RESOURCE_NAME = 'QuantileAccumulator'
 
 
@@ -83,6 +83,38 @@ def _get_float_feature_columns(sorted_feature_columns):
                   (feature_column_lib.NumericColumn, fc_old._NumericColumn)):  # pylint:disable=protected-access
       float_columns.append(feature_column)
   return float_columns
+
+
+def _apply_feature_transformations(features, feature_columns):
+  """Applies feature column transformations to the provided features.
+
+  Supports V1 and V2 FeatureColumns.
+
+  Args:
+    features: a dicionary of feature name to Tensor.
+    feature_columns: an iterable of tf.feature_columns.
+
+  Returns:
+    A dict from feature_column to transformed feature tensor.
+  """
+  v2_columns, v1_columns = [], []
+  for fc in feature_columns:
+    if feature_column_lib.is_feature_column_v2([fc]):
+      v2_columns.append(fc)
+    else:
+      v1_columns.append(fc)
+
+  if v2_columns:
+    state_manager = feature_column_v2._StateManagerImpl(
+        layer=None, trainable=False)
+
+    transformed_columns = feature_column_v2._transform_features_v2(
+        features, v2_columns, state_manager)
+  else:
+    transformed_columns = {}
+  if v1_columns:
+    transformed_columns.update(fc_old._transform_features(features, v1_columns))
+  return transformed_columns
 
 
 def _get_transformed_features(
@@ -136,8 +168,8 @@ def _get_transformed_features_and_merge_with_previously_transformed(
     ValueError: when unsupported features/columns are tried.
   """
   # pylint:disable=protected-access
-  transformed_features = fc_old._transform_features(features,
-                                                    sorted_feature_columns)
+  transformed_features = _apply_feature_transformations(features,
+                                                        sorted_feature_columns)
   result_features = []
 
   if sorted_feature_columns != all_sorted_columns:
@@ -166,7 +198,7 @@ def _get_transformed_features_and_merge_with_previously_transformed(
       unstacked = array_ops.unstack(tensor, axis=1)
       result_features.extend(unstacked)
     elif isinstance(column,
-                    (feature_column_lib.NumericColumn, fc_old._NumericColumn)):
+                    (feature_column_lib.DenseColumn, fc_old._DenseColumn)):
       source_name = column.name
       tensor = transformed_features[column]
       # TODO(tanzheny): Add support for multi dim with rank > 2
@@ -184,9 +216,14 @@ def _get_transformed_features_and_merge_with_previously_transformed(
         bucketized = boosted_trees_ops.boosted_trees_bucketize(
             unstacked, bucket_boundaries_dict[source_name])
         result_features.extend(bucketized)
+    elif isinstance(
+        column,
+        (feature_column_lib.CategoricalColumn, fc_old._CategoricalColumn)):
+      raise ValueError(
+          'CategoricalColumn must be wrapped by IndicatorColumn, got: {}'
+          .format(column))
     else:
-      raise ValueError('For now, only {} is supported but got: {}'.format(
-          _SUPPORTED_COLUMNS, column))
+      raise ValueError('Got unexpected feature column type'.format(column))
     # pylint:enable=protected-access
 
   return result_features
@@ -265,16 +302,21 @@ def _group_features_by_num_buckets(sorted_feature_columns, num_quantiles):
       bucket_size_to_feature_ids_dict[_DUMMY_NUM_BUCKETS].append(feature_idx)
       feature_idx += 1
     elif isinstance(column,
-                    (feature_column_lib.NumericColumn, fc_old._NumericColumn)):
+                    (feature_column_lib.DenseColumn, fc_old._DenseColumn)):
       if num_quantiles not in bucket_size_to_feature_ids_dict:
         bucket_size_to_feature_ids_dict[num_quantiles] = []
       num_float_features = column.shape[0] if column.shape else 1
       for _ in range(num_float_features):
         bucket_size_to_feature_ids_dict[num_quantiles].append(feature_idx)
         feature_idx += 1
+    elif isinstance(
+        column,
+        (feature_column_lib.CategoricalColumn, fc_old._CategoricalColumn)):
+      raise ValueError(
+          'CategoricalColumn must be wrapped by IndicatorColumn, got: {}'
+          .format(column))
     else:
-      raise ValueError('For now, only {} are supported, but got: {}'.format(
-          _SUPPORTED_COLUMNS, column))
+      raise ValueError('Got unexpected feature column type'.format(column))
 
   # Replace the dummy key with the real max num of buckets for all bucketized
   # columns.
@@ -301,16 +343,21 @@ def _calculate_num_features(sorted_feature_columns):
     if isinstance(
         column, (fc_old._IndicatorColumn, feature_column_lib.IndicatorColumn)):
       num_features += column.categorical_column._num_buckets
-    elif isinstance(column,
-                    (feature_column_lib.NumericColumn, fc_old._NumericColumn)):
-      num_features += column.shape[0] if column.shape else 1
     elif isinstance(
         column,
         (fc_old._BucketizedColumn, feature_column_lib.BucketizedColumn)):
       num_features += 1
+    elif isinstance(column,
+                    (feature_column_lib.DenseColumn, fc_old._DenseColumn)):
+      num_features += column.shape[0] if column.shape else 1
+    elif isinstance(
+        column,
+        (feature_column_lib.CategoricalColumn, fc_old._CategoricalColumn)):
+      raise ValueError(
+          'CategoricalColumn must be wrapped by IndicatorColumn, got: {}'
+          .format(column))
     else:
-      raise ValueError('For now, only {} is supported but got: {}'.format(
-          _SUPPORTED_COLUMNS, column))
+      raise ValueError('Got unexpected feature column type'.format(column))
   # pylint:enable=protected-access
   return num_features
 
@@ -356,13 +403,18 @@ def _generate_feature_col_name_mapping(sorted_feature_columns):
         (feature_column_lib.BucketizedColumn, fc_old._BucketizedColumn)):
       names.append(column.name)
     elif isinstance(column,
-                    (fc_old._NumericColumn, feature_column_lib.NumericColumn)):
+                    (fc_old._DenseColumn, feature_column_lib.DenseColumn)):
       num_float_features = column.shape[0] if column.shape else 1
       for _ in range(num_float_features):
         names.append(column.name)
+    elif isinstance(
+        column,
+        (feature_column_lib.CategoricalColumn, fc_old._CategoricalColumn)):
+      raise ValueError(
+          'CategoricalColumn must be wrapped by IndicatorColumn, got: {}'
+          .format(column))
     else:
-      raise ValueError('For now, only {} is supported, but got: {}'.format(
-          _SUPPORTED_COLUMNS, column))
+      raise ValueError('Got unexpected feature column type'.format(column))
   return names
   # pylint:enable=protected-access
 
@@ -411,7 +463,7 @@ def _cache_transformed_features(features, sorted_feature_columns, cat_columns,
   # merge these processed features with other columns in cond branches.
   cat_transformed = []
   if len(cat_columns) > 0:
-    cat_transformed = fc_old._transform_features(features, cat_columns)
+    cat_transformed = _apply_feature_transformations(features, cat_columns)
 
   def get_features_without_cache():
     """Returns transformed features"""

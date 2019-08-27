@@ -29,6 +29,7 @@ from tensorflow.core.kernels.boosted_trees import boosted_trees_pb2
 from tensorflow.python.client import session
 from tensorflow.python.data.ops import dataset_ops
 from tensorflow.python.feature_column import feature_column_lib as feature_column
+from tensorflow.python.feature_column import feature_column as feature_column_old
 from tensorflow.python.framework import constant_op
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
@@ -158,7 +159,7 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
                 str(i)))
 
     return ensemble_proto
-  
+
   @test_util.run_in_graph_and_eager_modes()
   def testV2(self):
     # Test into the future.
@@ -206,7 +207,7 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
           bucket_boundaries=[[-2.001, -1.999, 12.5]])
       eval_res = est.evaluate(input_fn=input_fn, steps=1)
       self.assertAllClose(eval_res['accuracy'], 1.0)
-      
+
   @test_util.run_in_graph_and_eager_modes()
   def testSwitchingConditionalAccumulatorForV1(self):
     # Test into the future.
@@ -251,7 +252,7 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
           bucket_boundaries=[[-2.001, -1.999, 12.5]])
       eval_res = est.evaluate(input_fn=input_fn, steps=1)
       self.assertAllClose(eval_res['accuracy'], 1.0)
-    
+
 
   @test_util.run_in_graph_and_eager_modes()
   def testSavedModel(self):
@@ -1531,12 +1532,31 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
     self.assertAllClose(expected_importances.values(), importances.values())
 
   @test_util.run_in_graph_and_eager_modes()
+  def testForCustomDenseColumn(self):
+
+    # Create an arbitrary custom DenseColumn.
+    class MyCustomDense(feature_column.DenseColumn):
+      pass
+
+    custom_continuous = MyCustomDense(key='f_0')
+    numeric = feature_column.numeric_column(key='f_1')
+    v1_numeric = feature_column_old._numeric_column('f_2')
+    input_fn = _make_train_input_fn(is_classification=False)
+    est = boosted_trees.BoostedTreesRegressor(
+        feature_columns=[custom_continuous, numeric, v1_numeric],
+        n_batches_per_layer=1,
+        n_trees=2,
+        learning_rate=1.0,
+        max_depth=1)
+    est.train(input_fn, steps=5)
+
+  @test_util.run_in_graph_and_eager_modes()
   def testForUnsupportedColumn(self):
     categorical_col = feature_column.categorical_column_with_vocabulary_list(
         key='categorical', vocabulary_list=('bad', 'good', 'ok'))
 
     with self.assertRaisesRegexp(
-        ValueError, 'only bucketized_column, indicator_column, numeric_column'):
+        ValueError, 'CategoricalColumns must be wrapped by IndicatorColumn'):
       _ = boosted_trees.BoostedTreesRegressor(
           feature_columns=[categorical_col],
           n_batches_per_layer=1,
