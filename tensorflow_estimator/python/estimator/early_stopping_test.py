@@ -238,12 +238,18 @@ class CheckForStoppingHookTest(test.TestCase):
       no_op = control_flow_ops.no_op()
       assign_op = state_ops.assign(early_stopping._get_or_create_stop_var(),
                                    True)
-      hook._ctrl_deps = [assign_op]
       with monitored_session.SingularMonitoredSession(hooks=[hook]) as mon_sess:
         mon_sess.run(no_op)
         self.assertFalse(mon_sess.should_stop())
+
         mon_sess.run(assign_op)
-        self.assertTrue(mon_sess.should_stop())
+
+        # Because there are no guarantees that the stop variable will be read
+        # after the assign op is completed, run another no_op to ensure that the
+        # updated value is read.
+        if not mon_sess.should_stop():
+          mon_sess.run(no_op)
+          self.assertTrue(mon_sess.should_stop())
 
 
 if __name__ == '__main__':
