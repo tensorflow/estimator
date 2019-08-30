@@ -68,6 +68,28 @@ _DUMMY_NODE_ID = -1
 _QUANTILE_ACCUMULATOR_RESOURCE_NAME = 'QuantileAccumulator'
 
 
+def _is_float_column(feature_column):
+  """Returns True if provided column is a float that should be bucketized."""
+  # These columns always produce integers and do not require additional
+  # bucketization.
+  if isinstance(
+      feature_column,
+      (
+          feature_column_lib.CategoricalColumn,
+          fc_old._CategoricalColumn,  # pylint:disable=protected-access
+          feature_column_lib.BucketizedColumn,
+          fc_old._BucketizedColumn,  # pylint:disable=protected-access
+          feature_column_lib.IndicatorColumn,
+          fc_old._IndicatorColumn)):  # pylint:disable=protected-access
+    return False
+  if isinstance(feature_column,
+                (feature_column_lib.DenseColumn, fc_old._DenseColumn)):
+    # NOTE: GBDT requires that all DenseColumns expose a dtype attribute
+    return feature_column.dtype.is_floating
+  else:
+    raise ValueError('Encountered unexpected column {}'.format(feature_column))
+
+
 def _get_float_feature_columns(sorted_feature_columns):
   """Get float feature columns.
 
@@ -79,8 +101,7 @@ def _get_float_feature_columns(sorted_feature_columns):
   """
   float_columns = []
   for feature_column in sorted_feature_columns:
-    if isinstance(feature_column,
-                  (feature_column_lib.NumericColumn, fc_old._NumericColumn)):  # pylint:disable=protected-access
+    if _is_float_column(feature_column):
       float_columns.append(feature_column)
   return float_columns
 
@@ -201,17 +222,18 @@ def _get_transformed_features_and_merge_with_previously_transformed(
                     (feature_column_lib.DenseColumn, fc_old._DenseColumn)):
       source_name = column.name
       tensor = transformed_features[column]
-      # TODO(tanzheny): Add support for multi dim with rank > 2
-      if len(column.shape) > 1:
-        raise ValueError('For now, only support Numeric column with shape less '
-                         'than 2, but column `{}` got: {}'.format(
-                             source_name, column.shape))
+      # TODO(tanzheny): Add support for multi dim with rank > 1
+      if column.variable_shape.rank > 1:
+        raise ValueError('For now, we only support Dense column with rank of '
+                         '1, but column `{}` got: {}'.format(
+                             source_name, column.variable_shape))
       unstacked = array_ops.unstack(tensor, axis=1)
       if not bucket_boundaries_dict:
         result_features.extend(unstacked)
       else:
         assert source_name in bucket_boundaries_dict
-        num_float_features = column.shape[0] if column.shape else 1
+        num_float_features = (
+            column.variable_shape[0] if column.variable_shape.as_list() else 1)
         assert num_float_features == len(bucket_boundaries_dict[source_name])
         bucketized = boosted_trees_ops.boosted_trees_bucketize(
             unstacked, bucket_boundaries_dict[source_name])
@@ -305,7 +327,8 @@ def _group_features_by_num_buckets(sorted_feature_columns, num_quantiles):
                     (feature_column_lib.DenseColumn, fc_old._DenseColumn)):
       if num_quantiles not in bucket_size_to_feature_ids_dict:
         bucket_size_to_feature_ids_dict[num_quantiles] = []
-      num_float_features = column.shape[0] if column.shape else 1
+      num_float_features = column.variable_shape[
+          0] if column.variable_shape.as_list() else 1
       for _ in range(num_float_features):
         bucket_size_to_feature_ids_dict[num_quantiles].append(feature_idx)
         feature_idx += 1
@@ -349,7 +372,8 @@ def _calculate_num_features(sorted_feature_columns):
       num_features += 1
     elif isinstance(column,
                     (feature_column_lib.DenseColumn, fc_old._DenseColumn)):
-      num_features += column.shape[0] if column.shape else 1
+      num_features += column.variable_shape[0] if column.variable_shape.as_list(
+      ) else 1
     elif isinstance(
         column,
         (feature_column_lib.CategoricalColumn, fc_old._CategoricalColumn)):
@@ -404,7 +428,8 @@ def _generate_feature_col_name_mapping(sorted_feature_columns):
       names.append(column.name)
     elif isinstance(column,
                     (fc_old._DenseColumn, feature_column_lib.DenseColumn)):
-      num_float_features = column.shape[0] if column.shape else 1
+      num_float_features = column.variable_shape[
+          0] if column.variable_shape.as_list() else 1
       for _ in range(num_float_features):
         names.append(column.name)
     elif isinstance(
@@ -1514,7 +1539,8 @@ def _get_float_boundaries_dict(float_columns, bucket_boundaries):
   bucket_boundaries_dict = {}
   feature_idx = 0
   for column in float_columns:
-    num_column_dimensions = column.shape[0] if column.shape else 1
+    num_column_dimensions = column.variable_shape[
+        0] if column.variable_shape.as_list() else 1
     bucket_boundaries_dict[
         column.name] = bucket_boundaries[feature_idx:feature_idx +
                                          num_column_dimensions]
