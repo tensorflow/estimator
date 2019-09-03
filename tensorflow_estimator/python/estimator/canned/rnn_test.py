@@ -650,9 +650,18 @@ class RNNModelTest(test.TestCase, parameterized.TestCase):
     context_feature_columns = [fc.embedding_column(col, dimension=1)]
     seq_col = fc.sequence_categorical_column_with_hash_bucket(
         'seq-tokens', hash_bucket_size=1)
-    self.sequence_feature_columns = [fc.embedding_column(seq_col, dimension=1)]
-    model = self._get_compiled_model(
+    sequence_feature_columns = [fc.embedding_column(seq_col, dimension=1)]
+    model = rnn.RNNModel(
+        units=1,
+        rnn_layer=keras_layers.SimpleRNN(2),
+        sequence_feature_columns=sequence_feature_columns,
+        activation=activations.sigmoid,
         context_feature_columns=context_feature_columns)
+    model.compile(
+        optimizer='Adam',
+        loss=losses.BinaryCrossentropy(reduction='sum'),
+        metrics=['accuracy'])
+
     model.predict(x={
         'tokens': ops.convert_to_tensor([['a']]),
         'seq-tokens': ops.convert_to_tensor([[['a']]])}, steps=1)
@@ -1403,7 +1412,7 @@ class RNNClassifierPredictionTest(test.TestCase):
               sparse_tensor.SparseTensor(
                   values=[10., 5.],
                   indices=[[0, 0], [0, 1]],
-                  dense_shape=[1, 3]),
+                  dense_shape=[1, 2]),
       }
     # Same as first record of testBinaryClassEvaluationMetricsSequential.
     # Last step values are carried over.
@@ -1416,19 +1425,19 @@ class RNNClassifierPredictionTest(test.TestCase):
         predict_input_fn, return_sequences=True, sequence_mask='my-mask')
     self.assertAllEqual([1, 1], predictions['my-mask'])
     self.assertAllClose(
-        [[-1.438803], [-0.603282], [-0.603282]],
+        [[-1.438803], [-0.603282]],
         predictions[prediction_keys.PredictionKeys.LOGITS])
     self.assertAllClose(
-        [[0.191731], [0.353593], [0.353593]],
+        [[0.191731], [0.353593]],
         predictions[prediction_keys.PredictionKeys.LOGISTIC])
     self.assertAllClose(
-        [[0.808269, 0.191731], [0.646407, 0.353593], [0.646407, 0.353593]],
+        [[0.808269, 0.191731], [0.646407, 0.353593]],
         predictions[prediction_keys.PredictionKeys.PROBABILITIES])
     self.assertAllClose(
-        [[0], [0], [0]],
+        [[0], [0]],
         predictions[prediction_keys.PredictionKeys.CLASS_IDS])
     self.assertAllEqual(
-        [[b'class_0'], [b'class_0'], [b'class_0']],
+        [[b'class_0'], [b'class_0']],
         predictions[prediction_keys.PredictionKeys.CLASSES])
 
 
