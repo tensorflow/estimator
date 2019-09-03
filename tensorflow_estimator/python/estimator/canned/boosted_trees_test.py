@@ -32,10 +32,12 @@ from tensorflow.python.feature_column import feature_column_lib as feature_colum
 from tensorflow.python.feature_column import feature_column as feature_column_old
 from tensorflow.python.framework import constant_op
 from tensorflow.python.framework import dtypes
+from tensorflow.python.framework import tensor_shape
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import test_util
 from tensorflow.python.ops import boosted_trees_ops
 from tensorflow.python.ops import gen_boosted_trees_ops
+from tensorflow.python.ops import parsing_ops
 from tensorflow.python.ops import resources
 from tensorflow.python.ops import variables
 from tensorflow.python.platform import gfile
@@ -1534,9 +1536,50 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
   @test_util.run_in_graph_and_eager_modes()
   def testForCustomDenseColumn(self):
 
-    # Create an arbitrary custom DenseColumn.
+    # Create an arbitrary custom DenseColumn. As long as the column conforms to
+    # the FeatureColumn API specifications, it should be supported.
     class MyCustomDense(feature_column.DenseColumn):
-      pass
+
+      def __init__(self, key):
+        self.key = key
+
+      @property
+      def _is_v2_column(self):
+        return True
+
+      @property
+      def name(self):
+        return self.key
+
+      def parents(self):
+        return []
+
+      def get_dense_tensor(self, transformation_cache, state_manager):
+        return transformation_cache.get(self, state_manager)
+
+      def transform_feature(self, transformation_cache, state_manager):
+        return transformation_cache.get(self.key, state_manager)
+
+      @property
+      def shape(self):
+        return (1,)
+
+      @property
+      def dtype(self):
+        return dtypes.float32
+
+      @property
+      def variable_shape(self):
+        return tensor_shape.TensorShape(self.shape)
+
+      def _get_config(cls):
+        return {'key': self.key}
+
+      @property
+      def parse_example_spec(self):
+        return {
+            self.key: parsing_ops.FixedLenFeature(self.shape, self.dtype, -1)
+        }
 
     custom_continuous = MyCustomDense(key='f_0')
     numeric = feature_column.numeric_column(key='f_1')
@@ -1556,7 +1599,7 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
         key='categorical', vocabulary_list=('bad', 'good', 'ok'))
 
     with self.assertRaisesRegexp(
-        ValueError, 'CategoricalColumns must be wrapped by IndicatorColumn'):
+        ValueError, 'CategoricalColumn must be wrapped by IndicatorColumn'):
       _ = boosted_trees.BoostedTreesRegressor(
           feature_columns=[categorical_col],
           n_batches_per_layer=1,
