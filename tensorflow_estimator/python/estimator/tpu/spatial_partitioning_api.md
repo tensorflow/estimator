@@ -21,7 +21,6 @@ need to specify the spatial partition parameters in your TPUConfig.
 ```
 tpu_config=tpu_config.TPUConfig(
     iterations_per_loop=100,
-    num_shards=2,
     num_cores_per_replica=4,
     per_host_input_for_training=tpu_config.InputPipelineConfig.PER_HOST_V2,
     input_partition_dims=[[1, 4, 1, 1], None]]
