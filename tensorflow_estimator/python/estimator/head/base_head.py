@@ -26,6 +26,7 @@ from tensorflow.python.eager import context
 from tensorflow.python.feature_column import feature_column_lib
 from tensorflow.python.feature_column.feature_column import _LazyBuilder
 from tensorflow.python.feature_column.feature_column import _NumericColumn
+from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import sparse_tensor
 from tensorflow.python.framework import tensor_util
@@ -547,7 +548,7 @@ def get_weights_and_check_match_logits(
 def check_logits_final_dim(logits, expected_logits_dimension):
   """Checks that logits shape is [D0, D1, ... DN, logits_dimension]."""
   with ops.name_scope('logits', values=(logits,)) as scope:
-    logits = math_ops.to_float(logits)
+    logits = math_ops.cast(logits, dtypes.float32)
     # Eager mode
     if context.executing_eagerly():
       logits_shape = logits._shape_tuple()  # pylint: disable=protected-access
