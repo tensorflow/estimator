@@ -1346,6 +1346,7 @@ class Estimator(object):
         save_checkpoint_steps=self._config.save_checkpoints_steps,
         save_summaries_steps=self._config.save_summary_steps,
         config=self._session_config,
+        max_wait_secs=self._config.session_creation_timeout_secs,
         log_step_count_steps=self._config.log_step_count_steps) as mon_sess:
       loss = None
       any_step_done = False
@@ -1477,11 +1478,12 @@ class Estimator(object):
         checkpoint_dir=self._model_dir,
         scaffold=estimator_spec.scaffold,
         hooks=worker_hooks,
-        chief_only_hooks=(
-            tuple(chief_hooks) + tuple(estimator_spec.training_chief_hooks)),
+        chief_only_hooks=(tuple(chief_hooks) +
+                          tuple(estimator_spec.training_chief_hooks)),
         save_checkpoint_secs=0,  # Saving is handled by a hook.
         save_summaries_steps=save_summary_steps,
         config=self._session_config,
+        max_wait_secs=self._config.session_creation_timeout_secs,
         log_step_count_steps=log_step_count_steps) as mon_sess:
       loss = None
       any_step_done = False

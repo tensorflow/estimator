@@ -66,6 +66,8 @@ _INVALID_SERVICE_TYPE_ERR = (
     'If "service" is set in TF_CONFIG, it must be a dict. Given')
 _EXPERIMENTAL_MAX_WORKER_DELAY_SECS_ERR = (
     'experimental_max_worker_delay_secs must be an integer if set.')
+_SESSION_CREATION_TIMEOUT_SECS_ERR = ('session_creation_timeout_secs should be '
+                                      '> 0')
 
 
 def _create_run_config_with_cluster_spec(tf_config, **kwargs):
@@ -88,6 +90,7 @@ class RunConfigTest(test.TestCase):
     self.assertIsNone(config.service)
     self.assertIsNone(config.device_fn)
     self.assertIsNone(config.experimental_max_worker_delay_secs)
+    self.assertEqual(7200, config.session_creation_timeout_secs)
 
   def test_model_dir(self):
     empty_config = run_config_lib.RunConfig()
@@ -107,7 +110,8 @@ class RunConfigTest(test.TestCase):
         session_config=session_config,
         keep_checkpoint_max=16,
         keep_checkpoint_every_n_hours=17,
-        device_fn=device_fn)
+        device_fn=device_fn,
+        session_creation_timeout_secs=18)
     self.assertEqual(11, config.tf_random_seed)
     self.assertEqual(12, config.save_summary_steps)
     self.assertEqual(14, config.save_checkpoints_secs)
@@ -115,6 +119,8 @@ class RunConfigTest(test.TestCase):
     self.assertEqual(16, config.keep_checkpoint_max)
     self.assertEqual(17, config.keep_checkpoint_every_n_hours)
     self.assertEqual(device_fn, config.device_fn)
+    self.assertEqual(18, config.session_creation_timeout_secs)
+
 
   def test_replace_none_value(self):
     config = run_config_lib.RunConfig().replace(
@@ -174,6 +180,9 @@ class RunConfigTest(test.TestCase):
       config.replace(keep_checkpoint_max=-1)
     with self.assertRaisesRegexp(ValueError, _KEEP_CKPT_HOURS_ERR):
       config.replace(keep_checkpoint_every_n_hours=0)
+    with self.assertRaisesRegexp(ValueError,
+                                 _SESSION_CREATION_TIMEOUT_SECS_ERR):
+      config.replace(session_creation_timeout_secs=0)
     with self.assertRaisesRegexp(ValueError, _TF_RANDOM_SEED_ERR):
       config.replace(tf_random_seed=1.0)
     with self.assertRaisesRegexp(ValueError, _DEVICE_FN_ERR):

@@ -54,6 +54,7 @@ _DEFAULT_REPLACEABLE_LIST = [
     'eval_distribute',
     'experimental_distribute',
     'experimental_max_worker_delay_secs',
+    'session_creation_timeout_secs',
 ]
 
 _SAVE_CKPT_ERR = (
@@ -300,6 +301,10 @@ def _validate_properties(run_config):
   _validate('experimental_max_worker_delay_secs', _validate_delay,
             message='experimental_max_worker_delay_secs must be an integer if'
             ' set.')
+  _validate(
+      'session_creation_timeout_secs',
+      lambda timeout_secs: timeout_secs > 0,
+      message='session_creation_timeout_secs should be > 0')
 
   _validate('device_fn', lambda device_fn: six.callable(device_fn) and
             set(function_utils.fn_args(device_fn)) == _VALID_DEVICE_FN_ARGS,
@@ -349,7 +354,8 @@ class RunConfig(object):
                protocol=None,
                eval_distribute=None,
                experimental_distribute=None,
-               experimental_max_worker_delay_secs=None):
+               experimental_max_worker_delay_secs=None,
+               session_creation_timeout_secs=7200):
     """Constructs a RunConfig.
 
     All distributed training related properties `cluster_spec`, `is_chief`,
@@ -502,6 +508,11 @@ class RunConfig(object):
         the weights of a randomly initialized model. Users who warm-start their
         models and train them for short durations (a few minutes or less) should
         consider reducing this default to improve training times.
+      session_creation_timeout_secs: Max time workers should wait for a session
+        to become available (on initialization or when recovering a session)
+        with MonitoredTrainingSession. Defaults to 7200 seconds, but users may
+        want to set a lower value to detect problems with variable / session
+        (re)-initialization more quickly.
 
     Raises:
       ValueError: If both `save_checkpoints_steps` and `save_checkpoints_secs`
@@ -543,7 +554,8 @@ class RunConfig(object):
         protocol=protocol,
         eval_distribute=eval_distribute,
         experimental_distribute=experimental_distribute,
-        experimental_max_worker_delay_secs=experimental_max_worker_delay_secs)
+        experimental_max_worker_delay_secs=experimental_max_worker_delay_secs,
+        session_creation_timeout_secs=session_creation_timeout_secs)
 
     # TODO(frankchn,priyag): Eventually use distributed coordinator for TPUs.
     if ((train_distribute and
@@ -804,6 +816,10 @@ class RunConfig(object):
   @property
   def keep_checkpoint_max(self):
     return self._keep_checkpoint_max
+
+  @property
+  def session_creation_timeout_secs(self):
+    return self._session_creation_timeout_secs
 
   @property
   def keep_checkpoint_every_n_hours(self):
