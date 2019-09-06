@@ -110,12 +110,14 @@ class KerasPremadeModelTest(test_util.TensorFlowTestCase):
 
     # build linear part with feature layer.
     linear_feature_layer = dense_features.DenseFeatures([ind_column])
-    linear_model = linear.LinearModel(units=1, name='Linear')
+    linear_model = linear.LinearModel(
+        units=1, name='Linear', kernel_initializer='zeros')
     combined_linear = keras.Sequential([linear_feature_layer, linear_model])
 
     # build dnn part with feature layer.
     dnn_feature_layer = dense_features.DenseFeatures([ind_column])
-    dense_layer = keras.layers.Dense(units=1, name='DNNDense')
+    dense_layer = keras.layers.Dense(
+        units=1, name='DNNDense', kernel_initializer='zeros')
     combined_dnn = keras.Sequential([dnn_feature_layer, dense_layer])
 
     # build and compile wide deep.
