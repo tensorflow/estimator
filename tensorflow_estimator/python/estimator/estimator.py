@@ -180,8 +180,11 @@ class Estimator(object):
               Keys are names of parameters, values are basic python types.
       warm_start_from: Optional string filepath to a checkpoint or SavedModel to
                        warm-start from, or a `tf.estimator.WarmStartSettings`
-                       object to fully configure warm-starting.  If the string
-                       filepath is provided instead of a
+                       object to fully configure warm-starting.
+
+                       If None, only TRAINABLE variables are warm-started.
+
+                       If the string filepath is provided instead of a
                        `tf.estimator.WarmStartSettings`, then all variables are
                        warm-started, and it is assumed that vocabularies
                        and `tf.Tensor` names are unchanged.
