@@ -21,16 +21,18 @@ from __future__ import print_function
 import numpy as np
 import six
 
+from tensorflow.core.framework import summary_pb2
+from tensorflow.python.framework import constant_op
+from tensorflow.python.framework import ops
+from tensorflow.python.framework import test_util
+from tensorflow.python.ops import string_ops
+from tensorflow.python.platform import test
+from tensorflow.python.saved_model import signature_constants
 from tensorflow_estimator.contrib.estimator.python.estimator import head as head_lib
 from tensorflow_estimator.contrib.estimator.python.estimator import multi_head as multi_head_lib
-from tensorflow.core.framework import summary_pb2
 from tensorflow_estimator.python.estimator import model_fn
 from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.canned import prediction_keys
-from tensorflow.python.framework import constant_op
-from tensorflow.python.framework import ops
-from tensorflow.python.ops import string_ops
-from tensorflow.python.platform import test
 from tensorflow.python.saved_model import signature_constants
 
 
@@ -74,6 +76,7 @@ def _sigmoid(logits):
   return 1 / (1 + np.exp(-logits))
 
 
+@test_util.run_all_in_deprecated_graph_mode_only
 class MultiHeadTest(test.TestCase):
 
   def setUp(self):

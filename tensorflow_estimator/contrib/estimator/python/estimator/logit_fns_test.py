@@ -40,8 +40,8 @@ class LogitFnTest(test.TestCase):
     logit_fn_result = logit_fns.call_logit_fn(
         dummy_logit_fn, features, model_fn.ModeKeys.EVAL, 'fake_params',
         'fake_config')
-    with session.Session():
-      self.assertAllClose([[4., 5.]], logit_fn_result.eval())
+    with self.test_session():
+      self.assertAllClose([[4., 5.]], self.evaluate(logit_fn_result))
 
   def test_simple_call_multi_logit_fn(self):
 
@@ -55,9 +55,9 @@ class LogitFnTest(test.TestCase):
     logit_fn_result = logit_fns.call_logit_fn(dummy_logit_fn, features,
                                               model_fn.ModeKeys.TRAIN,
                                               'fake_params', 'fake_config')
-    with session.Session():
-      self.assertAllClose([[2., 3.]], logit_fn_result['head1'].eval())
-      self.assertAllClose([[4., 5.]], logit_fn_result['head2'].eval())
+    with self.test_session():
+      self.assertAllClose([[2., 3.]], self.evaluate(logit_fn_result['head1']))
+      self.assertAllClose([[4., 5.]], self.evaluate(logit_fn_result['head2']))
 
   def test_invalid_logit_fn_results(self):
 

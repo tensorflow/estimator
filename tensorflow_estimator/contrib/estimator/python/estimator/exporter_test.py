@@ -21,10 +21,11 @@ import os
 import shutil
 import tempfile
 
-from tensorflow_estimator.contrib.estimator.python.estimator import exporter as exporter_lib
-from tensorflow_estimator.python.estimator import estimator as estimator_lib
+from tensorflow.python.framework import test_util
 from tensorflow.python.platform import gfile
 from tensorflow.python.platform import test
+from tensorflow_estimator.contrib.estimator.python.estimator import exporter as exporter_lib
+from tensorflow_estimator.python.estimator import estimator as estimator_lib
 
 
 class StepsExporterTest(test.TestCase):
@@ -75,6 +76,7 @@ class StepsExporterTest(test.TestCase):
 
     shutil.rmtree(export_dir_base, ignore_errors=True)
 
+  @test_util.deprecated_graph_mode_only
   def test_steps_exporter_with_preemption(self):
 
     def _serving_input_receiver_fn():

@@ -31,6 +31,7 @@ from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import errors
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import sparse_tensor
+from tensorflow.python.framework import test_util
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import check_ops
 from tensorflow.python.ops import control_flow_ops
@@ -93,6 +94,7 @@ def _sigmoid_cross_entropy(labels, logits):
   return np.mean(unreduced_result, axis=-1, keepdims=True)
 
 
+@test_util.run_all_in_deprecated_graph_mode_only
 class MultiLabelHead(test.TestCase):
 
   def setUp(self):
@@ -1289,6 +1291,7 @@ class MultiLabelHead(test.TestCase):
         expected_metrics=expected_metrics)
 
 
+@test_util.run_all_in_deprecated_graph_mode_only
 class PoissonRegressionHead(test.TestCase):
 
   def setUp(self):
@@ -1359,6 +1362,7 @@ class PoissonRegressionHead(test.TestCase):
       self.assertAllClose(logits, spec.predictions[keys.LOGITS].eval())
 
 
+@test_util.run_all_in_deprecated_graph_mode_only
 class LogisticRegressionHead(test.TestCase):
 
   def setUp(self):

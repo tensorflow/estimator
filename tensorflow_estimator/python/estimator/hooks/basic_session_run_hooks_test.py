@@ -24,8 +24,7 @@ import shutil
 import tempfile
 import time
 
-from tensorflow.contrib.framework.python.framework import checkpoint_utils
-from tensorflow.contrib.framework.python.ops import variables
+from tensorflow.python.training import checkpoint_utils
 from tensorflow.python.client import session as session_lib
 from tensorflow.python.data.ops import dataset_ops
 from tensorflow.python.framework import constant_op
@@ -149,7 +148,7 @@ class StopAtStepTest(test.TestCase):
   def test_stop_based_on_last_step(self):
     h = basic_session_run_hooks.StopAtStepHook(last_step=10)
     with ops.Graph().as_default():
-      global_step = variables.get_or_create_global_step()
+      global_step = training_util.get_or_create_global_step()
       no_op = control_flow_ops.no_op()
       h.begin()
       with session_lib.Session() as sess:
@@ -173,7 +172,7 @@ class StopAtStepTest(test.TestCase):
     h = basic_session_run_hooks.StopAtStepHook(num_steps=10)
 
     with ops.Graph().as_default():
-      global_step = variables.get_or_create_global_step()
+      global_step = training_util.get_or_create_global_step()
       no_op = control_flow_ops.no_op()
       h.begin()
       with session_lib.Session() as sess:
@@ -200,7 +199,7 @@ class StopAtStepTest(test.TestCase):
     h = basic_session_run_hooks.StopAtStepHook(num_steps=10)
 
     with ops.Graph().as_default():
-      global_step = variables.get_or_create_global_step()
+      global_step = training_util.get_or_create_global_step()
       no_op = control_flow_ops.no_op()
       h.begin()
       with session_lib.Session() as sess:
@@ -391,7 +390,7 @@ class CheckpointSaverHookTest(test.TestCase):
     self.graph = ops.Graph()
     with self.graph.as_default():
       self.scaffold = monitored_session.Scaffold()
-      self.global_step = variables.get_or_create_global_step()
+      self.global_step = training_util.get_or_create_global_step()
       self.train_op = training_util._increment_global_step(1)
 
   def tearDown(self):
@@ -465,7 +464,7 @@ class CheckpointSaverHookTest(test.TestCase):
   def test_listener_with_monitored_session(self):
     with ops.Graph().as_default():
       scaffold = monitored_session.Scaffold()
-      global_step = variables.get_or_create_global_step()
+      global_step = training_util.get_or_create_global_step()
       train_op = training_util._increment_global_step(1)
       listener = MockCheckpointSaverListener()
       hook = basic_session_run_hooks.CheckpointSaverHook(
@@ -492,7 +491,7 @@ class CheckpointSaverHookTest(test.TestCase):
   def test_listener_stops_training_in_after_save(self):
     with ops.Graph().as_default():
       scaffold = monitored_session.Scaffold()
-      variables.get_or_create_global_step()
+      training_util.get_or_create_global_step()
       train_op = training_util._increment_global_step(1)
       listener = MockCheckpointSaverListener()
       hook = basic_session_run_hooks.CheckpointSaverHook(
@@ -510,7 +509,7 @@ class CheckpointSaverHookTest(test.TestCase):
 
   def test_listener_with_default_saver(self):
     with ops.Graph().as_default():
-      global_step = variables.get_or_create_global_step()
+      global_step = training_util.get_or_create_global_step()
       train_op = training_util._increment_global_step(1)
       listener = MockCheckpointSaverListener()
       hook = basic_session_run_hooks.CheckpointSaverHook(
@@ -533,7 +532,7 @@ class CheckpointSaverHookTest(test.TestCase):
     }, listener_counts)
 
     with ops.Graph().as_default():
-      global_step = variables.get_or_create_global_step()
+      global_step = training_util.get_or_create_global_step()
       with monitored_session.SingularMonitoredSession(
           checkpoint_dir=self.model_dir) as sess2:
         global_step_saved_val = sess2.run(global_step)
@@ -541,7 +540,7 @@ class CheckpointSaverHookTest(test.TestCase):
 
   def test_two_listeners_with_default_saver(self):
     with ops.Graph().as_default():
-      global_step = variables.get_or_create_global_step()
+      global_step = training_util.get_or_create_global_step()
       train_op = training_util._increment_global_step(1)
       listener1 = MockCheckpointSaverListener()
       listener2 = MockCheckpointSaverListener()
@@ -567,7 +566,7 @@ class CheckpointSaverHookTest(test.TestCase):
     self.assertEqual(listener1_counts, listener2_counts)
 
     with ops.Graph().as_default():
-      global_step = variables.get_or_create_global_step()
+      global_step = training_util.get_or_create_global_step()
       with monitored_session.SingularMonitoredSession(
           checkpoint_dir=self.model_dir) as sess2:
         global_step_saved_val = sess2.run(global_step)
@@ -785,7 +784,7 @@ class CheckpointSaverHookMultiStepTest(test.TestCase):
     self.steps_per_run = 5
     with self.graph.as_default():
       self.scaffold = monitored_session.Scaffold()
-      self.global_step = variables.get_or_create_global_step()
+      self.global_step = training_util.get_or_create_global_step()
       self.train_op = training_util._increment_global_step(self.steps_per_run)
 
   def tearDown(self):
@@ -927,7 +926,7 @@ class StepCounterHookTest(test.TestCase):
   def test_step_counter_every_n_steps(self, mock_time):
     mock_time.return_value = MOCK_START_TIME
     with ops.Graph().as_default() as g, session_lib.Session() as sess:
-      variables.get_or_create_global_step()
+      training_util.get_or_create_global_step()
       train_op = training_util._increment_global_step(1)
       summary_writer = fake_summary_writer.FakeSummaryWriter(self.log_dir, g)
       hook = basic_session_run_hooks.StepCounterHook(
@@ -957,7 +956,7 @@ class StepCounterHookTest(test.TestCase):
   def test_step_counter_every_n_secs(self, mock_time):
     mock_time.return_value = MOCK_START_TIME
     with ops.Graph().as_default() as g, session_lib.Session() as sess:
-      variables.get_or_create_global_step()
+      training_util.get_or_create_global_step()
       train_op = training_util._increment_global_step(1)
       summary_writer = fake_summary_writer.FakeSummaryWriter(self.log_dir, g)
       hook = basic_session_run_hooks.StepCounterHook(
@@ -1019,7 +1018,7 @@ class StepCounterHookTest(test.TestCase):
 
   def test_log_warning_if_global_step_not_increased(self):
     with ops.Graph().as_default(), session_lib.Session() as sess:
-      variables.get_or_create_global_step()
+      training_util.get_or_create_global_step()
       train_op = training_util._increment_global_step(0)  # keep same.
       self.evaluate(variables_lib.global_variables_initializer())
       hook = basic_session_run_hooks.StepCounterHook(
@@ -1040,7 +1039,7 @@ class StepCounterHookTest(test.TestCase):
                                 steps_per_run,
                                 graph,
                                 sess):
-    variables.get_or_create_global_step()
+    training_util.get_or_create_global_step()
     self.train_op = training_util._increment_global_step(steps_per_run)
     self.summary_writer = fake_summary_writer.FakeSummaryWriter(
         self.log_dir, graph)
@@ -1138,7 +1137,7 @@ class SummarySaverHookTest(test.TestCase):
     self.summary_op = summary_lib.scalar('my_summary', tensor)
     self.summary_op2 = summary_lib.scalar('my_summary2', tensor2)
 
-    variables.get_or_create_global_step()
+    training_util.get_or_create_global_step()
     self.train_op = training_util._increment_global_step(1)
 
   def test_raise_when_scaffold_and_summary_op_both_missing(self):
@@ -1294,7 +1293,7 @@ class GlobalStepWaiterHookTest(test.TestCase):
 
   def test_not_wait_for_step_zero(self):
     with ops.Graph().as_default():
-      variables.get_or_create_global_step()
+      training_util.get_or_create_global_step()
       hook = basic_session_run_hooks.GlobalStepWaiterHook(wait_until_step=0)
       hook.begin()
       with session_lib.Session() as sess:
@@ -1306,7 +1305,7 @@ class GlobalStepWaiterHookTest(test.TestCase):
   @test.mock.patch.object(time, 'sleep')
   def test_wait_for_step(self, mock_sleep):
     with ops.Graph().as_default():
-      gstep = variables.get_or_create_global_step()
+      gstep = training_util.get_or_create_global_step()
       hook = basic_session_run_hooks.GlobalStepWaiterHook(wait_until_step=1000)
       hook.begin()
 
@@ -1421,7 +1420,7 @@ class ResourceSummarySaverHookTest(test.TestCase):
     self.summary_op = summary_lib.scalar('my_summary', tensor)
 
     with variable_scope.variable_scope('foo', use_resource=True):
-      variables.create_global_step()
+      training_util.create_global_step()
     self.train_op = training_util._increment_global_step(1)
 
   def test_save_steps(self):
@@ -1480,7 +1479,7 @@ class ProfilerHookTest(test.TestCase):
     self.graph = ops.Graph()
     self.filepattern = os.path.join(self.output_dir, 'timeline-*.json')
     with self.graph.as_default():
-      self.global_step = variables.get_or_create_global_step()
+      self.global_step = training_util.get_or_create_global_step()
       self.train_op = state_ops.assign_add(self.global_step, 1)
 
   def tearDown(self):

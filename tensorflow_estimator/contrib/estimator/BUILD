@@ -125,7 +125,11 @@ py_test(
     python_version = "PY2",
     shard_count = 2,
     srcs_version = "PY2AND3",
-    tags = ["notsan"],  # b/62863147
+    tags = [
+        "no_oss",  # contrib
+        "notap",  # contrib
+        "notsan",  # b/62863147
+    ],
     deps = [
         ":extenders",
         ":head",
@@ -316,8 +320,10 @@ py_test(
     python_version = "PY2",
     srcs_version = "PY2AND3",
     tags = [
+        "no_oss",  # contrib
         "no_pip",
         "noasan",  # times out
+        "notap",  # contrib
         "notsan",
         "optonly",  # times out http://b/79220679
     ],

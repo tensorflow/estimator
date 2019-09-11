@@ -19,8 +19,8 @@ from __future__ import division
 from __future__ import print_function
 
 import time
-import tensorflow as tf
 
+from tensorflow.python.framework import test_util
 from tensorflow.python.platform import test
 from tensorflow.python.training import training_util
 from tensorflow_estimator.python.estimator.tpu import iteration_count_estimator
@@ -286,7 +286,7 @@ class TPUStopAtStepHookTest(test.TestCase):
         specified as `count` or `seconds`.
       num_steps: Number of steps to execute.
     """
-    with tf.Session() as sess:
+    with self.test_session() as sess:
       global_step_tensor = training_util.get_or_create_global_step(sess.graph)
       global_step_tensor.load(0, session=sess)
       self.assertEqual(sess.run(global_step_tensor), 0)
@@ -349,6 +349,7 @@ class TPUStopAtStepHookTest(test.TestCase):
       global_step_tensor.load(5, session=sess)
       _step(hook, is_final=True, expected_iterations=0)
 
+  @test_util.deprecated_graph_mode_only
   def test_hook_life_cycle(self):
     """Tests update iterations."""
     self._validate_hook_life_cycle(
@@ -357,7 +358,7 @@ class TPUStopAtStepHookTest(test.TestCase):
         util_lib.IterationsPerLoopCounter(value=3, unit='count'), 5)
 
   def _validate_initialization(self, iterations_per_loop_counter, num_steps):
-    with tf.Session() as sess:
+    with self.test_session() as sess:
       global_step_tensor = training_util.get_or_create_global_step(sess.graph)
       global_step_tensor.load(0, session=sess)
       self.assertEqual(sess.run(global_step_tensor), 0)
@@ -379,6 +380,7 @@ class TPUStopAtStepHookTest(test.TestCase):
         self.assertIsInstance(hook._iteration_count_estimator,
                               iteration_count_estimator.IterationCountEstimator)
 
+  @test_util.deprecated_graph_mode_only
   def test_initialization(self):
     """Tests initialization.
 
