@@ -26,6 +26,8 @@ from tensorflow.python.framework import constant_op
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import test_util
+from tensorflow.python.framework.ops import add_to_collection
+from tensorflow.python.framework.ops import GraphKeys
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import metrics as metrics_lib
@@ -33,6 +35,7 @@ from tensorflow.python.ops import state_ops
 from tensorflow.python.ops import variables
 from tensorflow.python.platform import test
 from tensorflow.python.training import monitored_session
+from tensorflow.python.training import saver_test_utils
 from tensorflow.python.training import training
 from tensorflow_estimator.python.estimator import estimator
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
@@ -88,6 +91,27 @@ def model_fn_diff_modes(features, labels, mode):
       eval_metric_ops={
           'abs_err': metrics_lib.mean_absolute_error(
               constant_op.constant(0), predictions)},
+      predictions=predictions)
+
+
+def model_fn_with_trackable(features, labels, mode):
+  spec = model_fn_diff_modes(features, labels, mode)
+  predictions = spec.predictions
+
+  trackable_variable_ = saver_test_utils.CheckpointedOp(name='v2')
+
+  if mode == ModeKeys.TRAIN:
+    init_op = trackable_variable_.insert('key1', 2.2)
+    add_to_collection(GraphKeys.TABLE_INITIALIZERS, init_op)
+  else:
+    looked_up = trackable_variable_.lookup('key1', 0.0)
+    predictions = constant_op.constant([503.0]) + looked_up
+
+  return model_fn_lib.EstimatorSpec(
+      mode,
+      loss=spec.loss,
+      train_op=spec.train_op,
+      eval_metric_ops=spec.eval_metric_ops,
       predictions=predictions)
 
 
@@ -270,6 +294,47 @@ class SavedModelEstimatorTest(test.TestCase):
     predictions = next(sme2.predict(dummy_input_fn_features_only))
     self.assertDictEqual({'output': 503}, predictions)
 
+  def test_re_export_saved_model_with_trackable(self):
+    sme = saved_model_estimator.SavedModelEstimator(
+        self._export_estimator(model_fn=model_fn_with_trackable),
+        self._get_tmp_dir())
+
+    self.assertDictEqual(
+        {'loss': 106, 'metrics/abs_err': 502, 'global_step': 10},
+        sme.evaluate(dummy_input_fn, steps=1))
+
+    sme.train(dummy_input_fn, steps=3)
+    self.assertDictEqual(
+        {'loss': 106, 'metrics/abs_err': 502, 'global_step': 13},
+        sme.evaluate(dummy_input_fn, steps=1))
+    self.assertEqual(60, sme.get_variable_value('some_var'))
+
+    predictions = next(sme.predict(dummy_input_fn_features_only))
+    self.assertIn('output', predictions)
+    self.assertAlmostEqual(505.2, predictions['output'], places=4)
+
+    # Export SavedModel for all modes
+    input_receiver_fn_map = {
+        ModeKeys.TRAIN: dummy_supervised_receiver_fn(),
+        ModeKeys.EVAL: dummy_supervised_receiver_fn(),
+        ModeKeys.PREDICT: dummy_serving_receiver_fn()
+    }
+    sme_export_dir = sme.experimental_export_all_saved_models(
+        self._get_tmp_dir(), input_receiver_fn_map)
+
+    sme2 = saved_model_estimator.SavedModelEstimator(sme_export_dir,
+                                                     self._get_tmp_dir())
+
+    sme2.train(dummy_input_fn, steps=7)
+    self.assertEqual(20, sme2.get_variable_value('global_step'))
+    self.assertEqual(
+        81,  # 81 = 60 (last value) + 3 (step) * 7 (steps)
+        sme2.get_variable_value('some_var'))
+
+    predictions = next(sme2.predict(dummy_input_fn_features_only))
+    self.assertIn('output', predictions)
+    self.assertAlmostEqual(505.2, predictions['output'], places=4)
+
   def test_load_saved_model_from_serving_only(self):
     def model_fn(features, labels, mode):
       _, _ = features, labels
@@ -361,7 +426,6 @@ class SavedModelEstimatorTest(test.TestCase):
         self._export_estimator(train=False, predict=False, model_fn=model_fn),
         self._get_tmp_dir())
     sme.evaluate(dummy_input_fn, steps=1)  # Should run without error
-
 
 if __name__ == '__main__':
   test.main()

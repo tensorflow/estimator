@@ -29,6 +29,7 @@ from tensorflow.python.saved_model import loader_impl
 from tensorflow.python.saved_model import signature_constants
 from tensorflow.python.training import checkpoint_utils
 from tensorflow.python.training import monitored_session
+from tensorflow.python.training import saver
 from tensorflow.python.training import training_util
 from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator import estimator as estimator_lib
@@ -199,6 +200,10 @@ class SavedModelEstimator(estimator_lib.EstimatorV2):
       return None
     return meta_graph_def.signature_def[sig_def_key]
 
+  def _get_saver_def_from_mode(self, mode):
+    meta_graph_def = self._get_meta_graph_def_for_mode(mode)
+    return meta_graph_def.saver_def
+
   def _create_and_assert_global_step(self, graph):
     # Do nothing here. The global step variable will be created/loaded from the
     # SavedModel. If a global step variable were created here, the result
@@ -248,7 +253,8 @@ class SavedModelEstimator(estimator_lib.EstimatorV2):
     # TODO(kathywu): switch to loader_impl._get_main_op
     scaffold = monitored_session.Scaffold(
         local_init_op=loader_impl._get_main_op_tensor(  # pylint: disable=protected-access
-            self._get_meta_graph_def_for_mode(mode)))
+            self._get_meta_graph_def_for_mode(mode)),
+        saver=saver.Saver(saver_def=self._get_saver_def_from_mode(mode)))
 
     # Ensure that a global step tensor has been created.
     global_step_tensor = training_util.get_global_step(g)
