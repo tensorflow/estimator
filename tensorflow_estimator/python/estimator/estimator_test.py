@@ -473,7 +473,7 @@ class EstimatorTrainTest(test.TestCase):
           random_uniform([4, 10]))
       dataset = dataset_ops.Dataset.zip((dataset_features, dataset_labels))
       dataset = dataset.repeat(-1)
-      iterator = dataset.make_initializable_iterator()
+      iterator = dataset_ops.make_initializable_iterator(dataset)
       return iterator.get_next()
 
     def _model_fn(features, labels, mode, params, config):
@@ -1918,8 +1918,9 @@ class EstimatorPredictTest(test.TestCase):
           predictions=constant_op.constant([[10.]]))
 
     def _input_fn():
-      it = dataset_ops.Dataset.from_tensors([1]).make_one_shot_iterator()
-      return it.get_next()
+      dataset = dataset_ops.Dataset.from_tensors([1])
+      iterator = dataset_ops.make_one_shot_iterator(dataset)
+      return iterator.get_next()
 
     est = estimator.EstimatorV2(model_fn=_model_fn)
     est.train(dummy_input_fn, steps=1)
@@ -1939,8 +1940,9 @@ class EstimatorPredictTest(test.TestCase):
           predictions=constant_op.constant([[10.]]))
 
     def _input_fn():
-      it = dataset_ops.Dataset.from_tensors([1]).make_one_shot_iterator()
-      features = {'age': it.get_next()}
+      dataset = dataset_ops.Dataset.from_tensors([1])
+      iterator = dataset_ops.make_one_shot_iterator(dataset)
+      features = {'age': iterator.get_next()}
       return features
 
     est = estimator.EstimatorV2(model_fn=_model_fn)

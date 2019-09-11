@@ -35,7 +35,7 @@ def get_input_fn(x, y):
 
   def input_fn():
     dataset = dataset_ops.Dataset.from_tensor_slices({'x': x, 'y': y})
-    iterator = dataset.make_one_shot_iterator()
+    iterator = dataset_ops.make_one_shot_iterator(dataset)
     features = iterator.get_next()
     labels = features.pop('y')
     return features, labels
