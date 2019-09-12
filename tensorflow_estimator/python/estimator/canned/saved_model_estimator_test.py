@@ -28,8 +28,11 @@ from tensorflow.python.framework import ops
 from tensorflow.python.framework import test_util
 from tensorflow.python.framework.ops import add_to_collection
 from tensorflow.python.framework.ops import GraphKeys
+from tensorflow.python.keras import losses
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import control_flow_ops
+from tensorflow.python.ops import lookup_ops
+from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import metrics as metrics_lib
 from tensorflow.python.ops import state_ops
 from tensorflow.python.ops import variables
@@ -426,6 +429,48 @@ class SavedModelEstimatorTest(test.TestCase):
         self._export_estimator(train=False, predict=False, model_fn=model_fn),
         self._get_tmp_dir())
     sme.evaluate(dummy_input_fn, steps=1)  # Should run without error
+
+  def test_saveable_resources(self):
+    def model_fn(features, labels, mode):
+      tb = lookup_ops.MutableHashTable(key_dtype=dtypes.int32,
+                                       value_dtype=dtypes.int32,
+                                       default_value=-1)
+      predictions = tb.lookup(features['x'])
+      train_op = None
+      if mode == ModeKeys.TRAIN:
+        train_op = control_flow_ops.group(
+            tb.insert(features['x'], labels),
+            state_ops.assign_add(training.get_global_step(), 1))
+      return model_fn_lib.EstimatorSpec(
+          mode,
+          loss=constant_op.constant(0),
+          predictions=predictions,
+          train_op=train_op)
+
+    # Trains the model so that the table maps 1 -> 4, and -2 -> -3
+    # (see dummy_input_fn)
+    sme = saved_model_estimator.SavedModelEstimator(
+        self._export_estimator(model_fn=model_fn),
+        self._get_tmp_dir())
+
+    def gen_input_fn(features, labels=None):
+      def fn():
+        if labels:
+          t = ({'x': constant_op.constant(features, name='feature_x')},
+               constant_op.constant(labels, name='truth'))
+        else:
+          t = {'x': constant_op.constant(features, name='feature_x')}
+        return dataset_ops.Dataset.from_tensors(t).repeat()
+      return fn
+
+    self.assertAllEqual(
+        [-1], next(sme.predict(gen_input_fn([[5]])))['output'])
+    self.assertAllEqual(
+        [4], next(sme.predict(gen_input_fn([[1]])))['output'])
+    sme.train(gen_input_fn([[5]], [[6]]), steps=1)
+    self.assertAllEqual(
+        [6], next(sme.predict(gen_input_fn([[5]])))['output'])
+
 
 if __name__ == '__main__':
   test.main()

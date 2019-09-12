@@ -817,8 +817,7 @@ class Estimator(object):
     with context.graph_mode():
       if not checkpoint_path:
         # Locate the latest checkpoint
-        checkpoint_path = checkpoint_management.latest_checkpoint(
-            self._model_dir)
+        checkpoint_path = self.latest_checkpoint()
       if not checkpoint_path:
         if self._warm_start_settings:
           checkpoint_path = self._warm_start_settings.ckpt_to_initialize_from
@@ -1751,6 +1750,7 @@ def _assert_members_are_not_overridden(cls, obj):
       '_tf_api_names', '_tf_api_names_v1', '_estimator_api_names',
       '_estimator_api_names_v1', '_estimator_api_constants',
       '_estimator_api_constants_v1',
+      'latest_checkpoint'
   ])
 
   estimator_members = set([m for m in dir(cls) if not m.startswith('__')])
@@ -2329,16 +2329,6 @@ class WarmStartSettings(
         var_name_to_vocab_info or {},
         var_name_to_prev_var_name or {},
     )
-
-
-def _get_saved_model_ckpt(saved_model_dir):
-  """Return path to variables checkpoint in a `SavedModel` directory."""
-  if not gfile.Exists(
-      os.path.join(saved_model_utils.get_variables_dir(saved_model_dir),
-                   compat.as_text('variables.index'))):
-    raise ValueError('Directory provided has an invalid SavedModel format: %s'
-                     % saved_model_dir)
-  return saved_model_utils.get_variables_path(saved_model_dir)
 
 
 def _get_default_warm_start_settings(warm_start_from):

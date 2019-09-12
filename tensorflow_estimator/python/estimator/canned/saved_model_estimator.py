@@ -18,19 +18,23 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import os
+
 import six
 
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import tensor_shape
+from tensorflow.python.platform import gfile
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.saved_model import constants
 from tensorflow.python.saved_model import loader_impl
 from tensorflow.python.saved_model import signature_constants
-from tensorflow.python.training import checkpoint_utils
+from tensorflow.python.saved_model import utils_impl as saved_model_utils
 from tensorflow.python.training import monitored_session
 from tensorflow.python.training import saver
 from tensorflow.python.training import training_util
+from tensorflow.python.util import compat
 from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator import estimator as estimator_lib
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
@@ -141,16 +145,9 @@ class SavedModelEstimator(estimator_lib.EstimatorV2):
       NotImplementedError: If a DistributionStrategy is defined in the config.
         Unless the SavedModelEstimator is subclassed, this shouldn't happen.
     """
-    checkpoint = estimator_lib._get_saved_model_ckpt(saved_model_dir)  # pylint: disable=protected-access
-    vars_to_warm_start = [name for name, _ in
-                          checkpoint_utils.list_variables(checkpoint)]
-    warm_start_settings = estimator_lib.WarmStartSettings(
-        ckpt_to_initialize_from=checkpoint,
-        vars_to_warm_start=vars_to_warm_start)
 
     super(SavedModelEstimator, self).__init__(
-        model_fn=self._model_fn_from_saved_model, model_dir=model_dir,
-        warm_start_from=warm_start_settings)
+        model_fn=self._model_fn_from_saved_model, model_dir=model_dir)
     if self._train_distribution or self._eval_distribution:
       raise NotImplementedError(
           'SavedModelEstimator currently does not support '
@@ -247,6 +244,13 @@ class SavedModelEstimator(estimator_lib.EstimatorV2):
     _, output_tensors = self.saved_model_loader.load_graph(
         g, tags, input_map=input_map, return_elements=output_tensor_names)
 
+    # Create saver object, and restore from the SavedModel `variables` directory
+    # if no checkpoints have been saved in the `model_dir`.
+    saver_obj = saver.Saver(saver_def=self._get_saver_def_from_mode(mode))
+    init_fn = None
+    if not super(SavedModelEstimator, self).latest_checkpoint():
+      init_fn = self._restore_from_saver
+
     # Create a scaffold from the MetaGraphDef that contains ops to initialize
     # the graph. This should mirror the steps from _add_meta_graph_for_mode(),
     # which creates a MetaGraphDef from the EstimatorSpec's scaffold.
@@ -254,7 +258,8 @@ class SavedModelEstimator(estimator_lib.EstimatorV2):
     scaffold = monitored_session.Scaffold(
         local_init_op=loader_impl._get_main_op_tensor(  # pylint: disable=protected-access
             self._get_meta_graph_def_for_mode(mode)),
-        saver=saver.Saver(saver_def=self._get_saver_def_from_mode(mode)))
+        saver=saver_obj,
+        init_fn=init_fn)
 
     # Ensure that a global step tensor has been created.
     global_step_tensor = training_util.get_global_step(g)
@@ -281,6 +286,30 @@ class SavedModelEstimator(estimator_lib.EstimatorV2):
         train_op=train_op,
         predictions=predictions,
         eval_metric_ops=metrics)
+
+  def _restore_from_saver(self, scaffold, session):
+    return scaffold.saver.restore(session,
+                                  _get_saved_model_ckpt(self.saved_model_dir))
+
+  def latest_checkpoint(self):
+    """Returns the filename of the latest saved checkpoint.
+
+    Returns:
+      Filename of latest checkpoint in `model_dir`. If no checkpoints are found
+      in `model_dir`, then the path to the SavedModel checkpoint is returned.
+    """
+    return (super(SavedModelEstimator, self).latest_checkpoint() or
+            _get_saved_model_ckpt(self.saved_model_dir))
+
+
+def _get_saved_model_ckpt(saved_model_dir):
+  """Return path to variables checkpoint in a `SavedModel` directory."""
+  if not gfile.Exists(
+      os.path.join(saved_model_utils.get_variables_dir(saved_model_dir),
+                   compat.as_text('variables.index'))):
+    raise ValueError('Directory provided has an invalid SavedModel format: %s'
+                     % saved_model_dir)
+  return saved_model_utils.get_variables_path(saved_model_dir)
 
 
 def _clear_saved_model_collections():
