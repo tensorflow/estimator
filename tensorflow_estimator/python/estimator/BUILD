@@ -1977,6 +1977,7 @@ py_test(
     shard_count = 48,
     srcs_version = "PY2AND3",
     tags = [
+        "no_oss",  # b/140933379
         # TODO(b/118768923): Re-enable {a,m,t}san test.
         "noasan",
         "nomsan",
