@@ -22,6 +22,7 @@ import os
 import numpy as np
 
 from tensorflow.python import keras
+from tensorflow.python.data.ops import dataset_ops
 from tensorflow.python.feature_column import dense_features
 from tensorflow.python.feature_column import feature_column_v2 as feature_column
 from tensorflow.python.framework import dtypes
@@ -38,6 +39,48 @@ from tensorflow_estimator.python.estimator import run_config as run_config_lib
 from tensorflow_estimator.python.estimator.inputs import numpy_io
 
 _RANDOM_SEED = 1337
+
+
+def gen_input_fn(x, y=None, batch_size=32, num_epochs=10, shuffle=False):
+
+  def input_fn():
+    ds = dataset_ops.Dataset.from_tensor_slices((x, y) if y is not None else x)
+    if shuffle:
+      ds = ds.shuffle(1000)
+    return ds.repeat(num_epochs).batch(batch_size)
+
+  return input_fn
+
+
+def get_resource_for_simple_model():
+
+  input_name = 'input_1'
+  output_name = 'output_1'
+
+  np.random.seed(_RANDOM_SEED)
+  x_train = np.random.uniform(low=-5, high=5, size=(64, 2)).astype('f')
+  y_train = .3 * x_train[:, 0] + .2 * x_train[:, 1]
+  x_test = np.random.uniform(low=-5, high=5, size=(64, 2)).astype('f')
+  y_test = .3 * x_test[:, 0] + .2 * x_test[:, 1]
+
+  train_input_fn = gen_input_fn(
+      x=x_train, y=y_train, num_epochs=None, shuffle=False)
+
+  evaluate_input_fn = gen_input_fn(
+      x=randomize_io_type(x_test, input_name),
+      y=randomize_io_type(y_test, output_name),
+      num_epochs=1,
+      shuffle=False)
+
+  return (x_train, y_train), (x_test, y_test), train_input_fn, evaluate_input_fn
+
+
+def randomize_io_type(array, name):
+  switch = np.random.random()
+  if switch > 0.5:
+    return array
+  else:
+    return {name: array}
 
 
 class KerasPremadeModelTest(test_util.TensorFlowTestCase):
@@ -90,6 +133,25 @@ class KerasPremadeModelTest(test_util.TensorFlowTestCase):
     after_eval_results = est.evaluate(input_fn=eval_input_fn, steps=1)
     self.assertLess(after_eval_results['loss'], before_eval_results['loss'])
     self.assertLess(after_eval_results['loss'], 0.05)
+
+  def test_train_premade_linear_model(self):
+    (x_train,
+     y_train), _, train_inp_fn, eval_inp_fn = get_resource_for_simple_model()
+
+    linear_model = linear.LinearModel(units=1)
+    opt = gradient_descent.SGD(0.1)
+    linear_model.compile(opt, 'mse', ['mse'])
+    linear_model.fit(x_train, y_train, epochs=10)
+
+    est = keras_lib.model_to_estimator(
+        keras_model=linear_model,
+        config=self._config,
+        checkpoint_format='saver')
+    before_eval_results = est.evaluate(input_fn=eval_inp_fn, steps=1)
+    est.train(input_fn=train_inp_fn, steps=500)
+    after_eval_results = est.evaluate(input_fn=eval_inp_fn, steps=1)
+    self.assertLess(after_eval_results['loss'], before_eval_results['loss'])
+    self.assertLess(after_eval_results['loss'], 0.1)
 
   def test_train_premade_widedeep_model_with_feature_layers(self):
     vocab_list = ['alpha', 'beta', 'gamma']
