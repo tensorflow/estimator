@@ -1787,7 +1787,6 @@ py_test(
     deps = [
         ":estimator_py",
         ":fake_summary_writer",
-        "//tensorflow_estimator/contrib/estimator:estimator_py",
     ],
 )
 

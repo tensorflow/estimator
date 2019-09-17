@@ -18,7 +18,6 @@ package_group(
     packages = [
         "//learning/brain/...",
         "//tensorflow_estimator/...",
-        "//third_party/tensorflow/contrib/...",
         "//third_party/tensorflow/python/estimator/...",
     ],
 )
@@ -49,12 +48,7 @@ py_library(
     ],
     deps = [
         "//tensorflow_estimator/python/estimator:estimator_py",
-    ] + select({
-        "api_version_2": [],
-        "//conditions:default": [
-            "//tensorflow_estimator/contrib/estimator:estimator_py",
-        ],
-    }),
+    ],
 )
 
 genrule(
