@@ -294,7 +294,7 @@ class MultiLabelHead(base_head.Head):
           with ops.control_dependencies([label_values]):
             processed_labels = sparse_ops.sparse_to_indicator(
                 labels, self._n_classes)
-      processed_labels = math_ops.to_int64(processed_labels)
+      processed_labels = math_ops.cast(processed_labels, dtype=dtypes.int64)
     else:
       err_msg = (
           r'labels must be an integer indicator Tensor with values in [0, 1]')

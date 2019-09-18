@@ -20,6 +20,7 @@ from __future__ import print_function
 
 from tensorflow.python.eager import context
 from tensorflow.python.framework import ops
+from tensorflow.python.framework import dtypes
 from tensorflow.python.keras import metrics
 from tensorflow.python.keras.utils import losses_utils
 from tensorflow.python.ops import array_ops
@@ -203,7 +204,7 @@ class BinaryClassHead(base_head.Head):
         labels=labels, logits=logits, expected_labels_dimension=1)
     if self._label_vocabulary is not None:
       labels = self._class_id_table.lookup(labels)
-    labels = math_ops.to_float(labels)
+    labels = math_ops.cast(labels, dtype=dtypes.float32)
     return base_head.check_label_range(labels, n_classes=2)
 
   def _unweighted_loss_and_weights(self, logits, labels, features):
@@ -365,7 +366,7 @@ class BinaryClassHead(base_head.Head):
     accuracy_baseline_metric.count = label_mean_metric.count
 
   def _update_auc(self, auc_metric, labels, predictions, weights=None):
-    predictions = math_ops.to_float(predictions)
+    predictions = math_ops.cast(predictions, dtype=dtypes.float32)
     if weights is not None:
       weights = weights_broadcast_ops.broadcast_weights(weights, predictions)
     auc_metric.update_state(

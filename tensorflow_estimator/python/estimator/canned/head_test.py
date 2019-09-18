@@ -2138,7 +2138,8 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
     expected_loss = 41.
     def _train_op_fn(loss):
       with ops.control_dependencies((check_ops.assert_equal(
-          math_ops.to_float(expected_loss), math_ops.to_float(loss),
+          math_ops.cast(expected_loss, dtype=dtypes.float32),
+          math_ops.cast(loss, dtype=dtypes.float32),
           name='assert_loss'),)):
         return constant_op.constant(expected_train_result)
 
@@ -2186,7 +2187,8 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
       def minimize(self, loss, global_step):
         del global_step
         with ops.control_dependencies((check_ops.assert_equal(
-            math_ops.to_float(expected_loss), math_ops.to_float(loss),
+            math_ops.cast(expected_loss, dtype=dtypes.float32),
+            math_ops.cast(loss, dtype=dtypes.float32),
             name='assert_loss'),)):
           return constant_op.constant(expected_train_result)
 
@@ -2285,7 +2287,8 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
     expected_loss = 22.5
     def _train_op_fn(loss):
       with ops.control_dependencies((check_ops.assert_equal(
-          math_ops.to_float(expected_loss), math_ops.to_float(loss),
+          math_ops.cast(expected_loss, dtype=dtypes.float32),
+          math_ops.cast(loss, dtype=dtypes.float32),
           name='assert_loss'),)):
         return constant_op.constant(expected_train_result)
 
@@ -2369,7 +2372,8 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
     expected_loss = 1.2484322
     def _train_op_fn(loss):
       with ops.control_dependencies((dnn_testing_utils_v1.assert_close(
-          math_ops.to_float(expected_loss), math_ops.to_float(loss)),)):
+          math_ops.cast(expected_loss, dtype=dtypes.float32),
+          math_ops.cast(loss, dtype=dtypes.float32)),)):
         return constant_op.constant(expected_train_result)
 
     # Create estimator spec.
@@ -2587,7 +2591,8 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
     expected_loss = 70.1
     def _train_op_fn(loss):
       with ops.control_dependencies((check_ops.assert_equal(
-          math_ops.to_float(expected_loss), math_ops.to_float(loss),
+          math_ops.cast(expected_loss, dtype=dtypes.float32),
+          math_ops.cast(loss, dtype=dtypes.float32),
           name='assert_loss'),)):
         return constant_op.constant(expected_train_result)
 
@@ -2631,7 +2636,8 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
     expected_loss = 70.1
     def _train_op_fn(loss):
       with ops.control_dependencies((check_ops.assert_equal(
-          math_ops.to_float(expected_loss), math_ops.to_float(loss),
+          math_ops.cast(expected_loss, dtype=dtypes.float32),
+          math_ops.cast(loss, dtype=dtypes.float32),
           name='assert_loss'),)):
         return constant_op.constant(expected_train_result)
     spec = head.create_estimator_spec(
@@ -3345,7 +3351,8 @@ class RegressionHead(test.TestCase):
     expected_loss = 13
     def _train_op_fn(loss):
       with ops.control_dependencies((check_ops.assert_equal(
-          math_ops.to_float(expected_loss), math_ops.to_float(loss),
+          math_ops.cast(expected_loss, dtype=dtypes.float32),
+          math_ops.cast(loss, dtype=dtypes.float32),
           name='assert_loss'),)):
         return constant_op.constant(expected_train_result)
 
@@ -3399,7 +3406,8 @@ class RegressionHead(test.TestCase):
       def minimize(self, loss, global_step):
         del global_step
         with ops.control_dependencies((check_ops.assert_equal(
-            math_ops.to_float(expected_loss), math_ops.to_float(loss),
+            math_ops.cast(expected_loss, dtype=dtypes.float32),
+            math_ops.cast(loss, dtype=dtypes.float32),
             name='assert_loss'),)):
           return constant_op.constant(expected_train_result)
 
@@ -3501,7 +3509,8 @@ class RegressionHead(test.TestCase):
     expected_loss = 8.5
     def _train_op_fn(loss):
       with ops.control_dependencies((check_ops.assert_equal(
-          math_ops.to_float(expected_loss), math_ops.to_float(loss),
+          math_ops.cast(expected_loss, dtype=dtypes.float32),
+          math_ops.cast(loss, dtype=dtypes.float32),
           name='assert_loss'),)):
         return constant_op.constant(expected_train_result)
 
@@ -3614,7 +3623,8 @@ class RegressionHead(test.TestCase):
     expected_loss = 101.6
     def _train_op_fn(loss):
       with ops.control_dependencies((check_ops.assert_equal(
-          math_ops.to_float(expected_loss), math_ops.to_float(loss),
+          math_ops.cast(expected_loss, dtype=dtypes.float32),
+          math_ops.cast(loss, dtype=dtypes.float32),
           name='assert_loss'),)):
         return constant_op.constant(expected_train_result)
     spec = head.create_estimator_spec(
@@ -3691,7 +3701,8 @@ class RegressionHead(test.TestCase):
     expected_loss = 101.6
     def _train_op_fn(loss):
       with ops.control_dependencies((check_ops.assert_equal(
-          math_ops.to_float(expected_loss), math_ops.to_float(loss),
+          math_ops.cast(expected_loss, dtype=dtypes.float32),
+          math_ops.cast(loss, dtype=dtypes.float32),
           name='assert_loss'),)):
         return constant_op.constant(expected_train_result)
 
@@ -3842,7 +3853,8 @@ class RegressionHead(test.TestCase):
     expected_loss = 101.6
     def _train_op_fn(loss):
       with ops.control_dependencies((check_ops.assert_equal(
-          math_ops.to_float(expected_loss), math_ops.to_float(loss),
+          math_ops.cast(expected_loss, dtype=dtypes.float32),
+          math_ops.cast(loss, dtype=dtypes.float32),
           name='assert_loss'),)):
         return constant_op.constant(expected_train_result)
 
@@ -4051,7 +4063,8 @@ class RegressionHead(test.TestCase):
     # Create estimator spec.
     def _train_op_fn(loss):
       with ops.control_dependencies((check_ops.assert_equal(
-          math_ops.to_float(expected_loss), math_ops.to_float(loss),
+          math_ops.cast(expected_loss, dtype=dtypes.float32),
+          math_ops.cast(loss, dtype=dtypes.float32),
           name='assert_loss'),)):
         return constant_op.constant(expected_train_result)
 

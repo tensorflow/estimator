@@ -69,7 +69,7 @@ class LinearSDCA(object):
 
   SDCA can only be used with `LinearClassifier` and `LinearRegressor` under the
   following conditions:
-  
+
     - Feature columns are of type V2.
     - Multivalent categorical columns are not normalized. In other words the
       `sparse_combiner` argument in the estimator constructor should be "sum".
@@ -157,7 +157,8 @@ class LinearSDCA(object):
           [array_ops.shape(id_tensor.indices)[0]], dtypes.float32)
 
     example_ids = array_ops.reshape(id_tensor.indices[:, 0], [-1])
-    flat_ids = math_ops.to_int64(array_ops.reshape(id_tensor.values, [-1]))
+    flat_ids = math_ops.cast(
+        array_ops.reshape(id_tensor.values, [-1]), dtype=dtypes.int64)
     # Prune invalid IDs (< 0) from the flat_ids, example_ids, and
     # weight_tensor.  These can come from looking up an OOV entry in the
     # vocabulary (default value being -1).
@@ -305,7 +306,7 @@ def _compute_fraction_of_zero(variables):
           control_flow_ops.cond(
               math_ops.equal(size, constant_op.constant(0, dtype=dtypes.int64)),
               true_fn=lambda: constant_op.constant(0, dtype=dtypes.float32),
-              false_fn=lambda: nn.zero_fraction(x) * math_ops.to_float(size),
+              false_fn=lambda: nn.zero_fraction(x) * math_ops.cast(size, dtype=dtypes.float32),
               name='zero_count')
           for x, size in zip(variables, sizes)
       ])

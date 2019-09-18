@@ -28,6 +28,7 @@ from tensorflow.python.feature_column.feature_column import _LazyBuilder
 from tensorflow.python.feature_column.feature_column import _NumericColumn
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
+from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import sparse_tensor
 from tensorflow.python.framework import tensor_util
 from tensorflow.python.keras.optimizer_v2 import optimizer_v2
@@ -486,7 +487,7 @@ def get_weights_and_check_match_logits(
     if not (weights.dtype.is_floating or weights.dtype.is_integer):
       raise ValueError('Weight column should be castable to float. '
                        'Given dtype: {}'.format(weights.dtype))
-    weights = math_ops.to_float(weights, name='weights')
+    weights = math_ops.cast(weights, name='weights', dtype=dtypes.float32)
     # Validate the weights shape.
     # Eager mode.
     if context.executing_eagerly():
@@ -786,7 +787,7 @@ def check_label_range(labels, n_classes, message=None):
 
 
 def update_metric_with_broadcast_weights(eval_metric, values, weights):
-  values = math_ops.to_float(values)
+  values = math_ops.cast(values, dtype=dtypes.float32)
   if weights is not None:
     weights = weights_broadcast_ops.broadcast_weights(
         weights, values)

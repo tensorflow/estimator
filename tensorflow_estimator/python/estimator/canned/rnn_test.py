@@ -903,7 +903,7 @@ class RNNClassifierTrainingTest(test.TestCase):
         if expected_loss is None:
           return [self.iterations.assign_add(1).op]
         assert_loss = _assert_close(
-            math_ops.to_float(expected_loss, name='expected'),
+            math_ops.cast(expected_loss, name='expected', dtype=dtypes.float32),
             loss,
             name='assert_loss')
         with ops.control_dependencies((assert_loss,)):

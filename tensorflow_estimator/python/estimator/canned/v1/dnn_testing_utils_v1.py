@@ -237,7 +237,7 @@ def mock_optimizer(testcase, hidden_units, expected_loss=None):
         return state_ops.assign_add(global_step, 1).op
       return control_flow_ops.no_op()
     assert_loss = assert_close(
-        math_ops.to_float(expected_loss, name='expected'),
+        math_ops.cast(expected_loss, name='expected', dtype=dtypes.float32),
         loss,
         name='assert_loss')
     with ops.control_dependencies((assert_loss,)):

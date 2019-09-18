@@ -19,6 +19,7 @@ from __future__ import division
 from __future__ import print_function
 
 from tensorflow.python.framework import ops
+from tensorflow.python.framework import dtypes
 from tensorflow.python.keras import metrics
 from tensorflow.python.keras.utils import losses_utils
 from tensorflow.python.ops import math_ops
@@ -153,7 +154,7 @@ class RegressionHead(base_head.Head):
     labels = base_head.check_dense_labels_match_logits_and_reshape(
         labels=labels, logits=logits,
         expected_labels_dimension=self._logits_dimension)
-    labels = math_ops.to_float(labels)
+    labels = math_ops.cast(labels, dtype=dtypes.float32)
     return labels
 
   def _unweighted_loss_and_weights(self, logits, labels, features):

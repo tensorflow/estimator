@@ -786,7 +786,8 @@ class BinaryClassHeadTest(test.TestCase):
     expected_train_result = b'my_train_op'
     def _train_op_fn(loss):
       with ops.control_dependencies((check_ops.assert_equal(
-          math_ops.to_float(expected_loss), math_ops.to_float(loss),
+          math_ops.cast(expected_loss, dtype=dtypes.float32),
+          math_ops.cast(loss, dtype=dtypes.float32),
           name='assert_loss'),)):
         return constant_op.constant(expected_train_result)
     # Create estimator spec.
@@ -877,7 +878,8 @@ class BinaryClassHeadTest(test.TestCase):
     expected_train_result = b'my_train_op'
     def _train_op_fn(loss):
       with ops.control_dependencies((check_ops.assert_equal(
-          math_ops.to_float(expected_loss), math_ops.to_float(loss),
+          math_ops.cast(expected_loss, dtype=dtypes.float32),
+          math_ops.cast(loss, dtype=dtypes.float32),
           name='assert_loss'),)):
         return constant_op.constant(expected_train_result)
     spec = head.create_estimator_spec(
@@ -928,7 +930,8 @@ class BinaryClassHeadTest(test.TestCase):
     expected_train_result = b'my_train_op'
     def _train_op_fn(loss):
       with ops.control_dependencies((check_ops.assert_equal(
-          math_ops.to_float(expected_loss), math_ops.to_float(loss),
+          math_ops.cast(expected_loss, dtype=dtypes.float32),
+          math_ops.cast(loss, dtype=dtypes.float32),
           name='assert_loss'),)):
         return constant_op.constant(expected_train_result)
     # Create estimator spec.
@@ -1031,7 +1034,8 @@ class BinaryClassHeadTest(test.TestCase):
 
     def _train_op_fn(loss):
       with ops.control_dependencies((dnn_testing_utils.assert_close(
-          math_ops.to_float(expected_loss), math_ops.to_float(loss)),)):
+          math_ops.cast(expected_loss, dtype=dtypes.float32),
+          math_ops.cast(loss, dtype=dtypes.float32)),)):
         return constant_op.constant(expected_train_result)
     # Create estimator spec.
     spec = head.create_estimator_spec(
@@ -1239,7 +1243,8 @@ class BinaryClassHeadTest(test.TestCase):
 
     def _train_op_fn(loss):
       with ops.control_dependencies((check_ops.assert_equal(
-          math_ops.to_float(expected_loss), math_ops.to_float(loss),
+          math_ops.cast(expected_loss, dtype=dtypes.float32),
+          math_ops.cast(loss, dtype=dtypes.float32),
           name='assert_loss'),)):
         return constant_op.constant(expected_train_result)
     spec = head.create_estimator_spec(
@@ -1528,7 +1533,8 @@ class BinaryClassHeadForEstimator(test.TestCase):
       def get_updates(self, loss, params):
         del params
         with ops.control_dependencies((check_ops.assert_equal(
-            math_ops.to_float(expected_loss), math_ops.to_float(loss),
+            math_ops.cast(expected_loss, dtype=dtypes.float32),
+            math_ops.cast(loss, dtype=dtypes.float32),
             name='assert_loss'),)):
           return [constant_op.constant(expected_train_result)]
 
@@ -1572,7 +1578,7 @@ class BinaryClassHeadForEstimator(test.TestCase):
           train_op_fn=_train_op_fn,
           update_ops=[update_op],
           trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+              variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
 
       with self.cached_session() as sess:
         test_lib._initialize_variables(self, spec.scaffold)
