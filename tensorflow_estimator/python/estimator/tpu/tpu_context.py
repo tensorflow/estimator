@@ -25,6 +25,7 @@ from tensorflow.python.distribute import distribute_lib
 from tensorflow.python.distribute import distribution_strategy_context
 from tensorflow.python.eager import context as eager_context
 from tensorflow.python.framework import constant_op
+from tensorflow.python.ops import summary_ops_v2
 from tensorflow.python.ops import math_ops
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.tpu import device_assignment as tpu_device_assignment
@@ -794,19 +795,18 @@ class _TPUEstimatorReplicaContext(distribute_lib.ReplicaContext):
     # pylint: enable=protected-access
 
   def __enter__(self):
-    ctx = eager_context.context()
-
     def replica_id_is_zero():
       return math_ops.equal(self._replica_id_in_sync_group,
                             constant_op.constant(0))
 
+    summary_state = summary_ops_v2._summary_state  # pylint: disable=protected-access
     self._summary_recording_distribution_strategy = (
-        ctx.summary_recording_distribution_strategy)
-    ctx.summary_recording_distribution_strategy = replica_id_is_zero
+        summary_state.is_recording_distribution_strategy)
+    summary_state.is_recording_distribution_strategy = replica_id_is_zero
 
   def __exit__(self, exception_type, exception_value, traceback):
-    ctx = eager_context.context()
-    ctx.summary_recording_distribution_strategy = (
+    summary_state = summary_ops_v2._summary_state  # pylint: disable=protected-access
+    summary_state.is_recording_distribution_strategy = (
         self._summary_recording_distribution_strategy)
 
 
