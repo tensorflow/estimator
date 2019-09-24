@@ -18,6 +18,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import os
 import shutil
 import tempfile
 
@@ -35,8 +36,10 @@ from tensorflow.python.ops import lookup_ops
 from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import metrics as metrics_lib
 from tensorflow.python.ops import state_ops
+from tensorflow.python.ops import string_ops
 from tensorflow.python.ops import variables
 from tensorflow.python.platform import test
+from tensorflow.python.saved_model import constants
 from tensorflow.python.training import monitored_session
 from tensorflow.python.training import saver_test_utils
 from tensorflow.python.training import training
@@ -393,6 +396,45 @@ class SavedModelEstimatorTest(test.TestCase):
 
     eval_results2 = sme.evaluate(dummy_input_fn, steps=5)
     self.assertEqual(12, eval_results2['loss'])
+
+  def test_with_assets(self):
+    filename = 'test_asset'
+    tmpdir = tempfile.mkdtemp()
+    absolute_filepath = os.path.join(tmpdir, filename)
+    num_buckets = 1000
+    with open(absolute_filepath, 'w') as f:
+      f.write(b'test')
+
+    def model_fn(features, labels, mode):
+      _, _ = features, labels
+      v = variables.Variable(0, name='some_var', dtype=dtypes.int64)
+      # We verify the value of filepath_tensor is replaced with a path to the
+      # saved model's assets directory by assigning a hash of filepath_tensor
+      # to some_var.
+      filepath_tensor = ops.convert_to_tensor(absolute_filepath)
+      ops.add_to_collection(ops.GraphKeys.ASSET_FILEPATHS, filepath_tensor)
+      scaffold = monitored_session.Scaffold(
+          local_init_op=state_ops.assign(
+              v, string_ops.string_to_hash_bucket_fast(
+                  filepath_tensor, num_buckets)).op
+      )
+      return model_fn_lib.EstimatorSpec(
+          mode,
+          scaffold=scaffold,
+          train_op=state_ops.assign_add(training.get_global_step(), 1),
+          loss=array_ops.identity(0))
+    export_dir = self._export_estimator(predict=False, model_fn=model_fn)
+    sme = saved_model_estimator.SavedModelEstimator(
+        export_dir, self._get_tmp_dir())
+
+    with self.session() as sess:
+      expected_bucket = sess.run(
+          string_ops.string_to_hash_bucket_fast(
+              os.path.join(export_dir, constants.ASSETS_DIRECTORY, filename),
+              num_buckets))
+
+    sme.train(dummy_input_fn, steps=1)
+    self.assertEqual(expected_bucket, sme.get_variable_value('some_var'))
 
   def test_with_working_input_fn(self):
     def model_fn(features, labels, mode):

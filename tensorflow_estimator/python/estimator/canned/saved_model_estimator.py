@@ -254,10 +254,15 @@ class SavedModelEstimator(estimator_lib.EstimatorV2):
     # Create a scaffold from the MetaGraphDef that contains ops to initialize
     # the graph. This should mirror the steps from _add_meta_graph_for_mode(),
     # which creates a MetaGraphDef from the EstimatorSpec's scaffold.
+    # Get asset tensors, if any.
+    meta_graph_def = self._get_meta_graph_def_for_mode(mode)
+    asset_tensors_dictionary = loader_impl.get_asset_tensors(
+        self.saved_model_loader.export_dir, meta_graph_def, import_scope=None)
     # TODO(kathywu): switch to loader_impl._get_main_op
     scaffold = monitored_session.Scaffold(
         local_init_op=loader_impl._get_main_op_tensor(  # pylint: disable=protected-access
-            self._get_meta_graph_def_for_mode(mode)),
+            meta_graph_def),
+        local_init_feed_dict=asset_tensors_dictionary,
         saver=saver_obj,
         init_fn=init_fn)
 
