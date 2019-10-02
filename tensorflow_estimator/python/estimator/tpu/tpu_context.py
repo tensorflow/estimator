@@ -799,15 +799,17 @@ class _TPUEstimatorReplicaContext(distribute_lib.ReplicaContext):
       return math_ops.equal(self._replica_id_in_sync_group,
                             constant_op.constant(0))
 
-    summary_state = summary_ops_v2._summary_state  # pylint: disable=protected-access
-    self._summary_recording_distribution_strategy = (
-        summary_state.is_recording_distribution_strategy)
-    summary_state.is_recording_distribution_strategy = replica_id_is_zero
+    if hasattr(summary_ops_v2, '_summary_state'):
+      summary_state = summary_ops_v2._summary_state  # pylint: disable=protected-access
+      self._summary_recording_distribution_strategy = (
+          summary_state.is_recording_distribution_strategy)
+      summary_state.is_recording_distribution_strategy = replica_id_is_zero
 
   def __exit__(self, exception_type, exception_value, traceback):
-    summary_state = summary_ops_v2._summary_state  # pylint: disable=protected-access
-    summary_state.is_recording_distribution_strategy = (
-        self._summary_recording_distribution_strategy)
+    if hasattr(summary_ops_v2, '_summary_state'):
+      summary_state = summary_ops_v2._summary_state  # pylint: disable=protected-access
+      summary_state.is_recording_distribution_strategy = (
+          self._summary_recording_distribution_strategy)
 
 
 def _get_tpu_context(config, train_batch_size, eval_batch_size,
