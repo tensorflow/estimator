@@ -79,6 +79,10 @@ _VALID_MODEL_FN_ARGS = set(
 _estimator_api_gauge = monitoring.BoolGauge('/tensorflow/api/estimator',
                                             'estimator api usage', 'method')
 
+_canned_estimator_api_gauge = monitoring.StringGauge(
+    '/tensorflow/api/estimator/canned_estimator',
+    'Gauge to track the type of canned estimator used', 'ClassType')
+
 
 @estimator_export(v1=['estimator.Estimator'])
 class Estimator(object):

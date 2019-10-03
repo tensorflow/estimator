@@ -573,6 +573,8 @@ class DNNLinearCombinedClassifierV2(estimator.EstimatorV2):
         n_classes, weight_column=weight_column,
         label_vocabulary=label_vocabulary,
         loss_reduction=loss_reduction)
+    estimator._canned_estimator_api_gauge.get_cell('Classifier').set(  # pylint: disable=protected-access
+        'DNNLinearCombined')
 
     def _model_fn(features, labels, mode, config):
       """Call the _dnn_linear_combined_model_fn."""
@@ -629,6 +631,8 @@ class DNNLinearCombinedClassifier(estimator.Estimator):
 
     head = head_lib._binary_logistic_or_multi_class_head(  # pylint: disable=protected-access
         n_classes, weight_column, label_vocabulary, loss_reduction)
+    estimator._canned_estimator_api_gauge.get_cell('Classifier').set(
+        'DNNLinearCombined')  # pylint: disable=protected-access
 
     def _model_fn(features, labels, mode, config):
       """Call the _dnn_linear_combined_model_fn."""
@@ -836,6 +840,8 @@ class DNNLinearCombinedEstimatorV2(estimator.EstimatorV2):
     self._feature_columns = _validate_feature_columns(
         linear_feature_columns=linear_feature_columns,
         dnn_feature_columns=dnn_feature_columns)
+    estimator._canned_estimator_api_gauge.get_cell('Estimator').set(
+        'DNNLinearCombined')  # pylint: disable=protected-access
 
     def _model_fn(features, labels, mode, config):
       """Call the _dnn_linear_combined_model_fn."""
@@ -880,6 +886,8 @@ class DNNLinearCombinedEstimator(estimator.Estimator):
     self._feature_columns = _validate_feature_columns(
         linear_feature_columns=linear_feature_columns,
         dnn_feature_columns=dnn_feature_columns)
+    estimator._canned_estimator_api_gauge.get_cell('Estimator').set(
+        'DNNLinearCombined')  # pylint: disable=protected-access
 
     def _model_fn(features, labels, mode, config):
       """Call the _dnn_linear_combined_model_fn."""
@@ -1069,6 +1077,8 @@ class DNNLinearCombinedRegressorV2(estimator.EstimatorV2):
         label_dimension=label_dimension,
         weight_column=weight_column,
         loss_reduction=loss_reduction)
+    estimator._canned_estimator_api_gauge.get_cell('Regressor').set(
+        'DNNLinearCombined')  # pylint: disable=protected-access
 
     def _model_fn(features, labels, mode, config):
       """Call the _dnn_linear_combined_model_fn."""
@@ -1120,6 +1130,8 @@ class DNNLinearCombinedRegressor(estimator.Estimator):
     self._feature_columns = _validate_feature_columns(
         linear_feature_columns=linear_feature_columns,
         dnn_feature_columns=dnn_feature_columns)
+    estimator._canned_estimator_api_gauge.get_cell('Regressor').set(
+        'DNNLinearCombined')  # pylint: disable=protected-access
 
     head = head_lib._regression_head(  # pylint: disable=protected-access
         label_dimension=label_dimension,

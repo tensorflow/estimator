@@ -927,6 +927,7 @@ class LinearClassifierV2(estimator.EstimatorV2):
         n_classes=n_classes,
         optimizer=optimizer,
         sparse_combiner=sparse_combiner)
+    estimator._canned_estimator_api_gauge.get_cell('Classifier').set('Linear')  # pylint: disable=protected-access
 
     head = head_utils.binary_or_multi_class_head(
         n_classes, weight_column=weight_column,
@@ -973,6 +974,7 @@ class LinearClassifier(estimator.Estimator):
         n_classes=n_classes,
         optimizer=optimizer,
         sparse_combiner=sparse_combiner)
+    estimator._canned_estimator_api_gauge.get_cell('Classifier').set('Linear')  # pylint: disable=protected-access
 
     head = head_lib._binary_logistic_or_multi_class_head(  # pylint: disable=protected-access
         n_classes, weight_column, label_vocabulary, loss_reduction)
@@ -1117,6 +1119,8 @@ class LinearEstimatorV2(estimator.EstimatorV2):
           optimizer=optimizer,
           config=config,
           sparse_combiner=sparse_combiner)
+
+    estimator._canned_estimator_api_gauge.get_cell('Estimator').set('Linear')  # pylint: disable=protected-access
     super(LinearEstimatorV2, self).__init__(
         model_fn=_model_fn, model_dir=model_dir, config=config)
 
@@ -1166,6 +1170,8 @@ class LinearEstimator(estimator.Estimator):
           partitioner=partitioner,
           config=config,
           sparse_combiner=sparse_combiner)
+
+    estimator._canned_estimator_api_gauge.get_cell('Estimator').set('Linear')  # pylint: disable=protected-access
     super(LinearEstimator, self).__init__(
         model_fn=_model_fn, model_dir=model_dir, config=config)
 
@@ -1333,6 +1339,7 @@ class LinearRegressorV2(estimator.EstimatorV2):
         label_dimension=label_dimension,
         weight_column=weight_column,
         loss_reduction=loss_reduction)
+    estimator._canned_estimator_api_gauge.get_cell('Regressor').set('Linear')  # pylint: disable=protected-access
 
     def _model_fn(features, labels, mode, config):
       """Call the defined shared _linear_model_fn."""
@@ -1378,6 +1385,7 @@ class LinearRegressor(estimator.Estimator):
         label_dimension=label_dimension,
         weight_column=weight_column,
         loss_reduction=loss_reduction)
+    estimator._canned_estimator_api_gauge.get_cell('Regressor').set('Linear')  # pylint: disable=protected-access
 
     def _model_fn(features, labels, mode, config):
       """Call the defined shared _linear_model_fn."""

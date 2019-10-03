@@ -294,7 +294,6 @@ class _DNNModelV2(training.Model):
                name=None,
                **kwargs):
     super(_DNNModelV2, self).__init__(name=name, **kwargs)
-
     with ops.name_scope(
         'input_from_feature_columns') as input_feature_column_scope:
       layer_name = input_feature_column_scope + 'input_layer'
@@ -747,6 +746,7 @@ class DNNClassifierV2(estimator.EstimatorV2):
         n_classes, weight_column=weight_column,
         label_vocabulary=label_vocabulary,
         loss_reduction=loss_reduction)
+    estimator._canned_estimator_api_gauge.get_cell('Classifier').set('DNN')
 
     def _model_fn(features, labels, mode, config):
       """Call the defined shared dnn_model_fn_v2."""
@@ -793,6 +793,7 @@ class DNNClassifier(estimator.Estimator):
   ):
     head = head_lib._binary_logistic_or_multi_class_head(  # pylint: disable=protected-access
         n_classes, weight_column, label_vocabulary, loss_reduction)
+    estimator._canned_estimator_api_gauge.get_cell('Classifier').set('DNN')
 
     def _model_fn(features, labels, mode, config):
       """Call the defined shared dnn_model_fn."""
@@ -964,6 +965,8 @@ class DNNEstimatorV2(estimator.EstimatorV2):
           dropout=dropout,
           config=config,
           batch_norm=batch_norm)
+
+    estimator._canned_estimator_api_gauge.get_cell('Estimator').set('DNN')  # pylint: disable=protected-access
     super(DNNEstimatorV2, self).__init__(
         model_fn=_model_fn, model_dir=model_dir, config=config,
         warm_start_from=warm_start_from)
@@ -1000,6 +1003,8 @@ class DNNEstimator(estimator.Estimator):
           input_layer_partitioner=input_layer_partitioner,
           config=config,
           batch_norm=batch_norm)
+
+    estimator._canned_estimator_api_gauge.get_cell('Estimator').set('DNN')  # pylint: disable=protected-access
     super(DNNEstimator, self).__init__(
         model_fn=_model_fn, model_dir=model_dir, config=config,
         warm_start_from=warm_start_from)
@@ -1150,6 +1155,8 @@ class DNNRegressorV2(estimator.EstimatorV2):
         label_dimension=label_dimension,
         weight_column=weight_column,
         loss_reduction=loss_reduction)
+    estimator._canned_estimator_api_gauge.get_cell('Regressor').set('DNN')  # pylint: disable=protected-access
+
     def _model_fn(features, labels, mode, config):
       """Call the defined shared dnn_model_fn_v2."""
       return dnn_model_fn_v2(
@@ -1196,6 +1203,7 @@ class DNNRegressor(estimator.Estimator):
         label_dimension=label_dimension,
         weight_column=weight_column,
         loss_reduction=loss_reduction)
+    estimator._canned_estimator_api_gauge.get_cell('Regressor').set('DNN')  # pylint: disable=protected-access
 
     def _model_fn(features, labels, mode, config):
       """Call the defined shared _dnn_model_fn."""
