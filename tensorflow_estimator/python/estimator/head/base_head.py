@@ -80,8 +80,9 @@ class Head(object):
       # Optionally your callers can pass head to model_fn as a param.
       head = tf.estimator.RegressionHead(...)
 
-      # TODO(b/117839674): update feature_column
-      inputs = tf.feature_column.input_layer(features, ...)
+      feature_columns = tf.feature_column.numeric_column(...)
+      feature_layer = tf.keras.layers.DenseFeatures(feature_columns)
+      inputs = feature_layer(features)
 
       # Compute logits with tf.keras.layers API
       hidden_layer0 = tf.keras.layers.Dense(
