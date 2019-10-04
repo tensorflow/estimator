@@ -58,8 +58,8 @@ _CELL_TYPE_TO_LAYER_MAPPING = {
     _SIMPLE_RNN_KEY: keras_layers.SimpleRNN}
 
 _CELL_TYPES = {
-    _LSTM_KEY: keras_layers.LSTMCell,
-    _GRU_KEY: keras_layers.GRUCell,
+    _LSTM_KEY: recurrent_v2.LSTMCell,
+    _GRU_KEY: recurrent_v2.GRUCell,
     _SIMPLE_RNN_KEY: keras_layers.SimpleRNNCell
 }
 
