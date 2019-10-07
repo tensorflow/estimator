@@ -399,7 +399,7 @@ def _get_weights_and_check_match_logits(
     if not (weights.dtype.is_floating or weights.dtype.is_integer):
       raise ValueError('Weight column should be castable to float. '
                        'Given dtype: {}'.format(weights.dtype))
-    weights = math_ops.to_float(weights, name='weights')
+    weights = math_ops.cast(weights, name='weights', dtype=dtypes.float32)
 
     # Validate the weights shape.
     weights_shape = array_ops.shape(weights, name='weights_shape')
@@ -434,7 +434,7 @@ def _get_weights_and_check_match_logits(
 def _check_logits_final_dim(logits, expected_logits_dimension):
   """Checks that logits shape is [D0, D1, ... DN, logits_dimension]."""
   with ops.name_scope(None, 'logits', (logits,)) as scope:
-    logits = math_ops.to_float(logits)
+    logits = math_ops.cast(logits, dtype=dtypes.float32)
     logits_shape = array_ops.shape(logits)
     assert_rank = check_ops.assert_rank_at_least(
         logits, 2, data=[logits_shape],
@@ -490,7 +490,7 @@ def _validate_n_classes(n_classes):
     n_classes in its original type.
   """
   if isinstance(n_classes, int) and (n_classes <= 2):
-      raise ValueError('n_classes must be > 2: %s.' % n_classes)
+    raise ValueError('n_classes must be > 2: %s.' % n_classes)
 
   n_classes_as_tensor = ops.convert_to_tensor(n_classes)
   assert_n_classes = check_ops.assert_greater(
@@ -540,7 +540,7 @@ def _call_loss_fn(loss_fn, labels, logits, features, expected_loss_dim=1):
 
 def _indicator_labels_mean(labels, weights=None, name=None):
   with ops.name_scope(name, 'labels_mean', (labels, weights)) as scope:
-    labels = math_ops.to_float(labels, name='labels')
+    labels = math_ops.cast(labels, name='labels', dtype=dtypes.float32)
     if weights is not None:
       weights = weights_broadcast_ops.broadcast_weights(weights, labels)
     return metrics_lib.mean(labels, weights=weights, name=scope)
@@ -601,7 +601,8 @@ def _accuracy_baseline(labels_mean):
 def _predictions_mean(predictions, weights=None, name=None):
   with ops.name_scope(
       name, 'predictions_mean', (predictions, weights)) as scope:
-    predictions = math_ops.to_float(predictions, name='predictions')
+    predictions = math_ops.cast(
+        predictions, name='predictions', dtype=dtypes.float32)
     if weights is not None:
       weights = weights_broadcast_ops.broadcast_weights(weights, predictions)
     return metrics_lib.mean(predictions, weights=weights, name=scope)
@@ -609,7 +610,8 @@ def _predictions_mean(predictions, weights=None, name=None):
 
 def _auc(labels, predictions, weights=None, curve='ROC', name=None):
   with ops.name_scope(name, 'auc', (predictions, labels, weights)) as scope:
-    predictions = math_ops.to_float(predictions, name='predictions')
+    predictions = math_ops.cast(
+        predictions, name='predictions', dtype=dtypes.float32)
     if weights is not None:
       weights = weights_broadcast_ops.broadcast_weights(weights, predictions)
     return metrics_lib.auc(
@@ -1166,7 +1168,7 @@ class _BinaryLogisticHeadWithSigmoidCrossEntropyLoss(_Head):
       labels = lookup_ops.index_table_from_tensor(
           vocabulary_list=tuple(self._label_vocabulary),
           name='class_id_lookup').lookup(labels)
-    labels = math_ops.to_float(labels)
+    labels = math_ops.cast(labels, dtype=dtypes.float32)
     labels = _assert_range(labels, n_classes=2)
     if self._loss_fn:
       unweighted_loss = _call_loss_fn(
@@ -1436,7 +1438,7 @@ class _RegressionHeadWithMeanSquaredErrorLoss(_Head):
     labels = _check_dense_labels_match_logits_and_reshape(
         labels=labels, logits=logits,
         expected_labels_dimension=self._logits_dimension)
-    labels = math_ops.to_float(labels)
+    labels = math_ops.cast(labels, dtype=dtypes.float32)
     if self._loss_fn:
       unweighted_loss = _call_loss_fn(
           loss_fn=self._loss_fn, labels=labels, logits=logits,

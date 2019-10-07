@@ -237,7 +237,7 @@ def mock_optimizer(testcase, hidden_units, expected_loss=None):
         return state_ops.assign_add(global_step, 1).op
       return control_flow_ops.no_op()
     assert_loss = assert_close(
-        math_ops.to_float(expected_loss, name='expected'),
+        math_ops.cast(expected_loss, name='expected', dtype=dtypes.float32),
         loss,
         name='assert_loss')
     with ops.control_dependencies((assert_loss,)):
@@ -1257,7 +1257,7 @@ class BaseDNNClassifierEvaluateTest(object):
     # See that test for calculation of logits.
     # logits = [[-2.08], [-2.08]] =>
     # logistic = 1/(1 + exp(-logits)) = [[0.11105597], [0.11105597]]
-        # loss = -1. * log(0.111) -1. * log(0.889) = 2.31544200
+    # loss = -1. * log(0.111) -1. * log(0.889) = 2.31544200
     expected_loss = 2.31544200
     self.assertAllClose({
         metric_keys.MetricKeys.LOSS: expected_loss,

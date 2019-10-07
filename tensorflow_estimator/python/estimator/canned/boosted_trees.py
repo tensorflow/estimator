@@ -211,7 +211,7 @@ def _get_transformed_features_and_merge_with_previously_transformed(
     elif isinstance(
         column, (feature_column_lib.IndicatorColumn, fc_old._IndicatorColumn)):
       source_name = column.categorical_column.name
-      tensor = math_ops.to_int32(transformed_features[column])
+      tensor = math_ops.cast(transformed_features[column], dtype=dtypes.int32)
       if len(tensor.shape) > 2:
         raise ValueError('Rank of indicator column must be no more than 2, '
                          'but column `{}` got: {}'.format(

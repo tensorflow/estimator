@@ -494,7 +494,7 @@ def _get_weights_from_features(weight_key_name, features):
           'weights. Dense weights are not supported on TPU. Please use '
           'sparse weights instead.'.format(weight_key_name))
     if weights.dtype is not dtypes.float32:
-      weights = math_ops.to_float(weights)
+      weights = math_ops.cast(weights, dtype=dtypes.float32)
   return weights
 
 
