@@ -37,6 +37,7 @@ from tensorflow.python.framework import test_util
 from tensorflow.python.keras import testing_utils
 from tensorflow.python.keras.layers import recurrent_v2 as rnn_v2
 from tensorflow.python.keras.optimizers import SGD
+from tensorflow.python.keras.utils import np_utils
 
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import parsing_ops
@@ -137,10 +138,10 @@ def get_multi_inputs_multi_outputs_data():
       num_classes=2,
       random_seed=_RANDOM_SEED)
 
-  c_train = keras.utils.to_categorical(c_train)
-  c_test = keras.utils.to_categorical(c_test)
-  d_train = keras.utils.to_categorical(d_train)
-  d_test = keras.utils.to_categorical(d_test)
+  c_train = np_utils.to_categorical(c_train)
+  c_test = np_utils.to_categorical(c_test)
+  d_train = np_utils.to_categorical(d_train)
+  d_test = np_utils.to_categorical(d_test)
 
   train_data = {
       'input_a': a_train,
@@ -184,8 +185,8 @@ def get_resource_for_simple_model(model_type='sequential',
       test_samples=50,
       input_shape=_INPUT_SIZE,
       num_classes=_NUM_CLASS)
-  y_train = keras.utils.to_categorical(y_train)
-  y_test = keras.utils.to_categorical(y_test)
+  y_train = np_utils.to_categorical(y_train)
+  y_test = np_utils.to_categorical(y_test)
 
   train_input_fn = gen_input_fn(
       x=randomize_io_type(x_train, input_name),
@@ -614,7 +615,7 @@ class TestKerasEstimator(test_util.TensorFlowTestCase, parameterized.TestCase):
         test_samples=100,
         input_shape=(10,),
         num_classes=2)
-    y_train = keras.utils.to_categorical(y_train)
+    y_train = np_utils.to_categorical(y_train)
 
     def invald_input_name_input_fn():
       input_dict = {'invalid_input_name': x_train}
@@ -651,7 +652,7 @@ class TestKerasEstimator(test_util.TensorFlowTestCase, parameterized.TestCase):
         test_samples=50,
         input_shape=(10,),
         num_classes=2)
-    y_train = keras.utils.to_categorical(y_train, 2)
+    y_train = np_utils.to_categorical(y_train, 2)
     input_name = keras_model.input_names[0]
     output_name = keras_model.output_names[0]
     train_input_fn = gen_input_fn(

@@ -29,6 +29,7 @@ from tensorflow.python.framework import test_util
 from tensorflow.python.keras import testing_utils
 from tensorflow.python.keras.optimizer_v2 import gradient_descent as gradient_descent_keras
 from tensorflow.python.keras.optimizer_v2 import rmsprop as rmsprop_keras
+from tensorflow.python.keras.utils import np_utils
 from tensorflow.python.ops.parsing_ops import gen_parsing_ops
 from tensorflow.python.platform import gfile
 from tensorflow.python.summary.writer import writer_cache
@@ -91,7 +92,7 @@ def get_ds_train_input_fn():
       test_samples=50,
       input_shape=_INPUT_SIZE,
       num_classes=_NUM_CLASS)
-  y_train = keras.utils.to_categorical(y_train)
+  y_train = np_utils.to_categorical(y_train)
 
   dataset = dataset_ops.Dataset.from_tensor_slices((x_train, y_train))
   dataset = dataset.batch(32)
@@ -105,7 +106,7 @@ def get_ds_test_input_fn():
       test_samples=50,
       input_shape=_INPUT_SIZE,
       num_classes=_NUM_CLASS)
-  y_test = keras.utils.to_categorical(y_test)
+  y_test = np_utils.to_categorical(y_test)
 
   dataset = dataset_ops.Dataset.from_tensor_slices((x_test, y_test))
   dataset = dataset.batch(32)
@@ -132,10 +133,10 @@ def get_multi_inputs_multi_outputs_data():
       num_classes=2,
       random_seed=_RANDOM_SEED)
 
-  c_train = keras.utils.to_categorical(c_train)
-  c_test = keras.utils.to_categorical(c_test)
-  d_train = keras.utils.to_categorical(d_train)
-  d_test = keras.utils.to_categorical(d_test)
+  c_train = np_utils.to_categorical(c_train)
+  c_test = np_utils.to_categorical(c_test)
+  d_train = np_utils.to_categorical(d_train)
+  d_test = np_utils.to_categorical(d_test)
 
   train_data = {
       'input_a': a_train,
