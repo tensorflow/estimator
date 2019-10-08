@@ -58,8 +58,8 @@ _CELL_TYPE_TO_LAYER_MAPPING = {
     _SIMPLE_RNN_KEY: keras_layers.SimpleRNN}
 
 _CELL_TYPES = {
-    _LSTM_KEY: keras_layers.LSTMCell,
-    _GRU_KEY: keras_layers.GRUCell,
+    _LSTM_KEY: recurrent_v2.LSTMCell,
+    _GRU_KEY: recurrent_v2.GRUCell,
     _SIMPLE_RNN_KEY: keras_layers.SimpleRNNCell
 }
 
@@ -77,6 +77,10 @@ def _single_rnn_cell(units, cell_type):
         'specifying the cell type. Supported strings are: {}.'.format(
             [_SIMPLE_RNN_KEY, _LSTM_KEY, _GRU_KEY]))
   cell = cell_type(units=units)
+  if hasattr(cell, '_enable_caching_device'):
+    # Enable the caching_device to speed up the repeative varaible read in
+    # tf.while. This should work only with tf.session.
+    cell._enable_caching_device = True  # pylint: disable=protected-access
   if not hasattr(cell, 'call') or not hasattr(cell, 'state_size'):
     raise ValueError('RNN cell should have a `call` and `state_size` method.')
   return cell
