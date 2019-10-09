@@ -117,10 +117,6 @@ class TfTestCase(tf.test.TestCase):
   def tear_down(self, test):
     self.tearDown()
 
-  # This is for py2 compatibility.
-  def runTest(self):
-    self.assertTrue(True)
-
 
 class CustomOutputChecker(doctest.OutputChecker):
   """Changes the `want` and `got` strings.
