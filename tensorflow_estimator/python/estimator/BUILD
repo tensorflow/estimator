@@ -4,6 +4,19 @@ package(default_visibility = ["//tensorflow_estimator:internal"])
 
 licenses(["notice"])  # Apache 2.0
 
+py_test(
+    name = "tf_estimator_doctest",
+    srcs = ["tf_estimator_doctest.py"],
+    python_version = "PY3",
+    tags = [
+        "no_oss_py2",
+        "noasan",
+        "nomsan",
+        "notsan",
+    ],
+    deps = [":estimator_py"],
+)
+
 py_library(
     name = "estimator_py",
     srcs = [

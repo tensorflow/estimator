@@ -392,13 +392,15 @@ def _generate_feature_col_name_mapping(sorted_feature_columns):
 
     Example:
 
-    >>> gender_col = indicator_column(
-            categorical_column_with_vocabulary_list('gender',
-                                                    ['male', 'female', 'n/a']))
+    ```
+    gender_col = indicator_column(
+        categorical_column_with_vocabulary_list(
+          'gender', ['male', 'female', 'n/a']))
     # Results in 3 binary features for which we store the mapping to the
     # original feature column.
-    >>> _generate_feature_col_name_mapping([gender_col])
+    _generate_feature_col_name_mapping([gender_col])
     ['gender', 'gender', 'gender]
+    ```
 
   Args:
     sorted_feature_columns: a list/set of tf.feature_column sorted by name.
