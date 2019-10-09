@@ -176,6 +176,7 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
           feature_column.numeric_column('f_1', dtype=dtypes.float32),
           BUCKET_BOUNDARIES)
       numeric_col = feature_column.numeric_column('f_2', dtype=dtypes.float32)
+      int_numeric_col = feature_column.numeric_column('f_3', dtype=dtypes.int64)
 
       labels = np.array([[0], [1], [1], [1], [1]], dtype=np.float32)
       input_fn = numpy_io.numpy_input_fn(
@@ -183,12 +184,15 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
               'f_0': np.array(['bad', 'good', 'good', 'ok', 'bad']),
               'f_1': np.array([1, 1, 1, 1, 1]),
               'f_2': np.array([12.5, 1.0, -2.001, -2.0001, -1.999]),
+              'f_3': np.array([100, 120, 110, 105, 156]),
           },
           y=labels,
           num_epochs=None,
           batch_size=5,
           shuffle=False)
-      feature_columns = [numeric_col, bucketized_col, indicator_col]
+      feature_columns = [
+          numeric_col, bucketized_col, indicator_col, int_numeric_col
+      ]
 
       est = boosted_trees.BoostedTreesClassifier(
           feature_columns=feature_columns,
@@ -206,7 +210,7 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
           global_step=5,
           finalized_trees=1,
           attempted_layers=5,
-          bucket_boundaries=[[-2.001, -1.999, 12.5]])
+          bucket_boundaries=[[-2.001, -1.999, 12.5], [100, 110, 156]])
       eval_res = est.evaluate(input_fn=input_fn, steps=1)
       self.assertAllClose(eval_res['accuracy'], 1.0)
 

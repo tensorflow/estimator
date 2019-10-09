@@ -68,10 +68,10 @@ _DUMMY_NODE_ID = -1
 _QUANTILE_ACCUMULATOR_RESOURCE_NAME = 'QuantileAccumulator'
 
 
-def _is_float_column(feature_column):
-  """Returns True if provided column is a float that should be bucketized."""
-  # These columns always produce integers and do not require additional
-  # bucketization.
+def _is_numeric_column(feature_column):
+  """Returns True if column is a continuous numeric that should be bucketized."""
+  # These columns always produce categorical integers and do not require
+  # additional bucketization.
   if isinstance(
       feature_column,
       (
@@ -82,6 +82,11 @@ def _is_float_column(feature_column):
           feature_column_lib.IndicatorColumn,
           fc_old._IndicatorColumn)):  # pylint:disable=protected-access
     return False
+  # NumericColumns are always interpreted as continuous numerics.
+  if isinstance(feature_column,
+                (feature_column_lib.NumericColumn, fc_old._NumericColumn)):
+    return True
+  # For other dense columns, the dtype is used.
   if isinstance(feature_column,
                 (feature_column_lib.DenseColumn, fc_old._DenseColumn)):
     # NOTE: GBDT requires that all DenseColumns expose a dtype attribute
@@ -101,7 +106,7 @@ def _get_float_feature_columns(sorted_feature_columns):
   """
   float_columns = []
   for feature_column in sorted_feature_columns:
-    if _is_float_column(feature_column):
+    if _is_numeric_column(feature_column):
       float_columns.append(feature_column)
   return float_columns
 
