@@ -305,7 +305,7 @@ class BaselineClassifierV2(estimator.EstimatorV2):
   ```python
 
   # Build BaselineClassifier
-  classifier = BaselineClassifier(n_classes=3)
+  classifier = tf.estimator.BaselineClassifier(n_classes=3)
 
   # Input builders
   def input_fn_train:
@@ -362,14 +362,14 @@ class BaselineClassifierV2(estimator.EstimatorV2):
         It must be greater than 1. Note: Class labels are integers representing
         the class index (i.e. values from 0 to n_classes-1). For arbitrary
         label values (e.g. string labels), convert to class indices first.
-      weight_column: A string or a `_NumericColumn` created by
+      weight_column: A string or a `NumericColumn` created by
         `tf.feature_column.numeric_column` defining feature column representing
          weights. It will be multiplied by the loss of the example.
       label_vocabulary: Optional list of strings with size `[n_classes]`
         defining the label vocabulary. Only supported for `n_classes` > 2.
-      optimizer: String, `tf.Optimizer` object, or callable that creates the
-        optimizer to use for training. If not specified, will use
-        `FtrlOptimizer` with a default learning rate of 0.3.
+      optimizer: String, `tf.keras.optimizers.*` object, or callable that
+        creates the optimizer to use for training. If not specified, will use
+        `Ftrl` as the default optimizer.
       config: `RunConfig` object to configure the runtime settings.
       loss_reduction: One of `tf.losses.Reduction` except `NONE`. Describes how
         to reduce training loss over batch. Defaults to `SUM_OVER_BATCH_SIZE`.
@@ -432,8 +432,6 @@ class BaselineClassifier(estimator.Estimator):
         config=config)
 
 
-# TODO(b/117517419): Update these contrib references once head moves to core.
-# Also references to the "_Head" class need to be replaced with "Head".
 @estimator_export('estimator.BaselineEstimator', v1=[])
 class BaselineEstimatorV2(estimator.EstimatorV2):
   """An estimator that can establish a simple baseline.
@@ -451,8 +449,8 @@ class BaselineEstimatorV2(estimator.EstimatorV2):
   ```python
 
   # Build baseline multi-label classifier.
-  estimator = BaselineEstimator(
-      head=tf.contrib.estimator.multi_label_head(n_classes=3))
+  estimator = tf.estimator.BaselineEstimator(
+      head=tf.estimator.MultiLabelHead(n_classes=3))
 
   # Input builders
   def input_fn_train:
@@ -493,14 +491,14 @@ class BaselineEstimatorV2(estimator.EstimatorV2):
     """Initializes a BaselineEstimator instance.
 
     Args:
-      head: A `_Head` instance constructed with a method such as
-        `tf.contrib.estimator.multi_label_head`.
+      head: A `Head` instance constructed with a method such as
+        `tf.estimator.MultiLabelHead`.
       model_dir: Directory to save model parameters, graph and etc. This can
         also be used to load checkpoints from the directory into a estimator to
         continue training a previously saved model.
-      optimizer: String, `tf.Optimizer` object, or callable that creates the
-        optimizer to use for training. If not specified, will use
-        `FtrlOptimizer` with a default learning rate of 0.3.
+      optimizer: String, `tf.keras.optimizers.*` object, or callable that
+        creates the optimizer to use for training. If not specified, will use
+        `Ftrl` as the default optimizer.
       config: `RunConfig` object to configure the runtime settings.
     """
     def _model_fn(features, labels, mode, config):
@@ -552,7 +550,7 @@ class BaselineRegressorV2(estimator.EstimatorV2):
   ```python
 
   # Build BaselineRegressor
-  regressor = BaselineRegressor()
+  regressor = tf.estimator.BaselineRegressor()
 
   # Input builders
   def input_fn_train:
@@ -608,9 +606,9 @@ class BaselineRegressorV2(estimator.EstimatorV2):
       weight_column: A string or a `_NumericColumn` created by
         `tf.feature_column.numeric_column` defining feature column representing
          weights. It will be multiplied by the loss of the example.
-      optimizer: String, `tf.Optimizer` object, or callable that creates the
-        optimizer to use for training. If not specified, will use
-        `FtrlOptimizer` with a default learning rate of 0.3.
+      optimizer: String, `tf.keras.optimizers.*` object, or callable that
+        creates the optimizer to use for training. If not specified, will use
+        `Ftrl` as the default optimizer.
       config: `RunConfig` object to configure the runtime settings.
       loss_reduction: One of `tf.losses.Reduction` except `NONE`. Describes how
         to reduce training loss over batch. Defaults to `SUM_OVER_BATCH_SIZE`.

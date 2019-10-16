@@ -421,16 +421,16 @@ class DNNLinearCombinedClassifierV2(estimator.EstimatorV2):
   categorical_feature_b_emb = embedding_column(
       categorical_id_column=categorical_feature_b, ...)
 
-  estimator = DNNLinearCombinedClassifier(
+  estimator = tf.estimator.DNNLinearCombinedClassifier(
       # wide settings
       linear_feature_columns=[categorical_feature_a_x_categorical_feature_b],
-      linear_optimizer=tf.train.FtrlOptimizer(...),
+      linear_optimizer=tf.keras.optimizers.Ftrl(...),
       # deep settings
       dnn_feature_columns=[
           categorical_feature_a_emb, categorical_feature_b_emb,
           numeric_feature],
       dnn_hidden_units=[1000, 500, 100],
-      dnn_optimizer=tf.train.ProximalAdagradOptimizer(...),
+      dnn_optimizer=tf.keras.optimizers.Adagrad(...),
       # warm-start settings
       warm_start_from="/path/to/checkpoint/dir")
 
@@ -440,10 +440,10 @@ class DNNLinearCombinedClassifierV2(estimator.EstimatorV2):
       l1_regularization_strength=0.001,
       l2_regularization_strength=0.001)
   # To apply learning rate decay, you can set dnn_optimizer to a callable:
-  lambda: tf.AdamOptimizer(
-      learning_rate=tf.exponential_decay(
+  lambda: tf.keras.optimizers.Adam(
+      learning_rate=tf.compat.v1.train.exponential_decay(
           learning_rate=0.1,
-          global_step=tf.get_global_step(),
+          global_step=tf.compat.v1.train.get_global_step(),
           decay_steps=10000,
           decay_rate=0.96)
   # It is the same for linear_optimizer.
@@ -469,12 +469,12 @@ class DNNLinearCombinedClassifierV2(estimator.EstimatorV2):
   otherwise there will be a `KeyError`:
 
   * for each `column` in `dnn_feature_columns` + `linear_feature_columns`:
-    - if `column` is a `_CategoricalColumn`, a feature with `key=column.name`
+    - if `column` is a `CategoricalColumn`, a feature with `key=column.name`
       whose `value` is a `SparseTensor`.
-    - if `column` is a `_WeightedCategoricalColumn`, two features: the first
+    - if `column` is a `WeightedCategoricalColumn`, two features: the first
       with `key` the id column name, the second with `key` the weight column
       name. Both features' `value` must be a `SparseTensor`.
-    - if `column` is a `_DenseColumn`, a feature with `key=column.name`
+    - if `column` is a `DenseColumn`, a feature with `key=column.name`
       whose `value` is a `Tensor`.
 
   Loss is calculated by using softmax cross entropy.
@@ -513,17 +513,17 @@ class DNNLinearCombinedClassifierV2(estimator.EstimatorV2):
       linear_feature_columns: An iterable containing all the feature columns
         used by linear part of the model. All items in the set must be
         instances of classes derived from `FeatureColumn`.
-      linear_optimizer: An instance of `tf.Optimizer` used to apply gradients to
-        the linear part of the model. Can also be a string (one of 'Adagrad',
-        'Adam', 'Ftrl', 'RMSProp', 'SGD'), or callable. Defaults to FTRL
-        optimizer.
+      linear_optimizer: An instance of `tf.keras.optimizers.*` used to apply
+         gradients to the linear part of the model. Can also be a string
+         (one of 'Adagrad', 'Adam', 'Ftrl', 'RMSProp', 'SGD'), or callable.
+         Defaults to FTRL optimizer.
       dnn_feature_columns: An iterable containing all the feature columns used
         by deep part of the model. All items in the set must be instances of
         classes derived from `FeatureColumn`.
-      dnn_optimizer: An instance of `tf.Optimizer` used to apply gradients to
-        the deep part of the model. Can also be a string (one of 'Adagrad',
-        'Adam', 'Ftrl', 'RMSProp', 'SGD'), or callable. Defaults to Adagrad
-        optimizer.
+      dnn_optimizer: An instance of `tf.keras.optimizers.*` used to apply
+        gradients to the deep part of the model. Can also be a string
+        (one of 'Adagrad', 'Adam', 'Ftrl', 'RMSProp', 'SGD'), or callable.
+        Defaults to Adagrad optimizer.
       dnn_hidden_units: List of hidden units per layer. All layers are fully
         connected.
       dnn_activation_fn: Activation function applied to each layer. If None,
@@ -700,8 +700,7 @@ def _init_dnn_linear_combined_estimator(
   return feature_columns, _model_fn
 
 
-# TODO(b/117517419): Update these contrib references once head moves to core.
-# Also references to the "_Head" class need to be replaced with "Head".
+# TODO(b/142326746): Update tf.train.ProximalAdagradOptimizer.
 @estimator_export('estimator.DNNLinearCombinedEstimator', v1=[])
 class DNNLinearCombinedEstimatorV2(estimator.EstimatorV2):
   """An estimator for TensorFlow Linear and DNN joined models with custom head.
@@ -721,17 +720,17 @@ class DNNLinearCombinedEstimatorV2(estimator.EstimatorV2):
   categorical_feature_b_emb = embedding_column(
       categorical_column=categorical_feature_b, ...)
 
-  estimator = DNNLinearCombinedEstimator(
-      head=tf.contrib.estimator.multi_label_head(n_classes=3),
+  estimator = tf.estimator.DNNLinearCombinedEstimator(
+      head=tf.estimator.MultiLabelHead(n_classes=3),
       # wide settings
       linear_feature_columns=[categorical_feature_a_x_categorical_feature_b],
-      linear_optimizer=tf.train.FtrlOptimizer(...),
+      linear_optimizer=tf.keras.optimizers.Ftrl(...),
       # deep settings
       dnn_feature_columns=[
           categorical_feature_a_emb, categorical_feature_b_emb,
           numeric_feature],
       dnn_hidden_units=[1000, 500, 100],
-      dnn_optimizer=tf.train.ProximalAdagradOptimizer(...))
+      dnn_optimizer=tf.keras.optimizers.Adagrad(...))
 
   # To apply L1 and L2 regularization, you can set dnn_optimizer to:
   tf.train.ProximalAdagradOptimizer(
@@ -739,10 +738,10 @@ class DNNLinearCombinedEstimatorV2(estimator.EstimatorV2):
       l1_regularization_strength=0.001,
       l2_regularization_strength=0.001)
   # To apply learning rate decay, you can set dnn_optimizer to a callable:
-  lambda: tf.AdamOptimizer(
-      learning_rate=tf.exponential_decay(
+  lambda: tf.keras.optimizers.Adam(
+      learning_rate=tf.compat.v1.train.exponential_decay(
           learning_rate=0.1,
-          global_step=tf.get_global_step(),
+          global_step=tf.compat.v1.train.get_global_step(),
           decay_steps=10000,
           decay_rate=0.96)
   # It is the same for linear_optimizer.
@@ -768,12 +767,12 @@ class DNNLinearCombinedEstimatorV2(estimator.EstimatorV2):
   otherwise there will be a `KeyError`:
 
   * for each `column` in `dnn_feature_columns` + `linear_feature_columns`:
-    - if `column` is a `_CategoricalColumn`, a feature with `key=column.name`
+    - if `column` is a `CategoricalColumn`, a feature with `key=column.name`
       whose `value` is a `SparseTensor`.
-    - if `column` is a `_WeightedCategoricalColumn`, two features: the first
+    - if `column` is a `WeightedCategoricalColumn`, two features: the first
       with `key` the id column name, the second with `key` the weight column
       name. Both features' `value` must be a `SparseTensor`.
-    - if `column` is a `_DenseColumn`, a feature with `key=column.name`
+    - if `column` is a `DenseColumn`, a feature with `key=column.name`
       whose `value` is a `Tensor`.
 
   Loss is calculated by using mean squared error.
@@ -801,25 +800,25 @@ class DNNLinearCombinedEstimatorV2(estimator.EstimatorV2):
     """Initializes a DNNLinearCombinedEstimator instance.
 
     Args:
-      head: A `_Head` instance constructed with a method such as
-        `tf.contrib.estimator.multi_label_head`.
+      head: A `Head` instance constructed with a method such as
+        `tf.estimator.MultiLabelHead`.
       model_dir: Directory to save model parameters, graph and etc. This can
         also be used to load checkpoints from the directory into an estimator
         to continue training a previously saved model.
       linear_feature_columns: An iterable containing all the feature columns
         used by linear part of the model. All items in the set must be
         instances of classes derived from `FeatureColumn`.
-      linear_optimizer: An instance of `tf.Optimizer` used to apply gradients to
-        the linear part of the model. Can also be a string (one of 'Adagrad',
-        'Adam', 'Ftrl', 'RMSProp', 'SGD'), or callable. Defaults to FTRL
-        optimizer.
+      linear_optimizer: An instance of `tf.keras.optimizers.*` used to apply
+        gradients to the linear part of the model. Can also be a string
+        (one of 'Adagrad', 'Adam', 'Ftrl', 'RMSProp', 'SGD'), or callable.
+        Defaults to FTRL optimizer.
       dnn_feature_columns: An iterable containing all the feature columns used
         by deep part of the model. All items in the set must be instances of
         classes derived from `FeatureColumn`.
-      dnn_optimizer: An instance of `tf.Optimizer` used to apply gradients to
-        the deep part of the model. Can also be a string (one of 'Adagrad',
-        'Adam', 'Ftrl', 'RMSProp', 'SGD'), or callable. Defaults to Adagrad
-        optimizer.
+      dnn_optimizer: An instance of `tf.keras.optimizers.*` used to apply
+        gradients to the deep part of the model. Can also be a string
+        (one of 'Adagrad', 'Adam', 'Ftrl', 'RMSProp', 'SGD'), or callable.
+        Defaults to Adagrad optimizer.
       dnn_hidden_units: List of hidden units per layer. All layers are fully
         connected.
       dnn_activation_fn: Activation function applied to each layer. If None,
@@ -932,16 +931,16 @@ class DNNLinearCombinedRegressorV2(estimator.EstimatorV2):
   categorical_feature_b_emb = embedding_column(
       categorical_column=categorical_feature_b, ...)
 
-  estimator = DNNLinearCombinedRegressor(
+  estimator = tf.estimator.DNNLinearCombinedRegressor(
       # wide settings
       linear_feature_columns=[categorical_feature_a_x_categorical_feature_b],
-      linear_optimizer=tf.train.FtrlOptimizer(...),
+      linear_optimizer=tf.keras.optimizers.Ftrl(...),
       # deep settings
       dnn_feature_columns=[
           categorical_feature_a_emb, categorical_feature_b_emb,
           numeric_feature],
       dnn_hidden_units=[1000, 500, 100],
-      dnn_optimizer=tf.train.ProximalAdagradOptimizer(...),
+      dnn_optimizer=tf.keras.optimizers.Adagrad(...),
       # warm-start settings
       warm_start_from="/path/to/checkpoint/dir")
 
@@ -951,10 +950,10 @@ class DNNLinearCombinedRegressorV2(estimator.EstimatorV2):
       l1_regularization_strength=0.001,
       l2_regularization_strength=0.001)
   # To apply learning rate decay, you can set dnn_optimizer to a callable:
-  lambda: tf.AdamOptimizer(
-      learning_rate=tf.exponential_decay(
+  lambda: tf.keras.optimizers.Adam(
+      learning_rate=tf.compat.v1.train.exponential_decay(
           learning_rate=0.1,
-          global_step=tf.get_global_step(),
+          global_step=tf.compat.v1.train.get_global_step(),
           decay_steps=10000,
           decay_rate=0.96)
   # It is the same for linear_optimizer.
@@ -980,12 +979,12 @@ class DNNLinearCombinedRegressorV2(estimator.EstimatorV2):
   otherwise there will be a `KeyError`:
 
   * for each `column` in `dnn_feature_columns` + `linear_feature_columns`:
-    - if `column` is a `_CategoricalColumn`, a feature with `key=column.name`
+    - if `column` is a `CategoricalColumn`, a feature with `key=column.name`
       whose `value` is a `SparseTensor`.
-    - if `column` is a `_WeightedCategoricalColumn`, two features: the first
+    - if `column` is a `WeightedCategoricalColumn`, two features: the first
       with `key` the id column name, the second with `key` the weight column
       name. Both features' `value` must be a `SparseTensor`.
-    - if `column` is a `_DenseColumn`, a feature with `key=column.name`
+    - if `column` is a `DenseColumn`, a feature with `key=column.name`
       whose `value` is a `Tensor`.
 
   Loss is calculated by using mean squared error.
@@ -1023,17 +1022,17 @@ class DNNLinearCombinedRegressorV2(estimator.EstimatorV2):
       linear_feature_columns: An iterable containing all the feature columns
         used by linear part of the model. All items in the set must be
         instances of classes derived from `FeatureColumn`.
-      linear_optimizer: An instance of `tf.Optimizer` used to apply gradients to
-        the linear part of the model. Can also be a string (one of 'Adagrad',
-        'Adam', 'Ftrl', 'RMSProp', 'SGD'), or callable. Defaults to FTRL
-        optimizer.
+      linear_optimizer: An instance of `tf.keras.optimizers.*` used to apply
+         gradients to the linear part of the model. Can also be a string
+         (one of 'Adagrad', 'Adam', 'Ftrl', 'RMSProp', 'SGD'), or callable.
+         Defaults to FTRL optimizer.
       dnn_feature_columns: An iterable containing all the feature columns used
         by deep part of the model. All items in the set must be instances of
         classes derived from `FeatureColumn`.
-      dnn_optimizer: An instance of `tf.Optimizer` used to apply gradients to
-        the deep part of the model. Can also be a string (one of 'Adagrad',
-        'Adam', 'Ftrl', 'RMSProp', 'SGD'), or callable. Defaults to Adagrad
-        optimizer.
+      dnn_optimizer: An instance of `tf.keras.optimizers.*` used to apply
+        gradients to the deep part of the model. Can also be a string
+        (one of 'Adagrad', 'Adam', 'Ftrl', 'RMSProp', 'SGD'), or callable.
+        Defaults to Adagrad optimizer.
       dnn_hidden_units: List of hidden units per layer. All layers are fully
         connected.
       dnn_activation_fn: Activation function applied to each layer. If None,
@@ -1043,7 +1042,7 @@ class DNNLinearCombinedRegressorV2(estimator.EstimatorV2):
       label_dimension: Number of regression targets per example. This is the
         size of the last dimension of the labels and logits `Tensor` objects
         (typically, these have shape `[batch_size, label_dimension]`).
-      weight_column: A string or a `_NumericColumn` created by
+      weight_column: A string or a `NumericColumn` created by
         `tf.feature_column.numeric_column` defining feature column representing
         weights. It is used to down weight or boost examples during training. It
         will be multiplied by the loss of the example. If it is a string, it is

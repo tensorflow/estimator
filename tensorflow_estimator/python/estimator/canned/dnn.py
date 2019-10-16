@@ -609,33 +609,33 @@ class DNNClassifierV2(estimator.EstimatorV2):
   categorical_feature_b_emb = embedding_column(
       categorical_column=categorical_feature_b, ...)
 
-  estimator = DNNClassifier(
+  estimator = tf.estimator.DNNClassifier(
       feature_columns=[categorical_feature_a_emb, categorical_feature_b_emb],
       hidden_units=[1024, 512, 256])
 
   # Or estimator using the ProximalAdagradOptimizer optimizer with
   # regularization.
-  estimator = DNNClassifier(
+  estimator = tf.estimator.DNNClassifier(
       feature_columns=[categorical_feature_a_emb, categorical_feature_b_emb],
       hidden_units=[1024, 512, 256],
-      optimizer=tf.train.ProximalAdagradOptimizer(
+      optimizer=tf.compat.v1.train.ProximalAdagradOptimizer(
         learning_rate=0.1,
         l1_regularization_strength=0.001
       ))
 
   # Or estimator using an optimizer with a learning rate decay.
-  estimator = DNNClassifier(
+  estimator = tf.estimator.DNNClassifier(
       feature_columns=[categorical_feature_a_emb, categorical_feature_b_emb],
       hidden_units=[1024, 512, 256],
-      optimizer=lambda: tf.AdamOptimizer(
-          learning_rate=tf.exponential_decay(
+      optimizer=lambda: tf.keras.optimizers.Adam(
+          learning_rate=tf.compat.v1.train.exponential_decay(
               learning_rate=0.1,
-              global_step=tf.get_global_step(),
+              global_step=tf.compat.v1.train.get_global_step(),
               decay_steps=10000,
               decay_rate=0.96))
 
   # Or estimator with warm-starting from a previous checkpoint.
-  estimator = DNNClassifier(
+  estimator = tf.estimator.DNNClassifier(
       feature_columns=[categorical_feature_a_emb, categorical_feature_b_emb],
       hidden_units=[1024, 512, 256],
       warm_start_from="/path/to/checkpoint/dir")
@@ -663,12 +663,12 @@ class DNNClassifierV2(estimator.EstimatorV2):
   * if `weight_column` is not `None`, a feature with `key=weight_column` whose
     value is a `Tensor`.
   * for each `column` in `feature_columns`:
-    - if `column` is a `_CategoricalColumn`, a feature with `key=column.name`
+    - if `column` is a `CategoricalColumn`, a feature with `key=column.name`
       whose `value` is a `SparseTensor`.
-    - if `column` is a `_WeightedCategoricalColumn`, two features: the first
+    - if `column` is a `WeightedCategoricalColumn`, two features: the first
       with `key` the id column name, the second with `key` the weight column
       name. Both features' `value` must be a `SparseTensor`.
-    - if `column` is a `_DenseColumn`, a feature with `key=column.name`
+    - if `column` is a `DenseColumn`, a feature with `key=column.name`
       whose `value` is a `Tensor`.
 
   Loss is calculated by using softmax cross entropy.
@@ -711,7 +711,7 @@ class DNNClassifierV2(estimator.EstimatorV2):
         continue training a previously saved model.
       n_classes: Number of label classes. Defaults to 2, namely binary
         classification. Must be > 1.
-      weight_column: A string or a `_NumericColumn` created by
+      weight_column: A string or a `NumericColumn` created by
         `tf.feature_column.numeric_column` defining feature column representing
         weights. It is used to down weight or boost examples during training. It
         will be multiplied by the loss of the example. If it is a string, it is
@@ -725,9 +725,9 @@ class DNNClassifierV2(estimator.EstimatorV2):
         encoded as integer values in {0, 1,..., n_classes-1} for `n_classes`>2 .
         Also there will be errors if vocabulary is not provided and labels are
         string.
-      optimizer: An instance of `tf.Optimizer` used to train the model. Can also
-        be a string (one of 'Adagrad', 'Adam', 'Ftrl', 'RMSProp', 'SGD'), or
-        callable. Defaults to Adagrad optimizer.
+      optimizer: An instance of `tf.keras.optimizers.*` used to train the model.
+        Can also be a string (one of 'Adagrad', 'Adam', 'Ftrl', 'RMSProp',
+        SGD'), or callable. Defaults to Adagrad optimizer.
       activation_fn: Activation function applied to each layer. If `None`, will
         use `tf.nn.relu`.
       dropout: When not `None`, the probability we will drop out a given
@@ -818,8 +818,6 @@ class DNNClassifier(estimator.Estimator):
         warm_start_from=warm_start_from)
 
 
-# TODO(b/117517419): Update these contrib references once head moves to core.
-# Also references to the "_Head" class need to be replaced with "Head".
 @estimator_export('estimator.DNNEstimator', v1=[])
 class DNNEstimatorV2(estimator.EstimatorV2):
   """An estimator for TensorFlow DNN models with user-specified head.
@@ -835,37 +833,37 @@ class DNNEstimatorV2(estimator.EstimatorV2):
   sparse_feature_b_emb = embedding_column(sparse_id_column=sparse_feature_b,
                                           ...)
 
-  estimator = DNNEstimator(
-      head=tf.contrib.estimator.multi_label_head(n_classes=3),
+  estimator = tf.estimator.DNNEstimator(
+      head=tf.estimator.MultiLabelHead(n_classes=3),
       feature_columns=[sparse_feature_a_emb, sparse_feature_b_emb],
       hidden_units=[1024, 512, 256])
 
   # Or estimator using the ProximalAdagradOptimizer optimizer with
   # regularization.
-  estimator = DNNEstimator(
-      head=tf.contrib.estimator.multi_label_head(n_classes=3),
+  estimator = tf.estimator.DNNEstimator(
+      head=tf.estimator.MultiLabelHead(n_classes=3),
       feature_columns=[sparse_feature_a_emb, sparse_feature_b_emb],
       hidden_units=[1024, 512, 256],
-      optimizer=tf.train.ProximalAdagradOptimizer(
+      optimizer=tf.compat.v1.train.ProximalAdagradOptimizer(
         learning_rate=0.1,
         l1_regularization_strength=0.001
       ))
 
   # Or estimator using an optimizer with a learning rate decay.
-  estimator = DNNEstimator(
-      head=tf.contrib.estimator.multi_label_head(n_classes=3),
+  estimator = tf.estimator.DNNEstimator(
+      head=tf.estimator.MultiLabelHead(n_classes=3),
       feature_columns=[sparse_feature_a_emb, sparse_feature_b_emb],
       hidden_units=[1024, 512, 256],
-      optimizer=lambda: tf.AdamOptimizer(
-          learning_rate=tf.exponential_decay(
+      optimizer=lambda: tf.keras.optimizers.Adam(
+          learning_rate=tf.compat.v1.train.exponential_decay(
               learning_rate=0.1,
-              global_step=tf.get_global_step(),
+              global_step=tf.compat.v1.train.get_global_step(),
               decay_steps=10000,
               decay_rate=0.96))
 
   # Or estimator with warm-starting from a previous checkpoint.
-  estimator = DNNEstimator(
-      head=tf.contrib.estimator.multi_label_head(n_classes=3),
+  estimator = tf.estimator.DNNEstimator(
+      head=tf.estimator.MultiLabelHead(n_classes=3),
       feature_columns=[sparse_feature_a_emb, sparse_feature_b_emb],
       hidden_units=[1024, 512, 256],
       warm_start_from="/path/to/checkpoint/dir")
@@ -893,12 +891,12 @@ class DNNEstimatorV2(estimator.EstimatorV2):
   * if `weight_column` is not `None`, a feature with `key=weight_column` whose
     value is a `Tensor`.
   * for each `column` in `feature_columns`:
-    - if `column` is a `_CategoricalColumn`, a feature with `key=column.name`
+    - if `column` is a `CategoricalColumn`, a feature with `key=column.name`
       whose `value` is a `SparseTensor`.
-    - if `column` is a `_WeightedCategoricalColumn`, two features: the first
+    - if `column` is a `WeightedCategoricalColumn`, two features: the first
       with `key` the id column name, the second with `key` the weight column
       name. Both features' `value` must be a `SparseTensor`.
-    - if `column` is a `_DenseColumn`, a feature with `key=column.name`
+    - if `column` is a `DenseColumn`, a feature with `key=column.name`
       whose `value` is a `Tensor`.
 
   Loss and predicted output are determined by the specified head.
@@ -936,9 +934,9 @@ class DNNEstimatorV2(estimator.EstimatorV2):
       model_dir: Directory to save model parameters, graph and etc. This can
         also be used to load checkpoints from the directory into a estimator to
         continue training a previously saved model.
-      optimizer: An instance of `tf.Optimizer` used to train the model. Can also
-        be a string (one of 'Adagrad', 'Adam', 'Ftrl', 'RMSProp', 'SGD'), or
-        callable. Defaults to Adagrad optimizer.
+      optimizer: An instance of `tf.keras.optimizers.*` used to train the model.
+        Can also be a string (one of 'Adagrad', 'Adam', 'Ftrl', 'RMSProp',
+        SGD'), or callable. Defaults to Adagrad optimizer.
       activation_fn: Activation function applied to each layer. If `None`, will
         use `tf.nn.relu`.
       dropout: When not `None`, the probability we will drop out a given
@@ -1025,33 +1023,33 @@ class DNNRegressorV2(estimator.EstimatorV2):
   categorical_feature_b_emb = embedding_column(
       categorical_column=categorical_feature_b, ...)
 
-  estimator = DNNRegressor(
+  estimator = tf.estimator.DNNRegressor(
       feature_columns=[categorical_feature_a_emb, categorical_feature_b_emb],
       hidden_units=[1024, 512, 256])
 
   # Or estimator using the ProximalAdagradOptimizer optimizer with
   # regularization.
-  estimator = DNNRegressor(
+  estimator = tf.estimator.DNNRegressor(
       feature_columns=[categorical_feature_a_emb, categorical_feature_b_emb],
       hidden_units=[1024, 512, 256],
-      optimizer=tf.train.ProximalAdagradOptimizer(
+      optimizer=tf.compat.v1.train.ProximalAdagradOptimizer(
         learning_rate=0.1,
         l1_regularization_strength=0.001
       ))
 
   # Or estimator using an optimizer with a learning rate decay.
-  estimator = DNNRegressor(
+  estimator = tf.estimator.DNNRegressor(
       feature_columns=[categorical_feature_a_emb, categorical_feature_b_emb],
       hidden_units=[1024, 512, 256],
-      optimizer=lambda: tf.AdamOptimizer(
-          learning_rate=tf.exponential_decay(
+      optimizer=lambda: tf.keras.optimizers.Adam(
+          learning_rate=tf.compat.v1.train.exponential_decay(
               learning_rate=0.1,
-              global_step=tf.get_global_step(),
+              global_step=tf.compat.v1.train.get_global_step(),
               decay_steps=10000,
               decay_rate=0.96))
 
   # Or estimator with warm-starting from a previous checkpoint.
-  estimator = DNNRegressor(
+  estimator = tf.estimator.DNNRegressor(
       feature_columns=[categorical_feature_a_emb, categorical_feature_b_emb],
       hidden_units=[1024, 512, 256],
       warm_start_from="/path/to/checkpoint/dir")
@@ -1079,12 +1077,12 @@ class DNNRegressorV2(estimator.EstimatorV2):
   * if `weight_column` is not `None`, a feature with `key=weight_column` whose
     value is a `Tensor`.
   * for each `column` in `feature_columns`:
-    - if `column` is a `_CategoricalColumn`, a feature with `key=column.name`
+    - if `column` is a `CategoricalColumn`, a feature with `key=column.name`
       whose `value` is a `SparseTensor`.
-    - if `column` is a `_WeightedCategoricalColumn`, two features: the first
+    - if `column` is a `WeightedCategoricalColumn`, two features: the first
       with `key` the id column name, the second with `key` the weight column
       name. Both features' `value` must be a `SparseTensor`.
-    - if `column` is a `_DenseColumn`, a feature with `key=column.name`
+    - if `column` is a `DenseColumn`, a feature with `key=column.name`
       whose `value` is a `Tensor`.
 
   Loss is calculated by using mean squared error.
@@ -1120,23 +1118,23 @@ class DNNRegressorV2(estimator.EstimatorV2):
         second one has 32.
       feature_columns: An iterable containing all the feature columns used by
         the model. All items in the set should be instances of classes derived
-        from `_FeatureColumn`.
+        from `FeatureColumn`.
       model_dir: Directory to save model parameters, graph and etc. This can
         also be used to load checkpoints from the directory into a estimator to
         continue training a previously saved model.
       label_dimension: Number of regression targets per example. This is the
         size of the last dimension of the labels and logits `Tensor` objects
         (typically, these have shape `[batch_size, label_dimension]`).
-      weight_column: A string or a `_NumericColumn` created by
+      weight_column: A string or a `NumericColumn` created by
         `tf.feature_column.numeric_column` defining feature column representing
         weights. It is used to down weight or boost examples during training. It
         will be multiplied by the loss of the example. If it is a string, it is
         used as a key to fetch weight tensor from the `features`. If it is a
-        `_NumericColumn`, raw tensor is fetched by key `weight_column.key`,
+        `NumericColumn`, raw tensor is fetched by key `weight_column.key`,
         then weight_column.normalizer_fn is applied on it to get weight tensor.
-      optimizer: An instance of `tf.keras.optimizers.Optimizer` used to train
-        the model. Can also be a string (one of 'Adagrad', 'Adam', 'Ftrl',
-        'RMSProp', 'SGD'), or callable. Defaults to Adagrad optimizer.
+      optimizer: An instance of `tf.keras.optimizers.*` used to train the model.
+        Can also be a string (one of 'Adagrad', 'Adam', 'Ftrl', 'RMSProp',
+        SGD'), or callable. Defaults to Adagrad optimizer.
       activation_fn: Activation function applied to each layer. If `None`, will
         use `tf.nn.relu`.
       dropout: When not `None`, the probability we will drop out a given

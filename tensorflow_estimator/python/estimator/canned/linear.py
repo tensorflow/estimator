@@ -789,12 +789,12 @@ class LinearClassifierV2(estimator.EstimatorV2):
   categorical_feature_a_x_categorical_feature_b = crossed_column(...)
 
   # Estimator using the default optimizer.
-  estimator = LinearClassifier(
+  estimator = tf.estimator.LinearClassifier(
       feature_columns=[categorical_column_a,
                        categorical_feature_a_x_categorical_feature_b])
 
   # Or estimator using the FTRL optimizer with regularization.
-  estimator = LinearClassifier(
+  estimator = tf.estimator.LinearClassifier(
       feature_columns=[categorical_column_a,
                        categorical_feature_a_x_categorical_feature_b],
       optimizer=tf.keras.optimizers.Ftrl(
@@ -803,7 +803,7 @@ class LinearClassifierV2(estimator.EstimatorV2):
       ))
 
   # Or estimator using an optimizer with a learning rate decay.
-  estimator = LinearClassifier(
+  estimator = tf.estimator.LinearClassifier(
       feature_columns=[categorical_column_a,
                        categorical_feature_a_x_categorical_feature_b],
       optimizer=lambda: tf.keras.optimizers.Ftrl(
@@ -814,7 +814,7 @@ class LinearClassifierV2(estimator.EstimatorV2):
               decay_rate=0.96))
 
   # Or estimator with warm-starting from a previous checkpoint.
-  estimator = LinearClassifier(
+  estimator = tf.estimator.LinearClassifier(
       feature_columns=[categorical_column_a,
                        categorical_feature_a_x_categorical_feature_b],
       warm_start_from="/path/to/checkpoint/dir")
@@ -899,7 +899,7 @@ class LinearClassifierV2(estimator.EstimatorV2):
         encoded as integer values in {0, 1,..., n_classes-1} for `n_classes`>2 .
         Also there will be errors if vocabulary is not provided and labels are
         string.
-      optimizer: An instance of `tf.Optimizer` or
+      optimizer: An instance of `tf.keras.optimizers.*` or
         `tf.estimator.experimental.LinearSDCA` used to train the model. Can
         also be a string (one of 'Adagrad', 'Adam', 'Ftrl', 'RMSProp', 'SGD'),
         or callable. Defaults to FTRL optimizer.
@@ -1000,8 +1000,6 @@ class LinearClassifier(estimator.Estimator):
         warm_start_from=warm_start_from)
 
 
-# TODO(b/117517419): Update these contrib references once head moves to core.
-# Also references to the "_Head" class need to be replaced with "Head".
 @estimator_export('estimator.LinearEstimator', v1=[])
 class LinearEstimatorV2(estimator.EstimatorV2):
   """An estimator for TensorFlow linear models with user-specified head.
@@ -1015,20 +1013,20 @@ class LinearEstimatorV2(estimator.EstimatorV2):
   categorical_feature_a_x_categorical_feature_b = crossed_column(...)
 
   # Estimator using the default optimizer.
-  estimator = LinearEstimator(
-      head=tf.contrib.estimator.multi_label_head(n_classes=3),
+  estimator = tf.estimator.LinearEstimator(
+      head=tf.estimator.MultiLabelHead(n_classes=3),
       feature_columns=[categorical_column_a,
                        categorical_feature_a_x_categorical_feature_b])
 
   # Or estimator using an optimizer with a learning rate decay.
-  estimator = LinearEstimator(
-      head=tf.contrib.estimator.multi_label_head(n_classes=3),
+  estimator = tf.estimator.LinearEstimator(
+      head=tf.estimator.MultiLabelHead(n_classes=3),
       feature_columns=[categorical_column_a,
                        categorical_feature_a_x_categorical_feature_b],
       optimizer=lambda: tf.keras.optimizers.Ftrl(
-          learning_rate=tf.exponential_decay(
+          learning_rate=tf.compat.v1.train.exponential_decay(
               learning_rate=0.1,
-              global_step=tf.get_global_step(),
+              global_step=tf.compat.v1.train.get_global_step(),
               decay_steps=10000,
               decay_rate=0.96))
 
@@ -1064,12 +1062,12 @@ class LinearEstimatorV2(estimator.EstimatorV2):
   * if `weight_column` is not `None`, a feature with `key=weight_column` whose
     value is a `Tensor`.
   * for each `column` in `feature_columns`:
-    - if `column` is a `_CategoricalColumn`, a feature with `key=column.name`
+    - if `column` is a `CategoricalColumn`, a feature with `key=column.name`
       whose `value` is a `SparseTensor`.
-    - if `column` is a `_WeightedCategoricalColumn`, two features: the first
+    - if `column` is a `WeightedCategoricalColumn`, two features: the first
       with `key` the id column name, the second with `key` the weight column
       name. Both features' `value` must be a `SparseTensor`.
-    - if `column` is a `_DenseColumn`, a feature with `key=column.name`
+    - if `column` is a `DenseColumn`, a feature with `key=column.name`
       whose `value` is a `Tensor`.
 
   Loss and predicted output are determined by the specified head.
@@ -1092,17 +1090,17 @@ class LinearEstimatorV2(estimator.EstimatorV2):
     """Initializes a `LinearEstimator` instance.
 
     Args:
-      head: A `_Head` instance constructed with a method such as
-        `tf.contrib.estimator.multi_label_head`.
+      head: A `Head` instance constructed with a method such as
+        `tf.estimator.MultiLabelHead`.
       feature_columns: An iterable containing all the feature columns used by
         the model. All items in the set should be instances of classes derived
         from `FeatureColumn`.
       model_dir: Directory to save model parameters, graph and etc. This can
         also be used to load checkpoints from the directory into a estimator
         to continue training a previously saved model.
-      optimizer: An instance of `tf.Optimizer` used to train the model. Can also
-        be a string (one of 'Adagrad', 'Adam', 'Ftrl', 'RMSProp', 'SGD'), or
-        callable. Defaults to FTRL optimizer.
+      optimizer: An instance of `tf.keras.optimizers.*` used to train the model.
+         Can also be a string (one of 'Adagrad', 'Adam', 'Ftrl', 'RMSProp',
+         'SGD'), or callable. Defaults to FTRL optimizer.
       config: `RunConfig` object to configure the runtime settings.
       sparse_combiner: A string specifying how to reduce if a categorical column
         is multivalent.  One of "mean", "sqrtn", and "sum" -- these are
@@ -1211,12 +1209,12 @@ class LinearRegressorV2(estimator.EstimatorV2):
   categorical_feature_a_x_categorical_feature_b = crossed_column(...)
 
   # Estimator using the default optimizer.
-  estimator = LinearRegressor(
+  estimator = tf.estimator.LinearRegressor(
       feature_columns=[categorical_column_a,
                        categorical_feature_a_x_categorical_feature_b])
 
   # Or estimator using the FTRL optimizer with regularization.
-  estimator = LinearRegressor(
+  estimator = tf.estimator.LinearRegressor(
       feature_columns=[categorical_column_a,
                        categorical_feature_a_x_categorical_feature_b],
       optimizer=tf.keras.optimizers.Ftrl(
@@ -1225,18 +1223,18 @@ class LinearRegressorV2(estimator.EstimatorV2):
       ))
 
   # Or estimator using an optimizer with a learning rate decay.
-  estimator = LinearRegressor(
+  estimator = tf.estimator.LinearRegressor(
       feature_columns=[categorical_column_a,
                        categorical_feature_a_x_categorical_feature_b],
       optimizer=lambda: tf.keras.optimizers.Ftrl(
-          learning_rate=tf.exponential_decay(
+          learning_rate=tf.compat.v1.train.exponential_decay(
               learning_rate=0.1,
-              global_step=tf.get_global_step(),
+              global_step=tf.compat.v1.train.get_global_step(),
               decay_steps=10000,
               decay_rate=0.96))
 
   # Or estimator with warm-starting from a previous checkpoint.
-  estimator = LinearRegressor(
+  estimator = tf.estimator.LinearRegressor(
       feature_columns=[categorical_column_a,
                        categorical_feature_a_x_categorical_feature_b],
       warm_start_from="/path/to/checkpoint/dir")
@@ -1305,14 +1303,14 @@ class LinearRegressorV2(estimator.EstimatorV2):
       label_dimension: Number of regression targets per example. This is the
         size of the last dimension of the labels and logits `Tensor` objects
         (typically, these have shape `[batch_size, label_dimension]`).
-      weight_column: A string or a `_NumericColumn` created by
+      weight_column: A string or a `NumericColumn` created by
         `tf.feature_column.numeric_column` defining feature column representing
         weights. It is used to down weight or boost examples during training. It
         will be multiplied by the loss of the example. If it is a string, it is
         used as a key to fetch weight tensor from the `features`. If it is a
-        `_NumericColumn`, raw tensor is fetched by key `weight_column.key`, then
+        `NumericColumn`, raw tensor is fetched by key `weight_column.key`, then
         weight_column.normalizer_fn is applied on it to get weight tensor.
-      optimizer: An instance of `tf.Optimizer` or
+      optimizer: An instance of `tf.keras.optimizers.*` or
         `tf.estimator.experimental.LinearSDCA` used to train the model. Can also
         be a string (one of 'Adagrad', 'Adam', 'Ftrl', 'RMSProp', 'SGD'), or
         callable. Defaults to FTRL optimizer.
