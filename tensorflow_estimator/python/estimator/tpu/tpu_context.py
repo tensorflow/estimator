@@ -795,18 +795,19 @@ class _TPUEstimatorReplicaContext(distribute_lib.ReplicaContext):
     # pylint: enable=protected-access
 
   def __enter__(self):
+    ctx = eager_context.context()
+
     def replica_id_is_zero():
       return math_ops.equal(self._replica_id_in_sync_group,
                             constant_op.constant(0))
 
-    summary_state = summary_ops_v2._summary_state  # pylint: disable=protected-access
     self._summary_recording_distribution_strategy = (
-        summary_state.is_recording_distribution_strategy)
-    summary_state.is_recording_distribution_strategy = replica_id_is_zero
+        ctx.summary_recording_distribution_strategy)
+    ctx.summary_recording_distribution_strategy = replica_id_is_zero
 
   def __exit__(self, exception_type, exception_value, traceback):
-    summary_state = summary_ops_v2._summary_state  # pylint: disable=protected-access
-    summary_state.is_recording_distribution_strategy = (
+    ctx = eager_context.context()
+    ctx.summary_recording_distribution_strategy = (
         self._summary_recording_distribution_strategy)
 
 
