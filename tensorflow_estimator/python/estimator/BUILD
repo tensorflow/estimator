@@ -1725,7 +1725,7 @@ py_test(
     srcs = ["keras_distribute_strategy_test.py"],
     python_version = "PY3",
     srcs_version = "PY2AND3",
-    tags = ["notsan", "nopip"],
+    tags = ["notsan", "nooss"],
     deps = [
         ":keras",
         ":run_config",
