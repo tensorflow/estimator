@@ -163,7 +163,8 @@ class MultiLabelHead(test.TestCase):
     expected_export_classes = [[b'0', b'1', b'2', b'3']] * 2
 
     keys = prediction_keys.PredictionKeys
-    preds = head.predictions(logits, [keys.LOGITS, keys.PROBABILITIES])
+    preds = head.predictions(logits,
+                             [keys.LOGITS, keys.PROBABILITIES, keys.CLASSES])
     self.assertAllClose(logits, self.evaluate(preds[keys.LOGITS]))
     self.assertAllClose(expected_probabilities,
                         self.evaluate(preds[keys.PROBABILITIES]))
@@ -183,6 +184,8 @@ class MultiLabelHead(test.TestCase):
       test_lib._initialize_variables(self, spec.scaffold)
       self.assertIsNone(spec.scaffold.summary_op)
       predictions = sess.run(spec.predictions)
+      self.assertAllEqual(expected_export_classes,
+                          predictions[prediction_keys.PredictionKeys.CLASSES])
       self.assertAllClose(logits,
                           predictions[prediction_keys.PredictionKeys.LOGITS])
       self.assertAllClose(
@@ -203,6 +206,7 @@ class MultiLabelHead(test.TestCase):
     logits = np.array(
         [[0., 1., 2., -1.], [-1., -2., -3., 1.]], dtype=np.float32)
     expected_probabilities = nn.sigmoid(logits)
+    expected_export_classes = [[b'0', b'1', b'2', b'3']] * 2
     weights_2x1 = [[1.], [2.]]
     features = {
         'x': np.array(((42,),), dtype=np.int32),
@@ -210,7 +214,8 @@ class MultiLabelHead(test.TestCase):
     }
 
     keys = prediction_keys.PredictionKeys
-    preds = head.predictions(logits, [keys.LOGITS, keys.PROBABILITIES])
+    preds = head.predictions(logits,
+                             [keys.LOGITS, keys.PROBABILITIES, keys.CLASSES])
     self.assertAllClose(logits, self.evaluate(preds[keys.LOGITS]))
     self.assertAllClose(expected_probabilities,
                         self.evaluate(preds[keys.PROBABILITIES]))
@@ -228,6 +233,8 @@ class MultiLabelHead(test.TestCase):
       test_lib._initialize_variables(self, spec.scaffold)
       self.assertIsNone(spec.scaffold.summary_op)
       predictions = sess.run(spec.predictions)
+      self.assertAllEqual(expected_export_classes,
+                          predictions[prediction_keys.PredictionKeys.CLASSES])
       self.assertAllClose(logits,
                           predictions[prediction_keys.PredictionKeys.LOGITS])
       self.assertAllClose(
@@ -1364,6 +1371,11 @@ class MultiLabelHeadForEstimator(test.TestCase):
 
     with self.cached_session() as sess:
       test_lib._initialize_variables(self, spec.scaffold)
+      predictions = sess.run(spec.predictions)
+      self.assertAllEqual(expected_export_classes,
+                          predictions[prediction_keys.PredictionKeys.CLASSES])
+      self.assertAllClose(logits,
+                          predictions[prediction_keys.PredictionKeys.LOGITS])
       self.assertAllEqual(
           expected_export_classes,
           sess.run(spec.export_outputs[test_lib._DEFAULT_SERVING_KEY].classes))

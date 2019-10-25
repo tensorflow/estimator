@@ -748,18 +748,10 @@ def all_classes(logits, n_classes, label_vocabulary=None):
 
 
 def classification_output(scores, n_classes, label_vocabulary=None):
-  batch_size = array_ops.shape(scores)[0]
-  if label_vocabulary:
-    export_class_list = label_vocabulary
-  else:
-    export_class_list = string_ops.as_string(math_ops.range(n_classes))
-  export_output_classes = array_ops.tile(
-      input=array_ops.expand_dims(input=export_class_list, axis=0),
-      multiples=[batch_size, 1])
   return export_output.ClassificationOutput(
       scores=scores,
       # `ClassificationOutput` requires string classes.
-      classes=export_output_classes)
+      classes=all_classes(scores, n_classes, label_vocabulary))
 
 
 def check_label_range(labels, n_classes, message=None):

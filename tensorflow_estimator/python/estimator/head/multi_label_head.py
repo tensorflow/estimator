@@ -165,9 +165,8 @@ class MultiLabelHead(base_head.Head):
       classes_for_class_based_metrics = tuple(classes_for_class_based_metrics)
       if isinstance(classes_for_class_based_metrics[0], six.string_types):
         if not label_vocabulary:
-          raise ValueError(
-              'label_vocabulary must be provided when '
-              'classes_for_class_based_metrics are sting.')
+          raise ValueError('label_vocabulary must be provided when '
+                           'classes_for_class_based_metrics are strings.')
         class_ids = []
         for class_string in classes_for_class_based_metrics:
           class_ids.append(label_vocabulary.index(class_string))
@@ -362,7 +361,7 @@ class MultiLabelHead(base_head.Head):
       A dict of predictions.
     """
     pred_keys = prediction_keys.PredictionKeys
-    valid_keys = [pred_keys.LOGITS, pred_keys.PROBABILITIES]
+    valid_keys = [pred_keys.LOGITS, pred_keys.PROBABILITIES, pred_keys.CLASSES]
     if keys:
       base_head.check_prediction_keys(keys, valid_keys)
     else:
@@ -375,6 +374,10 @@ class MultiLabelHead(base_head.Head):
       if pred_keys.PROBABILITIES in keys:
         probabilities = math_ops.sigmoid(logits, name=pred_keys.PROBABILITIES)
         predictions[pred_keys.PROBABILITIES] = probabilities
+      if pred_keys.CLASSES in keys:
+        predictions[pred_keys.CLASSES] = base_head.all_classes(
+            logits, self._n_classes, self._label_vocabulary)
+
       return predictions
 
   def metrics(self, regularization_losses=None):
