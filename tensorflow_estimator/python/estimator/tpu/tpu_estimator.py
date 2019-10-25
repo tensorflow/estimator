@@ -2208,10 +2208,6 @@ class _OutfeedHostCall(object):
       for name in self._names:
         dequeue_ops = dequeue_ops_by_name[name]
         for i, item in enumerate(dequeue_ops):
-          if dequeue_ops[i][0].shape.ndims == 0:
-            raise RuntimeError(
-                'All tensors outfed from TPU should preserve batch size '
-                'dimension, but got scalar {}'.format(dequeue_ops[i][0]))
           # TODO(xiejw): Make the specification of the outfeed combinaton
           # function more explicit and well-documented.  We may want to give the
           # user the option of concatenating along any axis.
@@ -2224,6 +2220,10 @@ class _OutfeedHostCall(object):
             with ops.control_dependencies(dequeue_ops[i]):
               dequeue_ops[i] = array_ops.identity(dequeue_ops[i][0])
           else:
+            if dequeue_ops[i][0].shape.ndims == 0:
+              raise RuntimeError(
+                  'All tensors outfed from TPU should preserve batch size '
+                  'dimension, but got scalar {}'.format(dequeue_ops[i][0]))
             # Assume that the input has been batch-split and that axis 0 of the
             # output tensors represents the batch size.  Concatenate along
             # the axis 0 to re-combine the batch.
