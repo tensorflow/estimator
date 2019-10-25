@@ -760,6 +760,7 @@ py_test(
     shard_count = 32,
     srcs_version = "PY2AND3",
     tags = [
+        "no_oss",  # TODO(b/143323557)
         "no_pip",
         "notsan",  # TODO(b/67510291)
     ],
