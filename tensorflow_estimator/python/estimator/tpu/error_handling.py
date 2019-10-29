@@ -31,6 +31,7 @@ from tensorflow.python.platform import tf_logging as logging
 _UNINTERESTING_ERRORS = (errors.CancelledError,)
 _IGNORED_ERRORS = (errors.AbortedError, errors.UnavailableError,)
 
+_CHECK_NUMERIC_OP_NAME = 'CheckNumerics'
 
 class ErrorRendezvous(object):
   """Resolve errors from multiple threads during TPU execution.
@@ -72,7 +73,13 @@ class ErrorRendezvous(object):
       return
 
     self._errors[source] = exc_info
-    logging.error('Error recorded from %s: %s', source, value)
+
+    # If the error is a numeric type, e.g., NaN error, we can assume that the
+    # loop execution completed successfully. In this case, we can skip the
+    # `session.close()` logic and wait for the infeed/outfeed threads to
+    # complete as normal.
+    if value and value.op and value.op.type == _CHECK_NUMERIC_OP_NAME:
+      return
 
     if session is not None and self._session_cancel_timer is None:
 
