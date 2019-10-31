@@ -2338,7 +2338,7 @@ class EstimatorExportTest(test.TestCase):
         loader.load(sess, [tag_constants.SERVING], export_dir)
         graph_ops = [x.name for x in graph.get_operations()]
         self.assertTrue('input_example_tensor' in graph_ops)
-        self.assertTrue('ParseExample/ParseExample' in graph_ops)
+        self.assertTrue('ParseExample/ParseExampleV2' in graph_ops)
         self.assertTrue('weight' in graph_ops)
 
   def test_export_saved_model_train(self):
@@ -2392,7 +2392,7 @@ class EstimatorExportTest(test.TestCase):
         loader.load(sess, [tag_constants.SERVING], export_dir)
         graph_ops = [x.name for x in graph.get_operations()]
         self.assertTrue('input_example_tensor' in graph_ops)
-        self.assertTrue('ParseExample/ParseExample' in graph_ops)
+        self.assertTrue('ParseExample/ParseExampleV2' in graph_ops)
         self.assertFalse('feature_x' in graph_ops)
         self.assertTrue('weight' in graph_ops)
 
@@ -2703,7 +2703,7 @@ class EstimatorExportTest(test.TestCase):
         loader.load(sess, [tag_constants.SERVING], export_dir)
         graph_ops = [x.name for x in graph.get_operations()]
         self.assertTrue('input_example_tensor' in graph_ops)
-        self.assertTrue('ParseExample/ParseExample' in graph_ops)
+        self.assertTrue('ParseExample/ParseExampleV2' in graph_ops)
         # The original saver is used to restore variables
         self.assertTrue('save/LookupTableImportV2' in graph_ops)
 
@@ -2765,7 +2765,7 @@ class EstimatorExportTest(test.TestCase):
         self.assertItemsEqual([vocab_file_name], assets)
         graph_ops = [x.name for x in graph.get_operations()]
         self.assertTrue('input_example_tensor' in graph_ops)
-        self.assertTrue('ParseExample/ParseExample' in graph_ops)
+        self.assertTrue('ParseExample/ParseExampleV2' in graph_ops)
         self.assertTrue('asset_filepath' in graph_ops)
         self.assertTrue('weight' in graph_ops)
 
