@@ -57,7 +57,6 @@ import sys
 
 from google.protobuf import text_format
 from tensorflow.core.framework import graph_pb2
-from tensorflow.python import pywrap_tensorflow
 from tensorflow.python.client import session
 from tensorflow.python.framework import ops
 from tensorflow.python.keras.optimizer_v2 import adagrad
@@ -71,6 +70,7 @@ from tensorflow.python.platform import app
 from tensorflow.python.platform import gfile
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.training import saver as saver_lib
+from tensorflow.python.training import training
 
 
 # Optimizer name mapping from v1 to v2.
@@ -269,7 +269,7 @@ def convert_checkpoint(estimator_type, source_checkpoint, source_graph,
   """
   with ops.Graph().as_default():
     # Get v1 optimizer names and it's corresponding variable name
-    reader = pywrap_tensorflow.NewCheckpointReader(source_checkpoint)
+    reader = training.NewCheckpointReader(source_checkpoint)
     variable_names = sorted(reader.get_variable_to_shape_map())
     opt_names_v1 = {}
     for var_name in variable_names:
