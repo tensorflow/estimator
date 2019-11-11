@@ -1,9 +1,9 @@
 # Description: Tensorflow Estimator.
-load("//tensorflow_estimator/python/estimator/api:api_gen.bzl", "gen_api_init_files")
 load(
     "//tensorflow_estimator/python/estimator/api:api_gen.bzl",
-    "ESTIMATOR_API_INIT_FILES_V2",
     "ESTIMATOR_API_INIT_FILES_V1",
+    "ESTIMATOR_API_INIT_FILES_V2",
+    "gen_api_init_files",
 )
 
 licenses(["notice"])  # Apache 2.0
