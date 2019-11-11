@@ -934,6 +934,11 @@ def generate_per_host_enqueue_ops_fn_for_host(
       features, labels = inputs.features_and_labels()
       signals = inputs.signals()
 
+      features, labels, enqueue_datas_list = (
+          _tpu_estimator_embedding.split_inputs(
+              ctx, features, labels,
+              num_cores_per_batch=num_of_replicas_per_host))
+
       inputs_structure_recorder.validate_and_record_structure(features, labels)
       unsharded_tensor_list = (
           inputs_structure_recorder.flatten_features_and_labels(
@@ -950,6 +955,12 @@ def generate_per_host_enqueue_ops_fn_for_host(
               unsharded_tensor_list,
               placement_function=lambda x: device,
               tpu_ordinal_function=tpu_ordinal_function_impl))
+
+      if ctx.embedding_config:
+        per_host_enqueue_ops.extend(
+            ctx.embedding_config.tpu_embedding.generate_enqueue_ops(
+                enqueue_datas_list))
+
       if signals is None:
         return per_host_enqueue_ops
       else:
@@ -1015,7 +1026,7 @@ def generate_per_host_v2_enqueue_ops_fn_for_host(
     with ops.device(device):
       if not inputs.is_dataset:
         raise TypeError('`input_fn` must return a `Dataset` for this mode.')
-      for _ in range(num_replicas_per_host):
+      for host in range(num_replicas_per_host):
         # Use control dependencies to ensure a deterministic ordering.
         with ops.control_dependencies(control_deps):
           features, labels = inputs.features_and_labels()  # Calls get_next()
@@ -1030,7 +1041,11 @@ def generate_per_host_v2_enqueue_ops_fn_for_host(
 
         features, labels, enqueue_data = (
             _tpu_estimator_embedding.split_inputs(ctx, features, labels))
-        enqueue_datas_list.append(enqueue_data)
+        if len(enqueue_data) != 1:
+          raise RuntimeError(
+            'Missing or extra enqueue_data for host {}. len(enqueue_data) = {}.'
+              .format(host, len(enqueue_data)))
+        enqueue_datas_list.append(enqueue_data[0])
 
         inputs_structure_recorder.validate_and_record_structure(
             features, labels)
@@ -2719,10 +2734,11 @@ class TPUEstimator(estimator_lib.Estimator):
                                         'predict_batch_size')
 
       if embedding_config_spec:
-        if (config.tpu_config.per_host_input_for_training !=
-            tpu_config.InputPipelineConfig.PER_HOST_V2):
-          raise ValueError('Only PER_HOST_V2 is supported when using TPU '
-                           'Embedding; got {}.'.format(
+        if (config.tpu_config.per_host_input_for_training not in
+            (tpu_config.InputPipelineConfig.PER_HOST_V1,
+             tpu_config.InputPipelineConfig.PER_HOST_V2)):
+          raise ValueError('Only PER_HOST_V1 and PER_HOST_V2 is supported when '
+                           'using TPU Embedding; got {}.'.format(
                                config.tpu_config.per_host_input_for_training))
         self._embedding_from_feature_columns = (
             embedding_config_spec.feature_columns is not None)

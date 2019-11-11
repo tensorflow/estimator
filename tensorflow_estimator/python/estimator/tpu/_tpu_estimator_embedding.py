@@ -27,7 +27,9 @@ from tensorflow.python.feature_column import utils as fc_utils
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import sparse_tensor
+from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import math_ops
+from tensorflow.python.ops import sparse_ops
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.tpu import feature_column as tpu_fc
 from tensorflow.python.tpu import feature_column_v2 as tpu_fc_v2
@@ -427,9 +429,10 @@ class EmbeddingConfig(object):
     return self._mode_to_tpu_embedding_dict[mode]
 
 
-def split_inputs(ctx, features, labels):
+def split_inputs(ctx, features, labels, num_cores_per_batch=1):
   """Splits the dense and sparse tensors inside the features and labels."""
   enqueue_datas = collections.OrderedDict()
+
   if ctx.embedding_config:
     tpu_embedding_ = ctx.embedding_config.tpu_embedding
     for feature_key in tpu_embedding_.feature_to_config_dict:
@@ -446,20 +449,46 @@ def split_inputs(ctx, features, labels):
         length_feature.set_shape(ctx.batch_size_for_input_fn)
         features[length_feature_name] = length_feature
       weight_key = tpu_embedding_.feature_to_config_dict[feature_key].weight_key
+      sparse_feature_split = _split_tensor(
+          sparse_feature, num_cores_per_batch)
       if isinstance(sparse_feature, sparse_tensor.SparseTensor):
         weights = _get_weights_from_features(weight_key, features)
-        enqueue_data = tpu_embedding.EnqueueData.from_sparse_tensor(
-            sparse_feature, weights)
+        weights_split = _split_tensor(weights, num_cores_per_batch)
+        enqueue_data = []
+        for i in range(num_cores_per_batch):
+          enqueue_data.append(tpu_embedding.EnqueueData.from_sparse_tensor(
+              sparse_feature_split[i], weights_split[i]))
       else:
         if weight_key is not None:
           raise ValueError(
               'Found weights {} for weighted_categorical_column, which is not'
               'compatible with sparse feature {} enqueued as dense tensor.'
               .format(weight_key, feature_key))
-        enqueue_data = tpu_embedding.EnqueueData(sparse_feature)
+        enqueue_data = []
+        for i in range(num_cores_per_batch):
+          enqueue_data.append(tpu_embedding.EnqueueData(
+              sparse_feature_split[i]))
       enqueue_datas[feature_key] = enqueue_data
 
-  return features, labels, enqueue_datas
+  # Transpose the enqueue_datas dict into a list of dicts
+  enqueue_datas_list = []
+  for i in range(num_cores_per_batch):
+    enqueue_data = {}
+    for key, value in enqueue_datas.items():
+      enqueue_data[key] = value[i]
+    enqueue_datas_list.append(enqueue_data)
+  return features, labels, enqueue_datas_list
+
+
+def _split_tensor(tensor, num_splits):
+  if tensor is None:
+    return [None] * num_splits
+  elif isinstance(tensor, sparse_tensor.SparseTensor):
+    return sparse_ops.sparse_split_v2(tensor,
+                                      num_splits,
+                                      axis=0)
+  else:
+    return array_ops.split(tensor, num_splits)
 
 
 def _get_sparse_feature_from_feature(feature_key, features):
