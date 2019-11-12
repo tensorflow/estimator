@@ -253,14 +253,15 @@ def _convert_keras_metrics_to_estimator(model):
 
 
 def _create_keras_model_fn(keras_model, custom_objects=None,
-                           save_object_ckpt=False):
+                           save_object_ckpt=False,
+                           custom_export_outputs=None):
   """Creates model_fn for keras Estimator.
 
   Args:
     keras_model: an instance of compiled keras model.
     custom_objects: Dictionary for custom objects.
     save_object_ckpt: Whether to save an object-based checkpoint.
-
+    custom_export_outputs: Custom outputs to export (optional)
   Returns:
     The model_fn for a keras Estimator.
   """
@@ -335,16 +336,18 @@ def _create_keras_model_fn(keras_model, custom_objects=None,
       saver._object_restore_saver = trackable_util.frozen_saver(model)
       scaffold = monitored_session.Scaffold(saver=saver)
 
+    export_outputs = custom_export_outputs or {
+            _DEFAULT_SERVING_KEY:
+            export_lib.PredictOutput(predictions)
+        }
+
     return model_fn_lib.EstimatorSpec(
         mode=mode,
         predictions=predictions,
         loss=loss,
         train_op=train_op,
         eval_metric_ops=eval_metric_ops,
-        export_outputs={
-            _DEFAULT_SERVING_KEY:
-            export_lib.PredictOutput(predictions)
-        },
+        export_outputs=export_outputs,
         scaffold=scaffold
     )
 
@@ -455,7 +458,8 @@ def model_to_estimator(keras_model=None,
                        model_dir=None,
                        config=None,
                        checkpoint_format=None,
-                       use_v2_estimator=False):
+                       use_v2_estimator=False,
+                       custom_export_outputs=None):
   # LINT.ThenChange(//tensorflow/python/keras/estimator/__init__.py)
   """Constructs an `Estimator` instance from given keras model.
 
@@ -508,6 +512,7 @@ def model_to_estimator(keras_model=None,
       models.
     use_v2_estimator: Whether to convert the model to a V2 Estimator or V1
       Estimator.
+    custom_export_outputs: Custom outputs to export (optional)
 
   Returns:
     An Estimator from given keras model.
@@ -560,7 +565,8 @@ def model_to_estimator(keras_model=None,
         'before calling `model_to_estimator()`.')
 
   keras_model_fn = _create_keras_model_fn(keras_model, custom_objects,
-                                          save_object_ckpt)
+                                          save_object_ckp,
+                                          custom_export_outputs)
   if _any_weight_initialized(keras_model):
     # Warn if config passed to estimator tries to update GPUOptions. If a
     # session has already been created, the GPUOptions passed to the first
