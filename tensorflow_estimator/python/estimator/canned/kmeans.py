@@ -259,11 +259,11 @@ class KMeansClustering(estimator.Estimator):
   points = np.random.uniform(0, 1000, [num_points, dimensions])
 
   def input_fn():
-    return tf.train.limit_epochs(
+    return tf.compat.v1.train.limit_epochs(
         tf.convert_to_tensor(points, dtype=tf.float32), num_epochs=1)
 
   num_clusters = 5
-  kmeans = tf.estimator.experimental.KMeans(
+  kmeans = tf.compat.v1.estimator.experimental.KMeans(
       num_clusters=num_clusters, use_mini_batch=False)
 
   # train
