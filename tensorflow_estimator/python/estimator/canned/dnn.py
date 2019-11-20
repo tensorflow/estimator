@@ -27,7 +27,7 @@ from tensorflow.python.feature_column import feature_column_lib
 from tensorflow.python.framework import ops
 from tensorflow.python.keras.engine import training
 from tensorflow.python.keras.layers import core as keras_core
-from tensorflow.python.keras.layers import normalization_v2 as keras_norm
+from tensorflow.python.keras.layers import normalization as keras_norm
 from tensorflow.python.keras.utils import losses_utils
 from tensorflow.python.layers import core as core_layers
 from tensorflow.python.layers import normalization
@@ -332,7 +332,9 @@ class _DNNModelV2(training.Model):
           self._dropout_layers.append(dropout_layer)
         if self._batch_norm:
           batch_norm_name = hidden_shared_name + '/batchnorm_%d' % layer_id
-          batch_norm_layer = keras_norm.BatchNormalization(
+          # TODO(scottzhu): Change back to use BatchNormalization when the
+          # cleanup is done.
+          batch_norm_layer = keras_norm.BatchNormalizationBase(
               # The default momentum 0.99 actually crashes on certain
               # problem, so here we use 0.999, which is the default of
               # tf.contrib.layers.batch_norm.
