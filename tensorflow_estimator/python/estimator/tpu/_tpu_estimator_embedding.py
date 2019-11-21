@@ -481,8 +481,14 @@ def split_inputs(ctx, features, labels, num_cores_per_batch=1):
 
 
 def _split_tensor(tensor, num_splits):
+  """Splits tensor into num_splits pieces, returns a list of pieces."""
   if tensor is None:
     return [None] * num_splits
+  elif num_splits <= 0:
+    return ValueError(
+        'Tensors cannot be split into {} pieces.'.format(num_splits))
+  elif num_splits == 1:
+    return [tensor]
   elif isinstance(tensor, sparse_tensor.SparseTensor):
     return sparse_ops.sparse_split_v2(tensor,
                                       num_splits,
