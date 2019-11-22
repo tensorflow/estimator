@@ -125,16 +125,18 @@ def _convert_estimator_io_to_keras(keras_model, features, labels):
     elif isinstance(obj, (list, tuple)):
       return [_convert_tensor(x) for x in obj]
     elif isinstance(obj, dict):
-      # Ensure that the obj keys and keys in key_order are exactly the same.
-      different_keys = set(obj.keys()) ^ set(key_order)
+      # Ensure that keys in key_order are contained in obj keys.
+      # One can provide more data keys described in obj, as long as the keys
+      # requested by model are provided.
+      different_keys = set(key_order) - set(obj.keys())
 
       if different_keys:
         raise KeyError(
-            'The dictionary passed into {obj_name} does not have the expected '
+            'The dictionary passed into {obj_name} does not cover requested '
             '{order_name} keys defined in the keras model.'
             '\n\tExpected keys: {order_keys}'
             '\n\t{obj_name} keys: {obj_keys}'
-            '\n\tDifference: {different_keys}'.format(
+            '\n\tMissed keys: {different_keys}'.format(
                 order_name=order_name, order_keys=set(key_order),
                 obj_name=obj_name, obj_keys=set(obj.keys()),
                 different_keys=different_keys))
