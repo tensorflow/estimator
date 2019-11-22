@@ -1760,9 +1760,8 @@ class _ModelFnWrapper(object):
         else:
           scaled_gradients = gradients
         apply_sparse_grads = [
-            tpu_embedding_.generate_send_gradients_op(
-                scaled_gradients,
-                self._ctx.embedding_config.get_dynamic_learning_rates())
+            tpu_embedding_.generate_send_gradients_op(scaled_gradients,
+                                                      training.get_global_step())
         ]
 
       # We must run train_op to update the variables prior to running the
