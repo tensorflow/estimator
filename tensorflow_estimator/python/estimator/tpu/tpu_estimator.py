@@ -3479,10 +3479,10 @@ class TPUEstimator(estimator_lib.Estimator):
 
 
 def _check_add_preemption_hook(cluster):
-  return (tpu_cluster_resolver.is_running_in_gce() and
-          cluster and
+  return (tpu_cluster_resolver.is_running_in_gce() and cluster and
           isinstance(cluster, tpu_cluster_resolver.TPUClusterResolver) and
-          cluster._should_resolve)
+          cluster._cloud_tpu_client.api_available())
+
 
 def _export_output_to_tensors(export_output):
   """Get a list of `Tensors` used in `export_output`.
