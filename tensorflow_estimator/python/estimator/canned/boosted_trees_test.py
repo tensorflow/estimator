@@ -18,6 +18,7 @@ from __future__ import division
 from __future__ import print_function
 
 import collections
+import functools
 import os
 import tempfile
 
@@ -336,6 +337,41 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
     predictions = list(est.predict(input_fn=predict_input_fn))
     self.assertAllClose([[0], [0], [0], [0], [0]],
                         [pred['class_ids'] for pred in predictions])
+
+  @test_util.run_in_graph_and_eager_modes()
+  def testInvalidInputParameters(self):
+    make_est = functools.partial(
+        boosted_trees.BoostedTreesRegressor,
+        feature_columns=self._feature_columns,
+        n_batches_per_layer=1,
+        n_trees=1,
+        max_depth=3,
+        learning_rate=0.01,
+        quantile_sketch_epsilon=0.01,
+        l1_regularization=0.1,
+        l2_regularization=0.21,
+        tree_complexity=0.1,
+        min_node_weight=0.0)
+    # First test using all valid parameters.
+    make_est()
+    # Parameters must be positive.
+    with self.assertRaisesRegexp(ValueError, '> 0'):
+      make_est(n_trees=0)
+    with self.assertRaisesRegexp(ValueError, '> 0'):
+      make_est(max_depth=0)
+    with self.assertRaisesRegexp(ValueError, '> 0'):
+      make_est(learning_rate=0)
+    with self.assertRaisesRegexp(ValueError, '> 0'):
+      make_est(quantile_sketch_epsilon=0)
+    # Parameters must be non-negative.
+    with self.assertRaisesRegexp(ValueError, '>= 0'):
+      make_est(l1_regularization=-0.1)
+    with self.assertRaisesRegexp(ValueError, '>= 0'):
+      make_est(l2_regularization=-0.1)
+    with self.assertRaisesRegexp(ValueError, '>= 0'):
+      make_est(tree_complexity=-0.1)
+    with self.assertRaisesRegexp(ValueError, '>= 0'):
+      make_est(min_node_weight=-0.1)
 
   @test_util.run_in_graph_and_eager_modes()
   def testTrainAndEvaluateBinaryClassifier(self):

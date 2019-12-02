@@ -1741,6 +1741,21 @@ class _BoostedTreesBase(estimator.Estimator):
       yield pred
 
 
+def _validate_input_params(tree_params):
+  """Validate input parameters."""
+  positive = ('n_trees', 'max_depth', 'learning_rate',
+              'quantile_sketch_epsilon')
+  for p in positive:
+    if getattr(tree_params, p) <= 0:
+      raise ValueError('Expected {} > 0, received: {}'.format(
+          p, getattr(tree_params, p)))
+  non_negative = ('l1', 'l2', 'tree_complexity', 'min_node_weight')
+  for p in non_negative:
+    if getattr(tree_params, p) < 0:
+      raise ValueError('Expected {} >= 0, received: {}'.format(
+          p, getattr(tree_params, p)))
+
+
 # pylint: disable=protected-access
 @estimator_export('estimator.BoostedTreesClassifier')
 class BoostedTreesClassifier(_BoostedTreesBase):
@@ -1886,6 +1901,7 @@ class BoostedTreesClassifier(_BoostedTreesBase):
                                 l1_regularization, l2_regularization,
                                 tree_complexity, min_node_weight, center_bias,
                                 pruning_mode, quantile_sketch_epsilon)
+    _validate_input_params(tree_hparams)
 
     def _model_fn(features, labels, mode, config):
       return _bt_model_fn(
@@ -2042,6 +2058,7 @@ class BoostedTreesRegressor(_BoostedTreesBase):
                                 l1_regularization, l2_regularization,
                                 tree_complexity, min_node_weight, center_bias,
                                 pruning_mode, quantile_sketch_epsilon)
+    _validate_input_params(tree_hparams)
 
     def _model_fn(features, labels, mode, config):
       return _bt_model_fn(
@@ -2161,6 +2178,7 @@ class BoostedTreesEstimator(_BoostedTreesBase):  # pylint: disable=protected-acc
                                 l1_regularization, l2_regularization,
                                 tree_complexity, min_node_weight, center_bias,
                                 pruning_mode, quantile_sketch_epsilon)
+    _validate_input_params(tree_hparams)
 
     def _model_fn(features, labels, mode, config):
       return _bt_model_fn(
