@@ -27,11 +27,13 @@ import six
 
 from tensorflow.python.framework import errors
 from tensorflow.python.platform import tf_logging as logging
+from tensorflow_estimator.python.estimator.tools import analytics
 
 _UNINTERESTING_ERRORS = (errors.CancelledError,)
 _IGNORED_ERRORS = (errors.AbortedError, errors.UnavailableError,)
 
 _CHECK_NUMERIC_OP_NAME = 'CheckNumerics'
+
 
 class ErrorRendezvous(object):
   """Resolve errors from multiple threads during TPU execution.
@@ -79,6 +81,7 @@ class ErrorRendezvous(object):
     # `session.close()` logic and wait for the infeed/outfeed threads to
     # complete as normal.
     if value and value.op and value.op.type == _CHECK_NUMERIC_OP_NAME:
+      analytics.track_numerical_issues(exc_info)
       return
 
     if session is not None and self._session_cancel_timer is None:

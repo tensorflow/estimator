@@ -819,6 +819,12 @@ py_library(
     ],
 )
 
+py_library(
+    name = "analytics_tools",
+    srcs = ["tools/analytics.py"],
+    srcs_version = "PY2AND3",
+)
+
 py_test(
     name = "checkpoint_converter_test",
     srcs = ["tools/checkpoint_converter_test.py"],
