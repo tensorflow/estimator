@@ -83,7 +83,7 @@ py_test(
     name = "exporter_test",
     size = "medium",
     srcs = ["exporter_test.py"],
-    python_version = "PY2",
+    python_version = "PY3",
     srcs_version = "PY2AND3",
     deps = [
         ":estimator",
@@ -109,7 +109,7 @@ py_test(
     name = "extenders_test",
     size = "medium",
     srcs = ["extenders_test.py"],
-    python_version = "PY2",
+    python_version = "PY3",
     srcs_version = "PY2AND3",
     tags = ["notsan"],  # b/62863147
     deps = [
@@ -136,7 +136,7 @@ py_test(
     name = "gc_test",
     size = "small",
     srcs = ["gc_test.py"],
-    python_version = "PY2",
+    python_version = "PY3",
     srcs_version = "PY2AND3",
     deps = [
         ":gc",
@@ -158,7 +158,7 @@ py_library(
 py_test(
     name = "hooks_test",
     srcs = ["hooks/hooks_test.py"],
-    python_version = "PY2",
+    python_version = "PY3",
     srcs_version = "PY2AND3",
     deps = [
         ":estimator_py",
@@ -185,7 +185,7 @@ py_test(
     name = "model_fn_test",
     size = "small",
     srcs = ["model_fn_test.py"],
-    python_version = "PY2",
+    python_version = "PY3",
     srcs_version = "PY2AND3",
     deps = [
         ":export_output",
@@ -223,7 +223,7 @@ py_test(
     name = "training_test",
     size = "medium",
     srcs = ["training_test.py"],
-    python_version = "PY2",
+    python_version = "PY3",
     shard_count = 4,
     srcs_version = "PY2AND3",
     tags = ["notsan"],
@@ -254,7 +254,7 @@ py_test(
     name = "run_config_test",
     size = "small",
     srcs = ["run_config_test.py"],
-    python_version = "PY2",
+    python_version = "PY3",
     srcs_version = "PY2AND3",
     deps = [
         ":run_config",
@@ -284,7 +284,7 @@ py_test(
     name = "baseline_test",
     size = "medium",
     srcs = ["canned/baseline_test.py"],
-    python_version = "PY2",
+    python_version = "PY3",
     shard_count = 4,
     srcs_version = "PY2AND3",
     tags = [
@@ -313,7 +313,7 @@ py_test(
     name = "baseline_test_v1",
     size = "medium",
     srcs = ["canned/v1/baseline_test_v1.py"],
-    python_version = "PY2",
+    python_version = "PY3",
     shard_count = 4,
     srcs_version = "PY2AND3",
     tags = [
@@ -342,7 +342,7 @@ py_test(
     name = "baseline_estimator_test",
     size = "medium",
     srcs = ["canned/baseline_estimator_test.py"],
-    python_version = "PY2",
+    python_version = "PY3",
     shard_count = 4,
     srcs_version = "PY2AND3",
     tags = [
@@ -370,7 +370,7 @@ py_test(
     name = "baseline_estimator_test_v1",
     size = "medium",
     srcs = ["canned/v1/baseline_estimator_test_v1.py"],
-    python_version = "PY2",
+    python_version = "PY3",
     shard_count = 4,
     srcs_version = "PY2AND3",
     tags = [
@@ -411,7 +411,7 @@ py_test(
     name = "boosted_trees_test",
     size = "medium",
     srcs = ["canned/boosted_trees_test.py"],
-    python_version = "PY2",
+    python_version = "PY3",
     shard_count = 32,
     srcs_version = "PY2AND3",
     tags = [
@@ -449,7 +449,7 @@ py_test(
     name = "boosted_trees_utils_test",
     size = "medium",
     srcs = ["canned/boosted_trees_utils_test.py"],
-    python_version = "PY2",
+    python_version = "PY3",
     shard_count = 2,
     srcs_version = "PY2AND3",
     tags = [
@@ -480,7 +480,7 @@ py_test(
     name = "kmeans_test",
     size = "medium",
     srcs = ["canned/kmeans_test.py"],
-    python_version = "PY2",
+    python_version = "PY3",
     shard_count = 8,
     srcs_version = "PY2AND3",
     deps = [
@@ -553,7 +553,7 @@ py_test(
     name = "dnn_test_fc_v1_v1",
     size = "medium",
     srcs = ["canned/v1/dnn_test_fc_v1_v1.py"],
-    python_version = "PY2",
+    python_version = "PY3",
     shard_count = 4,
     srcs_version = "PY2AND3",
     tags = [
@@ -580,7 +580,7 @@ py_test(
     name = "dnn_test_fc_v2",
     size = "medium",
     srcs = ["canned/dnn_test_fc_v2.py"],
-    python_version = "PY2",
+    python_version = "PY3",
     shard_count = 8,
     srcs_version = "PY2AND3",
     tags = [
@@ -607,7 +607,7 @@ py_test(
     name = "dnn_test_fc_v2_v1",
     size = "medium",
     srcs = ["canned/v1/dnn_test_fc_v2_v1.py"],
-    python_version = "PY2",
+    python_version = "PY3",
     shard_count = 4,
     srcs_version = "PY2AND3",
     tags = [
@@ -634,7 +634,7 @@ py_test(
     name = "dnn_estimator_test",
     size = "medium",
     srcs = ["canned/dnn_estimator_test.py"],
-    python_version = "PY2",
+    python_version = "PY3",
     srcs_version = "PY2AND3",
     tags = [
         "no_pip",
@@ -660,7 +660,7 @@ py_test(
     name = "dnn_estimator_test_v1",
     size = "medium",
     srcs = ["canned/v1/dnn_estimator_test_v1.py"],
-    python_version = "PY2",
+    python_version = "PY3",
     srcs_version = "PY2AND3",
     tags = [
         "no_pip",
@@ -704,7 +704,7 @@ py_test(
     name = "dnn_linear_combined_estimator_test",
     size = "medium",
     srcs = ["canned/dnn_linear_combined_estimator_test.py"],
-    python_version = "PY2",
+    python_version = "PY3",
     shard_count = 3,
     srcs_version = "PY2AND3",
     tags = [
@@ -730,7 +730,7 @@ py_test(
     name = "dnn_linear_combined_estimator_test_v1",
     size = "medium",
     srcs = ["canned/v1/dnn_linear_combined_estimator_test_v1.py"],
-    python_version = "PY2",
+    python_version = "PY3",
     shard_count = 3,
     srcs_version = "PY2AND3",
     tags = [
@@ -756,7 +756,7 @@ py_test(
     name = "dnn_linear_combined_test",
     size = "medium",
     srcs = ["canned/dnn_linear_combined_test.py"],
-    python_version = "PY2",
+    python_version = "PY3",
     shard_count = 32,
     srcs_version = "PY2AND3",
     tags = [
@@ -785,7 +785,7 @@ py_test(
     name = "dnn_linear_combined_test_v1",
     size = "medium",
     srcs = ["canned/v1/dnn_linear_combined_test_v1.py"],
-    python_version = "PY2",
+    python_version = "PY3",
     shard_count = 16,
     srcs_version = "PY2AND3",
     tags = [
@@ -828,7 +828,7 @@ py_library(
 py_test(
     name = "checkpoint_converter_test",
     srcs = ["tools/checkpoint_converter_test.py"],
-    python_version = "PY2",
+    python_version = "PY3",
     shard_count = 4,
     srcs_version = "PY2AND3",
     deps = [
@@ -860,7 +860,7 @@ py_library(
 py_test(
     name = "util_test",
     srcs = ["util_test.py"],
-    python_version = "PY2",
+    python_version = "PY3",
     srcs_version = "PY2AND3",
     tags = ["notsan"],  # b/67510291
     deps = [
@@ -896,7 +896,7 @@ py_test(
     srcs = [
         "early_stopping_test.py",
     ],
-    python_version = "PY2",
+    python_version = "PY3",
     srcs_version = "PY2AND3",
     tags = [
         "notap",  # TODO(b/134928532): Reenable this test.
@@ -930,7 +930,7 @@ py_library(
 py_test(
     name = "estimator_test",
     srcs = ["estimator_test.py"],
-    python_version = "PY2",
+    python_version = "PY3",
     shard_count = 4,
     srcs_version = "PY2AND3",
     tags = ["notsan"],  # b/67510291
@@ -964,7 +964,7 @@ py_library(
 py_test(
     name = "parsing_utils_test",
     srcs = ["canned/parsing_utils_test.py"],
-    python_version = "PY2",
+    python_version = "PY3",
     srcs_version = "PY2AND3",
     deps = [
         ":parsing_utils",
@@ -1011,7 +1011,7 @@ py_test(
     name = "export_test",
     size = "small",
     srcs = ["export/export_test.py"],
-    python_version = "PY2",
+    python_version = "PY3",
     srcs_version = "PY2AND3",
     deps = [
         ":export_export",
@@ -1037,7 +1037,7 @@ py_test(
     name = "function_test",
     size = "small",
     srcs = ["export/function_test.py"],
-    python_version = "PY2",
+    python_version = "PY3",
     srcs_version = "PY2AND3",
     deps = [
         ":export",
@@ -1065,7 +1065,7 @@ py_test(
     name = "head_test",
     size = "medium",
     srcs = ["canned/head_test.py"],
-    python_version = "PY2",
+    python_version = "PY3",
     shard_count = 4,
     srcs_version = "PY2AND3",
     tags = ["no_pip"],
@@ -1113,7 +1113,7 @@ py_test(
     name = "base_head_test",
     size = "small",
     srcs = ["head/base_head_test.py"],
-    python_version = "PY2",
+    python_version = "PY3",
     srcs_version = "PY2AND3",
     deps = [":base_head_test_lib"],
 )
@@ -1155,7 +1155,7 @@ py_test(
     name = "binary_class_head_test",
     size = "medium",
     srcs = ["head/binary_class_head_test.py"],
-    python_version = "PY2",
+    python_version = "PY3",
     shard_count = 4,
     srcs_version = "PY2AND3",
     tags = ["no_pip"],
@@ -1194,7 +1194,7 @@ py_test(
     name = "multi_head_test",
     size = "medium",
     srcs = ["head/multi_head_test.py"],
-    python_version = "PY2",
+    python_version = "PY3",
     shard_count = 4,
     srcs_version = "PY2AND3",
     deps = [
@@ -1232,7 +1232,7 @@ py_test(
     name = "multi_class_head_test",
     size = "medium",
     srcs = ["head/multi_class_head_test.py"],
-    python_version = "PY2",
+    python_version = "PY3",
     shard_count = 4,
     srcs_version = "PY2AND3",
     deps = [
@@ -1270,7 +1270,7 @@ py_test(
     name = "multi_label_head_test",
     size = "medium",
     srcs = ["head/multi_label_head_test.py"],
-    python_version = "PY2",
+    python_version = "PY3",
     shard_count = 4,
     srcs_version = "PY2AND3",
     deps = [
@@ -1308,7 +1308,7 @@ py_test(
     name = "regression_head_test",
     size = "medium",
     srcs = ["head/regression_head_test.py"],
-    python_version = "PY2",
+    python_version = "PY3",
     shard_count = 4,
     srcs_version = "PY2AND3",
     deps = [
@@ -1342,7 +1342,7 @@ py_test(
     name = "sequential_head_test",
     size = "medium",
     srcs = ["head/sequential_head_test.py"],
-    python_version = "PY2",
+    python_version = "PY3",
     srcs_version = "PY2AND3",
     deps = [
         ":binary_class_head",
@@ -1435,7 +1435,7 @@ py_test(
     name = "linear_estimator_test",
     size = "medium",
     srcs = ["canned/linear_estimator_test.py"],
-    python_version = "PY2",
+    python_version = "PY3",
     srcs_version = "PY2AND3",
     tags = [
         "no_pip",
@@ -1459,7 +1459,7 @@ py_test(
     name = "linear_estimator_test_v1",
     size = "medium",
     srcs = ["canned/v1/linear_estimator_test_v1.py"],
-    python_version = "PY2",
+    python_version = "PY3",
     srcs_version = "PY2AND3",
     tags = [
         "no_pip",
@@ -1483,7 +1483,7 @@ py_test(
     name = "linear_test",
     size = "medium",
     srcs = ["canned/linear_test.py"],
-    python_version = "PY2",
+    python_version = "PY3",
     shard_count = 8,
     srcs_version = "PY2AND3",
     tags = [
@@ -1502,7 +1502,7 @@ py_test(
     name = "linear_test_v1",
     size = "medium",
     srcs = ["canned/v1/linear_test_v1.py"],
-    python_version = "PY2",
+    python_version = "PY3",
     shard_count = 8,
     srcs_version = "PY2AND3",
     tags = [
@@ -1539,7 +1539,7 @@ py_test(
     name = "numpy_io_test",
     size = "small",
     srcs = ["inputs/numpy_io_test.py"],
-    python_version = "PY2",
+    python_version = "PY3",
     srcs_version = "PY2AND3",
     deps = [
         ":numpy_io",
@@ -1564,7 +1564,7 @@ py_test(
     name = "optimizers_test",
     size = "small",
     srcs = ["canned/optimizers_test.py"],
-    python_version = "PY2",
+    python_version = "PY3",
     srcs_version = "PY2AND3",
     deps = [
         ":optimizers",
@@ -1577,7 +1577,7 @@ py_test(
     name = "optimizers_test_v2",
     size = "small",
     srcs = ["canned/optimizers_test_v2.py"],
-    python_version = "PY2",
+    python_version = "PY3",
     srcs_version = "PY2AND3",
     deps = [
         ":optimizers",
@@ -1589,7 +1589,7 @@ py_test(
     name = "object_checkpointing_test",
     size = "medium",
     srcs = ["object_checkpointing_test.py"],
-    python_version = "PY2",
+    python_version = "PY3",
     srcs_version = "PY2AND3",
     deps = [
         ":estimator",
@@ -1615,7 +1615,7 @@ py_test(
     name = "pandas_io_test",
     size = "small",
     srcs = ["inputs/pandas_io_test.py"],
-    python_version = "PY2",
+    python_version = "PY3",
     srcs_version = "PY2AND3",
     deps = [
         ":pandas_io",
@@ -1656,7 +1656,7 @@ py_test(
     srcs = [
         "inputs/queues/feeding_functions_test.py",
     ],
-    python_version = "PY2",
+    python_version = "PY3",
     srcs_version = "PY2AND3",
     deps = [
         ":inputs_queues",
@@ -1671,7 +1671,7 @@ py_test(
     name = "feeding_queue_runner_test",
     size = "small",
     srcs = ["inputs/queues/feeding_queue_runner_test.py"],
-    python_version = "PY2",
+    python_version = "PY3",
     srcs_version = "PY2AND3",
     deps = [
         ":inputs_queues",
@@ -1701,7 +1701,7 @@ py_test(
     name = "keras_test",
     size = "medium",
     srcs = ["keras_test.py"],
-    python_version = "PY2",
+    python_version = "PY3",
     shard_count = 8,
     srcs_version = "PY2AND3",
     tags = [
@@ -1725,7 +1725,7 @@ py_test(
     name = "keras_premade_model_test",
     size = "medium",
     srcs = ["keras_premade_model_test.py"],
-    python_version = "PY2",
+    python_version = "PY3",
     shard_count = 4,
     deps = [
         ":export",
@@ -1763,6 +1763,7 @@ py_library(
         ":export",
         ":mode_keys",
         ":model_fn",
+        "//tensorflow_estimator/python/estimator:expect_six_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
     ],
@@ -1772,7 +1773,7 @@ py_test(
     name = "saved_model_estimator_test",
     size = "medium",
     srcs = ["canned/saved_model_estimator_test.py"],
-    python_version = "PY2",
+    python_version = "PY3",
     srcs_version = "PY2AND3",
     tags = [
         "notsan",
@@ -1802,7 +1803,7 @@ py_test(
     name = "basic_session_run_hooks_test",
     size = "medium",
     srcs = ["hooks/basic_session_run_hooks_test.py"],
-    python_version = "PY2",
+    python_version = "PY3",
     srcs_version = "PY2AND3",
     deps = [
         ":estimator_py",
@@ -1853,7 +1854,7 @@ py_test(
     name = "rnn_test",
     size = "medium",
     srcs = ["canned/rnn_test.py"],
-    python_version = "PY2",
+    python_version = "PY3",
     srcs_version = "PY2AND3",
     tags = [
         "no_oss",  # b/140934549
@@ -1952,7 +1953,7 @@ py_test(
     size = "medium",
     srcs = ["distribute_strategy_estimator_integration_test.py"],
     main = "distribute_strategy_estimator_integration_test.py",
-    python_version = "PY2",
+    python_version = "PY3",
     srcs_version = "PY2AND3",
     tags = [
         "tf_integration_test",
@@ -1970,7 +1971,7 @@ py_test(
     size = "medium",
     srcs = ["distribute_strategy_estimator_integration_test.py"],
     main = "distribute_strategy_estimator_integration_test.py",
-    python_version = "PY2",
+    python_version = "PY3",
     srcs_version = "PY2AND3",
     tags = [
         "cuda",
@@ -1992,7 +1993,7 @@ py_test(
     size = "medium",
     srcs = ["distribute_strategy_estimator_training_test.py"],
     main = "distribute_strategy_estimator_training_test.py",
-    python_version = "PY2",
+    python_version = "PY3",
     shard_count = 48,
     srcs_version = "PY2AND3",
     tags = [
@@ -2014,7 +2015,7 @@ py_test(
     size = "medium",
     srcs = ["distribute_strategy_estimator_training_test.py"],
     main = "distribute_strategy_estimator_training_test.py",
-    python_version = "PY2",
+    python_version = "PY3",
     shard_count = 48,
     srcs_version = "PY2AND3",
     tags = [

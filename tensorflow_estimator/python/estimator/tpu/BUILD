@@ -39,7 +39,7 @@ py_test(
     name = "tpu_config_test",
     size = "small",
     srcs = ["tpu_config_test.py"],
-    python_version = "PY2",
+    python_version = "PY3",
     deps = [
         ":tpu_estimator",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
@@ -50,7 +50,7 @@ py_test(
     name = "error_handling_test",
     size = "small",
     srcs = ["error_handling_test.py"],
-    python_version = "PY2",
+    python_version = "PY3",
     deps = [
         ":tpu_estimator",
     ],
@@ -60,7 +60,7 @@ py_test(
     name = "tpu_estimator_signals_test",
     size = "small",
     srcs = ["tpu_estimator_signals_test.py"],
-    python_version = "PY2",
+    python_version = "PY3",
     # TODO(jhseu): Remove. Fails in OSS on Python 3.
     tags = [
         "no_oss",
@@ -75,7 +75,7 @@ py_test(
     name = "autotuning_iterations_per_loop_test",
     size = "small",
     srcs = ["autotuning_iterations_per_loop_test.py"],
-    python_version = "PY2",
+    python_version = "PY3",
     deps = [
         ":tpu_estimator",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",

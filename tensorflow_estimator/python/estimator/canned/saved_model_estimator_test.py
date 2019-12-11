@@ -22,6 +22,8 @@ import os
 import shutil
 import tempfile
 
+import six
+
 from tensorflow.python.data.ops import dataset_ops
 from tensorflow.python.framework import constant_op
 from tensorflow.python.framework import dtypes
@@ -403,7 +405,7 @@ class SavedModelEstimatorTest(test.TestCase):
     absolute_filepath = os.path.join(tmpdir, filename)
     num_buckets = 1000
     with open(absolute_filepath, 'w') as f:
-      f.write(b'test')
+      f.write(six.ensure_str(b'test'))
 
     def model_fn(features, labels, mode):
       _, _ = features, labels
@@ -430,7 +432,9 @@ class SavedModelEstimatorTest(test.TestCase):
     with self.session() as sess:
       expected_bucket = sess.run(
           string_ops.string_to_hash_bucket_fast(
-              os.path.join(export_dir, constants.ASSETS_DIRECTORY, filename),
+              os.path.join(six.ensure_str(export_dir),
+                           six.ensure_str(constants.ASSETS_DIRECTORY),
+                           six.ensure_str(filename)),
               num_buckets))
 
     sme.train(dummy_input_fn, steps=1)
