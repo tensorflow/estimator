@@ -268,6 +268,7 @@ class BestExporter(Exporter):
     self._event_file_pattern = event_file_pattern
     self._model_dir = None
     self._best_eval_result = None
+    self._has_exported = False
 
     self._exports_to_keep = exports_to_keep
     if exports_to_keep is not None and exports_to_keep <= 0:
@@ -293,15 +294,21 @@ class BestExporter(Exporter):
       self._best_eval_result = self._get_best_eval_result(
           full_event_file_pattern)
 
-    if self._best_eval_result is None or self._compare_fn(
-        best_eval_result=self._best_eval_result,
-        current_eval_result=eval_result):
+    if (self._best_eval_result is None or
+        # check if this is the first export. Note that
+        # evaluation occurs before exporting models and hence the loaded
+        # _best_eval_result can be the same even when no export had been done.
+        (not self._has_exported and self._best_eval_result == eval_result) or
+        self._compare_fn(
+            best_eval_result=self._best_eval_result,
+            current_eval_result=eval_result)):
       tf_logging.info('Performing best model export.')
       self._best_eval_result = eval_result
       export_result = self._saved_model_exporter.export(
           estimator, export_path, checkpoint_path, eval_result,
           is_the_final_export)
       self._garbage_collect_exports(export_path)
+      self._has_exported = True
 
     return export_result
 
