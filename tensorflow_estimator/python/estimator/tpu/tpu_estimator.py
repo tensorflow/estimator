@@ -1780,6 +1780,9 @@ class _ModelFnWrapper(object):
             tracer_host_call.update({'host_call': estimator_spec.host_call})
             host_call.record(tracer_host_call)
             host_call_outfeed_ops = host_call.create_enqueue_op(step)
+          elif tracer_host_call:
+            host_call.record(tracer_host_call)
+            host_call_outfeed_ops = host_call.create_enqueue_op(step)
         else:
           # Create a host call for the loss to track execution progress
           # Without this, we don't have any indication of the state of the
