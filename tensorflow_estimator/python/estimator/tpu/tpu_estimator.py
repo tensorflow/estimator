@@ -1211,7 +1211,7 @@ class TensorPacker(object):
           return
         shape = tensor.get_shape().as_list()
         dtype = tensor.dtype
-        if (len(shape) == 2 and
+        if (len(shape) == 2 and shape[1] is not None and
             shape[1] <= self._small_feature_dim_size):
           logging.info('Found small feature: %s %s', name, shape)
           if tensor.dtype not in self._small_feature_names:
