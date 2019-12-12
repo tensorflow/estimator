@@ -3047,7 +3047,7 @@ class EstimatorExportTest(test.TestCase):
     with ops.Graph().as_default() as graph:
       with session.Session(graph=graph) as sess:
         loader.load(sess, [tag_constants.SERVING], export_dir)
-        my_int = graph.get_collection(ops.GraphKeys.LOCAL_VARIABLES)[0]
+        my_int = graph.get_tensor_by_name('my_int:0')
         my_int_value = sess.run(my_int)
         self.assertEqual(12345, my_int_value)
 
@@ -3096,13 +3096,13 @@ class EstimatorExportTest(test.TestCase):
     with ops.Graph().as_default() as graph:
       with session.Session(graph=graph) as sess:
         loader.load(sess, [tag_constants.SERVING], export_dir)
-        my_int = graph.get_collection(ops.GraphKeys.LOCAL_VARIABLES)[0]
+        my_int = graph.get_tensor_by_name('my_int:0')
         my_int_value = sess.run(my_int)
         self.assertEqual(12345, my_int_value)
     with ops.Graph().as_default() as graph:
       with session.Session(graph=graph) as sess:
         loader.load(sess, [tag_constants.TRAINING], export_dir)
-        my_int = graph.get_collection(ops.GraphKeys.LOCAL_VARIABLES)[0]
+        my_int = graph.get_tensor_by_name('my_int:0')
         my_int_value = sess.run(my_int)
         self.assertEqual(1, my_int_value)
 
@@ -3251,15 +3251,17 @@ class EstimatorExportTest(test.TestCase):
         x for x in saved_model_pb.meta_graphs
         if x.meta_info_def.tags == [tag_constants.SERVING]][0]
 
-    # "weight" node in graph is a VariableHandleOp with 1 default valued attrs.
+    # "weight" node in graph is a "Variable" Op with 2 default valued attrs.
     #   o "container"    : "".
+    #   o "shared_name"  : "".
 
     # When default attributes are not stripped, the "weight" node should have
-    # attribute "container". When default attributes are stripped, the node
-    # should not have these attributes.
+    # attributes "container" and "shared_name". When default attributes are
+    # stripped, the node should not have these attributes.
     node_def = test_util.get_node_def_from_graph(
         'weight', meta_graph_def.graph_def)
     self.assertEqual(attributes_stripped, 'container' not in node_def.attr)
+    self.assertEqual(attributes_stripped, 'shared_name' not in node_def.attr)
 
     # Clean up.
     gfile.DeleteRecursively(tmpdir)

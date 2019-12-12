@@ -44,7 +44,6 @@ from tensorflow.python.framework import tensor_util
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import metrics as metrics_lib
-from tensorflow.python.ops import variable_scope
 from tensorflow.python.ops import variables
 from tensorflow.python.platform import gfile
 from tensorflow.python.platform import tf_logging as logging
@@ -925,8 +924,6 @@ class Estimator(object):
     with ops.Graph().as_default() as g:
       self._create_and_assert_global_step(g)
       random_seed.set_random_seed(self._config.tf_random_seed)
-
-      variable_scope.enable_resource_variables()
 
       input_receiver = input_receiver_fn()
 
