@@ -1367,8 +1367,8 @@ class _SparseFeatureColumnTest(TensorFlowTestCase):
     expected_feature_indices = [0, 1, 2, 0]
     sfc = _SparseFeatureColumn(expected_example_indices,
                                expected_feature_indices, None)
-    self.assertTrue(isinstance(sfc.example_indices, ops.Tensor))
-    self.assertTrue(isinstance(sfc.feature_indices, ops.Tensor))
+    self.assertIsInstance(sfc.example_indices, ops.Tensor)
+    self.assertIsInstance(sfc.feature_indices, ops.Tensor)
     self.assertEqual(sfc.feature_values, None)
     with self.cached_session():
       self.assertAllEqual(

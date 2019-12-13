@@ -422,7 +422,7 @@ class ExportTest(test_util.TensorFlowTestCase):
     }
     serving_input_receiver_fn = export.build_raw_serving_input_receiver_fn(f)
     v = serving_input_receiver_fn()
-    self.assertTrue(isinstance(v, export.ServingInputReceiver))
+    self.assertIsInstance(v, export.ServingInputReceiver)
 
   # Calling serving_input_receiver_fn requires graph mode.
   @test_util.deprecated_graph_mode_only
@@ -432,7 +432,7 @@ class ExportTest(test_util.TensorFlowTestCase):
          "feature_2": array_ops.placeholder(dtypes.int32)}
     serving_input_receiver_fn = export.build_raw_serving_input_receiver_fn(f)
     v = serving_input_receiver_fn()
-    self.assertTrue(isinstance(v, export.ServingInputReceiver))
+    self.assertIsInstance(v, export.ServingInputReceiver)
     self.assertEqual(
         tensor_shape.unknown_shape(),
         v.receiver_tensors["feature_1"].shape)
@@ -566,8 +566,8 @@ class TensorServingReceiverTest(test_util.TensorFlowTestCase):
         u"example1": constant_op.constant(["test1"], name="example1"),
     }
     r = export.TensorServingInputReceiver(features, receiver_tensors)
-    self.assertTrue(isinstance(r.features, ops.Tensor))
-    self.assertTrue(isinstance(r.receiver_tensors, dict))
+    self.assertIsInstance(r.features, ops.Tensor)
+    self.assertIsInstance(r.receiver_tensors, dict)
 
   def test_tensor_serving_input_receiver_sparse(self):
     features = sparse_tensor.SparseTensor(
@@ -577,8 +577,8 @@ class TensorServingReceiverTest(test_util.TensorFlowTestCase):
         u"example1": constant_op.constant(["test1"], name="example1"),
     }
     r = export.TensorServingInputReceiver(features, receiver_tensors)
-    self.assertTrue(isinstance(r.features, sparse_tensor.SparseTensor))
-    self.assertTrue(isinstance(r.receiver_tensors, dict))
+    self.assertIsInstance(r.features, sparse_tensor.SparseTensor)
+    self.assertIsInstance(r.receiver_tensors, dict)
 
   def test_serving_input_receiver_features_invalid(self):
     receiver_tensors = {
