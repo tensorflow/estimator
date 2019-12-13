@@ -422,14 +422,17 @@ def linear_logit_fn_builder(units, feature_columns, sparse_combiner='sum'):
           sparse_combiner=sparse_combiner,
           name='linear_model')
       logits = linear_model(features)
-      bias = linear_model.bias
 
       # We'd like to get all the non-bias variables associated with this
       # LinearModel.
       # TODO(rohanj): Figure out how to get shared embedding weights variable
       # here.
+      bias = linear_model.bias
       variables = linear_model.variables
-      variables.remove(bias)
+      # Expand (potential) Partitioned variables
+      bias = _get_expanded_variable_list([bias])
+      variables = _get_expanded_variable_list(variables)
+      variables = [var for var in variables if var not in bias]
 
       # Expand (potential) Partitioned variables
       bias = _get_expanded_variable_list([bias])
@@ -443,7 +446,7 @@ def linear_logit_fn_builder(units, feature_columns, sparse_combiner='sum'):
       cols_to_vars = linear_model.cols_to_vars()
       bias = cols_to_vars.pop('bias')
       variables = cols_to_vars.values()
-    variables = _get_expanded_variable_list(variables)
+      variables = _get_expanded_variable_list(variables)
 
     if units > 1:
       summary.histogram('bias', bias)
@@ -505,18 +508,17 @@ def _sdca_model_fn(features, labels, mode, head, feature_columns, optimizer):
       name=linear_model_name)
   logits = linear_model(features)
 
-  bias = linear_model.bias
-
   # We'd like to get all the non-bias variables associated with this
   # LinearModel.
   # TODO(rohanj): Figure out how to get shared embedding weights variable
   # here.
+  bias = linear_model.bias
   variables = linear_model.variables
-  variables.remove(bias)
-
   # Expand (potential) Partitioned variables
   bias = _get_expanded_variable_list([bias])
   variables = _get_expanded_variable_list(variables)
+  variables = [var for var in variables if var not in bias]
+
   summary.scalar('bias', bias[0][0])
   summary.scalar('fraction_of_zero_weights',
                  _compute_fraction_of_zero(variables))
