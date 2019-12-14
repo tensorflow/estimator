@@ -17,6 +17,7 @@ package_group(
     name = "internal",
     packages = [
         "//learning/brain/...",
+        "//learning/tfx/models/uplift/estimators/...",
         "//tensorflow_estimator/...",
         "//third_party/tensorflow/python/estimator/...",
     ],
