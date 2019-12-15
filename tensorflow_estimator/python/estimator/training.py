@@ -451,6 +451,7 @@ def train_and_evaluate(estimator, train_spec, eval_spec):
     ValueError: if environment variable `TF_CONFIG` is incorrectly set.
   """
   _assert_eval_spec(eval_spec)  # fail fast if eval_spec is invalid.
+  estimator_lib._estimator_api_gauge.get_cell('train_and_evaluate').set(True)  # pylint: disable=protected-access
 
   executor = _TrainingExecutor(
       estimator=estimator, train_spec=train_spec, eval_spec=eval_spec)
