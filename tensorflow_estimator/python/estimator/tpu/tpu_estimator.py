@@ -2867,25 +2867,22 @@ class TPUEstimator(estimator_lib.Estimator):
           strip_default_attrs=strip_default_attrs))
 
   def _call_model_fn(self, features, labels, mode, config):
-    if self._export_saved_model_api_version == ExportSavedModelApiVersion.V1:
-      if mode == _INFERENCE_ON_TPU_MODE:
-        return self._call_model_fn_for_inference(features, labels, mode, config)
-      else:
-        return super(TPUEstimator, self)._call_model_fn(features, labels, mode,
-                                                        config)
-    else:
-      if mode == _INFERENCE_ON_TPU_MODE:
-        context = tpu._TPUInferenceContext("tpu_inference")
-        try:
-          context.Enter()
+    if mode == _INFERENCE_ON_TPU_MODE:
+      context = tpu._TPUInferenceContext('tpu_inference', check_ops=False)
+      try:
+        context.Enter()
+        if self._export_saved_model_api_version == ExportSavedModelApiVersion.V1:
+          result = self._call_model_fn_for_inference(features, labels, mode,
+                                                     config)
+        else:
           result = super(TPUEstimator, self)._call_model_fn(
               features, labels, mode, config)
-        finally:
-          context.Exit()
-        return result
-      else:
-        return super(TPUEstimator, self)._call_model_fn(
-            features, labels, mode, config)
+      finally:
+        context.Exit()
+      return result
+    else:
+      return super(TPUEstimator, self)._call_model_fn(features, labels, mode,
+                                                      config)
 
   def _call_model_fn_for_inference(self, features, labels, mode, config):
     """Wraps `_call_model_fn` for `export_saved_model`."""
