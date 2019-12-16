@@ -34,6 +34,7 @@ from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import variables as variables_lib
 from tensorflow.python.platform import test
+from tensorflow.python.saved_model import saved_model
 # pylint: disable=g-import-not-at-top
 try:
   from tensorflow.python.training.tracking import util
@@ -46,6 +47,7 @@ from tensorflow.python.training import training_util
 
 from tensorflow_estimator.python.estimator import estimator as estimator_lib
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
+from tensorflow_estimator.python.estimator.export import export_lib
 
 
 class SubclassedModel(training.Model):
@@ -57,6 +59,13 @@ class SubclassedModel(training.Model):
 
   def call(self, inputs):
     return self.dense_two(self.dense_one(inputs))
+
+
+def _serving_input_receiver_fn():
+  receiver = array_ops.placeholder(
+      dtypes.float32, shape=[None, 1], name='input')
+  return export_lib.ServingInputReceiver(
+      features={'feature': receiver}, receiver_tensors=receiver)
 
 
 class ObjectCheckpointingTest(test.TestCase):
@@ -74,7 +83,7 @@ class ObjectCheckpointingTest(test.TestCase):
       # Make the save counter to satisfy the assert_consumed() assertion later
       checkpoint.save_counter  # pylint: disable=pointless-statement
       with backprop.GradientTape() as tape:
-        output = model(features)
+        output = model(features['feature'])
         loss = math_ops.reduce_sum(output)
       variables = model.trainable_variables
       gradients = tape.gradient(loss, variables)
@@ -98,8 +107,13 @@ class ObjectCheckpointingTest(test.TestCase):
 
     est = estimator_lib.EstimatorV2(model_fn=_model_fn, model_dir=model_dir)
 
+    def _input_map_fn(tensor):
+      """Converts a tensor into `features, labels` format used by Estimator."""
+      return {'feature': tensor}, tensor
+
     def _input_fn():
-      return dataset_ops.Dataset.from_tensors([1.]).repeat().batch(10)
+      return dataset_ops.Dataset.from_tensors(
+          [1.]).repeat().batch(10).map(_input_map_fn)
 
     return est, _input_fn
 
@@ -138,6 +152,19 @@ class ObjectCheckpointingTest(test.TestCase):
     predictions = next(predictions)
     self.assertAllClose([13.], predictions['bias'])
     self.assertEqual(40, predictions['step'])
+
+  def testSavedModelExport(self):
+    model_dir = os.path.join(self.get_temp_dir(), 'estimator_train_dir')
+    estimator, input_fn = self._make_estimator(model_dir)
+    estimator.train(input_fn, steps=1)  # Train to generate a checkpoint.
+
+    export_dir_base = os.path.join(self.get_temp_dir(), 'estimator_export_dir')
+    export_dir = estimator.export_saved_model(export_dir_base,
+                                              _serving_input_receiver_fn)
+
+    # Check the saved model loads and simple inference runs.
+    model = saved_model.load(export_dir)
+    model.signatures['serving_default'](array_ops.constant([[1.]]))
 
 
 if __name__ == '__main__':

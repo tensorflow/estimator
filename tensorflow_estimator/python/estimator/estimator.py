@@ -60,6 +60,8 @@ from tensorflow.python.training import saver
 from tensorflow.python.training import training
 from tensorflow.python.training import training_util
 from tensorflow.python.training import warm_starting_util
+from tensorflow.python.training.tracking import graph_view
+from tensorflow.python.training.tracking import util as trackable_util
 from tensorflow.python.util import compat
 from tensorflow.python.util import compat_internal
 from tensorflow.python.util import deprecation
@@ -959,7 +961,14 @@ class Estimator(object):
         # and in saving out the metagraph below. This ensures that any
         # Custom Savers stored with the Scaffold are passed through to the
         # SavedModel for restore later.
-        graph_saver = estimator_spec.scaffold.saver or saver.Saver(sharded=True)
+        if isinstance(estimator_spec.scaffold.saver, trackable_util.Checkpoint):
+          graph_saver = saver.Saver(
+              var_list=graph_view.ObjectGraphView(
+                  estimator_spec.scaffold.saver).frozen_saveable_objects(),
+              sharded=True)
+        else:
+          graph_saver = (
+              estimator_spec.scaffold.saver or saver.Saver(sharded=True))
 
         if save_variables and not check_variables:
           raise ValueError('If `save_variables` is `True, `check_variables`'
