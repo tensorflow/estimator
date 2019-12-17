@@ -445,12 +445,13 @@ def _check_logits_final_dim(logits, expected_logits_dimension):
         if (isinstance(expected_logits_dimension, int)
             and static_shape[-1] != expected_logits_dimension):
           raise ValueError(
-              'logits shape must be [D0, D1, ... DN, logits_dimension], '
-              'got %s.' % (static_shape,))
+              'logits shape must be [D0, D1, ... DN, logits_dimension=%s], '
+              'got %s.' % (expected_logits_dimension, static_shape))
         return logits
       assert_dimension = check_ops.assert_equal(
           expected_logits_dimension, logits_shape[-1], data=[logits_shape],
-          message='logits shape must be [D0, D1, ... DN, logits_dimension]')
+          message=('logits shape must be [D0, D1, ... DN, '
+                   'logits_dimension=%s]' % (expected_logits_dimension,)))
       with ops.control_dependencies([assert_dimension]):
         return array_ops.identity(logits, name=scope)
 
