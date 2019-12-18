@@ -22,6 +22,7 @@ from __future__ import print_function
 import collections
 import re
 import time
+import numpy as np
 import six
 
 from tensorflow.python.platform import tf_logging as logging
@@ -36,7 +37,7 @@ IterationsPerLoopCounter = collections.namedtuple('IterationsPerLoopCounter',
 
 def check_positive_integer(value, name):
   """Checks whether `value` is a positive integer."""
-  if not isinstance(value, six.integer_types):
+  if not isinstance(value, (six.integer_types, np.integer)):
     raise TypeError('{} must be int, got {}'.format(name, type(value)))
 
   if value <= 0:
