@@ -412,6 +412,17 @@ class EmbeddingConfig(object):
     return self._mode_to_tpu_embedding_dict[mode]
 
 
+def _maybe_dense_to_sparse(tensor):
+  """Possibly convert a dense (rank 1 or 2) tensor to a SparseTensor."""
+  # If already sparse, return as is.
+  if isinstance(tensor, sparse_tensor.SparseTensor):
+    return tensor
+  indices = array_ops.where(tensor)
+  values = array_ops.gather_nd(tensor, indices)
+  shape = array_ops.shape(tensor, out_type=dtypes.int64)
+  return sparse_tensor.SparseTensor(indices, values, shape)
+
+
 def split_inputs(ctx, features, labels, num_cores_per_batch=1):
   """Splits the dense and sparse tensors inside the features and labels."""
   enqueue_datas = collections.OrderedDict()
@@ -422,6 +433,8 @@ def split_inputs(ctx, features, labels, num_cores_per_batch=1):
       sparse_feature = _get_sparse_feature_from_feature(feature_key, features)
       max_sequence_length = tpu_embedding_.feature_to_config_dict[
           feature_key].max_sequence_length
+      combiner = tpu_embedding_._table_to_config_dict[
+          tpu_embedding_._feature_to_config_dict[feature_key].table_id].combiner
       if max_sequence_length > 0:
         length_feature_name = (
             tpu_fc.get_sequence_length_feature_key_name_from_feature_key_name(
@@ -434,14 +447,11 @@ def split_inputs(ctx, features, labels, num_cores_per_batch=1):
       weight_key = tpu_embedding_.feature_to_config_dict[feature_key].weight_key
       sparse_feature_split = _split_tensor(
           sparse_feature, num_cores_per_batch)
-      if isinstance(sparse_feature, sparse_tensor.SparseTensor):
-        weights = _get_weights_from_features(weight_key, features)
-        weights_split = _split_tensor(weights, num_cores_per_batch)
-        enqueue_data = []
-        for i in range(num_cores_per_batch):
-          enqueue_data.append(tpu_embedding.EnqueueData.from_sparse_tensor(
-              sparse_feature_split[i], weights_split[i]))
-      else:
+      if combiner is None and not isinstance(sparse_feature,
+                                             sparse_tensor.SparseTensor):
+        # A dense tensor with no combiner was provided so we assume that each
+        # of the embedding_indices belongs to a different sample (setting
+        # sample_indices to None).
         if weight_key is not None:
           raise ValueError(
               'Found weights {} for weighted_categorical_column, which is not'
@@ -451,6 +461,17 @@ def split_inputs(ctx, features, labels, num_cores_per_batch=1):
         for i in range(num_cores_per_batch):
           enqueue_data.append(tpu_embedding.EnqueueData(
               sparse_feature_split[i]))
+      else:
+        weights = None
+        if isinstance(sparse_feature, sparse_tensor.SparseTensor):
+          weights = _get_weights_from_features(weight_key, features)
+          weights_split = _split_tensor(weights, num_cores_per_batch)
+        enqueue_data = []
+        for i in range(num_cores_per_batch):
+          enqueue_data.append(
+              tpu_embedding.EnqueueData.from_sparse_tensor(
+                  _maybe_dense_to_sparse(sparse_feature_split[i]),
+                  weights=weights_split[i]))
       enqueue_datas[feature_key] = enqueue_data
 
   # Transpose the enqueue_datas dict into a list of dicts
