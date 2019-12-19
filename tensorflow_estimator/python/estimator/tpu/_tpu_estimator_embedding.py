@@ -468,10 +468,11 @@ def split_inputs(ctx, features, labels, num_cores_per_batch=1):
           weights_split = _split_tensor(weights, num_cores_per_batch)
         enqueue_data = []
         for i in range(num_cores_per_batch):
+          split_weights = weights_split[i] if weights else None
           enqueue_data.append(
               tpu_embedding.EnqueueData.from_sparse_tensor(
                   _maybe_dense_to_sparse(sparse_feature_split[i]),
-                  weights=weights_split[i]))
+                  weights=split_weights))
       enqueue_datas[feature_key] = enqueue_data
 
   # Transpose the enqueue_datas dict into a list of dicts
