@@ -27,9 +27,10 @@ import numpy as np
 from absl import flags
 from absl.testing import absltest
 
-from tensorflow_estimator.python.estimator.estimator_lib import *
+import tensorflow_estimator.python.estimator.estimator_lib as tfe
 
 import tensorflow.compat.v2 as tf
+tf.estimator = tfe
 tf.compat.v1.enable_v2_behavior()
 
 # We put doctest after absltest so that it picks up the unittest monkeypatch.

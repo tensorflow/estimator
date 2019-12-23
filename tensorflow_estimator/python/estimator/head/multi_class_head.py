@@ -65,7 +65,32 @@ class MultiClassHead(base_head.Head):
   integer `labels` with shape `[D0, D1, ... DN, 1]`. Namely, the head applies
   `label_vocabulary` to the input labels before passing them to `loss_fn`.
 
-  The head can be used with a canned estimator. Example:
+  Usage:
+
+  >>> n_classes = 3
+  >>> head = tf.estimator.MultiClassHead(n_classes)
+  >>> logits = np.array(((10, 0, 0), (0, 10, 0),), dtype=np.float32)
+  >>> labels = np.array(((1,), (1,)), dtype=np.int64)
+  >>> features = {'x': np.array(((42,),), dtype=np.int32)}
+  >>> # expected_loss = sum(cross_entropy(labels, logits)) / batch_size
+  >>> #               = sum(10, 0) / 2 = 5.
+  >>> loss = head.loss(labels, logits, features=features)
+  >>> print('{:.2f}'.format(loss.numpy()))
+  5.00
+  >>> eval_metrics = head.metrics()
+  >>> updated_metrics = head.update_metrics(
+  ...   eval_metrics, features, logits, labels)
+  >>> for k in sorted(updated_metrics):
+  ...   print('{} : {:.2f}'.format(k, updated_metrics[k].result().numpy()))
+  accuracy : 0.50
+  average_loss : 5.00
+  >>> preds = head.predictions(logits)
+  >>> print(preds['logits'])
+  tf.Tensor(
+    [[10.  0.  0.]
+     [ 0. 10.  0.]], shape=(2, 3), dtype=float32)
+
+  Usage with a canned estimator:
 
   ```python
   my_head = tf.estimator.MultiClassHead(n_classes=3)
