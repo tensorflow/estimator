@@ -64,7 +64,32 @@ class RegressionHead(base_head.Head):
   https://en.wikipedia.org/wiki/Generalized_linear_model#Link_function
   Namely, for poisson regression, set `inverse_link_fn=tf.exp`.
 
-  The head can be used with a canned estimator. Example:
+  Usage:
+
+  >>> head = tf.estimator.RegressionHead()
+  >>> logits = np.array(((45,), (41,),), dtype=np.float32)
+  >>> labels = np.array(((43,), (44,),), dtype=np.int32)
+  >>> features = {'x': np.array(((42,),), dtype=np.float32)}
+  >>> # expected_loss = weighted_loss / batch_size
+  >>> #               = (43-45)^2 + (44-41)^2 / 2 = 6.50
+  >>> loss = head.loss(labels, logits, features=features)
+  >>> print('{:.2f}'.format(loss.numpy()))
+  6.50
+  >>> eval_metrics = head.metrics()
+  >>> updated_metrics = head.update_metrics(
+  ...   eval_metrics, features, logits, labels)
+  >>> for k in sorted(updated_metrics):
+  ...  print('{} : {:.2f}'.format(k, updated_metrics[k].result().numpy()))
+    average_loss : 6.50
+    label/mean : 43.50
+    prediction/mean : 43.00
+  >>> preds = head.predictions(logits)
+  >>> print(preds['predictions'])
+  tf.Tensor(
+    [[45.]
+     [41.]], shape=(2, 1), dtype=float32)
+
+  Usage with a canned estimator:
 
   ```python
   my_head = tf.estimator.RegressionHead()

@@ -74,7 +74,33 @@ class MultiLabelHead(base_head.Head):
   shape `[D0, D1, ... DN, n_classes]`. Namely, the head applies
   `label_vocabulary` to the input labels before passing them to `loss_fn`.
 
-  The head can be used with a canned estimator. Example:
+  Usage:
+
+  >>> n_classes = 2
+  >>> head = tf.estimator.MultiLabelHead(n_classes)
+  >>> logits = np.array([[-1., 1.], [-1.5, 1.5]], dtype=np.float32)
+  >>> labels = np.array([[1, 0], [1, 1]], dtype=np.int64)
+  >>> features = {'x': np.array([[41], [42]], dtype=np.int32)}
+  >>> # expected_loss = sum(_sigmoid_cross_entropy(labels, logits)) / batch_size
+  >>> #               = sum(1.31326169, 0.9514133) / 2 = 1.13
+  >>> loss = head.loss(labels, logits, features=features)
+  >>> print('{:.2f}'.format(loss.numpy()))
+  1.13
+  >>> eval_metrics = head.metrics()
+  >>> updated_metrics = head.update_metrics(
+  ...   eval_metrics, features, logits, labels)
+  >>> for k in sorted(updated_metrics):
+  ...  print('{} : {:.2f}'.format(k, updated_metrics[k].result().numpy()))
+  auc : 0.33
+  auc_precision_recall : 0.77
+  average_loss : 1.13
+  >>> preds = head.predictions(logits)
+  >>> print(preds['logits'])
+  tf.Tensor(
+    [[-1.   1. ]
+     [-1.5  1.5]], shape=(2, 2), dtype=float32)
+
+  Usage with a canned estimator:
 
   ```python
   my_head = tf.estimator.MultiLabelHead(n_classes=3)

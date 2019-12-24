@@ -70,6 +70,49 @@ class MultiHead(base_head.Head):
 
   Usage:
 
+  >>> head1 = tf.estimator.MultiLabelHead(n_classes=2, name='head1')
+  >>> head2 = tf.estimator.MultiLabelHead(n_classes=3, name='head2')
+  >>> multi_head = tf.estimator.MultiHead([head1, head2])
+  >>> logits = {
+  ...    'head1': np.array([[-10., 10.], [-15., 10.]], dtype=np.float32),
+  ...    'head2': np.array([[20., -20., 20.], [-30., 20., -20.]],
+  ...    dtype=np.float32),}
+  >>> labels = {
+  ...    'head1': np.array([[1, 0], [1, 1]], dtype=np.int64),
+  ...    'head2': np.array([[0, 1, 0], [1, 1, 0]], dtype=np.int64),}
+  >>> features = {'x': np.array(((42,),), dtype=np.float32)}
+  >>> # For large logits, sigmoid cross entropy loss is approximated as:
+  >>> # loss = labels * (logits < 0) * (-logits) +
+  >>> #        (1 - labels) * (logits > 0) * logits =>
+  >>> # head1: expected_unweighted_loss = [[10., 10.], [15., 0.]]
+  >>> # loss1 = ((10 + 10) / 2 + (15 + 0) / 2) / 2 = 8.75
+  >>> # head2: expected_unweighted_loss = [[20., 20., 20.], [30., 0., 0]]
+  >>> # loss2 = ((20 + 20 + 20) / 3 + (30 + 0 + 0) / 3) / 2 = 15.00
+  >>> # loss = loss1 + loss2 = 8.75 + 15.00 = 23.75
+  >>> loss = multi_head.loss(labels, logits, features=features)
+  >>> print('{:.2f}'.format(loss.numpy()))
+  23.75
+  >>> eval_metrics = multi_head.metrics()
+  >>> updated_metrics = multi_head.update_metrics(
+  ...   eval_metrics, features, logits, labels)
+  >>> for k in sorted(updated_metrics):
+  ...  print('{} : {:.2f}'.format(k, updated_metrics[k].result().numpy()))
+  auc/head1 : 0.17
+  auc/head2 : 0.33
+  auc_precision_recall/head1 : 0.60
+  auc_precision_recall/head2 : 0.40
+  average_loss/head1 : 8.75
+  average_loss/head2 : 15.00
+  loss/head1 : 8.75
+  loss/head2 : 15.00
+  >>> preds = multi_head.predictions(logits)
+  >>> print(preds[('head1', 'logits')])
+  tf.Tensor(
+    [[-10.  10.]
+     [-15.  10.]], shape=(2, 2), dtype=float32)
+
+  Usage with a canned estimator:
+
   ```python
   # In `input_fn`, specify labels as a dict keyed by head name:
   def input_fn():

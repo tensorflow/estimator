@@ -66,6 +66,63 @@ class BinaryClassHead(base_head.Head):
   shape `[D0, D1, ... DN, 1]`. Namely, the head applies `label_vocabulary` to
   the input labels before passing them to `loss_fn`.
 
+  Usage:
+
+  >>> head = tf.estimator.BinaryClassHead()
+  >>> logits = np.array(((45,), (-41,),), dtype=np.float32)
+  >>> labels = np.array(((1,), (1,),), dtype=np.int32)
+  >>> features = {'x': np.array(((42,),), dtype=np.float32)}
+  >>> # expected_loss = sum(cross_entropy(labels, logits)) / batch_size
+  >>> #               = sum(0, 41) / 2 = 41 / 2 = 20.50
+  >>> loss = head.loss(labels, logits, features=features)
+  >>> print('{:.2f}'.format(loss.numpy()))
+  20.50
+  >>> eval_metrics = head.metrics()
+  >>> updated_metrics = head.update_metrics(
+  ...   eval_metrics, features, logits, labels)
+  >>> for k in sorted(updated_metrics):
+  ...  print('{} : {:.2f}'.format(k, updated_metrics[k].result().numpy()))
+    accuracy : 0.50
+    accuracy_baseline : 1.00
+    auc : 0.00
+    auc_precision_recall : 1.00
+    average_loss : 20.50
+    label/mean : 1.00
+    precision : 1.00
+    prediction/mean : 0.50
+    recall : 0.50
+  >>> preds = head.predictions(logits)
+  >>> print(preds['logits'])
+  tf.Tensor(
+    [[ 45.]
+     [-41.]], shape=(2, 1), dtype=float32)
+
+  Usage with a canned estimator:
+
+  ```python
+  my_head = tf.estimator.BinaryClassHead()
+  my_estimator = tf.estimator.DNNEstimator(
+      head=my_head,
+      hidden_units=...,
+      feature_columns=...)
+  ```
+
+  It can also be used with a custom `model_fn`. Example:
+
+  ```python
+  def _my_model_fn(features, labels, mode):
+    my_head = tf.estimator.BinaryClassHead()
+    logits = tf.keras.Model(...)(features)
+
+    return my_head.create_estimator_spec(
+        features=features,
+        mode=mode,
+        labels=labels,
+        optimizer=tf.keras.optimizers.Adagrad(lr=0.1),
+        logits=logits)
+
+  my_estimator = tf.estimator.Estimator(model_fn=_my_model_fn)
+
   Args:
     weight_column: A string or a `NumericColumn` created by
       `tf.feature_column.numeric_column` defining feature column representing
