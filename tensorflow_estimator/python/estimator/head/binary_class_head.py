@@ -122,6 +122,7 @@ class BinaryClassHead(base_head.Head):
         logits=logits)
 
   my_estimator = tf.estimator.Estimator(model_fn=_my_model_fn)
+  ```
 
   Args:
     weight_column: A string or a `NumericColumn` created by

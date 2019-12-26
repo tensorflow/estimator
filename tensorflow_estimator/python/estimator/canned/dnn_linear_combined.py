@@ -435,7 +435,7 @@ class DNNLinearCombinedClassifierV2(estimator.EstimatorV2):
       warm_start_from="/path/to/checkpoint/dir")
 
   # To apply L1 and L2 regularization, you can set dnn_optimizer to:
-  tf.train.ProximalAdagradOptimizer(
+  tf.compat.v1.train.ProximalAdagradOptimizer(
       learning_rate=0.1,
       l1_regularization_strength=0.001,
       l2_regularization_strength=0.001)
@@ -700,7 +700,6 @@ def _init_dnn_linear_combined_estimator(
   return feature_columns, _model_fn
 
 
-# TODO(b/142326746): Update tf.train.ProximalAdagradOptimizer.
 @estimator_export('estimator.DNNLinearCombinedEstimator', v1=[])
 class DNNLinearCombinedEstimatorV2(estimator.EstimatorV2):
   """An estimator for TensorFlow Linear and DNN joined models with custom head.
@@ -733,7 +732,7 @@ class DNNLinearCombinedEstimatorV2(estimator.EstimatorV2):
       dnn_optimizer=tf.keras.optimizers.Adagrad(...))
 
   # To apply L1 and L2 regularization, you can set dnn_optimizer to:
-  tf.train.ProximalAdagradOptimizer(
+  tf.compat.v1.train.ProximalAdagradOptimizer(
       learning_rate=0.1,
       l1_regularization_strength=0.001,
       l2_regularization_strength=0.001)
@@ -945,7 +944,7 @@ class DNNLinearCombinedRegressorV2(estimator.EstimatorV2):
       warm_start_from="/path/to/checkpoint/dir")
 
   # To apply L1 and L2 regularization, you can set dnn_optimizer to:
-  tf.train.ProximalAdagradOptimizer(
+  tf.compat.v1.train.ProximalAdagradOptimizer(
       learning_rate=0.1,
       l1_regularization_strength=0.001,
       l2_regularization_strength=0.001)

@@ -142,13 +142,19 @@ class MultiHead(base_head.Head):
   Also supports `logits` as a `Tensor` of shape
   `[D0, D1, ... DN, logits_dimension]`. It will split the `Tensor` along the
   last dimension and distribute it appropriately among the heads. E.g.:
+
+  ```python
   # Input logits.
-  # logits = np.array([[-1., 1., 2., -2., 2.], [-1.5, 1., -3., 2., -2.]],
-                      dtype=np.float32)
-  # Suppose head1.logits_dimension = 2 and head2.logits_dimension = 3. After
-  # splitting, the result is:
-  # logits_dict = {'head1_name': [[-1., 1.], [-1.5, 1.]],
-                   'head2_name':  [[2., -2., 2.], [-3., 2., -2.]]}
+  logits = np.array([[-1., 1., 2., -2., 2.], [-1.5, 1., -3., 2., -2.]],
+                    dtype=np.float32)
+  # Suppose head1 and head2 have the following logits dimension.
+  head1.logits_dimension = 2
+  head2.logits_dimension = 3
+  # After splitting, the result will be:
+  logits_dict = {'head1_name': [[-1., 1.], [-1.5, 1.]],
+                 'head2_name':  [[2., -2., 2.], [-3., 2., -2.]]}
+  ```
+
   Usage:
 
   ```python

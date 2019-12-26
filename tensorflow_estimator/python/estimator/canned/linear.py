@@ -1033,8 +1033,8 @@ class LinearEstimatorV2(estimator.EstimatorV2):
               decay_rate=0.96))
 
   # Or estimator using the FTRL optimizer with regularization.
-  estimator = LinearEstimator(
-      head=tf.contrib.estimator.multi_label_head(n_classes=3),
+  estimator = tf.estimator.LinearEstimator(
+      head=tf.estimator.MultiLabelHead(n_classes=3),
       feature_columns=[categorical_column_a,
                        categorical_feature_a_x_categorical_feature_b])
       optimizer=tf.keras.optimizers.Ftrl(
