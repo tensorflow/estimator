@@ -2034,3 +2034,38 @@ py_test(
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
     ],
 )
+
+py_test(
+    name = "canned_estimator_ds_integration_test",
+    size = "medium",
+    srcs = ["canned/canned_estimator_ds_integration_test.py"],
+    python_version = "PY3",
+    srcs_version = "PY2AND3",
+    deps = [
+        ":estimator_py",
+        "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
+py_test(
+    name = "canned_estimator_ds_integration_test_gpu",
+    size = "medium",
+    srcs = ["canned/canned_estimator_ds_integration_test.py"],
+    main = "canned/canned_estimator_ds_integration_test.py",
+    python_version = "PY3",
+    srcs_version = "PY2AND3",
+    tags = [
+        "cuda",
+        "gpu",
+        "multi_and_single_gpu",
+        "requires-gpu-sm35",
+        "tf_integration_test",
+    ],
+    deps = [
+        ":estimator_py",
+        "//tensorflow_estimator/python/estimator:expect_absl_installed",
+        "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
