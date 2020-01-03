@@ -295,11 +295,8 @@ class BestExporter(Exporter):
           full_event_file_pattern)
 
     if (self._best_eval_result is None or
-        # check if this is the first export. Note that
-        # evaluation occurs before exporting models and hence the loaded
-        # _best_eval_result can be the same even when no export had been done.
-        (not self._has_exported and self._best_eval_result == eval_result) or
-        self._compare_fn(
+        # check if this is the first export.
+        not self._has_exported or self._compare_fn(
             best_eval_result=self._best_eval_result,
             current_eval_result=eval_result)):
       tf_logging.info('Performing best model export.')

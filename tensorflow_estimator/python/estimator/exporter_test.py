@@ -141,7 +141,7 @@ class BestExporterTest(test.TestCase):
 
     export_result = exporter.export(estimator, export_dir_base,
                                     "checkpoint_path", {"loss": 100}, False)
-    self.assertEqual(None, export_result)
+    self.assertEqual("export_result_path", export_result)
 
     export_result = exporter.export(estimator, export_dir_base,
                                     "checkpoint_path", {"loss": 10}, False)
@@ -180,7 +180,7 @@ class BestExporterTest(test.TestCase):
 
     export_result = exporter.export(estimator, export_dir_base,
                                     "checkpoint_path", {"loss": 100}, False)
-    self.assertEqual(None, export_result)
+    self.assertEqual("export_result_path", export_result)
 
     export_result = exporter.export(estimator, export_dir_base,
                                     "checkpoint_path", {"loss": 10}, False)
