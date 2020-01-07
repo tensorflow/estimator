@@ -507,10 +507,10 @@ def _get_sparse_feature_from_feature(feature_key, features):
   sparse_feature = features.pop(feature_key)
   if not sparse_feature.dtype.is_integer:
     raise ValueError('SparseTensor with string as values are not supported. '
-                     'If you are using vocabulary_file_categorical_column or '
-                     'vocabulary_list_categorical_column, please call '
+                     'If you are using categorical_column_with_vocabulary_file '
+                     'or categorical_column_with_vocabulary_list, please call '
                      'your_column.categorical_column._transform_feature({{'
-                     'your_column.key: features[your_column.key]}}) in'
+                     'your_column.key: features[your_column.key]}}) in '
                      'your input_fn() to convert string to int. '
                      'feature_key = {}.'.format(feature_key))
   return sparse_feature
