@@ -392,6 +392,9 @@ class EmbeddingConfig(object):
           self._run_config.evaluation_master
           if mode == model_fn_lib.ModeKeys.EVAL else self._run_config.master)
       cluster_def = None
+    master_job_name = None
+    if self._run_config.tpu_config.tpu_job_name is not None:
+      master_job_name = self._run_config.tpu_config.tpu_job_name
     tpu_embedding_ = tpu_embedding.TPUEmbedding(
         self._table_to_config_dict,
         self._feature_to_config_dict,
@@ -402,7 +405,8 @@ class EmbeddingConfig(object):
         cluster_def,
         pipeline_execution_with_tensor_core=self._embedding_config_spec
         .pipeline_execution_with_tensor_core,
-        partition_strategy=self._partition_strategy)
+        partition_strategy=self._partition_strategy,
+        master_job_name=master_job_name)
     return tpu_embedding_
 
   def get_tpu_embedding(self, mode):

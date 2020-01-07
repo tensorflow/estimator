@@ -544,7 +544,12 @@ class _InternalTPUContext(object):
     cluster_def = (run_config.session_config.cluster_def
                    if run_config.session_config else None)
 
-    return tpu_system_metadata_lib.master_job(master, cluster_def)
+    try:
+      master_job = tpu_system_metadata_lib.master_job(master, cluster_def)
+    except ValueError as e:
+      raise ValueError(e.message + ' Please specify a tpu_job_name as part of '
+                       'your TPUConfig.')
+    return master_job
 
   @property
   def tpu_host_placement_function(self):
