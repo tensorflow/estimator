@@ -547,7 +547,7 @@ class _InternalTPUContext(object):
     try:
       master_job = tpu_system_metadata_lib.master_job(master, cluster_def)
     except ValueError as e:
-      raise ValueError(e.message + ' Please specify a tpu_job_name as part of '
+      raise ValueError(str(e) + ' Please specify a tpu_job_name as part of '
                        'your TPUConfig.')
     return master_job
 
