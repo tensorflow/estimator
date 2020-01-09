@@ -80,9 +80,12 @@ class ErrorRendezvous(object):
     # loop execution completed successfully. In this case, we can skip the
     # `session.close()` logic and wait for the infeed/outfeed threads to
     # complete as normal.
-    if value and value.op and value.op.type == _CHECK_NUMERIC_OP_NAME:
-      analytics.track_numerical_issues(exc_info)
-      return
+    try:
+      if value.op.type == _CHECK_NUMERIC_OP_NAME:
+        analytics.track_numerical_issues(exc_info)
+        return
+    except AttributeError as _:
+      pass
 
     if session is not None and self._session_cancel_timer is None:
 
