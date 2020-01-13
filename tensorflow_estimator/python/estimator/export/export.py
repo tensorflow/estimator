@@ -116,7 +116,7 @@ class ServingInputReceiver(
         ['features', 'receiver_tensors', 'receiver_tensors_alternatives'])):
   """A return type for a serving_input_receiver_fn.
 
-  The expected return values are:
+  Attributes:
     features: A `Tensor`, `SparseTensor`, or dict of string or int to `Tensor`
       or `SparseTensor`, specifying the features to be passed to the model.
       Note: if `features` passed is not a dict, it will be wrapped in a dict
@@ -188,7 +188,7 @@ class TensorServingInputReceiver(
   because the SavedModel format requires each input `Tensor` to have a name
   (provided by the dict key).
 
-  The expected return values are:
+  Attributes:
     features: A single `Tensor` or `SparseTensor`, representing the feature
       to be passed to the model.
     receiver_tensors: A `Tensor`, `SparseTensor`, or dict of string to `Tensor`
@@ -231,7 +231,7 @@ class UnsupervisedInputReceiver(ServingInputReceiver):
   This differs from SupervisedInputReceiver in that it does not require a set
   of labels.
 
-  The expected return values are:
+  Attributes:
     features: A `Tensor`, `SparseTensor`, or dict of string to `Tensor` or
       `SparseTensor`, specifying the features to be passed to the model.
     receiver_tensors: A `Tensor`, `SparseTensor`, or dict of string to `Tensor`
