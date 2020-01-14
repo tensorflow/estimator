@@ -210,9 +210,14 @@ class Head(object):
       logits: logits `Tensor` to be used for metrics update.
       labels: Labels `Tensor`, or `dict` mapping string label names to `Tensor`
         objects of the label values.
-      mode: Estimator's `ModeKeys`.
+      mode: Estimator's `ModeKeys`. In most cases, this arg is not used and can
+        be removed in the method implementation.
       regularization_losses: A list of additional scalar losses to be added to
         the training and evaluation loss, such as regularization losses.
+
+    Note that, the `mode` arg is not used in the `tf.estimator.*Head`. If the
+    update of the metrics doesn't rely on `mode`, it can be safely ignored in
+    the method signature.
 
     Returns:
        A `dict` of updated metrics keyed by name. The value is an instance of
