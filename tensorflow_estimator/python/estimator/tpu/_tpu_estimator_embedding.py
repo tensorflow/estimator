@@ -36,6 +36,7 @@ from tensorflow.python.tpu import feature_column_v2 as tpu_fc_v2
 from tensorflow.python.tpu import tpu_embedding
 from tensorflow.python.tpu.tpu_embedding import AdagradParameters
 from tensorflow.python.tpu.tpu_embedding import AdamParameters
+from tensorflow.python.tpu.tpu_embedding import FtrlParameters
 from tensorflow.python.tpu.tpu_embedding import StochasticGradientDescentParameters
 from tensorflow.python.training import training
 from tensorflow.python.util.tf_export import estimator_export
@@ -50,7 +51,7 @@ _EMBEDDING_COLUMN_CLASSES = (core_fc._EmbeddingColumn,
                              core_fc_lib.EmbeddingColumn,
                              core_fc._SharedEmbeddingColumn)
 _SUPPORTED_FEATURE_COLUMNS = (core_fc._NumericColumn, core_fc_lib.NumericColumn)
-_SUPPORTED_OPTIMIZERS = (AdagradParameters, AdamParameters,
+_SUPPORTED_OPTIMIZERS = (AdagradParameters, AdamParameters, FtrlParameters,
                          StochasticGradientDescentParameters)
 
 # pylint: enable=protected-access
@@ -86,6 +87,10 @@ def _get_slot_variable_names(scope_name, var_name, optimization_parameters):
         '{}{}/Adam/m'.format(scope_name, var_name),
         '{}{}/Adam/v'.format(scope_name, var_name)
     )
+  elif isinstance(optimization_parameters, tpu_embedding.FtrlParameters):
+    return tpu_embedding.FtrlSlotVariableName(
+        '{}{}/Ftrl'.format(scope_name, var_name),  # accumulator
+        '{}{}/Ftrl_1'.format(scope_name, var_name))  # linear
   elif isinstance(optimization_parameters,
                   tpu_embedding.StochasticGradientDescentParameters):
     return None
