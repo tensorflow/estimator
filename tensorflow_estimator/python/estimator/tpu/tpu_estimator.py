@@ -3136,7 +3136,7 @@ class TPUEstimator(estimator_lib.Estimator):
               every_n_secs=self._log_every_n_secs)
 
         if ctx.is_running_on_cpu(is_export_mode=is_export_mode):
-          logging.info('Running %s on CPU', mode)
+          logging.info('Running %s on CPU/GPU', mode)
           estimator_spec = model_fn_wrapper.call_without_tpu(
               features, labels, is_export_mode=is_export_mode)
           if (self._log_every_n_steps is not None
