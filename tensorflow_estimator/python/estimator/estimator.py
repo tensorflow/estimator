@@ -1376,7 +1376,8 @@ class Estimator(object):
   def _train_with_estimator_spec(self, estimator_spec, worker_hooks, hooks,
                                  global_step_tensor, saving_listeners):
     """Train a model with the given Estimator Spec."""
-    if self._warm_start_settings:
+    if (self._warm_start_settings and
+        not checkpoint_management.latest_checkpoint(self._model_dir)):
       logging.info('Warm-starting with WarmStartSettings: %s' %
                    (self._warm_start_settings,))
       warm_starting_util.warm_start(*self._warm_start_settings)
