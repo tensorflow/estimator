@@ -2950,12 +2950,13 @@ class TPUEstimator(estimator_lib.Estimator):
         _SetEvalIterationsHook(steps)
     ]
 
-  def _call_input_fn(self, input_fn, mode):
+  def _call_input_fn(self, input_fn, mode, input_context=None):
     """Calls the input function.
 
     Args:
       input_fn: The input function.
       mode: ModeKeys
+      input_context: Optional instance of `tf.distribute.InputContext`.
 
     Returns:
       In TPU mode, returns an input_fn to be called later in model_fn.
@@ -2979,6 +2980,9 @@ class TPUEstimator(estimator_lib.Estimator):
 
     if 'mode' in input_fn_args:
       kwargs['mode'] = mode
+
+    if 'input_context' in input_fn_args:
+      kwargs['input_context'] = input_context
 
     # Records the fact input_fn has been invoked.
     self._is_input_fn_invoked = True
