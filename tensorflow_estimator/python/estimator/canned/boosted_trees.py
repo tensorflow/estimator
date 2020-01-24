@@ -40,12 +40,10 @@ from tensorflow.python.ops import data_flow_ops
 from tensorflow.python.ops import gradients_impl
 from tensorflow.python.ops import lookup_ops
 from tensorflow.python.ops import math_ops
-from tensorflow.python.ops import sparse_ops
 from tensorflow.python.ops import state_ops
 from tensorflow.python.ops import variable_scope
 from tensorflow.python.ops.array_ops import identity as tf_identity
 from tensorflow.python.ops.losses import losses
-from tensorflow.python.ops.parallel_for import gradients as parallel_for_gradients
 from tensorflow.python.summary import summary
 from tensorflow.python.training import checkpoint_utils
 from tensorflow.python.training import session_run_hook
@@ -57,17 +55,16 @@ from tensorflow_estimator.python.estimator.canned import head as head_lib
 from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 from tensorflow.python.ops import cond_v2
 
-
 # TODO(nponomareva): Reveal pruning params here.
 _TreeHParams = collections.namedtuple('TreeHParams', [
     'n_trees', 'max_depth', 'learning_rate', 'l1', 'l2', 'tree_complexity',
     'min_node_weight', 'center_bias', 'pruning_mode', 'quantile_sketch_epsilon'
 ])
 
+_HOLD_FOR_MULTI_CLASS_SUPPORT = object()
+_HOLD_FOR_MULTI_DIM_SUPPORT = object()
 _DUMMY_NUM_BUCKETS = -1
 _DUMMY_NODE_ID = -1
-_EQUALITY_SPLIT = 'equality'
-_INEQUALITY_SPLIT = 'inequality'
 _QUANTILE_ACCUMULATOR_RESOURCE_NAME = 'QuantileAccumulator'
 
 
@@ -96,24 +93,6 @@ def _is_numeric_column(feature_column):
     return feature_column.dtype.is_floating
   else:
     raise ValueError('Encountered unexpected column {}'.format(feature_column))
-
-
-def _get_feature_dimensions(feature_ids_list, input_feature_list):
-  """Get feature dimensions.
-
-  Args:
-    feature_ids_list: a list of lists of feature ids for each bucket size.
-    input_feature_list: a list of input feature tensors.
-
-  Returns:
-    feature_dimensions: a list of dimensions for each feature.
-  """
-  # TODO(crawles): group feature dimensions by bucket (similar to feature_ids).
-  feature_dimensions = []
-  for feature_ids in feature_ids_list:
-    for feature_id in feature_ids:
-      feature_dimensions.append(input_feature_list[feature_id].shape[1].value)
-  return feature_dimensions
 
 
 def _get_float_feature_columns(sorted_feature_columns):
@@ -228,12 +207,12 @@ def _get_transformed_features_and_merge_with_previously_transformed(
         column,
         (feature_column_lib.BucketizedColumn, fc_old._BucketizedColumn)):
       source_name = column.source_column.name
-      bucketized_feature = transformed_features[column]
-      if len(bucketized_feature.shape) > 2:
-        raise ValueError('For now, only supports features equivalent to rank 2 '
+      squeezed_tensor = array_ops.squeeze(transformed_features[column], axis=1)
+      if len(squeezed_tensor.shape) > 1:
+        raise ValueError('For now, only supports features equivalent to rank 1 '
                          'but column `{}` got: {}'.format(
                              source_name, features[source_name].shape))
-      result_features.append(bucketized_feature)
+      result_features.append(squeezed_tensor)
     elif isinstance(
         column, (feature_column_lib.IndicatorColumn, fc_old._IndicatorColumn)):
       source_name = column.categorical_column.name
@@ -242,12 +221,7 @@ def _get_transformed_features_and_merge_with_previously_transformed(
         raise ValueError('Rank of indicator column must be no more than 2, '
                          'but column `{}` got: {}'.format(
                              source_name, features[source_name].shape))
-      # TODO(nponomareva): consider treating as one, multi-dimensional feature
-      # now that multi-dimensional features are supported.
-      unstacked = [
-          array_ops.expand_dims(t, axis=1)
-          for t in array_ops.unstack(tensor, axis=1)
-      ]
+      unstacked = array_ops.unstack(tensor, axis=1)
       result_features.extend(unstacked)
     elif isinstance(column,
                     (feature_column_lib.DenseColumn, fc_old._DenseColumn)):
@@ -258,16 +232,10 @@ def _get_transformed_features_and_merge_with_previously_transformed(
         raise ValueError('For now, we only support Dense column with rank of '
                          '1, but column `{}` got: {}'.format(
                              source_name, column.variable_shape))
-      # TODO(nponomareva): consider treating as one, multi-dimensional feature
-      # now that multi-dimensional features are supported.
+      unstacked = array_ops.unstack(tensor, axis=1)
       if not bucket_boundaries_dict:
-        unstacked = [
-            array_ops.expand_dims(t, axis=1)
-            for t in array_ops.unstack(tensor, axis=1)
-        ]
         result_features.extend(unstacked)
       else:
-        unstacked = array_ops.unstack(tensor, axis=1)
         assert source_name in bucket_boundaries_dict
         num_float_features = (
             _get_variable_shape(column)[0]
@@ -275,17 +243,13 @@ def _get_transformed_features_and_merge_with_previously_transformed(
         assert num_float_features == len(bucket_boundaries_dict[source_name])
         bucketized = boosted_trees_ops.boosted_trees_bucketize(
             unstacked, bucket_boundaries_dict[source_name])
-        expanded = [array_ops.expand_dims(t, axis=1) for t in bucketized]
-        result_features.extend(expanded)
+        result_features.extend(bucketized)
     elif isinstance(
         column,
         (feature_column_lib.CategoricalColumn, fc_old._CategoricalColumn)):
-      # SparseTensor(indices=Tensor(..., shape= [?, 2]),
-      # values=Tensor(..., shape=[?]), dense_shape=Tensor([batch_size, 1],...)))
-      sparse_feature = transformed_features[column]
-      dense = math_ops.cast(
-          sparse_ops.sparse_tensor_to_dense(sparse_feature), dtypes.int32)
-      result_features.append(dense)
+      raise ValueError(
+          'CategoricalColumn must be wrapped by IndicatorColumn, got: {}'
+          .format(column))
     else:
       raise ValueError('Got unexpected feature column type'.format(column))
     # pylint:enable=protected-access
@@ -310,14 +274,13 @@ def _variable(initial_value, trainable=False, name=None):
       use_resource=False)
 
 
-def _group_features_by_num_buckets_and_split_type(sorted_feature_columns,
-                                                  num_quantiles):
-  """Group feature ids by number of buckets; determine when to equality split.
+def _group_features_by_num_buckets(sorted_feature_columns, num_quantiles):
+  """Groups feature ids by the number of buckets.
 
   Derives the feature ids based on iterating through ordered feature columns
   and groups them by the number of buckets each feature require. Returns a
-  sorted list of buckets, a list of lists of feature ids for each of those
-  buckets, and a list of lists containing split types for each feature.
+  sorted list of buckets and a list of lists of feature ids for each of those
+  buckets.
 
   Args:
     sorted_feature_columns: a list/set of tf.feature_column sorted by name.
@@ -327,83 +290,78 @@ def _group_features_by_num_buckets_and_split_type(sorted_feature_columns,
   Returns:
     bucket_size_list: a list of required bucket sizes.
     feature_ids_list: a list of lists of feature ids for each bucket size.
-    split_types_list: a list of lists indicating feature split type
 
   Raises:
     ValueError: when unsupported features columns are provided.
   """
-  bucket_size_to_f_ids_and_splits = collections.OrderedDict()
+  bucket_size_to_feature_ids_dict = collections.OrderedDict()
 
   # TODO(nponomareva) for now we preserve the previous functionality and bucket
   # all numeric into the same num of buckets. Can be easily changed to using
   # each numeric's real buckets num, but we need to test that it does not cause
   # a performance hit.
 
+  # We will replace this dummy key with the real max after we calculate it.
+  bucket_size_to_feature_ids_dict[_DUMMY_NUM_BUCKETS] = []
+
   max_buckets_for_bucketized = 2
   max_buckets_for_indicator = 2
-  # We will replace this dummy key with the real max after we calculate it.
-  bucket_size_to_f_ids_and_splits.setdefault(_DUMMY_NUM_BUCKETS, [])
 
   feature_idx = 0
   # pylint:disable=protected-access
+
   for column in sorted_feature_columns:
     if isinstance(
         column, (feature_column_lib.IndicatorColumn, fc_old._IndicatorColumn)):
       num_categorical_features = column.categorical_column._num_buckets
+      if max_buckets_for_indicator not in bucket_size_to_feature_ids_dict:
+        bucket_size_to_feature_ids_dict[max_buckets_for_indicator] = []
+
       for _ in range(num_categorical_features):
         # We use bucket size of 2 for categorical.
-        bucket_size_to_f_ids_and_splits.setdefault(max_buckets_for_indicator,
-                                                   []).append(
-                                                       (feature_idx,
-                                                        _INEQUALITY_SPLIT))
+        bucket_size_to_feature_ids_dict[max_buckets_for_indicator].append(
+            feature_idx)
         feature_idx += 1
     elif isinstance(
         column,
         (feature_column_lib.BucketizedColumn, fc_old._BucketizedColumn)):
       max_buckets_for_bucketized = max(max_buckets_for_bucketized,
                                        len(column.boundaries) + 1)
-      bucket_size_to_f_ids_and_splits[_DUMMY_NUM_BUCKETS].append(
-          (feature_idx, _INEQUALITY_SPLIT))
+      bucket_size_to_feature_ids_dict[_DUMMY_NUM_BUCKETS].append(feature_idx)
       feature_idx += 1
     elif isinstance(column,
                     (feature_column_lib.DenseColumn, fc_old._DenseColumn)):
+      if num_quantiles not in bucket_size_to_feature_ids_dict:
+        bucket_size_to_feature_ids_dict[num_quantiles] = []
       num_float_features = _get_variable_shape(
           column)[0] if _get_variable_shape(column).as_list() else 1
       for _ in range(num_float_features):
-        bucket_size_to_f_ids_and_splits.setdefault(num_quantiles, []).append(
-            (feature_idx, _INEQUALITY_SPLIT))
+        bucket_size_to_feature_ids_dict[num_quantiles].append(feature_idx)
         feature_idx += 1
     elif isinstance(
         column,
         (feature_column_lib.CategoricalColumn, fc_old._CategoricalColumn)):
-      bucket_size_to_f_ids_and_splits.setdefault(column.num_buckets, [])
-      bucket_size_to_f_ids_and_splits[column.num_buckets].append(
-          (feature_idx, _EQUALITY_SPLIT))
-      feature_idx += 1
+      raise ValueError(
+          'CategoricalColumn must be wrapped by IndicatorColumn, got: {}'
+          .format(column))
     else:
-      raise ValueError('Got unexpected feature column type: {}'.format(column))
+      raise ValueError('Got unexpected feature column type'.format(column))
 
   # Replace the dummy key with the real max num of buckets for all bucketized
   # columns.
-  bucketized_feature_ids = bucket_size_to_f_ids_and_splits[_DUMMY_NUM_BUCKETS]
-  if max_buckets_for_bucketized in bucket_size_to_f_ids_and_splits:
-    bucket_size_to_f_ids_and_splits[max_buckets_for_bucketized].extend(
+  bucketized_feature_ids = bucket_size_to_feature_ids_dict[_DUMMY_NUM_BUCKETS]
+  if max_buckets_for_bucketized in bucket_size_to_feature_ids_dict:
+    bucket_size_to_feature_ids_dict[max_buckets_for_bucketized].extend(
         bucketized_feature_ids)
   elif bucketized_feature_ids:
-    bucket_size_to_f_ids_and_splits[
+    bucket_size_to_feature_ids_dict[
         max_buckets_for_bucketized] = bucketized_feature_ids
-  del bucket_size_to_f_ids_and_splits[_DUMMY_NUM_BUCKETS]
+  del bucket_size_to_feature_ids_dict[_DUMMY_NUM_BUCKETS]
 
   # pylint:enable=protected-access
-  bucket_size_list = []
-  feature_ids_list = []
-  split_types_list = []
-  for bucket, f_ixs_and_splits in bucket_size_to_f_ids_and_splits.items():
-    bucket_size_list.append(bucket)
-    feature_ids, split_types = zip(*f_ixs_and_splits)
-    feature_ids_list.append(feature_ids)
-    split_types_list.append(split_types)
-  return bucket_size_list, feature_ids_list, split_types_list
+  feature_ids_list = list(bucket_size_to_feature_ids_dict.values())
+  bucket_size_list = list(bucket_size_to_feature_ids_dict.keys())
+  return bucket_size_list, feature_ids_list
 
 
 def _calculate_num_features(sorted_feature_columns):
@@ -425,7 +383,9 @@ def _calculate_num_features(sorted_feature_columns):
     elif isinstance(
         column,
         (feature_column_lib.CategoricalColumn, fc_old._CategoricalColumn)):
-      num_features += 1
+      raise ValueError(
+          'CategoricalColumn must be wrapped by IndicatorColumn, got: {}'
+          .format(column))
     else:
       raise ValueError('Got unexpected feature column type'.format(column))
   # pylint:enable=protected-access
@@ -483,7 +443,9 @@ def _generate_feature_col_name_mapping(sorted_feature_columns):
     elif isinstance(
         column,
         (feature_column_lib.CategoricalColumn, fc_old._CategoricalColumn)):
-      names.append(column.name)
+      raise ValueError(
+          'CategoricalColumn must be wrapped by IndicatorColumn, got: {}'
+          .format(column))
     else:
       raise ValueError('Got unexpected feature column type'.format(column))
   return names
@@ -516,35 +478,31 @@ def _accumulator(dtype, shape, shared_name):
       dtype=dtype, shape=shape, shared_name=shared_name)
 
 
-def _cache_transformed_features(features, sorted_feature_columns, ind_columns,
+def _cache_transformed_features(features, sorted_feature_columns, cat_columns,
                                 other_columns, batch_size,
                                 bucket_boundaries_dict, are_boundaries_ready):
   """Transform features and cache, then returns (cached_features, cache_op)."""
   num_features = _calculate_num_features(sorted_feature_columns)
-  cached_features = []
-
-  # TODO(crawles): figure out how to get feature dimension here. Right now it's
-  # hard coded as 1.
   cached_features = [
       _variable(
-          array_ops.zeros([batch_size, 1], dtype=dtypes.int32),
+          array_ops.zeros([batch_size], dtype=dtypes.int32),
           name='cached_feature_{}'.format(i)) for i in range(num_features)
   ]
   are_features_cached = _variable(False, name='are_features_cached')
 
-  # An ugly hack - for indicator features, in order to have lookup tables
+  # An ugly hack - for categorical features, in order to have lookup tables
   # initialized, transform should happen outside of cond. So we always transform
-  # ind columns separately (it is not as expensive as bucketizing) and then
+  # cat columns separately (it is not as expensive as bucketizing) and then
   # merge these processed features with other columns in cond branches.
-  ind_transformed = []
-  if len(ind_columns) > 0:
-    ind_transformed = _apply_feature_transformations(features, ind_columns)
+  cat_transformed = []
+  if len(cat_columns) > 0:
+    cat_transformed = _apply_feature_transformations(features, cat_columns)
 
   def get_features_without_cache():
     """Returns transformed features"""
     transformed_features = _get_transformed_features_and_merge_with_previously_transformed(
         features, other_columns, sorted_feature_columns, bucket_boundaries_dict,
-        ind_transformed)
+        cat_transformed)
 
     return transformed_features, control_flow_ops.no_op()
 
@@ -566,7 +524,7 @@ def _cache_transformed_features(features, sorted_feature_columns, ind_columns,
       """
       transformed_features = _get_transformed_features_and_merge_with_previously_transformed(
           features, other_columns, sorted_feature_columns,
-          bucket_boundaries_dict, ind_transformed)
+          bucket_boundaries_dict, cat_transformed)
 
       cached = [
           state_ops.assign(cached_features[i], transformed_features[i])
@@ -756,13 +714,13 @@ class _EnsembleGrower(object):
   on the implementation (for example, in memory or accumulator-based
   distributed):
     grower = ...create subclass grower(tree_ensemble, tree_hparams)
-    grow_op = grower.grow_tree(stats_summaries_list, last_layer_nodes_range,
-                               split_types_list)
+    grow_op = grower.grow_tree(stats_summaries_list, feature_ids_list,
+                               last_layer_nodes_range)
     training_ops.append(grow_op)
   """
 
   def __init__(self, tree_ensemble, quantile_accumulator, tree_hparams,
-               feature_ids_list, logits_dimension):
+               feature_ids_list):
     """Initializes a grower object.
 
     Args:
@@ -770,7 +728,6 @@ class _EnsembleGrower(object):
       quantile_accumulator: A QuantileAccumulator variable.
       tree_hparams: TODO. collections.namedtuple for hyper parameters.
       feature_ids_list: a list of lists of feature ids for each bucket size.
-      logits_dimension: a constant (int) for the dimension of logits.
 
     Raises:
       ValueError: when pruning mode is invalid or pruning is used and no tree
@@ -780,7 +737,6 @@ class _EnsembleGrower(object):
     self._tree_hparams = tree_hparams
     self._quantile_accumulator = quantile_accumulator
     self._feature_ids_list = feature_ids_list
-    self._logits_dimension = logits_dimension
     # pylint: disable=protected-access
     self._pruning_mode_parsed = boosted_trees_ops.PruningMode.from_str(
         tree_hparams.pruning_mode)
@@ -822,8 +778,7 @@ class _EnsembleGrower(object):
     """
 
   @abc.abstractmethod
-  def grow_tree(self, stats_summaries_list, last_layer_nodes_range,
-                split_types_list):
+  def grow_tree(self, stats_summaries_list, last_layer_nodes_range):
     """Grows a tree, if ready, based on provided statistics.
 
     Args:
@@ -831,7 +786,6 @@ class _EnsembleGrower(object):
         gradients and hessians for each feature bucket.
       last_layer_nodes_range: A tensor representing ids of the nodes in the
         current layer, to be split.
-      split_types_list: a list of lists indicating feature split type
 
     Returns:
       An op for growing a tree.
@@ -854,56 +808,50 @@ class _EnsembleGrower(object):
     return center_bias_var.assign(continue_centering)
 
   def _grow_tree_from_stats_summaries(self, stats_summaries_list,
-                                      last_layer_nodes_range, split_types_list):
+                                      last_layer_nodes_range):
     """Updates ensemble based on the best gains from stats summaries."""
-    assert (len(stats_summaries_list) == len(self._feature_ids_list) ==
-            len(split_types_list))
-
-    # These lists will be of size num_buckets. Each element will be a list.
-    node_ids_list = []
+    node_ids_per_feature = []
     gains_list = []
-    best_feature_ids_list = []
-    best_feature_dimensions_list = []
-    best_feature_splits_list = []
     thresholds_list = []
     left_node_contribs_list = []
     right_node_contribs_list = []
-    for bucket_ix in range(len(self._feature_ids_list)):
-      (node_ids, gains, best_feature_ids, best_feature_dimensions, thresholds,
-       left_node_contribs, right_node_contribs, best_feature_split_types) = (
-           boosted_trees_ops.calculate_best_feature_split_v2(
-               last_layer_nodes_range,
-               stats_summaries_list[bucket_ix],
-               candidate_feature_ids=self._feature_ids_list[bucket_ix],
-               split_types=split_types_list[bucket_ix],
+    all_feature_ids = []
+    assert len(stats_summaries_list) == len(self._feature_ids_list)
+
+    max_splits = _get_max_splits(self._tree_hparams)
+
+    for i, feature_ids in enumerate(self._feature_ids_list):
+      (numeric_node_ids_per_feature, numeric_gains_list,
+       numeric_thresholds_list, numeric_left_node_contribs_list,
+       numeric_right_node_contribs_list) = (
+           boosted_trees_ops.calculate_best_gains_per_feature(
+               node_id_range=last_layer_nodes_range,
+               stats_summary_list=stats_summaries_list[i],
                l1=self._tree_hparams.l1,
                l2=self._tree_hparams.l2,
                tree_complexity=self._tree_hparams.tree_complexity,
                min_node_weight=self._tree_hparams.min_node_weight,
-               logits_dimension=self._logits_dimension))
-      node_ids_list.append(node_ids)
-      gains_list.append(gains)
-      best_feature_ids_list.append(best_feature_ids)
-      best_feature_dimensions_list.append(best_feature_dimensions)
-      best_feature_splits_list.append(best_feature_split_types)
-      thresholds_list.append(thresholds)
-      left_node_contribs_list.append(left_node_contribs)
-      right_node_contribs_list.append(right_node_contribs)
-    grow_op = boosted_trees_ops.update_ensemble_v2(
+               max_splits=max_splits))
+
+      all_feature_ids += feature_ids
+      node_ids_per_feature += numeric_node_ids_per_feature
+      gains_list += numeric_gains_list
+      thresholds_list += numeric_thresholds_list
+      left_node_contribs_list += numeric_left_node_contribs_list
+      right_node_contribs_list += numeric_right_node_contribs_list
+
+    grow_op = boosted_trees_ops.update_ensemble(
         # Confirm if local_tree_ensemble or tree_ensemble should be used.
         self._tree_ensemble.resource_handle,
-        feature_ids=best_feature_ids_list,
-        dimension_ids=best_feature_dimensions_list,
-        node_ids=node_ids_list,
+        feature_ids=all_feature_ids,
+        node_ids=node_ids_per_feature,
         gains=gains_list,
         thresholds=thresholds_list,
         left_node_contribs=left_node_contribs_list,
         right_node_contribs=right_node_contribs_list,
-        split_types=best_feature_splits_list,
         learning_rate=self._tree_hparams.learning_rate,
         max_depth=self._tree_hparams.max_depth,
-        pruning_mode=self._pruning_mode_parsed,
-        logits_dimension=self._logits_dimension)
+        pruning_mode=self._pruning_mode_parsed)
     return grow_op
 
 
@@ -911,14 +859,13 @@ class _InMemoryEnsembleGrower(_EnsembleGrower):
   """An in-memory ensemble grower."""
 
   def __init__(self, tree_ensemble, quantile_accumulator, tree_hparams,
-               feature_ids_list, logits_dimension):
+               feature_ids_list):
 
     super(_InMemoryEnsembleGrower, self).__init__(
         tree_ensemble=tree_ensemble,
         quantile_accumulator=quantile_accumulator,
         tree_hparams=tree_hparams,
-        feature_ids_list=feature_ids_list,
-        logits_dimension=logits_dimension)
+        feature_ids_list=feature_ids_list)
 
   def accumulate_quantiles(self, float_features, weights, are_boundaries_ready):
     summary_op = self._quantile_accumulator.add_summaries(
@@ -936,13 +883,11 @@ class _InMemoryEnsembleGrower(_EnsembleGrower):
     mean_heassians = array_ops.expand_dims(math_ops.reduce_mean(hessians, 0), 0)
     return self._center_bias_fn(center_bias_var, mean_gradients, mean_heassians)
 
-  def grow_tree(self, stats_summaries_list, last_layer_nodes_range,
-                split_types_list):
+  def grow_tree(self, stats_summaries_list, last_layer_nodes_range):
     # For in memory, we already have full data in one batch, so we can grow the
     # tree immediately.
     return self._grow_tree_from_stats_summaries(stats_summaries_list,
-                                                last_layer_nodes_range,
-                                                split_types_list)
+                                                last_layer_nodes_range)
 
 
 class _AccumulatorEnsembleGrower(_EnsembleGrower):
@@ -950,41 +895,25 @@ class _AccumulatorEnsembleGrower(_EnsembleGrower):
 
   def __init__(self, tree_ensemble, quantile_accumulator, tree_hparams,
                stamp_token, n_batches_per_layer, bucket_size_list, is_chief,
-               center_bias, feature_ids_list, logits_dimension,
-               feature_dimensions):
+               center_bias, feature_ids_list):
     super(_AccumulatorEnsembleGrower, self).__init__(
         tree_ensemble=tree_ensemble,
         quantile_accumulator=quantile_accumulator,
         tree_hparams=tree_hparams,
-        feature_ids_list=feature_ids_list,
-        logits_dimension=logits_dimension)
+        feature_ids_list=feature_ids_list)
     self._stamp_token = stamp_token
     self._n_batches_per_layer = n_batches_per_layer
     self._bucket_size_list = bucket_size_list
     self._is_chief = is_chief
-    self._feature_dimensions = feature_dimensions
     self._growing_accumulators = []
     self._chief_init_ops = []
     max_splits = _get_max_splits(self._tree_hparams)
-    i = 0
-    # TODO(crawles): Allow to create an accumulator per feature, instead of
-    # accumulator per bucket_size.
-    for bucket_size, feature_ids in zip(self._bucket_size_list,
-                                        self._feature_ids_list):
-      grad_size = logits_dimension
-      hessian_size = logits_dimension * logits_dimension
+    for i, feature_ids in enumerate(self._feature_ids_list):
       accumulator = _accumulator(
           dtype=dtypes.float32,
           # The stats consist of grads and hessians (the last dimension).
-          shape=[
-              len(feature_ids),
-              max_splits,
-              1,  # TODO(crawles): Support multi_dim features.
-              bucket_size + 1,  # +1 for missing/default bucket.
-              grad_size + hessian_size
-          ],
+          shape=[len(feature_ids), max_splits, self._bucket_size_list[i], 2],
           shared_name='numeric_stats_summary_accumulator_' + str(i))
-      i += 1
       self._chief_init_ops.append(
           accumulator.set_global_step(self._stamp_token))
       self._growing_accumulators.append(accumulator)
@@ -1072,8 +1001,7 @@ class _AccumulatorEnsembleGrower(_EnsembleGrower):
           name='wait_until_n_batches_for_bias_accumulated')
       return center_bias_op
 
-  def grow_tree(self, stats_summaries_list, last_layer_nodes_range,
-                split_types_list):
+  def grow_tree(self, stats_summaries_list, last_layer_nodes_range):
     dependencies = []
     for i in range(len(self._feature_ids_list)):
       stats_summaries = stats_summaries_list[i]
@@ -1093,13 +1021,13 @@ class _AccumulatorEnsembleGrower(_EnsembleGrower):
       def grow_tree_from_accumulated_summaries_fn():
         """Updates tree with the best layer from accumulated summaries."""
         # Take out the accumulated summaries from the accumulator and grow.
-        accumulated_summaries_list = [
+        stats_summaries_list = []
+        stats_summaries_list = [
             array_ops.unstack(accumulator.take_grad(1), axis=0)
             for accumulator in self._growing_accumulators
         ]
-        grow_op = self._grow_tree_from_stats_summaries(
-            accumulated_summaries_list, last_layer_nodes_range,
-            split_types_list)
+        grow_op = self._grow_tree_from_stats_summaries(stats_summaries_list,
+                                                       last_layer_nodes_range)
         return grow_op
 
       grow_model = _cond(
@@ -1165,7 +1093,6 @@ def _bt_model_fn(features,
   Raises:
     ValueError: mode or params are invalid, or features has the wrong type.
   """
-  logits_dimension = head.logits_dimension
   sorted_feature_columns = sorted(feature_columns, key=lambda tc: tc.name)
   float_columns = _get_float_feature_columns(sorted_feature_columns)
 
@@ -1195,7 +1122,7 @@ def _bt_model_fn(features,
     else:
       are_boundaries_ready_initial = True
 
-    bucket_size_list, feature_ids_list, split_types_list = _group_features_by_num_buckets_and_split_type(
+    bucket_size_list, feature_ids_list = _group_features_by_num_buckets(
         sorted_feature_columns, num_quantiles)
 
     # Create logits.
@@ -1208,7 +1135,7 @@ def _bt_model_fn(features,
           # so no local copy is needed; using tree_ensemble directly.
           tree_ensemble_handle=tree_ensemble.resource_handle,
           bucketized_features=input_feature_list,
-          logits_dimension=logits_dimension)
+          logits_dimension=head.logits_dimension)
       return head.create_estimator_spec(
           features=features,
           mode=mode,
@@ -1239,31 +1166,30 @@ def _bt_model_fn(features,
         trainable=False)
 
     if train_in_memory:
-      # Cache transformed features as well for in-memory training.
+      # cache transformed features as well for in-memory training.
       batch_size = array_ops.shape(labels)[0]
 
-      def _split_into_indicator_and_other_columns():
-        indicator_columns = []
+      def _split_into_cat_and_other_columns():
+        cat_columns = []
         other_columns = []
         for fc in sorted_feature_columns:
           if isinstance(
               fc,
               (feature_column_lib.IndicatorColumn, fc_old._IndicatorColumn)):
-            indicator_columns.append(fc)
+            cat_columns.append(fc)
           else:
             other_columns.append(fc)
-        return indicator_columns, other_columns
+        return cat_columns, other_columns
 
-      # Split columns into indicator and other columns.
-      indicator_columns, other_columns = (
-          _split_into_indicator_and_other_columns())
+      # Split columns into categorical and other columns.
+      cat_columns, other_columns = _split_into_cat_and_other_columns()
 
       input_feature_list, input_cache_op = _cache_transformed_features(
-          features, sorted_feature_columns, indicator_columns, other_columns,
+          features, sorted_feature_columns, cat_columns, other_columns,
           batch_size, bucket_boundaries_dict, are_boundaries_ready)
 
       training_state_cache = _CacheTrainingStatesUsingVariables(
-          batch_size, logits_dimension)
+          batch_size, head.logits_dimension)
     else:
       input_feature_list = _get_transformed_features(features,
                                                      sorted_feature_columns,
@@ -1271,7 +1197,8 @@ def _bt_model_fn(features,
       if example_id_column_name:
         example_ids = features[example_id_column_name]
         training_state_cache = _CacheTrainingStatesUsingHashTable(
-            example_ids, logits_dimension)
+            example_ids, head.logits_dimension)
+
     if training_state_cache:
       cached_tree_ids, cached_node_ids, cached_logits = (
           training_state_cache.lookup())
@@ -1281,7 +1208,8 @@ def _bt_model_fn(features,
       cached_tree_ids, cached_node_ids, cached_logits = (
           array_ops.zeros([batch_size], dtype=dtypes.int32),
           _DUMMY_NODE_ID * array_ops.ones([batch_size], dtype=dtypes.int32),
-          array_ops.zeros([batch_size, logits_dimension], dtype=dtypes.float32))
+          array_ops.zeros([batch_size, head.logits_dimension],
+                          dtype=dtypes.float32))
 
     if is_single_machine:
       local_tree_ensemble = tree_ensemble
@@ -1302,21 +1230,18 @@ def _bt_model_fn(features,
           cached_tree_ids=cached_tree_ids,
           cached_node_ids=cached_node_ids,
           bucketized_features=input_feature_list,
-          logits_dimension=logits_dimension)
+          logits_dimension=head.logits_dimension)
     logits = cached_logits + partial_logits
+
     if train_in_memory:
       grower = _InMemoryEnsembleGrower(tree_ensemble, quantile_accumulator,
-                                       tree_hparams, feature_ids_list,
-                                       logits_dimension)
+                                       tree_hparams, feature_ids_list)
     else:
-      feature_dimensions = _get_feature_dimensions(feature_ids_list,
-                                                   input_feature_list)
       grower = _AccumulatorEnsembleGrower(tree_ensemble, quantile_accumulator,
                                           tree_hparams, stamp_token,
                                           n_batches_per_layer, bucket_size_list,
                                           config.is_chief, center_bias,
-                                          feature_ids_list, logits_dimension,
-                                          feature_dimensions)
+                                          feature_ids_list)
 
     summary.scalar('ensemble/num_trees', num_trees)
     summary.scalar('ensemble/num_finalized_trees', num_finalized_trees)
@@ -1331,8 +1256,7 @@ def _bt_model_fn(features,
       if isinstance(weight_column, six.string_types):
         weight_column = feature_column_lib.numeric_column(
             key=weight_column, shape=(1,))
-      weights = array_ops.squeeze(
-          _get_transformed_features(features, [weight_column])[0], axis=1)
+      weights = _get_transformed_features(features, [weight_column])[0]
 
     # Create training graph.
     def _train_op_fn(loss):
@@ -1342,8 +1266,7 @@ def _bt_model_fn(features,
         """Accumulates quantiles."""
         with ops.name_scope('UpdateQuantile'):
           float_features = _get_transformed_features(features, float_columns)
-          squeezed = [array_ops.squeeze(f, axis=1) for f in float_features]
-          return grower.accumulate_quantiles(squeezed, weights,
+          return grower.accumulate_quantiles(float_features, weights,
                                              are_boundaries_ready)
 
       def _grow_tree_fn():
@@ -1358,47 +1281,48 @@ def _bt_model_fn(features,
           grow_op.append(
               _cond(center_bias_var, control_flow_ops.no_op, insert_fn))
 
-        if logits_dimension == 1 and closed_form_grad_and_hess_fn:
+        if closed_form_grad_and_hess_fn:
           gradients, hessians = closed_form_grad_and_hess_fn(logits, labels)
         else:
           gradients = gradients_impl.gradients(
               loss, logits, name='Gradients')[0]
-          if logits_dimension == 1:
-            hessians = gradients_impl.gradients(
-                gradients, logits, name='Hessians')[0]
-          else:
-            # TODO(crawles): support diagonal hessian.
-            hessians = array_ops.reshape(
-                parallel_for_gradients.batch_jacobian(gradients, logits),
-                [-1, logits_dimension * logits_dimension])
+          hessians = gradients_impl.gradients(
+              gradients, logits, name='Hessians')[0]
+
         # TODO(youngheek): perhaps storage could be optimized by storing stats
         # with the dimension max_splits_per_layer, instead of max_splits (for
         # the entire tree).
         max_splits = _get_max_splits(tree_hparams)
+
         stats_summaries_list = []
-        for num_buckets, feature_ids in zip(bucket_size_list, feature_ids_list):
-          bucket_summaries = []
-          for feature_id in feature_ids:
-            stats_summary = boosted_trees_ops.boosted_trees_aggregate_stats(
-                node_ids=node_ids,
-                gradients=gradients,
-                hessians=hessians,
-                feature=input_feature_list[feature_id],
-                max_splits=max_splits,
-                num_buckets=num_buckets)
-            bucket_summaries.append(stats_summary)
-          stats_summaries_list.append(bucket_summaries)
+        for i, feature_ids in enumerate(feature_ids_list):
+          num_buckets = bucket_size_list[i]
+          summaries = [
+              array_ops.squeeze(
+                  boosted_trees_ops.make_stats_summary(
+                      node_ids=node_ids,
+                      gradients=gradients,
+                      hessians=hessians,
+                      bucketized_features_list=[input_feature_list[f]],
+                      max_splits=max_splits,
+                      num_buckets=num_buckets),
+                  axis=0) for f in feature_ids
+          ]
+          stats_summaries_list.append(summaries)
         if center_bias:
           update_model = _cond(
               center_bias_var,
-              functools.partial(grower.center_bias, center_bias_var, gradients,
-                                hessians),
+              functools.partial(
+                  grower.center_bias,
+                  center_bias_var,
+                  gradients,
+                  hessians,
+              ),
               functools.partial(grower.grow_tree, stats_summaries_list,
-                                last_layer_nodes_range, split_types_list))
+                                last_layer_nodes_range))
         else:
           update_model = grower.grow_tree(stats_summaries_list,
-                                          last_layer_nodes_range,
-                                          split_types_list)
+                                          last_layer_nodes_range)
         grow_op.append(update_model)
 
         with ops.control_dependencies([update_model]):
@@ -1438,95 +1362,11 @@ class GrowerInitializationHook(session_run_hook.SessionRunHook):
     session.run(self._init_op)
 
 
-# This is classical form of Maximum entropy loss, that is twice differentiable
-# (the built-in sparse_softmax_cross_entropy is not twice differentiable).
-def per_example_maxent_loss(labels, weights, logits, num_classes, eps=1e-15):
-  """Maximum entropy loss for multiclass problems.
-
-  Maximum entropy is a generalization of logistic loss for the case when more
-  than 2 classes are present.
-
-  Args:
-    labels: Rank 2 (N, 1) or Rank 1 (N) tensor of per-example labels.
-    weights: Rank 2 (N, 1) tensor of per-example weights.
-    logits: Rank 2 (N, K) tensor of per-example predictions, K - num of classes.
-    num_classes: number of classes in classification task. Used to expand label
-      indices into one-hot encodings.
-    eps: tolerance, used as a minimum possible value.
-
-  Returns:
-    loss: A Rank 2 (N, 1) tensor of per-example maxent loss
-    update_op: An update operation to update the loss's internal state.
-  """
-  labels = math_ops.cast(labels, dtypes.int64)
-  # If labels are of rank 1, make them rank 2.
-  labels_shape = labels.get_shape()
-  if len(labels_shape) != 2:
-    labels = array_ops.expand_dims(labels, 1)
-  # Labels are indices of classes, convert them to one hot encodings.
-  target_one_hot = array_ops.one_hot(indices=labels, depth=num_classes)
-  labels = math_ops.reduce_sum(input_tensor=target_one_hot, axis=[1])
-  labels = math_ops.cast(labels, dtypes.float32)
-
-  # Calculate softmax probabilities for each class.
-  unnormalized_probs = math_ops.exp(logits)
-  normalizers = math_ops.reduce_sum(unnormalized_probs, 1, keepdims=True)
-  softmax_predictions = math_ops.divide(unnormalized_probs,
-                                        math_ops.add(normalizers, eps))
-
-  # Pull out the probabilities for real label.
-  probs_for_real_class = math_ops.reduce_sum(labels * softmax_predictions, 1)
-
-  # Add handling for values near 0 and 1.
-  zeros = array_ops.zeros_like(probs_for_real_class, dtype=logits.dtype) + eps
-  one_minus_eps = array_ops.ones_like(
-      probs_for_real_class, dtype=logits.dtype) - eps
-
-  # Take maximum(eps, pred)
-  cond = (probs_for_real_class >= eps)
-  probs_for_real_class = array_ops.where(cond, probs_for_real_class, zeros)
-
-  # Take minimum(1-eps, pred)
-  cond = (probs_for_real_class <= 1 - eps)
-  probs_for_real_class = array_ops.where(cond, probs_for_real_class,
-                                         one_minus_eps)
-
-  unweighted_loss = array_ops.expand_dims(-math_ops.log(probs_for_real_class),
-                                          1)
-  if weights is None:
-    return unweighted_loss, control_flow_ops.no_op()
-  else:
-    return unweighted_loss * weights, control_flow_ops.no_op()
-
-
-def _multiclass_head(n_classes,
-                     weight_column=None,
-                     loss_reduction=losses.Reduction.SUM_OVER_NONZERO_WEIGHTS):
-  """Core head for multiclass problems."""
-
-  def loss_fn(labels, logits):
-    result = per_example_maxent_loss(
-        labels=labels,
-        logits=logits,
-        weights=weight_column,
-        num_classes=n_classes)
-    return result[0]
-
-  # pylint:disable=protected-access
-  head_fn = head_lib._multi_class_head_with_softmax_cross_entropy_loss(
-      n_classes=n_classes,
-      loss_fn=loss_fn,
-      loss_reduction=loss_reduction,
-      weight_column=weight_column)
-  # pylint:enable=protected-access
-
-  return head_fn
-
-
 def _create_classification_head(n_classes,
                                 weight_column=None,
                                 label_vocabulary=None):
   """Creates a classification head. Refer to canned.head for details on args."""
+  # TODO(nponomareva): Support multi-class cases.
   if n_classes == 2:
     # pylint: disable=protected-access
     return head_lib._binary_logistic_head_with_sigmoid_cross_entropy_loss(
@@ -1535,10 +1375,8 @@ def _create_classification_head(n_classes,
         loss_reduction=losses.Reduction.SUM_OVER_BATCH_SIZE)
     # pylint: enable=protected-access
   else:
-    return _multiclass_head(
-        n_classes,
-        weight_column,
-        loss_reduction=losses.Reduction.SUM_OVER_NONZERO_WEIGHTS)
+    raise ValueError('For now only binary classification is supported.'
+                     'n_classes given as {}'.format(n_classes))
 
 
 def _create_classification_head_and_closed_form(n_classes, weight_column,
@@ -1568,6 +1406,9 @@ def _create_classification_head_and_closed_form(n_classes, weight_column,
 
 
 def _create_regression_head(label_dimension, weight_column=None):
+  if label_dimension != 1:
+    raise ValueError('For now only 1 dimension regression is supported.'
+                     'label_dimension given as {}'.format(label_dimension))
   # pylint: disable=protected-access
   return head_lib._regression_head(
       label_dimension=label_dimension,
@@ -1582,7 +1423,6 @@ def _compute_feature_importances_per_tree(tree, num_features):
 
   for node in tree.nodes:
     node_type = node.WhichOneof('node')
-    # TODO(crawles): support for categorical features.
     if node_type == 'bucketized_split':
       feature_id = node.bucketized_split.feature_id
       importances[feature_id] += node.metadata.gain
@@ -1857,10 +1697,6 @@ class _BoostedTreesBase(estimator.Estimator):
       raise ValueError('center_bias must be enabled during estimator '
                        'instantiation when using '
                        'experimental_predict_with_explanations.')
-    elif self._head.logits_dimension > 1:
-      raise ValueError('experimental_predict_with_explanations does not yet '
-                       'support multi-class classification and multi-label '
-                       'regression.')
     # pylint: disable=protected-access
     if not self._is_classification:
       identity_inverse_link_fn = self._head._inverse_link_fn in (None,
@@ -1937,7 +1773,7 @@ class BoostedTreesClassifier(_BoostedTreesBase):
                feature_columns,
                n_batches_per_layer,
                model_dir=None,
-               n_classes=2,
+               n_classes=_HOLD_FOR_MULTI_CLASS_SUPPORT,
                weight_column=None,
                label_vocabulary=None,
                n_trees=100,
@@ -2001,6 +1837,7 @@ class BoostedTreesClassifier(_BoostedTreesBase):
         also be used to load checkpoints from the directory into a estimator to
         continue training a previously saved model.
       n_classes: number of label classes. Default is binary classification.
+        Multiclass support is not yet implemented.
       weight_column: A string or a `NumericColumn` created by
         `tf.fc_old.numeric_column` defining feature column representing weights.
         It is used to downweight or boost examples during training. It will be
@@ -2051,8 +1888,12 @@ class BoostedTreesClassifier(_BoostedTreesBase):
       ValueError: when wrong arguments are given or unsupported functionalities
          are requested.
     """
-    if n_classes > 2 and center_bias:
-      raise ValueError('center_bias not yet support with n_classes > 2.')
+    # TODO(nponomareva): Support multi-class cases.
+    if n_classes == _HOLD_FOR_MULTI_CLASS_SUPPORT:
+      n_classes = 2
+    elif n_classes > 2 and pruning_mode is not None:
+      raise ValueError('For now pruning is not supported with multi class.')
+
     head, closed_form = _create_classification_head_and_closed_form(
         n_classes, weight_column, label_vocabulary=label_vocabulary)
     # HParams for the model.
@@ -2103,7 +1944,7 @@ class BoostedTreesRegressor(_BoostedTreesBase):
                feature_columns,
                n_batches_per_layer,
                model_dir=None,
-               label_dimension=1,
+               label_dimension=_HOLD_FOR_MULTI_DIM_SUPPORT,
                weight_column=None,
                n_trees=100,
                max_depth=6,
@@ -2160,6 +2001,7 @@ class BoostedTreesRegressor(_BoostedTreesBase):
         also be used to load checkpoints from the directory into a estimator to
         continue training a previously saved model.
       label_dimension: Number of regression targets per example.
+        Multi-dimensional support is not yet implemented.
       weight_column: A string or a `NumericColumn` created by
         `tf.fc_old.numeric_column` defining feature column representing weights.
         It is used to downweight or boost examples during training. It will be
@@ -2203,8 +2045,12 @@ class BoostedTreesRegressor(_BoostedTreesBase):
       ValueError: when wrong arguments are given or unsupported functionalities
          are requested.
     """
-    if label_dimension > 1 and center_bias:
-      raise ValueError('center_bias not yet support with label_dimension > 1.')
+    # TODO(nponomareva): Extend it to multi-dimension cases.
+    if label_dimension == _HOLD_FOR_MULTI_DIM_SUPPORT:
+      label_dimension = 1
+    elif label_dimension > 1 and pruning_mode is not None:
+      raise ValueError('For now pruning is not supported with multi-dimension'
+                       'regression.')
     head = _create_regression_head(label_dimension, weight_column)
 
     # HParams for the model.
