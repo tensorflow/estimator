@@ -339,12 +339,12 @@ class TPUEstimatorSpec(model_fn_lib._TPUEstimatorSpec):  # pylint: disable=prote
               evaluation_hooks=None,
               prediction_hooks=None):
     """Creates a validated `TPUEstimatorSpec` instance."""
-    host_calls = {}
+    cls._host_calls = {}
     if eval_metrics is not None:
-      host_calls['eval_metrics'] = eval_metrics
+      cls._host_calls['eval_metrics'] = eval_metrics
     if host_call is not None:
-      host_calls['host_call'] = host_call
-    _OutfeedHostCall.validate(host_calls)
+      cls._host_calls['host_call'] = host_call
+    _OutfeedHostCall.validate(cls._host_calls)
 
     training_hooks = tuple(training_hooks or [])
     evaluation_hooks = tuple(evaluation_hooks or [])
@@ -371,12 +371,7 @@ class TPUEstimatorSpec(model_fn_lib._TPUEstimatorSpec):  # pylint: disable=prote
 
   def as_estimator_spec(self):
     """Creates an equivalent `EstimatorSpec` used by CPU train/eval."""
-    host_calls = {}
-    if self.eval_metrics is not None:
-      host_calls['eval_metrics'] = self.eval_metrics
-    if self.host_call is not None:
-      host_calls['host_call'] = self.host_call
-    host_call_ret = _OutfeedHostCall.create_cpu_hostcall(host_calls)
+    host_call_ret = _OutfeedHostCall.create_cpu_hostcall(self._host_calls)
     eval_metric_ops = None
     if self.eval_metrics is not None:
       eval_metric_ops = host_call_ret['eval_metrics']
