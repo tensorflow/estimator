@@ -3294,7 +3294,7 @@ class TPUEstimator(estimator_lib.Estimator):
               update_ops.extend(embedding_variables_and_ops.retrieve_ops())
 
           # Validate the TPU training graph to catch basic errors
-          _validate_tpu_training_graph()
+          _validate_tpu_training_graph(ctx)
 
           train_op = control_flow_ops.group(*update_ops)
           graph.add_to_collection(_TPU_TRAIN_OP, train_op)
@@ -3707,8 +3707,11 @@ def _wrap_computation_in_while_loop_with_stopping_signals(device, op_fn):
         parallel_iterations=1)
 
 
-def _validate_tpu_training_graph():
+def _validate_tpu_training_graph(ctx):
   """Validate graph before running distributed training.
+
+  Args:
+    ctx: A `_InternalTPUContext` instance with mode.
 
   Raises:
     ValueError: If the graph seems invalid for running on device
@@ -3723,7 +3726,7 @@ def _validate_tpu_training_graph():
   cross_replica_sum_ops = [
       o for o in operations if o.type == _CROSS_REPLICA_SUM_OP
   ]
-  if not cross_replica_sum_ops:
+  if not cross_replica_sum_ops and ctx.num_replicas > 1:
     raise ValueError(
         'CrossShardOptimizer must be used for model training on TPUs.')
 
