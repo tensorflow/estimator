@@ -48,6 +48,7 @@ from tensorflow_estimator.python.estimator.inputs import numpy_io
 from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class RegressionHead(test.TestCase):
 
   def test_invalid_label_dimension(self):

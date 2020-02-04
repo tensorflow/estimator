@@ -40,6 +40,7 @@ from tensorflow_estimator.python.estimator.head import regression_head
 from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class MultiHeadTest(test.TestCase):
 
   def test_no_heads(self):

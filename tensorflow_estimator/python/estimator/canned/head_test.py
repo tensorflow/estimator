@@ -89,7 +89,7 @@ def _sigmoid(logits):
   return 1 / (1 + np.exp(-logits))
 
 
-@test_util.run_v1_only("Tests v1 only symbols")
+@test_util.run_all_in_graph_and_eager_modes
 class CreateEstimatorSpecTest(test.TestCase):
 
   class _HeadWithTPUSupport(head_lib._Head):

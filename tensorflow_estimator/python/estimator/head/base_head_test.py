@@ -64,6 +64,7 @@ def _assert_no_hooks(test_case, spec):
   test_case.assertAllEqual([], spec.training_hooks)
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class CreateEstimatorSpecTest(test.TestCase):
 
   class _HeadWithTPUSupport(base_head.Head):

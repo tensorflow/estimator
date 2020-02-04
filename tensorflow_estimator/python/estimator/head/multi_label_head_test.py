@@ -57,6 +57,7 @@ def _sigmoid_cross_entropy(labels, logits):
   return np.mean(unreduced_result, axis=-1, keepdims=True)
 
 
+@test_util.run_all_in_graph_and_eager_modes
 class MultiLabelHead(test.TestCase):
 
   def test_n_classes_is_none(self):
