@@ -1780,21 +1780,17 @@ class LogisticRegressionHead(test.TestCase):
       del loss
       return constant_op.constant(expected_train_result)
     # Create estimator spec.
-    spec = head.create_estimator_spec(
-        features=features,
-        mode=ModeKeys.TRAIN,
-        logits=logits,
-        labels=labels,
-        train_op_fn=_train_op_fn,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
-
-    with self.cached_session() as sess:
-      test_lib._initialize_variables(self, spec.scaffold)
-      with self.assertRaisesRegexp(
-          errors.InvalidArgumentError,
-          r'\[Labels must be in range \[0, 1\]\] .* \[\[0.4\]\[1.2\]\[0.8\]\]'):
-        _ = sess.run(spec.loss)
+    with self.assertRaisesRegexp(errors.InvalidArgumentError,
+                                 r'Labels must be in range \[0, 1\]'):
+      spec = head.create_estimator_spec(
+          features=features,
+          mode=ModeKeys.TRAIN,
+          logits=logits,
+          labels=labels,
+          train_op_fn=_train_op_fn,
+          trainable_variables=[
+              variables.Variable([1.0, 2.0], dtype=dtypes.float32)
+          ])
 
   def test_train_labels_negative(self):
     head = head_lib.LogisticRegressionHead()
@@ -1819,22 +1815,17 @@ class LogisticRegressionHead(test.TestCase):
       del loss
       return constant_op.constant(expected_train_result)
     # Create estimator spec.
-    spec = head.create_estimator_spec(
-        features={'x': np.array(((42.,),), dtype=np.int32)},
-        mode=ModeKeys.TRAIN,
-        logits=logits,
-        labels=labels,
-        train_op_fn=_train_op_fn,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
-
-    with self.cached_session() as sess:
-      test_lib._initialize_variables(self, spec.scaffold)
-      with self.assertRaisesRegexp(
-          errors.InvalidArgumentError,
-          r'\[Labels must be in range \[0, 1\]\] .* \[\[0.4\]\[-0.2\]\[0.8\]\]'
-      ):
-        _ = sess.run(spec.loss)
+    with self.assertRaisesRegexp(errors.InvalidArgumentError,
+                                 r'Labels must be in range \[0, 1\]'):
+      spec = head.create_estimator_spec(
+          features={'x': np.array(((42.,),), dtype=np.int32)},
+          mode=ModeKeys.TRAIN,
+          logits=logits,
+          labels=labels,
+          train_op_fn=_train_op_fn,
+          trainable_variables=[
+              variables.Variable([1.0, 2.0], dtype=dtypes.float32)
+          ])
 
   def test_predict(self):
     head = head_lib.LogisticRegressionHead()

@@ -2321,17 +2321,12 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
     logits = np.array([[0.5], [-0.3]], dtype=np.float32)
     labels = np.array([[1.2], [0.4]], dtype=np.float32)
     features = {'x': np.array([[42]], dtype=np.float32)}
-    training_loss = head.create_loss(
-        features=features,
-        mode=ModeKeys.TRAIN,
-        logits=logits,
-        labels=labels)[0]
     with self.assertRaisesRegexp(
         errors.InvalidArgumentError,
         r'Labels must <= n_classes - 1'):
-      with self.cached_session():
-        _initialize_variables(self, monitored_session.Scaffold())
-        training_loss.eval()
+      training_loss = head.create_loss(
+          features=features, mode=ModeKeys.TRAIN, logits=logits,
+          labels=labels)[0]
 
   def test_float_labels_train_create_loss(self):
     head = head_lib._binary_logistic_head_with_sigmoid_cross_entropy_loss()

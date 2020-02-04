@@ -974,17 +974,10 @@ class BinaryClassHeadTest(test.TestCase):
             mode=ModeKeys.TRAIN)
       return
 
-    training_loss = head.loss(
-        logits=logits,
-        labels=labels,
-        features=features,
-        mode=ModeKeys.TRAIN)
-    with self.assertRaisesRegexp(
-        errors.InvalidArgumentError,
-        r'Labels must be <= n_classes - 1'):
-      with self.cached_session():
-        test_lib._initialize_variables(self, monitored_session.Scaffold())
-        training_loss.eval()
+    with self.assertRaisesRegexp(errors.InvalidArgumentError,
+                                 r'Labels must be <= n_classes - 1'):
+      training_loss = head.loss(
+          logits=logits, labels=labels, features=features, mode=ModeKeys.TRAIN)
 
   def test_float_labels_train_create_loss(self):
     head = head_lib.BinaryClassHead()
