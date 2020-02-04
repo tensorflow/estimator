@@ -19,6 +19,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import tensorflow as tf
+
 import os
 import re
 
@@ -47,7 +49,7 @@ from tensorflow_estimator.python.estimator.export import export_lib
 from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 
 
-_DEFAULT_SERVING_KEY = signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY
+_DEFAULT_SERVING_KEY = tf.saved_model.DEFAULT_SERVING_SIGNATURE_DEF_KEY
 
 
 def _cast_tensor_to_floatx(x):
@@ -55,14 +57,14 @@ def _cast_tensor_to_floatx(x):
   if x.dtype == K.floatx():
     return x
   else:
-    return math_ops.cast(x, K.floatx())
+    return tf.cast(x, K.floatx())
 
 
 def _convert_tensor(x):
   """Create or cast tensor if needed."""
-  if not tensor_util.is_tensor(x):
+  if not tf.is_tensor(x):
     # x is a numpy array
-    x = sparse_tensor_lib.convert_to_tensor_or_sparse_tensor(x)
+    x = tf.compat.v1.convert_to_tensor_or_sparse_tensor(x)
   return x
 
 
@@ -218,7 +220,7 @@ def _clone_and_build_model(mode,
   if compile_clone:
     # Set iterations to the global step created by tf.train.create_global_step()
     # which is automatically run in the estimator framework.
-    global_step = training_util.get_or_create_global_step()
+    global_step = tf.compat.v1.train.get_or_create_global_step()
     K.track_variable(global_step)
 
   clone = models.clone_and_build_model(
@@ -292,7 +294,7 @@ def _create_keras_model_fn(keras_model, custom_objects=None,
     # We need to make sure that the output names of the last layer in the model
     # is the same for each of the cloned models. This is required for mirrored
     # strategy when we call regroup.
-    if distribution_strategy_context.has_strategy():
+    if tf.distribute.has_strategy():
       for name in model.output_names:
         name = re.compile(r'_\d$').sub('', name)
         model_output_names.append(name)
@@ -328,14 +330,14 @@ def _create_keras_model_fn(keras_model, custom_objects=None,
 
     scaffold = None
     if save_object_ckpt:
-      model._track_trackable(training_util.get_global_step(),
+      model._track_trackable(tf.compat.v1.train.get_global_step(),
                              'estimator_global_step')
       # Create saver that maps variable names to object-checkpoint keys.
       object_graph = graph_view.ObjectGraphView(model)
       var_list = object_graph.frozen_saveable_objects()
-      saver = saver_lib.Saver(var_list=var_list, sharded=True)
+      saver = tf.compat.v1.train.Saver(var_list=var_list, sharded=True)
       saver._object_restore_saver = trackable_util.frozen_saver(model)
-      scaffold = monitored_session.Scaffold(saver=saver)
+      scaffold = tf.compat.v1.train.Scaffold(saver=saver)
 
     return model_fn_lib.EstimatorSpec(
         mode=mode,
@@ -369,16 +371,16 @@ def _save_first_checkpoint(keras_model, custom_objects, config,
   # save checkpoint into subdirectory to allow warm start
   keras_model_dir = os.path.join(config.model_dir, 'keras')
   # Load weights and save to checkpoint if there is no checkpoint
-  latest_path = checkpoint_management.latest_checkpoint(keras_model_dir)
+  latest_path = tf.train.latest_checkpoint(keras_model_dir)
   if not latest_path:
     keras_weights = None
     if _any_weight_initialized(keras_model):
       keras_weights = keras_model.get_weights()
-    if not gfile.IsDirectory(keras_model_dir):
-      gfile.MakeDirs(keras_model_dir)
-    with ops.Graph().as_default():
-      random_seed.set_random_seed(config.tf_random_seed)
-      training_util.create_global_step()
+    if not tf.compat.v1.gfile.IsDirectory(keras_model_dir):
+      tf.compat.v1.gfile.MakeDirs(keras_model_dir)
+    with tf.Graph().as_default():
+      tf.compat.v1.random.set_random_seed(config.tf_random_seed)
+      tf.compat.v1.train.create_global_step()
       model = _clone_and_build_model(ModeKeys.TRAIN, keras_model,
                                      custom_objects)
 
@@ -391,7 +393,7 @@ def _save_first_checkpoint(keras_model, custom_objects, config,
       model._make_train_function()  # pylint: disable=protected-access
 
       # save to checkpoint
-      with session.Session(config=config.session_config) as sess:
+      with tf.compat.v1.Session(config=config.session_config) as sess:
         if keras_weights:
           model.set_weights(keras_weights)
         # model._make_train_function() will potentially create the optimizer
@@ -400,11 +402,11 @@ def _save_first_checkpoint(keras_model, custom_objects, config,
 
         if save_object_ckpt:
           model._track_trackable(  # pylint: disable=protected-access
-              training_util.get_global_step(), 'estimator_global_step')
+              tf.compat.v1.train.get_global_step(), 'estimator_global_step')
           latest_path = os.path.join(keras_model_dir, 'keras_model.ckpt')
           model.save_weights(latest_path)
         else:
-          saver = saver_lib.Saver()
+          saver = tf.compat.v1.train.Saver()
           latest_path = os.path.join(keras_model_dir, 'keras_model.ckpt')
           saver.save(sess, latest_path)
 
@@ -434,8 +436,8 @@ def _get_file_from_google_storage(keras_model_path, model_dir):
   path, blob_name = os.path.split(keras_model_path)
   _, bucket_name = os.path.split(path)
   keras_model_dir = os.path.join(model_dir, 'keras')
-  if not gfile.Exists(keras_model_dir):
-    gfile.MakeDirs(keras_model_dir)
+  if not tf.compat.v1.gfile.Exists(keras_model_dir):
+    tf.compat.v1.gfile.MakeDirs(keras_model_dir)
   file_name = os.path.join(keras_model_dir, 'keras_model.h5')
   try:
     blob = storage_client.get_bucket(bucket_name).blob(blob_name)
@@ -444,7 +446,7 @@ def _get_file_from_google_storage(keras_model_path, model_dir):
     raise ValueError('Failed to download keras model, please check '
                      'environment variable GOOGLE_APPLICATION_CREDENTIALS '
                      'and model path storage.googleapis.com/{bucket}/{object}.')
-  logging.info('Saving model to {}'.format(file_name))
+  tf.compat.v1.logging.info('Saving model to {}'.format(file_name))
   del storage_client
   return file_name
 
@@ -536,10 +538,10 @@ def model_to_estimator(keras_model=None,
         'gs://') or 'storage.googleapis.com' in keras_model_path:
       keras_model_path = _get_file_from_google_storage(keras_model_path,
                                                        config.model_dir)
-    logging.info('Loading models from %s', keras_model_path)
+    tf.compat.v1.logging.info('Loading models from %s', keras_model_path)
     keras_model = models.load_model(keras_model_path)
   else:
-    logging.info('Using the Keras model provided.')
+    tf.compat.v1.logging.info('Using the Keras model provided.')
     keras_model = keras_model
 
   if checkpoint_format is None or checkpoint_format == 'checkpoint':
@@ -568,12 +570,12 @@ def model_to_estimator(keras_model=None,
     # session has already been created, the GPUOptions passed to the first
     # session sticks.
     if config.session_config.HasField('gpu_options'):
-      logging.warning(
+      tf.compat.v1.logging.warn(
           'The Keras backend session has already been set. '
           'The _session_config passed to model_to_estimator will not be used.')
   else:
     # Pass the config into keras backend's default session.
-    sess = session.Session(config=config.session_config)
+    sess = tf.compat.v1.Session(config=config.session_config)
     K.set_session(sess)
 
   warm_start_path = None
@@ -581,7 +583,7 @@ def model_to_estimator(keras_model=None,
     warm_start_path = _save_first_checkpoint(keras_model, custom_objects,
                                              config, save_object_ckpt)
   elif keras_model.built:
-    logging.warning('You are creating an Estimator from a Keras model manually '
+    tf.compat.v1.logging.warn('You are creating an Estimator from a Keras model manually '
                     'subclassed from `Model`, that was already called on some '
                     'inputs (and thus already had weights). We are currently '
                     'unable to preserve the model\'s state (its weights) as '

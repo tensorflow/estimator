@@ -18,6 +18,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import tensorflow as tf
+
 import abc
 import os
 
@@ -286,7 +288,7 @@ class BestExporter(Exporter):
 
     if self._model_dir != estimator.model_dir and self._event_file_pattern:
       # Loads best metric from event files.
-      tf_logging.info('Loading best metric from event files.')
+      tf.compat.v1.logging.info('Loading best metric from event files.')
 
       self._model_dir = estimator.model_dir
       full_event_file_pattern = os.path.join(self._model_dir,
@@ -299,7 +301,7 @@ class BestExporter(Exporter):
         not self._has_exported or self._compare_fn(
             best_eval_result=self._best_eval_result,
             current_eval_result=eval_result)):
-      tf_logging.info('Performing best model export.')
+      tf.compat.v1.logging.info('Performing best model export.')
       self._best_eval_result = eval_result
       export_result = self._saved_model_exporter.export(
           estimator, export_path, checkpoint_path, eval_result,
@@ -335,9 +337,9 @@ class BestExporter(Exporter):
     for p in delete_filter(
         gc._get_paths(export_dir_base, parser=_export_version_parser)):
       try:
-        gfile.DeleteRecursively(p.path)
-      except errors_impl.NotFoundError as e:
-        tf_logging.warn('Can not delete %s recursively: %s', p.path, e)
+        tf.compat.v1.gfile.DeleteRecursively(p.path)
+      except tf.errors.NotFoundError as e:
+        tf.compat.v1.logging.warn('Can not delete %s recursively: %s', p.path, e)
     # pylint: enable=protected-access
 
   def _get_best_eval_result(self, event_files):
@@ -353,8 +355,8 @@ class BestExporter(Exporter):
       return None
 
     best_eval_result = None
-    for event_file in gfile.Glob(os.path.join(event_files)):
-      for event in summary_iterator.summary_iterator(event_file):
+    for event_file in tf.compat.v1.gfile.Glob(os.path.join(event_files)):
+      for event in tf.compat.v1.train.summary_iterator(event_file):
         if event.HasField('summary'):
           event_eval_result = {}
           for value in event.summary.value:
@@ -411,7 +413,7 @@ class FinalExporter(Exporter):
     if not is_the_final_export:
       return None
 
-    tf_logging.info('Performing the final export in the end of training.')
+    tf.compat.v1.logging.info('Performing the final export in the end of training.')
 
     return self._saved_model_exporter.export(estimator, export_path,
                                              checkpoint_path, eval_result,
@@ -500,7 +502,7 @@ class LatestExporter(Exporter):
     for p in delete_filter(
         gc._get_paths(export_dir_base, parser=_export_version_parser)):
       try:
-        gfile.DeleteRecursively(p.path)
-      except errors_impl.NotFoundError as e:
-        tf_logging.warn('Can not delete %s recursively: %s', p.path, e)
+        tf.compat.v1.gfile.DeleteRecursively(p.path)
+      except tf.errors.NotFoundError as e:
+        tf.compat.v1.logging.warn('Can not delete %s recursively: %s', p.path, e)
     # pylint: enable=protected-access

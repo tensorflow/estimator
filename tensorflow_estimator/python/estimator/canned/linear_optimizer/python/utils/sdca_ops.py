@@ -19,6 +19,7 @@ from __future__ import print_function
 
 import collections
 
+import tensorflow as tf
 from six.moves import range
 
 from tensorflow.python.compat import compat
@@ -107,14 +108,14 @@ class _SparseFeatureColumn(object):
     with name_scope(None, 'SparseFeatureColumn',
                     [example_indices, feature_indices]):
       self._example_indices = internal_convert_to_tensor(
-          example_indices, name='example_indices', dtype=dtypes.int64)
+          example_indices, name='example_indices', dtype=tf.dtypes.int64)
       self._feature_indices = internal_convert_to_tensor(
-          feature_indices, name='feature_indices', dtype=dtypes.int64)
+          feature_indices, name='feature_indices', dtype=tf.dtypes.int64)
     self._feature_values = None
     if feature_values is not None:
       with name_scope(None, 'SparseFeatureColumn', [feature_values]):
         self._feature_values = internal_convert_to_tensor(
-            feature_values, name='feature_values', dtype=dtypes.float32)
+            feature_values, name='feature_values', dtype=tf.dtypes.float32)
 
   @property
   def example_indices(self):
@@ -236,7 +237,7 @@ class _SDCAModel(object):
     if options['symmetric_l2_regularization'] <= 0.0:
       raise ValueError('symmetric_l2_regularization should be positive.')
     if options['symmetric_l2_regularization'] <= 1.0:
-      logging.warn('symmetric_l2_regularization for SDCA should typically be '
+      tf.compat.v1.logging.warn('symmetric_l2_regularization for SDCA should typically be '
                    'larger than for online optimization methods. Recommended '
                    'value is of the order of the average L2 norm of the '
                    'training examples.')
@@ -248,8 +249,8 @@ class _SDCAModel(object):
     self._options = options
     self._create_slots()
     self._hashtable = _ShardedMutableDenseHashTable(
-        key_dtype=dtypes.int64,
-        value_dtype=dtypes.float32,
+        key_dtype=tf.dtypes.int64,
+        value_dtype=tf.dtypes.float32,
         num_shards=self._num_table_shards(),
         default_value=[0.0, 0.0, 0.0, 0.0],
         # SdcaFprint never returns 0 or 1 for the low64 bits, so this a safe
@@ -257,8 +258,8 @@ class _SDCAModel(object):
         empty_key=[0, 0],
         deleted_key=[1, 1])
 
-    summary.scalar('approximate_duality_gap', self.approximate_duality_gap())
-    summary.scalar('examples_seen', self._hashtable.size())
+    tf.compat.v1.summary.scalar('approximate_duality_gap', self.approximate_duality_gap())
+    tf.compat.v1.summary.scalar('examples_seen', self._hashtable.size())
 
   def _symmetric_l1_regularization(self):
     return self._options['symmetric_l1_regularization']
@@ -297,18 +298,18 @@ class _SDCAModel(object):
           var_list = []
           for v in var:
             with ops.colocate_with(v):
-              slot_var = var_ops.Variable(
-                  initial_value=array_ops.zeros_like(v.initialized_value(),
-                                                     dtypes.float32),
+              slot_var = tf.Variable(
+                  initial_value=tf.compat.v1.zeros_like(v.initialized_value(),
+                                                     tf.dtypes.float32),
                   name=v.op.name + '_unshrunk')
               var_list.append(slot_var)
           self._slots['unshrunk_' + name].append(var_list)
         else:
-          with ops.device(var.device):
+          with tf.compat.v1.device(var.device):
             self._slots['unshrunk_' + name].append(
-                var_ops.Variable(
-                    array_ops.zeros_like(var.initialized_value(),
-                                         dtypes.float32),
+                tf.Variable(
+                    tf.compat.v1.zeros_like(var.initialized_value(),
+                                         tf.dtypes.float32),
                     name=var.op.name + '_unshrunk'))
 
   def _assert_specified(self, items, check_in):
@@ -335,12 +336,12 @@ class _SDCAModel(object):
         for var in self._variables[name]:
           for v in self._var_to_list(var):
             weights = internal_convert_to_tensor(v)
-            with ops.device(weights.device):
+            with tf.compat.v1.device(weights.device):
               sums.append(
-                  math_ops.reduce_sum(
-                      math_ops.abs(math_ops.cast(weights, dtypes.float64))))
+                  tf.math.reduce_sum(
+                      tf.math.abs(tf.cast(weights, tf.dtypes.float64))))
       # SDCA L1 regularization cost is: l1 * sum(|weights|)
-      return self._symmetric_l1_regularization() * math_ops.add_n(sums)
+      return self._symmetric_l1_regularization() * tf.math.add_n(sums)
 
   def _l2_loss(self):
     """Computes the (un-normalized) l2 loss of the model."""
@@ -350,11 +351,11 @@ class _SDCAModel(object):
         for var in self._variables[name]:
           for v in self._var_to_list(var):
             weights = internal_convert_to_tensor(v)
-            with ops.device(weights.device):
-              sums.append(math_ops.reduce_sum(math_ops.square(math_ops.cast(
-                  weights, dtypes.float64))))
+            with tf.compat.v1.device(weights.device):
+              sums.append(tf.math.reduce_sum(tf.math.square(tf.cast(
+                  weights, tf.dtypes.float64))))
       # SDCA L2 regularization cost is: l2 * sum(weights^2) / 2
-      return self._symmetric_l2_regularization() * math_ops.add_n(sums) / 2.0
+      return self._symmetric_l2_regularization() * tf.math.add_n(sums) / 2.0
 
   def _convert_n_to_tensor(self, input_list, as_ref=False):
     """Converts input list to a set of tensors."""
@@ -367,7 +368,7 @@ class _SDCAModel(object):
       tensor_to_convert = x
       if isinstance(x, list) or isinstance(x, var_ops.PartitionedVariable):
         # We only allow for partitioning on the first axis.
-        tensor_to_convert = array_ops.concat(x, axis=0)
+        tensor_to_convert = tf.concat(x, axis=0)
       output_list.append(internal_convert_to_tensor(
           tensor_to_convert, as_ref=as_ref))
     return output_list
@@ -386,26 +387,26 @@ class _SDCAModel(object):
       examples: Examples to compute predictions on.
     """
     with name_scope('sdca/prediction'):
-      batch_size = array_ops.shape(examples['example_ids'])[0]
+      batch_size = tf.compat.v1.shape(examples['example_ids'])[0]
 
-      predictions = array_ops.zeros([batch_size])
+      predictions = tf.zeros([batch_size])
       sparse_variables = self._convert_n_to_tensor(self._variables[
           'sparse_features_weights'])
       for sfc, sv in zip(examples['sparse_features'], sparse_variables):
-        unpadded_dot_product = math_ops.segment_sum(
-            math_ops.multiply(
-                array_ops.gather(sv, sfc.feature_indices), sfc.feature_values),
+        unpadded_dot_product = tf.math.segment_sum(
+            tf.math.multiply(
+                tf.compat.v1.gather(sv, sfc.feature_indices), sfc.feature_values),
             sfc.example_indices)
-        predictions += array_ops.pad(unpadded_dot_product, [[
-            0, batch_size-array_ops.shape(unpadded_dot_product)[0]]])
+        predictions += tf.compat.v1.pad(unpadded_dot_product, [[
+            0, batch_size-tf.compat.v1.shape(unpadded_dot_product)[0]]])
 
       dense_features = self._convert_n_to_tensor(examples['dense_features'])
       dense_variables = self._convert_n_to_tensor(self._variables[
           'dense_features_weights'])
       for i in range(len(dense_variables)):
-        predictions += array_ops.squeeze(
-            math_ops.matmul(dense_features[i],
-                            array_ops.expand_dims(dense_variables[i], -1)))
+        predictions += tf.compat.v1.squeeze(
+            tf.linalg.matmul(dense_features[i],
+                            tf.compat.v1.expand_dims(dense_variables[i], -1)))
 
     return predictions
 
@@ -433,11 +434,11 @@ class _SDCAModel(object):
     if self._options['loss_type'] == 'logistic_loss':
       # Convert logits to probability for logistic loss predictions.
       with name_scope('sdca/logistic_prediction'):
-        result = math_ops.sigmoid(result)
+        result = tf.math.sigmoid(result)
     elif self._options['loss_type'] == 'poisson_loss':
       # Exponeniate the prediction for poisson loss predictions.
       with name_scope('sdca/poisson_prediction'):
-        result = math_ops.exp(result)
+        result = tf.math.exp(result)
     return result
 
   def _get_partitioned_update_ops(self,
@@ -453,12 +454,12 @@ class _SDCAModel(object):
     num_partitions = num_partitions_by_var[v_num]
     p_assignments = p_assignments_by_var[v_num]
     gather_ids = gather_ids_by_var[v_num]
-    updates = data_flow_ops.dynamic_partition(
+    updates = tf.dynamic_partition(
         full_update, p_assignments, num_partitions)
     update_ops = []
     for p in range(num_partitions):
       with ops.colocate_with(weights[p]):
-        result = state_ops.scatter_add(weights[p], gather_ids[p], updates[p])
+        result = tf.compat.v1.scatter_add(weights[p], gather_ids[p], updates[p])
       update_ops.append(result)
     return update_ops
 
@@ -486,7 +487,7 @@ class _SDCAModel(object):
         if sf.feature_values is not None:
           sparse_features_values.append(sf.feature_values)
 
-      example_ids_hashed = gen_sdca_ops.sdca_fprint(
+      example_ids_hashed = tf.compat.v1.train.sdca_fprint(
           internal_convert_to_tensor(self._examples['example_ids']))
       example_state_data = self._hashtable.lookup(example_ids_hashed)
       # Solver returns example_state_update, new delta sparse_feature_weights
@@ -505,13 +506,13 @@ class _SDCAModel(object):
           zip(self._slots['unshrunk_sparse_features_weights'],
               sparse_feature_indices)):
         # Append the sparse_indices (in full-variable space).
-        sparse_idx = math_ops.cast(
-            array_ops.unique(math_ops.cast(i, dtypes.int32))[0],
-            dtypes.int64)
+        sparse_idx = tf.cast(
+            tf.unique(tf.cast(i, tf.dtypes.int32))[0],
+            tf.dtypes.int64)
         sparse_indices.append(sparse_idx)
         if isinstance(w, list) or isinstance(w, var_ops.PartitionedVariable):
           num_partitions = len(w)
-          flat_ids = array_ops.reshape(sparse_idx, [-1])
+          flat_ids = tf.reshape(sparse_idx, [-1])
           # We use div partitioning, which is easiest to support downstream.
           # Compute num_total_ids as the sum of dim-0 of w, then assign
           # to partitions based on a constant number of ids per partition.
@@ -519,38 +520,38 @@ class _SDCAModel(object):
           dim_0_size = self._get_first_dimension_size_statically(
               w, num_partitions)
 
-          if tensor_shape.dimension_value(dim_0_size):
-            num_total_ids = constant_op.constant(
-                tensor_shape.dimension_value(dim_0_size),
+          if tf.compat.dimension_value(dim_0_size):
+            num_total_ids = tf.constant(
+                tf.compat.dimension_value(dim_0_size),
                 flat_ids.dtype)
           else:
             dim_0_sizes = []
             for p in range(num_partitions):
-              if tensor_shape.dimension_value(w[p].shape[0]) is not None:
-                dim_0_sizes.append(tensor_shape.dimension_value(w[p].shape[0]))
+              if tf.compat.dimension_value(w[p].shape[0]) is not None:
+                dim_0_sizes.append(tf.compat.dimension_value(w[p].shape[0]))
               else:
                 with ops.colocate_with(w[p]):
-                  dim_0_sizes.append(array_ops.shape(w[p])[0])
-            num_total_ids = math_ops.reduce_sum(
-                math_ops.cast(array_ops.stack(dim_0_sizes), flat_ids.dtype))
+                  dim_0_sizes.append(tf.compat.v1.shape(w[p])[0])
+            num_total_ids = tf.math.reduce_sum(
+                tf.cast(tf.stack(dim_0_sizes), flat_ids.dtype))
           ids_per_partition = num_total_ids // num_partitions
           extras = num_total_ids % num_partitions
 
-          p_assignments = math_ops.maximum(
+          p_assignments = tf.math.maximum(
               flat_ids // (ids_per_partition + 1),
               (flat_ids - extras) // ids_per_partition)
 
           # Emulate a conditional using a boolean indicator tensor
-          new_ids = array_ops.where_v2(p_assignments < extras,
+          new_ids = tf.where(p_assignments < extras,
                                        flat_ids % (ids_per_partition + 1),
                                        (flat_ids - extras) % ids_per_partition)
 
           # Cast partition assignments to int32 for use in dynamic_partition.
           # There really should not be more than 2^32 partitions.
-          p_assignments = math_ops.cast(p_assignments, dtypes.int32)
+          p_assignments = tf.cast(p_assignments, tf.dtypes.int32)
           # Partition list of ids based on assignments into num_partitions
           # separate lists.
-          gather_ids = data_flow_ops.dynamic_partition(new_ids,
+          gather_ids = tf.dynamic_partition(new_ids,
                                                        p_assignments,
                                                        num_partitions)
           # Add these into the dictionaries for use in the later update.
@@ -563,23 +564,23 @@ class _SDCAModel(object):
           for p in range(num_partitions):
             with ops.colocate_with(w[p]):
               partition_gathered_weights.append(
-                  array_ops.gather(w[p], gather_ids[p]))
+                  tf.compat.v1.gather(w[p], gather_ids[p]))
 
           # Stitch the weights back together in the same order they were before
           # we dynamic_partitioned them.
-          condition_indices = data_flow_ops.dynamic_partition(
-              math_ops.range(array_ops.shape(new_ids)[0]),
+          condition_indices = tf.dynamic_partition(
+              tf.range(tf.compat.v1.shape(new_ids)[0]),
               p_assignments, num_partitions)
-          batch_gathered_weights = data_flow_ops.dynamic_stitch(
+          batch_gathered_weights = tf.dynamic_stitch(
               condition_indices, partition_gathered_weights)
         else:
           w_as_tensor = internal_convert_to_tensor(w)
-          with ops.device(w_as_tensor.device):
-            batch_gathered_weights = array_ops.gather(
+          with tf.compat.v1.device(w_as_tensor.device):
+            batch_gathered_weights = tf.compat.v1.gather(
                 w_as_tensor, sparse_idx)
         sparse_weights.append(batch_gathered_weights)
 
-      if compat.forward_compatible(year=2018, month=10, day=30):
+      if tf.compat.forward_compatible(year=2018, month=10, day=30):
         esu, sfw, dfw = gen_sdca_ops.sdca_optimizer_v2(
             sparse_example_indices,
             sparse_feature_indices,
@@ -599,7 +600,7 @@ class _SDCAModel(object):
             num_inner_iterations=1,
             adaptive=self._adaptive())
       else:
-        esu, sfw, dfw = gen_sdca_ops.sdca_optimizer(
+        esu, sfw, dfw = tf.compat.v1.train.sdca_optimizer(
             sparse_example_indices,
             sparse_feature_indices,
             sparse_features_values,
@@ -618,7 +619,7 @@ class _SDCAModel(object):
             num_inner_iterations=1,
             adaptative=self._adaptive())
 
-      with ops.control_dependencies([esu]):
+      with tf.control_dependencies([esu]):
         update_ops = [self._hashtable.insert(example_ids_hashed, esu)]
         # Update the weights before the proximal step.
         for v_num, (w, i, u) in enumerate(
@@ -630,20 +631,20 @@ class _SDCAModel(object):
                 v_num, num_partitions_by_var, p_assignments_by_var,
                 gather_ids_by_var, w, u, p_assignments, num_partitions)
           else:
-            update_ops.append(state_ops.scatter_add(w, i, u))
+            update_ops.append(tf.compat.v1.scatter_add(w, i, u))
         for w, u in zip(self._slots['unshrunk_dense_features_weights'], dfw):
           if (isinstance(w, var_ops.PartitionedVariable) or
               isinstance(w, list)):
-            split_updates = array_ops.split(
+            split_updates = tf.split(
                 u, num_or_size_splits=[v.shape.as_list()[0] for v in w])
             for v, split_update in zip(w, split_updates):
-              update_ops.append(state_ops.assign_add(v, split_update))
+              update_ops.append(tf.compat.v1.assign_add(v, split_update))
           else:
-            update_ops.append(state_ops.assign_add(w, u))
+            update_ops.append(tf.compat.v1.assign_add(w, u))
       if global_step is None:
-        return control_flow_ops.group(*update_ops)
-      with ops.control_dependencies(update_ops):
-        return state_ops.assign_add(global_step, 1, name=name).op
+        return tf.group(*update_ops)
+      with tf.control_dependencies(update_ops):
+        return tf.compat.v1.assign_add(global_step, 1, name=name).op
 
   def update_weights(self, train_op):
     """Updates the model weights.
@@ -658,7 +659,7 @@ class _SDCAModel(object):
     Returns:
       An Operation that updates the model weights.
     """
-    with ops.control_dependencies([train_op]):
+    with tf.control_dependencies([train_op]):
       update_ops = []
       # Copy over unshrunk weights to user provided variables.
       for name in ['sparse_features_weights', 'dense_features_weights']:
@@ -671,18 +672,18 @@ class _SDCAModel(object):
     if self._symmetric_l1_regularization() > 0:
       shrinkage = (self._symmetric_l1_regularization() /
                    self._symmetric_l2_regularization())
-      with ops.control_dependencies(update_ops):
+      with tf.control_dependencies(update_ops):
         update_ops = []
         for name in ['sparse_features_weights', 'dense_features_weights']:
           for var in self._variables[name]:
             for v in self._var_to_list(var):
-              with ops.device(v.device):
-                v_shrunk = math_ops.sign(v) * math_ops.maximum(
-                    0.0, math_ops.abs(v) - shrinkage)
+              with tf.compat.v1.device(v.device):
+                v_shrunk = tf.math.sign(v) * tf.math.maximum(
+                    0.0, tf.math.abs(v) - shrinkage)
                 update_ops.append(v.assign(v_shrunk))
-        return control_flow_ops.group(*update_ops)
+        return tf.group(*update_ops)
     else:
-      return control_flow_ops.group(*update_ops)
+      return tf.group(*update_ops)
 
   def approximate_duality_gap(self):
     """Add operations to compute the approximate duality gap.
@@ -695,17 +696,17 @@ class _SDCAModel(object):
       _, values_list = self._hashtable.export_sharded()
       shard_sums = []
       for values in values_list:
-        with ops.device(values.device):
+        with tf.compat.v1.device(values.device):
           # For large tables to_double() below allocates a large temporary
           # tensor that is freed once the sum operation completes. To reduce
           # peak memory usage in cases where we have multiple large tables on a
           # single device, we serialize these operations.
           # Note that we need double precision to get accurate results.
-          with ops.control_dependencies(shard_sums):
+          with tf.control_dependencies(shard_sums):
             shard_sums.append(
-                math_ops.reduce_sum(
-                    math_ops.cast(values, dtype=dtypes.float64), 0))
-      summed_values = math_ops.add_n(shard_sums)
+                tf.math.reduce_sum(
+                    tf.cast(values, dtype=tf.dtypes.float64), 0))
+      summed_values = tf.math.add_n(shard_sums)
 
       primal_loss = summed_values[1]
       dual_loss = summed_values[2]
@@ -733,47 +734,47 @@ class _SDCAModel(object):
     ], examples)
     self._assert_list(['sparse_features', 'dense_features'], examples)
     with name_scope('sdca/unregularized_loss'):
-      predictions = math_ops.cast(
-          self._linear_predictions(examples), dtypes.float64)
-      labels = math_ops.cast(
+      predictions = tf.cast(
+          self._linear_predictions(examples), tf.dtypes.float64)
+      labels = tf.cast(
           internal_convert_to_tensor(examples['example_labels']),
-          dtypes.float64)
-      weights = math_ops.cast(
+          tf.dtypes.float64)
+      weights = tf.cast(
           internal_convert_to_tensor(examples['example_weights']),
-          dtypes.float64)
+          tf.dtypes.float64)
 
       if self._options['loss_type'] == 'logistic_loss':
-        return math_ops.reduce_sum(math_ops.multiply(
+        return tf.math.reduce_sum(tf.math.multiply(
             sigmoid_cross_entropy_with_logits(labels=labels,
                                               logits=predictions),
-            weights)) / math_ops.reduce_sum(weights)
+            weights)) / tf.math.reduce_sum(weights)
 
       if self._options['loss_type'] == 'poisson_loss':
-        return math_ops.reduce_sum(math_ops.multiply(
+        return tf.math.reduce_sum(tf.math.multiply(
             log_poisson_loss(targets=labels, log_input=predictions),
-            weights)) / math_ops.reduce_sum(weights)
+            weights)) / tf.math.reduce_sum(weights)
 
       if self._options['loss_type'] in ['hinge_loss', 'smooth_hinge_loss']:
         # hinge_loss = max{0, 1 - y_i w*x} where y_i \in {-1, 1}. So, we need to
         # first convert 0/1 labels into -1/1 labels.
-        all_ones = array_ops.ones_like(predictions)
-        adjusted_labels = math_ops.subtract(2 * labels, all_ones)
+        all_ones = tf.compat.v1.ones_like(predictions)
+        adjusted_labels = tf.math.subtract(2 * labels, all_ones)
         # Tensor that contains (unweighted) error (hinge loss) per
         # example.
-        error = nn_ops.relu(
-            math_ops.subtract(all_ones,
-                              math_ops.multiply(adjusted_labels, predictions)))
-        weighted_error = math_ops.multiply(error, weights)
-        return math_ops.reduce_sum(weighted_error) / math_ops.reduce_sum(
+        error = tf.nn.relu(
+            tf.math.subtract(all_ones,
+                              tf.math.multiply(adjusted_labels, predictions)))
+        weighted_error = tf.math.multiply(error, weights)
+        return tf.math.reduce_sum(weighted_error) / tf.math.reduce_sum(
             weights)
 
       # squared loss
-      err = math_ops.subtract(labels, predictions)
+      err = tf.math.subtract(labels, predictions)
 
-      weighted_squared_err = math_ops.multiply(math_ops.square(err), weights)
+      weighted_squared_err = tf.math.multiply(tf.math.square(err), weights)
       # SDCA squared loss function is sum(err^2) / (2*sum(weights))
-      return (math_ops.reduce_sum(weighted_squared_err) /
-              (2.0 * math_ops.reduce_sum(weights)))
+      return (tf.math.reduce_sum(weighted_squared_err) /
+              (2.0 * tf.math.reduce_sum(weights)))
 
   def regularized_loss(self, examples):
     """Add operations to compute the loss with regularization loss included.
@@ -794,5 +795,5 @@ class _SDCAModel(object):
     with name_scope('sdca/regularized_loss'):
       weights = internal_convert_to_tensor(examples['example_weights'])
       return ((self._l1_loss() + self._l2_loss()) /
-              math_ops.reduce_sum(math_ops.cast(weights, dtypes.float64)) +
+              tf.math.reduce_sum(tf.cast(weights, tf.dtypes.float64)) +
               self.unregularized_loss(examples))

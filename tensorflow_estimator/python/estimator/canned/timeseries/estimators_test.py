@@ -19,6 +19,7 @@ from __future__ import print_function
 import functools
 import tempfile
 
+import tensorflow as tf
 import six
 
 from tensorflow.python.client import session
@@ -47,8 +48,8 @@ class _SeedRunConfig(estimator_lib.RunConfig):
 
 
 def _generate_data():
-  time = math_ops.range(20, dtype=dtypes.int64)
-  data = array_ops.reshape(math_ops.range(20, dtype=dtypes.float32), (20, 1))
+  time = tf.range(20, dtype=tf.dtypes.int64)
+  data = tf.reshape(tf.range(20, dtype=tf.dtypes.float32), (20, 1))
   exogenous = data
   return time, data, exogenous
 
@@ -63,11 +64,11 @@ def _build_input_fn_with_seed(seed):
     }
 
   def batch_windows(time, data, exogenous):
-    return dataset_ops.Dataset.zip((time, data, exogenous)).batch(
+    return tf.compat.v1.data.Dataset.zip((time, data, exogenous)).batch(
         16, drop_remainder=True)
 
   def input_fn():
-    dataset = dataset_ops.Dataset.from_tensor_slices(_generate_data())
+    dataset = tf.compat.v1.data.Dataset.from_tensor_slices(_generate_data())
     dataset = dataset.window(16, shift=1, drop_remainder=True)
     dataset = dataset.shuffle(1000, seed=seed).repeat()
     dataset = dataset.flat_map(batch_windows).batch(16).map(map_to_dict)
@@ -77,14 +78,14 @@ def _build_input_fn_with_seed(seed):
 
 
 @test_util.run_v1_only("Currently incompatible with ResourceVariable")
-class TimeSeriesRegressorTest(test.TestCase):
+class TimeSeriesRegressorTest(tf.test.TestCase):
 
   def _fit_restore_fit_test_template(self, estimator_fn, test_saved_model):
     """Tests restoring previously fit models."""
     temp_dir = self.get_temp_dir()
     model_dir = tempfile.mkdtemp(dir=temp_dir)
     exogenous_feature_columns = (
-        feature_column.numeric_column("exogenous"),
+        tf.feature_column.numeric_column("exogenous"),
     )
     first_estimator = estimator_fn(model_dir, exogenous_feature_columns)
     train_input_fn = _build_input_fn_with_seed(2)
@@ -104,16 +105,16 @@ class TimeSeriesRegressorTest(test.TestCase):
     second_evaluation = second_estimator.evaluate(
         input_fn=eval_input_fn, steps=1)
     exogenous_values_ten_steps = {
-        "exogenous": math_ops.range(10, dtype=dtypes.float32)[None, :, None]
+        "exogenous": tf.range(10, dtype=tf.dtypes.float32)[None, :, None]
     }
     input_receiver_fn = first_estimator.build_raw_serving_input_receiver_fn()
     export_location = first_estimator.export_saved_model(temp_dir,
                                                          input_receiver_fn)
     if not test_saved_model:
       return
-    with ops.Graph().as_default():
-      with session.Session() as sess:
-        signatures = loader.load(sess, [tag_constants.SERVING], export_location)
+    with tf.Graph().as_default():
+      with tf.compat.v1.Session() as sess:
+        signatures = tf.compat.v1.saved_model.load(sess, [tf.saved_model.SERVING], export_location)
         # Test that prediction and filtering can continue from evaluation output
         _ = saved_model_utils.predict_continuation(
             continue_from=second_evaluation,
@@ -137,13 +138,13 @@ class TimeSeriesRegressorTest(test.TestCase):
             steps=1,
             exogenous_features={
                 "exogenous":
-                    math_ops.range(1, dtype=dtypes.float32)[None, :, None]
+                    tf.range(1, dtype=tf.dtypes.float32)[None, :, None]
             },
             signatures=signatures,
             session=sess)
         self.assertEqual(
             times[-1] + 3,
-            array_ops.squeeze(
+            tf.compat.v1.squeeze(
                 second_saved_prediction[feature_keys.PredictionResults.TIMES]))
         saved_model_utils.filter_continuation(
             continue_from=first_filtering,
@@ -163,9 +164,9 @@ class TimeSeriesRegressorTest(test.TestCase):
              "exogenous"],
             signatures.signature_def[
                 feature_keys.SavedModelLabels.COLD_START_FILTER].inputs.keys())
-        batched_times = array_ops.tile(
-            math_ops.range(30, dtype=dtypes.int64)[None, :], (10, 1))
-        batched_values = array_ops.ones([10, 30, 1])
+        batched_times = tf.tile(
+            tf.range(30, dtype=tf.dtypes.int64)[None, :], (10, 1))
+        batched_values = tf.ones([10, 30, 1])
         state = saved_model_utils.cold_start_filter(
             signatures=signatures,
             session=sess,
@@ -175,14 +176,14 @@ class TimeSeriesRegressorTest(test.TestCase):
                 "exogenous": 10. + batched_values
             })
         predict_times = math_ops.tile(
-            math_ops.range(30, 45, dtype=dtypes.int64)[None, :], (10, 1))
+            tf.range(30, 45, dtype=tf.dtypes.int64)[None, :], (10, 1))
         predictions = saved_model_utils.predict_continuation(
             continue_from=state,
             times=predict_times,
             exogenous_features={
                 "exogenous":
                     math_ops.tile(
-                        math_ops.range(15, dtype=dtypes.float32), (10,))
+                        tf.range(15, dtype=tf.dtypes.float32), (10,))
                     [None, :, None]
             },
             signatures=signatures,
@@ -222,4 +223,4 @@ class TimeSeriesRegressorTest(test.TestCase):
 
 
 if __name__ == "__main__":
-  test.main()
+  tf.test.main()

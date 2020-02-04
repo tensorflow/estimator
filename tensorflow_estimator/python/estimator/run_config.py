@@ -22,6 +22,7 @@ import copy
 import json
 import os
 
+import tensorflow as tf
 import six
 
 from tensorflow.core.protobuf import config_pb2
@@ -532,7 +533,7 @@ class RunConfig(object):
 
     tf_config = json.loads(os.environ.get(_TF_CONFIG_ENV, '{}'))
     if tf_config:
-      logging.info('TF_CONFIG environment variable: %s', tf_config)
+      tf.compat.v1.logging.info('TF_CONFIG environment variable: %s', tf_config)
 
     model_dir = _get_model_dir(tf_config,
                                compat_internal.path_to_str(model_dir))
@@ -563,7 +564,7 @@ class RunConfig(object):
         (eval_distribute and
          not eval_distribute.__class__.__name__.startswith('TPUStrategy')) or
         experimental_distribute):
-      logging.info('Initializing RunConfig with distribution strategies.')
+      tf.compat.v1.logging.info('Initializing RunConfig with distribution strategies.')
       distribute_coordinator_training.init_run_config(self, tf_config)
     else:
       self._init_distributed_setting_from_environment_var(tf_config)
@@ -617,7 +618,7 @@ class RunConfig(object):
     """Initialize distributed properties based on `tf_config`."""
 
     self._service = _validate_service(tf_config.get(_SERVICE_KEY))
-    self._cluster_spec = server_lib.ClusterSpec(tf_config.get(_CLUSTER_KEY, {}))
+    self._cluster_spec = tf.train.ClusterSpec(tf_config.get(_CLUSTER_KEY, {}))
     task_env = tf_config.get(_TASK_ENV_KEY, {})
 
     if self._cluster_spec and TaskType.MASTER in self._cluster_spec.jobs:
@@ -645,7 +646,7 @@ class RunConfig(object):
             chief_task_type=TaskType.CHIEF)
       else:
         # Evaluator is not part of the training cluster.
-        self._cluster_spec = server_lib.ClusterSpec({})
+        self._cluster_spec = tf.train.ClusterSpec({})
         self._master = _LOCAL_MASTER
         self._num_ps_replicas = 0
         self._num_worker_replicas = 0
@@ -955,6 +956,6 @@ def _get_model_dir(tf_config, model_dir):
           'model_dir: {}\nTF_CONFIG["model_dir"]: {}.\n'.format(
               model_dir, model_dir_in_tf_config))
 
-    logging.info('Using model_dir in TF_CONFIG: %s', model_dir_in_tf_config)
+    tf.compat.v1.logging.info('Using model_dir in TF_CONFIG: %s', model_dir_in_tf_config)
 
   return model_dir or model_dir_in_tf_config

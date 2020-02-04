@@ -18,6 +18,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import tensorflow as tf
+
 from tensorflow.python.framework import test_util
 from tensorflow.python.platform import test
 from tensorflow.python.training import adagrad
@@ -29,14 +31,14 @@ from tensorflow.python.training import rmsprop
 from tensorflow_estimator.python.estimator.canned import optimizers
 
 
-class _TestOptimizer(optimizer_lib.Optimizer):
+class _TestOptimizer(tf.compat.v1.train.Optimizer):
 
   def __init__(self):
     super(_TestOptimizer, self).__init__(
         use_locking=False, name='TestOptimizer')
 
 
-class GetOptimizerInstance(test.TestCase):
+class GetOptimizerInstance(tf.test.TestCase):
 
   def test_unsupported_name(self):
     with self.assertRaisesRegexp(
@@ -50,27 +52,27 @@ class GetOptimizerInstance(test.TestCase):
 
   def test_adagrad(self):
     opt = optimizers.get_optimizer_instance('Adagrad', learning_rate=0.1)
-    self.assertIsInstance(opt, adagrad.AdagradOptimizer)
+    self.assertIsInstance(opt, tf.compat.v1.train.AdagradOptimizer)
     self.assertAlmostEqual(0.1, opt._learning_rate)
 
   def test_adam(self):
     opt = optimizers.get_optimizer_instance('Adam', learning_rate=0.1)
-    self.assertIsInstance(opt, adam.AdamOptimizer)
+    self.assertIsInstance(opt, tf.compat.v1.train.AdamOptimizer)
     self.assertAlmostEqual(0.1, opt._lr)
 
   def test_ftrl(self):
     opt = optimizers.get_optimizer_instance('Ftrl', learning_rate=0.1)
-    self.assertIsInstance(opt, ftrl.FtrlOptimizer)
+    self.assertIsInstance(opt, tf.compat.v1.train.FtrlOptimizer)
     self.assertAlmostEqual(0.1, opt._learning_rate)
 
   def test_rmsprop(self):
     opt = optimizers.get_optimizer_instance('RMSProp', learning_rate=0.1)
-    self.assertIsInstance(opt, rmsprop.RMSPropOptimizer)
+    self.assertIsInstance(opt, tf.compat.v1.train.RMSPropOptimizer)
     self.assertAlmostEqual(0.1, opt._learning_rate)
 
   def test_sgd(self):
     opt = optimizers.get_optimizer_instance('SGD', learning_rate=0.1)
-    self.assertIsInstance(opt, gradient_descent.GradientDescentOptimizer)
+    self.assertIsInstance(opt, tf.compat.v1.train.GradientDescentOptimizer)
     self.assertAlmostEqual(0.1, opt._learning_rate)
 
   def test_object(self):
@@ -101,4 +103,4 @@ class GetOptimizerInstance(test.TestCase):
 
 
 if __name__ == '__main__':
-  test.main()
+  tf.test.main()

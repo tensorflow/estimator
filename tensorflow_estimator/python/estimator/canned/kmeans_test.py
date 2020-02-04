@@ -21,6 +21,7 @@ from __future__ import print_function
 import math
 import time
 
+import tensorflow as tf
 import numpy as np
 from sklearn.cluster import KMeans as SklearnKMeans
 
@@ -68,7 +69,7 @@ def make_random_points(centers, num_points, max_offset=20):
       offsets * offsets, 1))
 
 
-class KMeansTestBase(test.TestCase):
+class KMeansTestBase(tf.test.TestCase):
 
   def input_fn(self,
                batch_size=None,
@@ -84,35 +85,35 @@ class KMeansTestBase(test.TestCase):
                    self.mini_batch_steps_per_iteration <= 1)
 
     def _fn():
-      x = constant_op.constant(points)
+      x = tf.constant(points)
       if batch_size == num_points:
-        return input_lib.limit_epochs(x, num_epochs=num_epochs), None
+        return tf.compat.v1.train.limit_epochs(x, num_epochs=num_epochs), None
       if randomize:
-        indices = random_ops.random_uniform(
-            constant_op.constant([batch_size]),
+        indices = tf.random.uniform(
+            tf.constant([batch_size]),
             minval=0,
             maxval=num_points - 1,
-            dtype=dtypes.int32,
+            dtype=tf.dtypes.int32,
             seed=10)
       else:
         # We need to cycle through the indices sequentially. We create a queue
         # to maintain the list of indices.
-        q = data_flow_ops.FIFOQueue(num_points, dtypes.int32, ())
+        q = tf.queue.FIFOQueue(num_points, tf.dtypes.int32, ())
 
         # Conditionally initialize the Queue.
         def _init_q():
-          with ops.control_dependencies(
-              [q.enqueue_many(math_ops.range(num_points))]):
-            return control_flow_ops.no_op()
+          with tf.control_dependencies(
+              [q.enqueue_many(tf.range(num_points))]):
+            return tf.no_op()
 
-        init_q = control_flow_ops.cond(q.size() <= 0, _init_q,
-                                       control_flow_ops.no_op)
-        with ops.control_dependencies([init_q]):
+        init_q = tf.compat.v1.cond(q.size() <= 0, _init_q,
+                                       tf.no_op)
+        with tf.control_dependencies([init_q]):
           offsets = q.dequeue_many(batch_size)
-          with ops.control_dependencies([q.enqueue_many(offsets)]):
-            indices = array_ops.identity(offsets)
-      batch = array_ops.gather(x, indices)
-      return (input_lib.limit_epochs(batch, num_epochs=num_epochs), None)
+          with tf.control_dependencies([q.enqueue_many(offsets)]):
+            indices = tf.identity(offsets)
+      batch = tf.compat.v1.gather(x, indices)
+      return (tf.compat.v1.train.limit_epochs(batch, num_epochs=num_epochs), None)
 
     return _fn
 
@@ -206,7 +207,7 @@ class KMeansTest(KMeansTestBase):
     self.assertAllEqual(assignments, true_assignments)
 
     # Test score
-    score = kmeans.score(input_fn=lambda: (constant_op.constant(points), None))
+    score = kmeans.score(input_fn=lambda: (tf.constant(points), None))
     self.assertNear(score, np.sum(true_offsets), 0.01 * score)
 
     # Test transform
@@ -243,7 +244,7 @@ class KMeansTest(KMeansTestBase):
     """Tests the various behaviours of kmeans._parse_features_if_necessary."""
 
     # No-op if a tensor is passed in.
-    features = constant_op.constant(self.points)
+    features = tf.constant(self.points)
     parsed_features = kmeans_lib._parse_features_if_necessary(features, None)
     self.assertAllEqual(features, parsed_features)
 
@@ -263,7 +264,7 @@ class KMeansTest(KMeansTestBase):
         'baz': {'fizz': 'buzz'},
         'y': [[point[1]] for point in self.points]
     }
-    feature_columns = [fc.numeric_column(key='x'), fc.numeric_column(key='y')]
+    feature_columns = [tf.feature_column.numeric_column(key='x'), tf.feature_column.numeric_column(key='y')]
     parsed_feature_dict = kmeans_lib._parse_features_if_necessary(
         feature_dict_with_extras, feature_columns)
     self._parse_feature_dict_helper(features, parsed_feature_dict)
@@ -448,21 +449,21 @@ class KMeansCosineDistanceTest(KMeansTestBase):
         mini_batch_steps_per_iteration=self.mini_batch_steps_per_iteration,
         config=self.config(3))
     kmeans.train(
-        input_fn=lambda: (constant_op.constant(points), None), steps=30)
+        input_fn=lambda: (tf.constant(points), None), steps=30)
 
     centers = normalize(kmeans.cluster_centers())
     self.assertAllClose(
         sorted(centers.tolist()), sorted(true_centers.tolist()), atol=1e-2)
 
     def _input_fn():
-      return (input_lib.limit_epochs(
-          constant_op.constant(points), num_epochs=1), None)
+      return (tf.compat.v1.train.limit_epochs(
+          tf.constant(points), num_epochs=1), None)
 
     assignments = list(kmeans.predict_cluster_index(input_fn=_input_fn))
     self.assertAllClose(
         centers[assignments], true_centers[true_assignments], atol=1e-2)
 
-    score = kmeans.score(input_fn=lambda: (constant_op.constant(points), None))
+    score = kmeans.score(input_fn=lambda: (tf.constant(points), None))
     self.assertAllClose(score, true_score, atol=1e-2)
 
 
@@ -571,11 +572,11 @@ class TensorflowKMeansBenchmark(KMeansBenchmark):
           relative_tolerance=1e-6,
           config=self.config(3))
       tf_kmeans.train(
-          input_fn=lambda: (constant_op.constant(self.points), None), steps=50)
+          input_fn=lambda: (tf.constant(self.points), None), steps=50)
       _ = tf_kmeans.cluster_centers()
       scores.append(
           tf_kmeans.score(
-              input_fn=lambda: (constant_op.constant(self.points), None)))
+              input_fn=lambda: (tf.constant(self.points), None)))
     self._report(num_iters, start, time.time(), scores)
 
 
@@ -599,16 +600,16 @@ class SklearnKMeansBenchmark(KMeansBenchmark):
 
 
 @test_util.run_all_in_graph_and_eager_modes
-class KMeansTestQueues(test.TestCase):
+class KMeansTestQueues(tf.test.TestCase):
 
   def input_fn(self):
 
     def _fn():
-      queue = data_flow_ops.FIFOQueue(
-          capacity=10, dtypes=dtypes.float32, shapes=[10, 3])
-      enqueue_op = queue.enqueue(array_ops.zeros([10, 3], dtype=dtypes.float32))
-      queue_runner.add_queue_runner(
-          queue_runner.QueueRunner(queue, [enqueue_op]))
+      queue = tf.queue.FIFOQueue(
+          capacity=10, dtypes=tf.dtypes.float32, shapes=[10, 3])
+      enqueue_op = queue.enqueue(tf.zeros([10, 3], dtype=tf.dtypes.float32))
+      tf.compat.v1.train.queue_runner.add_queue_runner(
+          tf.compat.v1.train.queue_runner.QueueRunner(queue, [enqueue_op]))
       return queue.dequeue(), None
 
     return _fn
@@ -623,4 +624,4 @@ class KMeansTestQueues(test.TestCase):
 
 
 if __name__ == '__main__':
-  test.main()
+  tf.test.main()

@@ -22,6 +22,7 @@ import os
 import shutil
 import tempfile
 
+import tensorflow as tf
 import numpy as np
 import six
 
@@ -82,9 +83,9 @@ def assert_close(expected, actual, rtol=1e-04, message='', name='assert_close'):
   with ops.name_scope(name, 'assert_close', (expected, actual, rtol)) as scope:
     expected = ops.convert_to_tensor(expected, name='expected')
     actual = ops.convert_to_tensor(actual, name='actual')
-    rdiff = math_ops.abs((expected - actual) / expected, 'diff')
+    rdiff = tf.math.abs((expected - actual) / expected, 'diff')
     rtol = ops.convert_to_tensor(rtol, name='rtol')
-    return check_ops.assert_less(
+    return tf.compat.v1.debugging.assert_less(
         rdiff,
         rtol,
         data=(message, 'Condition expected =~ actual did not hold element-wise:'
@@ -126,19 +127,19 @@ def create_checkpoint(weights_and_biases,
   model_weights[LOGITS_WEIGHTS_NAME] = weights[-1]
   model_weights[LOGITS_BIASES_NAME] = biases[-1]
 
-  with ops.Graph().as_default():
+  with tf.Graph().as_default():
     # Create model variables.
     for k, v in six.iteritems(model_weights):
-      variables_lib.Variable(v, name=k, dtype=dtypes.float32)
+      tf.Variable(v, name=k, dtype=tf.dtypes.float32)
 
     # Create non-model variables.
-    global_step_var = training_util.create_global_step()
+    global_step_var = tf.compat.v1.train.create_global_step()
 
     # Initialize vars and save checkpoint.
-    with tf_session.Session() as sess:
-      variables_lib.global_variables_initializer().run()
+    with tf.compat.v1.Session() as sess:
+      tf.compat.v1.initializers.global_variables().run()
       global_step_var.assign(global_step).eval()
-      saver.Saver().save(sess, os.path.join(model_dir, 'model.ckpt'))
+      tf.compat.v1.train.Saver().save(sess, os.path.join(model_dir, 'model.ckpt'))
 
 
 def mock_head(testcase, hidden_units, logits_dimension, expected_logits):
@@ -156,28 +157,28 @@ def mock_head(testcase, hidden_units, logits_dimension, expected_logits):
       features, mode, logits, labels, trainable_variables=None,
       train_op_fn=None, optimizer=None, update_ops=None):
     del features, labels  # Not used.
-    trainable_vars = ops.get_collection(ops.GraphKeys.TRAINABLE_VARIABLES)
+    trainable_vars = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.TRAINABLE_VARIABLES)
     testcase.assertItemsEqual(expected_var_names,
                               [var.name for var in trainable_vars])
-    loss = constant_op.constant(1.)
+    loss = tf.constant(1.)
     assert_logits = assert_close(
         expected_logits, logits, message='Failed for mode={}. '.format(mode))
-    with ops.control_dependencies([assert_logits]):
+    with tf.control_dependencies([assert_logits]):
       if mode == ModeKeys.TRAIN:
         if train_op_fn is not None:
           train_op = train_op_fn(loss)
         elif optimizer is not None:
           train_op = optimizer.get_updates(loss, trainable_variables)
         if update_ops is not None:
-          train_op = control_flow_ops.group(train_op, *update_ops)
+          train_op = tf.group(train_op, *update_ops)
         return model_fn._TPUEstimatorSpec(
             mode=mode, loss=loss, train_op=train_op)
       elif mode == ModeKeys.EVAL:
         return model_fn._TPUEstimatorSpec(
-            mode=mode, loss=array_ops.identity(loss))
+            mode=mode, loss=tf.identity(loss))
       elif mode == ModeKeys.PREDICT:
         return model_fn._TPUEstimatorSpec(
-            mode=mode, predictions={'logits': array_ops.identity(logits)})
+            mode=mode, predictions={'logits': tf.identity(logits)})
       else:
         testcase.fail('Invalid mode: {}'.format(mode))
 
@@ -189,11 +190,11 @@ def mock_head(testcase, hidden_units, logits_dimension, expected_logits):
         train_op_fn, optimizer, update_ops)
     return tpu_spec.as_estimator_spec()
 
-  head = test.mock.NonCallableMagicMock(spec=base_head.Head)
+  head = tf.compat.v1.test.mock.NonCallableMagicMock(spec=base_head.Head)
   head.logits_dimension = logits_dimension
-  head._create_tpu_estimator_spec = test.mock.MagicMock(
+  head._create_tpu_estimator_spec = tf.compat.v1.test.mock.MagicMock(
       wraps=_create_tpu_estimator_spec)
-  head.create_estimator_spec = test.mock.MagicMock(
+  head.create_estimator_spec = tf.compat.v1.test.mock.MagicMock(
       wraps=_create_estimator_spec)
 
   return head
@@ -231,15 +232,15 @@ def mock_optimizer(testcase, hidden_units, expected_loss=None):
       if expected_loss is None:
         if self.iterations is not None:
           return [self.iterations.assign_add(1).op]
-        return [control_flow_ops.no_op()]
+        return [tf.no_op()]
       assert_loss = assert_close(
-          math_ops.cast(expected_loss, name='expected', dtype=dtypes.float32),
+          tf.cast(expected_loss, name='expected', dtype=tf.dtypes.float32),
           loss,
           name='assert_loss')
-      with ops.control_dependencies((assert_loss,)):
+      with tf.control_dependencies((assert_loss,)):
         if self.iterations is not None:
           return [self.iterations.assign_add(1).op]
-        return [control_flow_ops.no_op()]
+        return [tf.no_op()]
 
     def get_config(self):
       config = super(_Optimizer, self).get_config()
@@ -262,22 +263,22 @@ class BaseDNNModelFnTest(object):
 
   def tearDown(self):
     if self._model_dir:
-      writer_cache.FileWriterCache.clear()
+      tf.compat.v1.summary.FileWriterCache.clear()
       shutil.rmtree(self._model_dir)
 
   def _test_logits(self, mode, hidden_units, logits_dimension, inputs,
                    expected_logits):
     """Tests that the expected logits are passed to mock head."""
-    with ops.Graph().as_default():
-      training_util.create_global_step()
+    with tf.Graph().as_default():
+      tf.compat.v1.train.create_global_step()
       head = mock_head(
           self,
           hidden_units=hidden_units,
           logits_dimension=logits_dimension,
           expected_logits=expected_logits)
       estimator_spec = self._dnn_model_fn(
-          features={'age': constant_op.constant(inputs)},
-          labels=constant_op.constant([[1]]),
+          features={'age': tf.constant(inputs)},
+          labels=tf.constant([[1]]),
           mode=mode,
           head=head,
           hidden_units=hidden_units,
@@ -286,7 +287,7 @@ class BaseDNNModelFnTest(object):
                   'age', shape=np.array(inputs).shape[1:])
           ],
           optimizer=mock_optimizer(self, hidden_units))
-      with monitored_session.MonitoredTrainingSession(
+      with tf.compat.v1.train.MonitoredTrainingSession(
           checkpoint_dir=self._model_dir) as sess:
         if mode == ModeKeys.TRAIN:
           sess.run(estimator_spec.train_op)
@@ -455,8 +456,8 @@ class BaseDNNModelFnTest(object):
         ModeKeys.TRAIN, ModeKeys.EVAL,
         ModeKeys.PREDICT
     ]:
-      with ops.Graph().as_default():
-        training_util.create_global_step()
+      with tf.Graph().as_default():
+        tf.compat.v1.train.create_global_step()
         head = mock_head(
             self,
             hidden_units=hidden_units,
@@ -464,10 +465,10 @@ class BaseDNNModelFnTest(object):
             expected_logits=expected_logits)
         estimator_spec = self._dnn_model_fn(
             features={
-                'age': constant_op.constant(inputs[0]),
-                'height': constant_op.constant(inputs[1])
+                'age': tf.constant(inputs[0]),
+                'height': tf.constant(inputs[1])
             },
-            labels=constant_op.constant([[1]]),
+            labels=tf.constant([[1]]),
             mode=mode,
             head=head,
             hidden_units=hidden_units,
@@ -476,7 +477,7 @@ class BaseDNNModelFnTest(object):
                 self._fc_impl.numeric_column('height')
             ],
             optimizer=mock_optimizer(self, hidden_units))
-        with monitored_session.MonitoredTrainingSession(
+        with tf.compat.v1.train.MonitoredTrainingSession(
             checkpoint_dir=self._model_dir) as sess:
           if mode == ModeKeys.TRAIN:
             sess.run(estimator_spec.train_op)
@@ -509,8 +510,8 @@ class BaseDNNModelFnTest(object):
         ModeKeys.TRAIN, ModeKeys.EVAL,
         ModeKeys.PREDICT
     ]:
-      with ops.Graph().as_default():
-        training_util.create_global_step()
+      with tf.Graph().as_default():
+        tf.compat.v1.train.create_global_step()
         head = mock_head(
             self,
             hidden_units=hidden_units,
@@ -518,19 +519,19 @@ class BaseDNNModelFnTest(object):
             expected_logits=expected_logits)
         estimator_spec = self._dnn_model_fn(
             features={
-                'age': constant_op.constant(inputs[0]),
-                'height': constant_op.constant(inputs[1])
+                'age': tf.constant(inputs[0]),
+                'height': tf.constant(inputs[1])
             },
-            labels=constant_op.constant([[1]]),
+            labels=tf.constant([[1]]),
             mode=mode,
             head=head,
             hidden_units=hidden_units,
             feature_columns=[
-                feature_column_v2.numeric_column('age'),
-                feature_column_v2.numeric_column('height')
+                tf.feature_column.numeric_column('age'),
+                tf.feature_column.numeric_column('height')
             ],
             optimizer=mock_optimizer(self, hidden_units))
-        with monitored_session.MonitoredTrainingSession(
+        with tf.compat.v1.train.MonitoredTrainingSession(
             checkpoint_dir=self._model_dir) as sess:
           if mode == ModeKeys.TRAIN:
             sess.run(estimator_spec.train_op)
@@ -548,8 +549,8 @@ class BaseDNNModelFnTest(object):
     inputs = ([[10.]], [[8.]])
     expected_logits = [[0, 0, 0]]
 
-    with ops.Graph().as_default():
-      training_util.create_global_step()
+    with tf.Graph().as_default():
+      tf.compat.v1.train.create_global_step()
       head = mock_head(
           self,
           hidden_units=hidden_units,
@@ -557,8 +558,8 @@ class BaseDNNModelFnTest(object):
           expected_logits=expected_logits)
       with self.assertRaisesRegexp(ValueError, 'features should be a dict'):
         self._dnn_model_fn(
-            features=constant_op.constant(inputs),
-            labels=constant_op.constant([[1]]),
+            features=tf.constant(inputs),
+            labels=tf.constant([[1]]),
             mode=ModeKeys.TRAIN,
             head=head,
             hidden_units=hidden_units,
@@ -581,7 +582,7 @@ class BaseDNNLogitFnTest(object):
 
   def tearDown(self):
     if self._model_dir:
-      writer_cache.FileWriterCache.clear()
+      tf.compat.v1.summary.FileWriterCache.clear()
       shutil.rmtree(self._model_dir)
 
   def _test_logits(self,
@@ -592,10 +593,10 @@ class BaseDNNLogitFnTest(object):
                    expected_logits,
                    batch_norm=False):
     """Tests that the expected logits are calculated."""
-    with ops.Graph().as_default():
+    with tf.Graph().as_default():
       # Global step needed for MonitoredSession, which is in turn used to
       # explicitly set variable weights through a checkpoint.
-      training_util.create_global_step()
+      tf.compat.v1.train.create_global_step()
       logit_fn = self._dnn_logit_fn_builder(
           units=logits_dimension,
           hidden_units=hidden_units,
@@ -603,12 +604,12 @@ class BaseDNNLogitFnTest(object):
               self._fc_impl.numeric_column(
                   'age', shape=np.array(inputs).shape[1:])
           ],
-          activation_fn=nn.relu,
+          activation_fn=tf.nn.relu,
           dropout=None,
           batch_norm=batch_norm)
       logits = logit_fn(
-          features={'age': constant_op.constant(inputs)}, mode=mode)
-      with monitored_session.MonitoredTrainingSession(
+          features={'age': tf.constant(inputs)}, mode=mode)
+      with tf.compat.v1.train.MonitoredTrainingSession(
           checkpoint_dir=self._model_dir) as sess:
         self.assertAllClose(expected_logits, sess.run(logits))
 
@@ -830,10 +831,10 @@ class BaseDNNLogitFnTest(object):
         ModeKeys.TRAIN, ModeKeys.EVAL,
         ModeKeys.PREDICT
     ]:
-      with ops.Graph().as_default():
+      with tf.Graph().as_default():
         # Global step needed for MonitoredSession, which is in turn used to
         # explicitly set variable weights through a checkpoint.
-        training_util.create_global_step()
+        tf.compat.v1.train.create_global_step()
         logit_fn = self._dnn_logit_fn_builder(
             units=logits_dimension,
             hidden_units=hidden_units,
@@ -841,16 +842,16 @@ class BaseDNNLogitFnTest(object):
                 self._fc_impl.numeric_column('age'),
                 self._fc_impl.numeric_column('height')
             ],
-            activation_fn=nn.relu,
+            activation_fn=tf.nn.relu,
             dropout=None,
             batch_norm=False)
         logits = logit_fn(
             features={
-                'age': constant_op.constant(inputs[0]),
-                'height': constant_op.constant(inputs[1])
+                'age': tf.constant(inputs[0]),
+                'height': tf.constant(inputs[1])
             },
             mode=mode)
-        with monitored_session.MonitoredTrainingSession(
+        with tf.compat.v1.train.MonitoredTrainingSession(
             checkpoint_dir=self._model_dir) as sess:
           self.assertAllClose(expected_logits, sess.run(logits))
 
@@ -877,27 +878,27 @@ class BaseDNNLogitFnTest(object):
         ModeKeys.TRAIN, ModeKeys.EVAL,
         ModeKeys.PREDICT
     ]:
-      with ops.Graph().as_default():
+      with tf.Graph().as_default():
         # Global step needed for MonitoredSession, which is in turn used to
         # explicitly set variable weights through a checkpoint.
-        training_util.create_global_step()
+        tf.compat.v1.train.create_global_step()
         logit_fn = self._dnn_logit_fn_builder(
             units=logits_dimension,
             hidden_units=hidden_units,
             feature_columns=[
-                feature_column_v2.numeric_column('age'),
-                feature_column_v2.numeric_column('height')
+                tf.feature_column.numeric_column('age'),
+                tf.feature_column.numeric_column('height')
             ],
-            activation_fn=nn.relu,
+            activation_fn=tf.nn.relu,
             dropout=None,
             batch_norm=False)
         logits = logit_fn(
             features={
-                'age': constant_op.constant(inputs[0]),
-                'height': constant_op.constant(inputs[1])
+                'age': tf.constant(inputs[0]),
+                'height': tf.constant(inputs[1])
             },
             mode=mode)
-        with monitored_session.MonitoredTrainingSession(
+        with tf.compat.v1.train.MonitoredTrainingSession(
             checkpoint_dir=self._model_dir) as sess:
           self.assertAllClose(expected_logits, sess.run(logits))
 
@@ -917,7 +918,7 @@ class BaseDNNWarmStartingTest(object):
     self._ckpt_and_vocab_dir = tempfile.mkdtemp()
     # Reset the default graph in each test method to avoid the Keras optimizer
     # naming issue during warm starting.
-    ops.reset_default_graph()
+    tf.compat.v1.reset_default_graph()
 
     # Make a dummy input_fn.
     def _input_fn():
@@ -932,7 +933,7 @@ class BaseDNNWarmStartingTest(object):
 
   def tearDown(self):
     # Clean up checkpoint / vocab dir.
-    writer_cache.FileWriterCache.clear()
+    tf.compat.v1.summary.FileWriterCache.clear()
     shutil.rmtree(self._ckpt_and_vocab_dir)
 
   def assertAllNotClose(self, t1, t2):
@@ -1116,7 +1117,7 @@ class BaseDNNWarmStartingTest(object):
         old_vocab_size=occupation.categorical_column.vocabulary_size,
         # Can't use constant_initializer with load_and_remap.  In practice,
         # use a truncated normal initializer.
-        backup_initializer=init_ops.random_uniform_initializer(
+        backup_initializer=tf.compat.v1.initializers.random_uniform(
             minval=0.39, maxval=0.39))
     warm_started_dnn_classifier = self._dnn_classifier_fn(
         hidden_units=[256, 128],
@@ -1229,7 +1230,7 @@ class BaseDNNClassifierEvaluateTest(object):
 
   def tearDown(self):
     if self._model_dir:
-      writer_cache.FileWriterCache.clear()
+      tf.compat.v1.summary.FileWriterCache.clear()
       shutil.rmtree(self._model_dir)
 
   def test_one_dim(self):
@@ -1276,7 +1277,7 @@ class BaseDNNClassifierEvaluateTest(object):
                 0.5,
             metric_keys.MetricKeys.AUC_PR:
                 0.5,
-            ops.GraphKeys.GLOBAL_STEP:
+            tf.compat.v1.GraphKeys.GLOBAL_STEP:
                 global_step
         },
         dnn_classifier.evaluate(input_fn=_input_fn, steps=1))
@@ -1312,7 +1313,7 @@ class BaseDNNClassifierEvaluateTest(object):
         metric_keys.MetricKeys.LOSS: expected_loss,
         metric_keys.MetricKeys.LOSS_MEAN: expected_loss,
         metric_keys.MetricKeys.ACCURACY: 0.5,
-        ops.GraphKeys.GLOBAL_STEP: global_step
+        tf.compat.v1.GraphKeys.GLOBAL_STEP: global_step
     }, dnn_classifier.evaluate(input_fn=_input_fn, steps=1))
 
   def test_float_labels(self):
@@ -1380,7 +1381,7 @@ class BaseDNNRegressorEvaluateTest(object):
 
   def tearDown(self):
     if self._model_dir:
-      writer_cache.FileWriterCache.clear()
+      tf.compat.v1.summary.FileWriterCache.clear()
       shutil.rmtree(self._model_dir)
 
   def test_one_dim(self):
@@ -1407,7 +1408,7 @@ class BaseDNNRegressorEvaluateTest(object):
         metric_keys.MetricKeys.LOSS_MEAN: expected_loss,
         metric_keys.MetricKeys.PREDICTION_MEAN: -2.08,
         metric_keys.MetricKeys.LABEL_MEAN: 1.0,
-        ops.GraphKeys.GLOBAL_STEP: global_step
+        tf.compat.v1.GraphKeys.GLOBAL_STEP: global_step
     }, dnn_regressor.evaluate(input_fn=_input_fn, steps=1))
 
   def test_multi_dim(self):
@@ -1440,7 +1441,7 @@ class BaseDNNRegressorEvaluateTest(object):
         metric_keys.MetricKeys.LOSS_MEAN: expected_loss,
         metric_keys.MetricKeys.PREDICTION_MEAN: 0.39 / 3.0,
         metric_keys.MetricKeys.LABEL_MEAN: 0.5 / 3.0,
-        ops.GraphKeys.GLOBAL_STEP: global_step
+        tf.compat.v1.GraphKeys.GLOBAL_STEP: global_step
     }, dnn_regressor.evaluate(input_fn=_input_fn, steps=1))
 
   def test_multi_dim_weights(self):
@@ -1483,7 +1484,7 @@ class BaseDNNClassifierPredictTest(object):
 
   def tearDown(self):
     if self._model_dir:
-      writer_cache.FileWriterCache.clear()
+      tf.compat.v1.summary.FileWriterCache.clear()
       shutil.rmtree(self._model_dir)
 
   def _test_one_dim(self, label_vocabulary, label_output_fn):
@@ -1609,7 +1610,7 @@ class BaseDNNRegressorPredictTest(object):
 
   def tearDown(self):
     if self._model_dir:
-      writer_cache.FileWriterCache.clear()
+      tf.compat.v1.summary.FileWriterCache.clear()
       shutil.rmtree(self._model_dir)
 
   def test_one_dim(self):
@@ -1662,17 +1663,17 @@ class BaseDNNRegressorPredictTest(object):
     }, next(dnn_regressor.predict(input_fn=input_fn)))
 
 
-class _SummaryHook(session_run_hook.SessionRunHook):
+class _SummaryHook(tf.compat.v1.train.SessionRunHook):
   """Saves summaries every N steps."""
 
   def __init__(self):
     self._summaries = []
 
   def begin(self):
-    self._summary_op = summary_lib.merge_all()
+    self._summary_op = tf.compat.v1.summary.merge_all()
 
   def before_run(self, run_context):
-    return session_run_hook.SessionRunArgs({'summary': self._summary_op})
+    return tf.compat.v1.train.SessionRunArgs({'summary': self._summary_op})
 
   def after_run(self, run_context, run_values):
     s = summary_pb2.Summary()
@@ -1697,15 +1698,15 @@ def _assert_checkpoint(
   """
   shapes = {
       name: shape
-      for (name, shape) in checkpoint_utils.list_variables(model_dir)
+      for (name, shape) in tf.train.list_variables(model_dir)
   }
 
   # Global step.
-  testcase.assertEqual([], shapes[ops.GraphKeys.GLOBAL_STEP])
+  testcase.assertEqual([], shapes[tf.compat.v1.GraphKeys.GLOBAL_STEP])
   testcase.assertEqual(
       global_step,
-      checkpoint_utils.load_variable(
-          model_dir, ops.GraphKeys.GLOBAL_STEP))
+      tf.train.load_variable(
+          model_dir, tf.compat.v1.GraphKeys.GLOBAL_STEP))
 
   # Hidden layer weights.
   prev_layer_units = input_units
@@ -1751,7 +1752,7 @@ class BaseDNNClassifierTrainTest(object):
 
   def tearDown(self):
     if self._model_dir:
-      writer_cache.FileWriterCache.clear()
+      tf.compat.v1.summary.FileWriterCache.clear()
       shutil.rmtree(self._model_dir)
 
   def test_from_scratch_with_default_optimizer_binary(self):
@@ -1952,7 +1953,7 @@ class BaseDNNRegressorTrainTest(object):
 
   def tearDown(self):
     if self._model_dir:
-      writer_cache.FileWriterCache.clear()
+      tf.compat.v1.summary.FileWriterCache.clear()
       shutil.rmtree(self._model_dir)
 
   def test_from_scratch_with_default_optimizer(self):

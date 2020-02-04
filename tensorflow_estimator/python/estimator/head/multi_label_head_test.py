@@ -18,6 +18,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import tensorflow as tf
 import numpy as np
 import six
 
@@ -58,7 +59,7 @@ def _sigmoid_cross_entropy(labels, logits):
 
 
 @test_util.run_all_in_graph_and_eager_modes
-class MultiLabelHead(test.TestCase):
+class MultiLabelHead(tf.test.TestCase):
 
   def test_n_classes_is_none(self):
     with self.assertRaisesRegexp(
@@ -160,7 +161,7 @@ class MultiLabelHead(test.TestCase):
 
     logits = np.array(
         [[0., 1., 2., -1.], [-1., -2., -3., 1.]], dtype=np.float32)
-    expected_probabilities = nn.sigmoid(logits)
+    expected_probabilities = tf.math.sigmoid(logits)
     expected_export_classes = [[b'0', b'1', b'2', b'3']] * 2
 
     keys = prediction_keys.PredictionKeys
@@ -169,14 +170,14 @@ class MultiLabelHead(test.TestCase):
     self.assertAllClose(logits, self.evaluate(preds[keys.LOGITS]))
     self.assertAllClose(expected_probabilities,
                         self.evaluate(preds[keys.PROBABILITIES]))
-    if context.executing_eagerly():
+    if tf.executing_eagerly():
       return
     spec = head.create_estimator_spec(
         features={'x': np.array(((42,),), dtype=np.int32)},
         mode=ModeKeys.PREDICT,
         logits=logits,
         trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+            tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
     self.assertItemsEqual(
         (test_lib._DEFAULT_SERVING_KEY, 'predict', 'classification'),
         spec.export_outputs.keys())
@@ -206,7 +207,7 @@ class MultiLabelHead(test.TestCase):
 
     logits = np.array(
         [[0., 1., 2., -1.], [-1., -2., -3., 1.]], dtype=np.float32)
-    expected_probabilities = nn.sigmoid(logits)
+    expected_probabilities = tf.math.sigmoid(logits)
     expected_export_classes = [[b'0', b'1', b'2', b'3']] * 2
     weights_2x1 = [[1.], [2.]]
     features = {
@@ -220,7 +221,7 @@ class MultiLabelHead(test.TestCase):
     self.assertAllClose(logits, self.evaluate(preds[keys.LOGITS]))
     self.assertAllClose(expected_probabilities,
                         self.evaluate(preds[keys.PROBABILITIES]))
-    if context.executing_eagerly():
+    if tf.executing_eagerly():
       return
 
     spec = head.create_estimator_spec(
@@ -228,7 +229,7 @@ class MultiLabelHead(test.TestCase):
         mode=ModeKeys.PREDICT,
         logits=logits,
         trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+            tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
     # Assert predictions and export_outputs.
     with self.cached_session() as sess:
       test_lib._initialize_variables(self, spec.scaffold)
@@ -295,7 +296,7 @@ class MultiLabelHead(test.TestCase):
     labels_2 = np.array([1, 1], dtype=np.int64)
     features = {'x': np.array(((42,),), dtype=np.int32)}
 
-    if context.executing_eagerly():
+    if tf.executing_eagerly():
       with self.assertRaisesRegexp(ValueError, 'Expected labels dimension=2'):
         head.loss(logits=logits, labels=labels_2x1, features=features,
                   mode=ModeKeys.EVAL)
@@ -303,20 +304,20 @@ class MultiLabelHead(test.TestCase):
         head.loss(logits=logits, labels=labels_2, features=features,
                   mode=ModeKeys.EVAL)
     else:
-      labels_placeholder = array_ops.placeholder(dtype=dtypes.int64)
+      labels_placeholder = tf.compat.v1.placeholder(dtype=tf.dtypes.int64)
       actual_training_loss = head.loss(
           logits=logits, labels=labels_placeholder, features=features,
           mode=ModeKeys.EVAL)
       with self.cached_session():
-        test_lib._initialize_variables(self, monitored_session.Scaffold())
+        test_lib._initialize_variables(self, tf.compat.v1.train.Scaffold())
         with self.assertRaisesRegexp(
-            errors.InvalidArgumentError,
+            tf.errors.InvalidArgumentError,
             r'\[expected_labels_shape: \] \[2 2\] \[labels_shape: \] \[2 1\]'):
           actual_training_loss.eval({
               labels_placeholder: labels_2x1
           })
         with self.assertRaisesRegexp(
-            errors.InvalidArgumentError,
+            tf.errors.InvalidArgumentError,
             r'labels shape must be \[D0, D1, ... DN, 2\]\..*'
             r'\[Received shape: \] \[2\]'):
           actual_training_loss.eval({
@@ -329,14 +330,14 @@ class MultiLabelHead(test.TestCase):
     logits_input = np.array([[-10., 10.], [-15., 10.]], dtype=np.float32)
     labels_input = np.array([[1, 0], [1, 1]], dtype=np.int64)
     def _loss_fn(labels, logits):
-      check_labels = control_flow_ops.Assert(
-          math_ops.reduce_all(math_ops.equal(labels, labels_input)),
+      check_labels = tf.debugging.Assert(
+          tf.reduce_all(tf.math.equal(labels, labels_input)),
           data=[labels])
-      check_logits = control_flow_ops.Assert(
-          math_ops.reduce_all(math_ops.equal(logits, logits_input)),
+      check_logits = tf.debugging.Assert(
+          tf.reduce_all(tf.math.equal(logits, logits_input)),
           data=[logits])
-      with ops.control_dependencies([check_labels, check_logits]):
-        return constant_op.constant(loss)
+      with tf.control_dependencies([check_labels, check_logits]):
+        return tf.constant(loss)
     head = head_lib.MultiLabelHead(n_classes=2, loss_fn=_loss_fn)
 
     actual_training_loss = head.loss(
@@ -351,14 +352,14 @@ class MultiLabelHead(test.TestCase):
     loss = np.array([1., 2.], dtype=np.float32)
     def _loss_fn(labels, logits):
       del labels, logits  # Unused
-      return constant_op.constant(loss)
+      return tf.constant(loss)
     head = head_lib.MultiLabelHead(n_classes=2, loss_fn=_loss_fn)
 
     logits = np.array([[-10., 10.], [-15., 10.]], dtype=np.float32)
     labels = np.array([[1, 0], [1, 1]], dtype=np.int64)
     features = {'x': np.array(((42,),), dtype=np.int32)}
 
-    if context.executing_eagerly():
+    if tf.executing_eagerly():
       with self.assertRaisesRegexp(
           ValueError,
           'loss_shape'):
@@ -369,7 +370,7 @@ class MultiLabelHead(test.TestCase):
           logits=logits, labels=labels, features=features,
           mode=ModeKeys.EVAL)
       with self.assertRaisesRegexp(
-          errors.InvalidArgumentError,
+          tf.errors.InvalidArgumentError,
           r'\[loss_fn must return Tensor of shape \[D0, D1, ... DN, 1\]\. \] '
           r'\[logits_shape: \] \[2 2\] \[loss_shape: \] \[2\]'):
         self.evaluate(actual_training_loss)
@@ -389,7 +390,7 @@ class MultiLabelHead(test.TestCase):
       self, head, logits, labels, expected_loss, expected_metrics,
       features=None, regularization_losses=None):
     tol = 1e-3
-    if context.executing_eagerly():
+    if tf.executing_eagerly():
       loss = head.loss(
           labels, logits, features=features or {}, mode=ModeKeys.EVAL,
           regularization_losses=regularization_losses)
@@ -415,7 +416,7 @@ class MultiLabelHead(test.TestCase):
         labels=labels,
         regularization_losses=regularization_losses,
         trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+            tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
     # Assert spec contains expected tensors.
     self.assertIsNotNone(spec.loss)
     self.assertItemsEqual(expected_metrics.keys(), spec.eval_metric_ops.keys())
@@ -467,7 +468,7 @@ class MultiLabelHead(test.TestCase):
     head = head_lib.MultiLabelHead(n_classes)
     logits = np.array([[-1., 1.], [-1.5, 1.5]], dtype=np.float32)
     # Equivalent to multi_hot = [[1, 0], [1, 1]]
-    labels = sparse_tensor.SparseTensor(
+    labels = tf.sparse.SparseTensor(
         values=[0, 0, 1],
         indices=[[0, 0], [1, 0], [1, 1]],
         dense_shape=[2, 2])
@@ -530,7 +531,7 @@ class MultiLabelHead(test.TestCase):
         n_classes, label_vocabulary=['class0', 'class1'])
     logits = np.array([[-1., 1.], [-1.5, 1.5]], dtype=np.float32)
     # Equivalent to multi_hot = [[1, 0], [1, 1]]
-    labels = sparse_tensor.SparseTensor(
+    labels = tf.sparse.SparseTensor(
         values=['class0', 'class0', 'class1'],
         indices=[[0, 0], [1, 0], [1, 1]],
         dense_shape=[2, 2])
@@ -643,11 +644,11 @@ class MultiLabelHead(test.TestCase):
         keys.AUC: 0.3333,
         keys.AUC_PR: 0.7689,
         keys.PROBABILITY_MEAN_AT_CLASS % 0:
-            math_ops.reduce_sum(nn.sigmoid(logits[:, 0])) / 2.,
+            tf.math.reduce_sum(tf.math.sigmoid(logits[:, 0])) / 2.,
         keys.AUC_AT_CLASS % 0: 0.,
         keys.AUC_PR_AT_CLASS % 0: 1.,
         keys.PROBABILITY_MEAN_AT_CLASS % 1:
-            math_ops.reduce_sum(nn.sigmoid(logits[:, 1])) / 2.,
+            tf.math.reduce_sum(tf.math.sigmoid(logits[:, 1])) / 2.,
         keys.AUC_AT_CLASS % 1: 1.,
         keys.AUC_PR_AT_CLASS % 1: 1.,
     }
@@ -665,7 +666,7 @@ class MultiLabelHead(test.TestCase):
         classes_for_class_based_metrics=['a', 'b'])
 
     logits = np.array([[-1., 1.], [-1.5, 1.5]], dtype=np.float32)
-    labels = sparse_tensor.SparseTensor(
+    labels = tf.sparse.SparseTensor(
         values=['a', 'a', 'b'],
         indices=[[0, 0], [1, 0], [1, 1]],
         dense_shape=[2, 2])
@@ -685,11 +686,11 @@ class MultiLabelHead(test.TestCase):
         keys.AUC: 0.3333,
         keys.AUC_PR: 0.7689,
         keys.PROBABILITY_MEAN_AT_NAME % 'a':
-            math_ops.reduce_sum(nn.sigmoid(logits[:, 0])) / 2.,
+            tf.math.reduce_sum(tf.math.sigmoid(logits[:, 0])) / 2.,
         keys.AUC_AT_NAME % 'a': 0.,
         keys.AUC_PR_AT_NAME % 'a': 1.,
         keys.PROBABILITY_MEAN_AT_NAME % 'b':
-            math_ops.reduce_sum(nn.sigmoid(logits[:, 1])) / 2.,
+            tf.math.reduce_sum(tf.math.sigmoid(logits[:, 1])) / 2.,
         keys.AUC_AT_NAME % 'b': 1.,
         keys.AUC_PR_AT_NAME % 'b': 1.,
     }
@@ -810,7 +811,7 @@ class MultiLabelHead(test.TestCase):
     logits = np.array([[-10., 10.], [-15., 10.]], dtype=np.float32)
     # The value 2 is outside the allowed range.
     labels = np.array([[2, 0], [1, 1]], dtype=np.int64)
-    if context.executing_eagerly():
+    if tf.executing_eagerly():
       with self.assertRaisesRegexp(
           ValueError,
           r'labels must be an integer indicator Tensor with values in '
@@ -824,10 +825,10 @@ class MultiLabelHead(test.TestCase):
 
     def _train_op_fn(loss):
       del loss
-      return control_flow_ops.no_op()
+      return tf.no_op()
     with self.cached_session() as sess:
       with self.assertRaisesRegexp(
-          errors.InvalidArgumentError,
+          tf.errors.InvalidArgumentError,
           r'labels must be an integer indicator Tensor with values in '
           r'\[0, 1\]'):
         spec = head.create_estimator_spec(
@@ -837,7 +838,7 @@ class MultiLabelHead(test.TestCase):
             labels=labels,
             train_op_fn=_train_op_fn,
             trainable_variables=[
-                variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+                tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
         test_lib._initialize_variables(self, spec.scaffold)
         sess.run(spec.loss)
 
@@ -845,11 +846,11 @@ class MultiLabelHead(test.TestCase):
     head = head_lib.MultiLabelHead(n_classes=2)
     logits = np.array([[-10., 10.], [-15., 10.]], dtype=np.float32)
     # The value 2 is outside the allowed range.
-    labels = sparse_tensor.SparseTensor(
+    labels = tf.sparse.SparseTensor(
         values=[2, 0, 1],
         indices=[[0, 0], [1, 0], [1, 1]],
         dense_shape=[2, 2])
-    if context.executing_eagerly():
+    if tf.executing_eagerly():
       with self.assertRaisesRegexp(
           ValueError,
           r'labels must be an integer SparseTensor with values in \[0, 2\)'):
@@ -862,10 +863,10 @@ class MultiLabelHead(test.TestCase):
 
     def _train_op_fn(loss):
       del loss
-      return control_flow_ops.no_op()
+      return tf.no_op()
     with self.cached_session() as sess:
       with self.assertRaisesRegexp(
-          errors.InvalidArgumentError,
+          tf.errors.InvalidArgumentError,
           r'labels must be an integer SparseTensor with values in \[0, 2\)'):
         spec = head.create_estimator_spec(
             features={},
@@ -874,14 +875,14 @@ class MultiLabelHead(test.TestCase):
             labels=labels,
             train_op_fn=_train_op_fn,
             trainable_variables=[
-                variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+                tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
         test_lib._initialize_variables(self, spec.scaffold)
         sess.run(spec.loss)
 
   def _test_train(self, head, logits, labels, expected_loss):
     tol = 1e-3
     features = {'x': np.array(((42,),), dtype=np.int32)}
-    if context.executing_eagerly():
+    if tf.executing_eagerly():
       loss = head.loss(
           logits=logits,
           labels=labels,
@@ -893,9 +894,9 @@ class MultiLabelHead(test.TestCase):
 
     expected_train_result = 'my_train_op'
     def _train_op_fn(loss):
-      return string_ops.string_join(
-          [constant_op.constant(expected_train_result),
-           string_ops.as_string(loss, precision=3)])
+      return tf.strings.join(
+          [tf.constant(expected_train_result),
+           tf.strings.as_string(loss, precision=3)])
     spec = head.create_estimator_spec(
         features=features,
         mode=ModeKeys.TRAIN,
@@ -903,7 +904,7 @@ class MultiLabelHead(test.TestCase):
         labels=labels,
         train_op_fn=_train_op_fn,
         trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+            tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
     self.assertIsNotNone(spec.loss)
     self.assertEqual({}, spec.eval_metric_ops)
     self.assertIsNotNone(spec.train_op)
@@ -940,7 +941,7 @@ class MultiLabelHead(test.TestCase):
     head = head_lib.MultiLabelHead(n_classes=2)
     logits = np.array([[-10., 10.], [-15., 10.]], dtype=np.float32)
     # Equivalent to multi_hot = [[1, 0], [1, 1]]
-    labels = sparse_tensor.SparseTensor(
+    labels = tf.sparse.SparseTensor(
         values=[0, 0, 1],
         indices=[[0, 0], [1, 0], [1, 1]],
         dense_shape=[2, 2])
@@ -959,7 +960,7 @@ class MultiLabelHead(test.TestCase):
         n_classes=2, label_vocabulary=['class0', 'class1'])
     logits = np.array([[-10., 10.], [-15., 10.]], dtype=np.float32)
     # Equivalent to multi_hot = [[1, 0], [1, 1]]
-    labels = sparse_tensor.SparseTensor(
+    labels = tf.sparse.SparseTensor(
         values=['class0', 'class0', 'class1'],
         indices=[[0, 0], [1, 0], [1, 1]],
         dense_shape=[2, 2])
@@ -998,14 +999,14 @@ class MultiLabelHead(test.TestCase):
         regularization_losses=regularization_losses)
     self.assertIsNotNone(loss)
     self.assertAllClose(expected_loss, self.evaluate(loss), rtol=tol, atol=tol)
-    if context.executing_eagerly():
+    if tf.executing_eagerly():
       return
 
     expected_train_result = 'my_train_op'
     def _train_op_fn(loss):
-      return string_ops.string_join(
-          [constant_op.constant(expected_train_result),
-           string_ops.as_string(loss, precision=3)])
+      return tf.strings.join(
+          [tf.constant(expected_train_result),
+           tf.strings.as_string(loss, precision=3)])
     spec = head.create_estimator_spec(
         features=features,
         mode=ModeKeys.TRAIN,
@@ -1014,7 +1015,7 @@ class MultiLabelHead(test.TestCase):
         train_op_fn=_train_op_fn,
         regularization_losses=regularization_losses,
         trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+            tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
     # Assert predictions, loss, train_op, and summaries.
     with self.cached_session() as sess:
       test_lib._initialize_variables(self, spec.scaffold)
@@ -1054,14 +1055,14 @@ class MultiLabelHead(test.TestCase):
         mode=ModeKeys.TRAIN)
     self.assertIsNotNone(loss)
     self.assertAllClose(expected_loss, self.evaluate(loss), rtol=tol, atol=tol)
-    if context.executing_eagerly():
+    if tf.executing_eagerly():
       return
 
     expected_train_result = 'my_train_op'
     def _train_op_fn(loss):
-      return string_ops.string_join(
-          [constant_op.constant(expected_train_result),
-           string_ops.as_string(loss, precision=3)])
+      return tf.strings.join(
+          [tf.constant(expected_train_result),
+           tf.strings.as_string(loss, precision=3)])
 
     spec = head.create_estimator_spec(
         features=features,
@@ -1070,7 +1071,7 @@ class MultiLabelHead(test.TestCase):
         labels=labels,
         train_op_fn=_train_op_fn,
         trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+            tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
     self.assertIsNotNone(spec.loss)
     self.assertEqual({}, spec.eval_metric_ops)
     self.assertIsNotNone(spec.train_op)
@@ -1137,14 +1138,14 @@ class MultiLabelHead(test.TestCase):
         mode=ModeKeys.TRAIN)
     self.assertIsNotNone(loss)
     self.assertAllClose(expected_loss, self.evaluate(loss), atol=atol)
-    if context.executing_eagerly():
+    if tf.executing_eagerly():
       return
 
     expected_train_result = 'my_train_op'
     def _train_op_fn(loss):
-      return string_ops.string_join(
-          [constant_op.constant(expected_train_result),
-           string_ops.as_string(loss, precision=3)])
+      return tf.strings.join(
+          [tf.constant(expected_train_result),
+           tf.strings.as_string(loss, precision=3)])
 
     spec = head.create_estimator_spec(
         features={'weights': weights},
@@ -1153,9 +1154,9 @@ class MultiLabelHead(test.TestCase):
         labels=labels,
         train_op_fn=_train_op_fn,
         trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+            tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
     with self.cached_session() as sess:
-      test_lib._initialize_variables(self, monitored_session.Scaffold())
+      test_lib._initialize_variables(self, tf.compat.v1.train.Scaffold())
       loss, train_result = sess.run((spec.loss, spec.train_op))
       self.assertAllClose(expected_loss, loss, atol=atol)
       self.assertEqual(
@@ -1172,7 +1173,7 @@ class MultiLabelHead(test.TestCase):
                        [[0, 1, 1], [0, 1, 1]]], dtype=np.int64)
     weights = np.array([[1.], [2.]], dtype=np.float32)
 
-    if context.executing_eagerly():
+    if tf.executing_eagerly():
       with self.assertRaisesRegexp(ValueError, 'weights shape'):
         head.loss(
             logits=logits,
@@ -1183,7 +1184,7 @@ class MultiLabelHead(test.TestCase):
 
     def _train_op_fn(loss):
       del loss
-      return control_flow_ops.no_op()
+      return tf.no_op()
 
     spec = head.create_estimator_spec(
         features={'weights': weights},
@@ -1192,11 +1193,11 @@ class MultiLabelHead(test.TestCase):
         labels=labels,
         train_op_fn=_train_op_fn,
         trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+            tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
     with self.cached_session():
-      test_lib._initialize_variables(self, monitored_session.Scaffold())
+      test_lib._initialize_variables(self, tf.compat.v1.train.Scaffold())
       with self.assertRaisesRegexp(
-          errors.InvalidArgumentError,
+          tf.errors.InvalidArgumentError,
           r'\[logits_shape: \] \[2 2 3\] \[weights_shape: \] \[2 1\]'):
         spec.loss.eval()
 
@@ -1211,7 +1212,7 @@ class MultiLabelHead(test.TestCase):
     weights = np.array([[[1., 1., 1.], [1.5, 1.5, 1.5]],
                         [[2., 2., 2.], [2.5, 2.5, 2.5]]], dtype=np.float32)
 
-    if context.executing_eagerly():
+    if tf.executing_eagerly():
       with self.assertRaisesRegexp(ValueError, 'weights shape'):
         head.loss(
             logits=logits,
@@ -1220,10 +1221,10 @@ class MultiLabelHead(test.TestCase):
             mode=ModeKeys.TRAIN)
       return
 
-    weights_placeholder = array_ops.placeholder(dtype=dtypes.float32)
+    weights_placeholder = tf.compat.v1.placeholder(dtype=tf.dtypes.float32)
     def _train_op_fn(loss):
       del loss
-      return control_flow_ops.no_op()
+      return tf.no_op()
     spec = head.create_estimator_spec(
         features={'weights': weights_placeholder},
         mode=ModeKeys.TRAIN,
@@ -1231,11 +1232,11 @@ class MultiLabelHead(test.TestCase):
         labels=labels,
         train_op_fn=_train_op_fn,
         trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+            tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
     with self.cached_session():
-      test_lib._initialize_variables(self, monitored_session.Scaffold())
+      test_lib._initialize_variables(self, tf.compat.v1.train.Scaffold())
       with self.assertRaisesRegexp(
-          errors.InvalidArgumentError,
+          tf.errors.InvalidArgumentError,
           r'\[logits_shape: \] \[2 2 3\] \[weights_shape: \] \[2 2 3\]'):
         spec.loss.eval({weights_placeholder: weights})
 
@@ -1270,7 +1271,7 @@ class MultiLabelHead(test.TestCase):
 
 
 @test_util.deprecated_graph_mode_only
-class MultiLabelHeadForEstimator(test.TestCase):
+class MultiLabelHeadForEstimator(tf.test.TestCase):
   """Tests for create_estimator_spec running in Graph mode only."""
 
   def test_invalid_trainable_variables(self):
@@ -1280,9 +1281,9 @@ class MultiLabelHeadForEstimator(test.TestCase):
 
       def get_updates(self, loss, params):
         del params
-        return [string_ops.string_join([
-            constant_op.constant('my_train_op'),
-            string_ops.as_string(loss, precision=2)
+        return [tf.strings.join([
+            tf.constant('my_train_op'),
+            tf.strings.as_string(loss, precision=2)
         ])]
 
       def get_config(self):
@@ -1308,7 +1309,7 @@ class MultiLabelHeadForEstimator(test.TestCase):
           optimizer=_Optimizer('my_optimizer'),
           trainable_variables={
               'var_list': [
-                  variables.Variable([1.0, 2.0], dtype=dtypes.float32)]})
+                  tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)]})
 
   def test_train_with_optimizer(self):
     head = head_lib.MultiLabelHead(n_classes=2)
@@ -1328,9 +1329,9 @@ class MultiLabelHeadForEstimator(test.TestCase):
 
       def get_updates(self, loss, params):
         del params
-        return [string_ops.string_join(
-            [constant_op.constant(expected_train_result),
-             string_ops.as_string(loss, precision=3)])]
+        return [tf.strings.join(
+            [tf.constant(expected_train_result),
+             tf.strings.as_string(loss, precision=3)])]
 
       def get_config(self):
         config = super(_Optimizer, self).get_config()
@@ -1343,7 +1344,7 @@ class MultiLabelHeadForEstimator(test.TestCase):
         labels=labels,
         optimizer=_Optimizer('my_optimizer'),
         trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+            tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
 
     tol = 1e-3
     with self.cached_session() as sess:
@@ -1368,7 +1369,7 @@ class MultiLabelHeadForEstimator(test.TestCase):
         mode=ModeKeys.PREDICT,
         logits=logits,
         trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+            tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
 
     with self.cached_session() as sess:
       test_lib._initialize_variables(self, spec.scaffold)
@@ -1382,11 +1383,11 @@ class MultiLabelHeadForEstimator(test.TestCase):
           sess.run(spec.export_outputs[test_lib._DEFAULT_SERVING_KEY].classes))
 
   def test_train_with_update_ops(self):
-    with ops.Graph().as_default():
-      w = variables.Variable(1)
+    with tf.Graph().as_default():
+      w = tf.Variable(1)
       update_op = w.assign_add(1)
 
-      t = variables.Variable('')
+      t = tf.Variable('')
       expected_train_result = b'my_train_op'
       def _train_op_fn(loss):
         del loss
@@ -1401,7 +1402,7 @@ class MultiLabelHeadForEstimator(test.TestCase):
           train_op_fn=_train_op_fn,
           update_ops=[update_op],
           trainable_variables=[
-              variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+              tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
 
       with self.cached_session() as sess:
         test_lib._initialize_variables(self, spec.scaffold)
@@ -1415,7 +1416,7 @@ class MultiLabelHeadForEstimator(test.TestCase):
     head = head_lib.MultiLabelHead(
         n_classes=n_classes, label_vocabulary=['class0', 'class1'])
 
-    feature_columns = [feature_column.numeric_column('x')]
+    feature_columns = [tf.feature_column.numeric_column('x')]
     # Create dnn estimator.
     est = dnn.DNNEstimatorV2(
         head=head,
@@ -1432,11 +1433,11 @@ class MultiLabelHeadForEstimator(test.TestCase):
     est.train(input_fn, steps=num_steps)
     # Eval.
     eval_results = est.evaluate(input_fn, steps=num_steps)
-    self.assertEqual(num_steps, eval_results[ops.GraphKeys.GLOBAL_STEP])
+    self.assertEqual(num_steps, eval_results[tf.compat.v1.GraphKeys.GLOBAL_STEP])
     self.assertIn('loss', six.iterkeys(eval_results))
     # Predict.
     est.predict(input_fn)
 
 
 if __name__ == '__main__':
-  test.main()
+  tf.test.main()

@@ -18,6 +18,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import tensorflow as tf
 import numpy as np
 
 from tensorflow.core.framework import summary_pb2
@@ -39,7 +40,7 @@ from tensorflow_estimator.python.estimator.head import binary_class_head as head
 from tensorflow_estimator.python.estimator.head import head_utils as test_lib
 from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 
-_DEFAULT_SERVING_KEY = signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY
+_DEFAULT_SERVING_KEY = tf.saved_model.DEFAULT_SERVING_SIGNATURE_DEF_KEY
 
 
 def _assert_simple_summaries(test_case, expected_summaries, summary_str,
@@ -65,7 +66,7 @@ def _assert_no_hooks(test_case, spec):
 
 
 @test_util.run_all_in_graph_and_eager_modes
-class CreateEstimatorSpecTest(test.TestCase):
+class CreateEstimatorSpecTest(tf.test.TestCase):
 
   class _HeadWithTPUSupport(base_head.Head):
     """Head that overrides _create_tpu_estimator_spec."""
@@ -98,7 +99,7 @@ class CreateEstimatorSpecTest(test.TestCase):
         update_ops=None, regularization_losses=None,):
       return model_fn._TPUEstimatorSpec(
           mode=ModeKeys.EVAL,
-          loss=constant_op.constant(0.0, dtype=dtypes.float32))
+          loss=tf.constant(0.0, dtype=tf.dtypes.float32))
 
   class _HeadWithOutTPUSupport(base_head.Head):
     """Head that overrides create_estimator_spec."""
@@ -131,7 +132,7 @@ class CreateEstimatorSpecTest(test.TestCase):
         update_ops=None, regularization_losses=None,):
       return model_fn.EstimatorSpec(
           mode=ModeKeys.EVAL,
-          loss=constant_op.constant(0.0, dtype=dtypes.float32))
+          loss=tf.constant(0.0, dtype=tf.dtypes.float32))
 
   class _InvalidHead(base_head.Head):
     """Head that overrides neither estimator_spec functions."""
@@ -200,23 +201,23 @@ class CreateEstimatorSpecTest(test.TestCase):
   @test_util.deprecated_graph_mode_only
   def test_tensor_shape_checking_in_graph_mode(self):
     """Test for shape checking of tensor with partially defined shape."""
-    labels_placeholder = array_ops.placeholder(
-        dtype=dtypes.float32, shape=(None, 1))
-    logits_placeholder = array_ops.placeholder(
-        dtype=dtypes.float32, shape=(None, 1))
+    labels_placeholder = tf.compat.v1.placeholder(
+        dtype=tf.dtypes.float32, shape=(None, 1))
+    logits_placeholder = tf.compat.v1.placeholder(
+        dtype=tf.dtypes.float32, shape=(None, 1))
     labels_input = np.array([[-10.], [10.]], dtype=np.float32)
     logits_input = np.array([[1.], [0.]], dtype=np.float32)
 
     loss = np.array([[1.], [2.]], dtype=np.float32)
     def _loss_fn(labels, logits):
-      check_labels = control_flow_ops.Assert(
-          math_ops.reduce_all(math_ops.equal(labels, labels_input)),
+      check_labels = tf.debugging.Assert(
+          tf.reduce_all(tf.math.equal(labels, labels_input)),
           data=[labels])
-      check_logits = control_flow_ops.Assert(
-          math_ops.reduce_all(math_ops.equal(logits, logits_input)),
+      check_logits = tf.debugging.Assert(
+          tf.reduce_all(tf.math.equal(logits, logits_input)),
           data=[logits])
-      with ops.control_dependencies([check_labels, check_logits]):
-        return constant_op.constant(loss)
+      with tf.control_dependencies([check_labels, check_logits]):
+        return tf.constant(loss)
 
     unweighted_loss = base_head.call_loss_fn(
         loss_fn=_loss_fn,
@@ -246,9 +247,9 @@ class CreateEstimatorSpecTest(test.TestCase):
 
       def get_updates(self, loss, params):
         del params
-        variable = variables.Variable(
+        variable = tf.Variable(
             name='my_variable',
-            dtype=dtypes.float32,
+            dtype=tf.dtypes.float32,
             initial_value=0.)
         self._weights.append(variable)
         return [variable]
@@ -267,7 +268,7 @@ class CreateEstimatorSpecTest(test.TestCase):
         labels=labels,
         optimizer=optimizer,
         trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+            tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
 
     with self.cached_session() as sess:
       test_lib._initialize_variables(self, spec.scaffold)
@@ -300,8 +301,8 @@ class CreateEstimatorSpecTest(test.TestCase):
           mode=ModeKeys.TRAIN,
           logits=logits,
           labels=labels,
-          optimizer=adam_v1.AdamOptimizer())
+          optimizer=tf.compat.v1.train.AdamOptimizer())
 
 
 if __name__ == '__main__':
-  test.main()
+  tf.test.main()

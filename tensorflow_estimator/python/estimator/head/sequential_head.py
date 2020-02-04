@@ -21,6 +21,7 @@ from __future__ import print_function
 import abc
 import collections
 
+import tensorflow as tf
 import six
 
 from tensorflow.python.eager import context
@@ -215,8 +216,8 @@ class SequentialHeadWrapper(_SequentialHead):
                        '{} instead.'.format(sequence_mask.get_shape().ndims))
 
     with ops.name_scope('flatten'):
-      expected_length = math_ops.reduce_sum(
-          math_ops.cast(sequence_mask, dtypes.int32))
+      expected_length = tf.math.reduce_sum(
+          tf.cast(sequence_mask, tf.dtypes.int32))
       # Flatten logits and labels.
       flat_logits = _flatten_tensor(logits, sequence_mask, expected_length)
       flat_labels = _flatten_tensor(labels, sequence_mask, expected_length)
@@ -434,32 +435,32 @@ def _flatten_tensor(tensor, sequence_mask, expected_length):
   if shape.ndims < 2:
     raise ValueError('Input tensor expected to have at least 2 dimensions, '
                      'got {} instead.'.format(shape.ndims))
-  if isinstance(tensor, sparse_tensor.SparseTensor):
+  if isinstance(tensor, tf.sparse.SparseTensor):
     # What follows depends on the indices ordering. Hence we reorder the indices
     # to ensure correctness.
-    flat_tensor = sparse_ops.sparse_reorder(tensor).values
+    flat_tensor = tf.sparse.reorder(tensor).values
     if shape.ndims > 2:
-      new_shape = array_ops.concat([[-1], shape[2:]], axis=0)
-      flat_tensor = array_ops.reshape(tensor.values, new_shape)
-  elif isinstance(tensor, ops.Tensor):
-    flat_tensor = array_ops.boolean_mask_v2(tensor, sequence_mask)
+      new_shape = tf.concat([[-1], shape[2:]], axis=0)
+      flat_tensor = tf.reshape(tensor.values, new_shape)
+  elif isinstance(tensor, tf.Tensor):
+    flat_tensor = tf.boolean_mask(tensor, sequence_mask)
   else:
     raise ValueError('`tensor` expected to be a `Tensor` or  `SparseTensor` '
                      'got `{}` instead.'.format(tensor))
   if shape.ndims == 2:
-    flat_tensor = array_ops.expand_dims(flat_tensor, -1)
-    expected_shape = array_ops.concat([[expected_length], [1]], axis=0)
+    flat_tensor = tf.compat.v1.expand_dims(flat_tensor, -1)
+    expected_shape = tf.concat([[expected_length], [1]], axis=0)
   else:
-    expected_shape = array_ops.concat([[expected_length], shape[2:]], axis=0)
+    expected_shape = tf.concat([[expected_length], shape[2:]], axis=0)
 
   # TODO(b/119617064): Unify eager and graph implementations.
   err_message = 'Tensor shape is incompatible with provided mask.'
-  if context.executing_eagerly():
+  if tf.executing_eagerly():
     if flat_tensor._shape_tuple() != tuple(expected_shape.numpy()):  # pylint: disable=protected-access
       raise ValueError(err_message)
     return flat_tensor
-  with ops.control_dependencies([
-      check_ops.assert_equal(
-          array_ops.shape(flat_tensor), expected_shape,
+  with tf.control_dependencies([
+      tf.compat.v1.debugging.assert_equal(
+          tf.compat.v1.shape(flat_tensor), expected_shape,
           message=err_message)]):
-    return array_ops.identity(flat_tensor)
+    return tf.identity(flat_tensor)

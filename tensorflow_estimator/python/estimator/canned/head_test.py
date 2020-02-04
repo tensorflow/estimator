@@ -18,6 +18,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import tensorflow as tf
 import numpy as np
 import six
 
@@ -49,7 +50,7 @@ from tensorflow_estimator.python.estimator.inputs import numpy_io
 from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 
 
-_DEFAULT_SERVING_KEY = signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY
+_DEFAULT_SERVING_KEY = tf.saved_model.DEFAULT_SERVING_SIGNATURE_DEF_KEY
 
 
 def _initialize_variables(test_case, scaffold):
@@ -90,7 +91,7 @@ def _sigmoid(logits):
 
 
 @test_util.run_all_in_graph_and_eager_modes
-class CreateEstimatorSpecTest(test.TestCase):
+class CreateEstimatorSpecTest(tf.test.TestCase):
 
   class _HeadWithTPUSupport(head_lib._Head):
     """Head that overrides _create_tpu_estimator_spec."""
@@ -109,7 +110,7 @@ class CreateEstimatorSpecTest(test.TestCase):
                                    regularization_losses=None):
       return model_fn._TPUEstimatorSpec(
           mode=ModeKeys.EVAL,
-          loss=constant_op.constant(0.0, dtype=dtypes.float32))
+          loss=tf.constant(0.0, dtype=tf.dtypes.float32))
 
   class _HeadWithOutTPUSupport(head_lib._Head):
     """Head that overrides create_estimator_spec."""
@@ -128,7 +129,7 @@ class CreateEstimatorSpecTest(test.TestCase):
                               regularization_losses=None):
       return model_fn.EstimatorSpec(
           mode=ModeKeys.EVAL,
-          loss=constant_op.constant(0.0, dtype=dtypes.float32))
+          loss=tf.constant(0.0, dtype=tf.dtypes.float32))
 
   class _InvalidHead(head_lib._Head):
     """Head that overrides neither estimator_spec functions."""
@@ -183,10 +184,10 @@ class CreateEstimatorSpecTest(test.TestCase):
 
 
 @test_util.run_v1_only("Tests v1 only symbols")
-class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
+class MultiClassHeadWithSoftmaxCrossEntropyLoss(tf.test.TestCase):
 
   def setUp(self):
-    ops.reset_default_graph()
+    tf.compat.v1.reset_default_graph()
 
   def test_n_classes_is_none(self):
     with self.assertRaisesRegexp(ValueError, 'n_classes cannot be None'):
@@ -206,7 +207,7 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
     with self.assertRaisesRegexp(
         ValueError, r'Invalid loss_reduction: none'):
       head_lib._multi_class_head_with_softmax_cross_entropy_loss(
-          n_classes=3, loss_reduction=losses.Reduction.NONE)
+          n_classes=3, loss_reduction=tf.compat.v1.losses.Reduction.NONE)
 
   def test_loss_fn_arg_labels_missing(self):
     def _loss_fn(logits):
@@ -259,13 +260,13 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
           logits=logits_2x2)
 
     # Dynamic shape.
-    logits_placeholder = array_ops.placeholder(dtype=dtypes.float32)
+    logits_placeholder = tf.compat.v1.placeholder(dtype=tf.dtypes.float32)
     spec = head.create_estimator_spec(
         features={'x': np.array(((30.,), (42.,),))},
         mode=ModeKeys.PREDICT,
         logits=logits_placeholder)
     with self.cached_session():
-      with self.assertRaisesRegexp(errors.OpError, 'logits shape'):
+      with self.assertRaisesRegexp(tf.errors.OpError, 'logits shape'):
         spec.predictions[prediction_keys.PredictionKeys.PROBABILITIES].eval({
             logits_placeholder: logits_2x2
         })
@@ -290,8 +291,8 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
           labels=labels_2x2)
 
     # Dynamic shape.
-    labels_placeholder = array_ops.placeholder(dtype=dtypes.int64)
-    logits_placeholder = array_ops.placeholder(dtype=dtypes.float32)
+    labels_placeholder = tf.compat.v1.placeholder(dtype=tf.dtypes.int64)
+    logits_placeholder = tf.compat.v1.placeholder(dtype=tf.dtypes.float32)
     training_loss = head.create_loss(
         features=features,
         mode=ModeKeys.EVAL,
@@ -299,7 +300,7 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
         labels=labels_placeholder)[0]
     with self.cached_session():
       with self.assertRaisesRegexp(
-          errors.InvalidArgumentError,
+          tf.errors.InvalidArgumentError,
           r'\[expected_labels_shape: \] \[2 1\] \[labels_shape: \] \[2 2\]'):
         training_loss.eval({
             logits_placeholder: logits_2x3,
@@ -326,8 +327,8 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
           labels=labels_2x1)
 
     # Dynamic shape.
-    labels_placeholder = array_ops.placeholder(dtype=dtypes.float32)
-    logits_placeholder = array_ops.placeholder(dtype=dtypes.float32)
+    labels_placeholder = tf.compat.v1.placeholder(dtype=tf.dtypes.float32)
+    logits_placeholder = tf.compat.v1.placeholder(dtype=tf.dtypes.float32)
     with self.assertRaisesRegexp(ValueError, 'Labels dtype'):
       head.create_loss(
           features=features,
@@ -344,8 +345,8 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
     labels_2x1_with_negative_id = np.array(((-5,), (1,),), dtype=np.int)
     logits_2x3 = np.array(((1., 2., 4.), (1., 2., 3.),))
 
-    labels_placeholder = array_ops.placeholder(dtype=dtypes.int64)
-    logits_placeholder = array_ops.placeholder(dtype=dtypes.float32)
+    labels_placeholder = tf.compat.v1.placeholder(dtype=tf.dtypes.int64)
+    logits_placeholder = tf.compat.v1.placeholder(dtype=tf.dtypes.float32)
     training_loss = head.create_loss(
         features={'x': np.array(((42.,),))},
         mode=ModeKeys.EVAL,
@@ -370,7 +371,7 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
     head = head_lib._multi_class_head_with_softmax_cross_entropy_loss(n_classes)
     self.assertEqual(n_classes, head.logits_dimension)
 
-    labels_2x1 = sparse_tensor.SparseTensor(
+    labels_2x1 = tf.sparse.SparseTensor(
         values=['english', 'italian'],
         indices=[[0, 0], [1, 0]],
         dense_shape=[2, 1])
@@ -410,8 +411,8 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
           labels=values_3x1)
 
     # Dynamic shape.
-    labels_placeholder = array_ops.placeholder(dtype=dtypes.int64)
-    logits_placeholder = array_ops.placeholder(dtype=dtypes.float32)
+    labels_placeholder = tf.compat.v1.placeholder(dtype=tf.dtypes.int64)
+    logits_placeholder = tf.compat.v1.placeholder(dtype=tf.dtypes.float32)
     training_loss = head.create_loss(
         features=features,
         mode=ModeKeys.EVAL,
@@ -419,7 +420,7 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
         labels=labels_placeholder)[0]
     with self.cached_session():
       with self.assertRaisesRegexp(
-          errors.InvalidArgumentError,
+          tf.errors.InvalidArgumentError,
           r'\[expected_labels_shape: \] \[2 1\] \[labels_shape: \] \[3 1\]'):
         training_loss.eval({
             labels_placeholder: values_3x1,
@@ -483,7 +484,7 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
           sess.run(spec.export_outputs[_DEFAULT_SERVING_KEY].classes))
 
   def test_predict_with_tensor_n_classes(self):
-    n_classes = constant_op.constant(3, dtype=dtypes.int32)
+    n_classes = tf.constant(3, dtype=tf.dtypes.int32)
     head = head_lib._multi_class_head_with_softmax_cross_entropy_loss(n_classes)
     self.assertEqual(n_classes, head.logits_dimension)
 
@@ -598,7 +599,7 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
         logits=logits,
         labels=labels)[0]
     with self.cached_session():
-      _initialize_variables(self, monitored_session.Scaffold())
+      _initialize_variables(self, tf.compat.v1.train.Scaffold())
       self.assertAllClose(
           expected_training_loss, training_loss.eval(), rtol=1e-2, atol=1e-2)
 
@@ -608,14 +609,14 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
     logits_input = np.array([[-10., 10., 0.], [-15., 10., 0]], dtype=np.float32)
     labels_input = np.array([[1], [2]], dtype=np.int64)
     def _loss_fn(labels, logits):
-      check_labels = control_flow_ops.Assert(
-          math_ops.reduce_all(math_ops.equal(labels, labels_input)),
+      check_labels = tf.debugging.Assert(
+          tf.reduce_all(tf.math.equal(labels, labels_input)),
           data=[labels])
-      check_logits = control_flow_ops.Assert(
-          math_ops.reduce_all(math_ops.equal(logits, logits_input)),
+      check_logits = tf.debugging.Assert(
+          tf.reduce_all(tf.math.equal(logits, logits_input)),
           data=[logits])
-      with ops.control_dependencies([check_labels, check_logits]):
-        return constant_op.constant(loss)
+      with tf.control_dependencies([check_labels, check_logits]):
+        return tf.constant(loss)
     head = head_lib._multi_class_head_with_softmax_cross_entropy_loss(
         n_classes=3, loss_fn=_loss_fn)
 
@@ -625,7 +626,7 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
         logits=logits_input,
         labels=labels_input)[0]
     with self.cached_session():
-      _initialize_variables(self, monitored_session.Scaffold())
+      _initialize_variables(self, tf.compat.v1.train.Scaffold())
       self.assertAllClose(np.sum(loss), actual_training_loss.eval())
 
   def test_eval_create_loss_loss_fn_wrong_shape(self):
@@ -633,7 +634,7 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
     loss = np.array([1., 2.], dtype=np.float32)
     def _loss_fn(labels, logits):
       del labels, logits  # Unused
-      return constant_op.constant(loss)
+      return tf.constant(loss)
     head = head_lib._multi_class_head_with_softmax_cross_entropy_loss(
         n_classes=3, loss_fn=_loss_fn)
 
@@ -645,9 +646,9 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
         logits=logits,
         labels=labels)[0]
     with self.cached_session():
-      _initialize_variables(self, monitored_session.Scaffold())
+      _initialize_variables(self, tf.compat.v1.train.Scaffold())
       with self.assertRaisesRegexp(
-          errors.InvalidArgumentError,
+          tf.errors.InvalidArgumentError,
           r'\[loss_fn must return Tensor of shape \[D0, D1, ... DN, 1\]\. \] '
           r'\[logits_shape: \] \[2 3\] \[loss_shape: \] \[2\]'):
         actual_training_loss.eval()
@@ -733,7 +734,7 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
   def test_eval_with_regularization_losses(self):
     n_classes = 3
     head = head_lib._multi_class_head_with_softmax_cross_entropy_loss(
-        n_classes, loss_reduction=losses.Reduction.SUM_OVER_BATCH_SIZE)
+        n_classes, loss_reduction=tf.compat.v1.losses.Reduction.SUM_OVER_BATCH_SIZE)
     logits = np.array(((10, 0, 0), (0, 10, 0),), dtype=np.float32)
     labels = np.array(((1,), (1,)), dtype=np.int64)
     features = {'x': np.array(((42,),), dtype=np.int32)}
@@ -791,7 +792,7 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
         logits=logits,
         labels=labels)[0]
     with self.cached_session():
-      _initialize_variables(self, monitored_session.Scaffold())
+      _initialize_variables(self, tf.compat.v1.train.Scaffold())
       self.assertAllClose(
           expected_training_loss, training_loss.eval(), rtol=1e-2, atol=1e-2)
 
@@ -901,7 +902,7 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
         labels=labels)
     tol = 1e-2
     with self.cached_session():
-      _initialize_variables(self, monitored_session.Scaffold())
+      _initialize_variables(self, tf.compat.v1.train.Scaffold())
       self.assertAllClose(
           expected_training_loss, training_loss.eval(), rtol=tol, atol=tol)
       self.assertAllClose(
@@ -911,7 +912,7 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
   def test_train_create_loss_loss_reduction(self):
     """Tests create_loss with loss_reduction."""
     head = head_lib._multi_class_head_with_softmax_cross_entropy_loss(
-        n_classes=3, loss_reduction=losses.Reduction.SUM_BY_NONZERO_WEIGHTS)
+        n_classes=3, loss_reduction=tf.compat.v1.losses.Reduction.SUM_BY_NONZERO_WEIGHTS)
 
     logits = np.array(((10, 0, 0), (0, 10, 0),), dtype=np.float32)
     labels = np.array(((1,), (1,)), dtype=np.int64)
@@ -930,7 +931,7 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
         labels=labels)
     tol = 1e-2
     with self.cached_session():
-      _initialize_variables(self, monitored_session.Scaffold())
+      _initialize_variables(self, tf.compat.v1.train.Scaffold())
       self.assertAllClose(
           expected_training_loss, training_loss.eval(), rtol=tol, atol=tol)
       self.assertAllClose(
@@ -943,7 +944,7 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
         n_classes=3)
     def _no_op_train_fn(loss):
       del loss
-      return control_flow_ops.no_op()
+      return tf.no_op()
 
     with self.assertRaisesRegexp(
         ValueError, r'You must provide a labels Tensor\. Given: None\.'):
@@ -963,9 +964,9 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
     features = {'x': np.array(((42,),), dtype=np.int32)}
     expected_train_result = 'my_train_op'
     def _train_op_fn(loss):
-      return string_ops.string_join(
-          [constant_op.constant(expected_train_result),
-           string_ops.as_string(loss, precision=2)])
+      return tf.strings.join(
+          [tf.constant(expected_train_result),
+           tf.strings.as_string(loss, precision=2)])
 
     # loss = sum(cross_entropy(labels, logits)) = sum(10, 0) = 10.
     expected_loss = 10.
@@ -1011,9 +1012,9 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
 
       def minimize(self, loss, global_step):
         del global_step
-        return string_ops.string_join(
-            [constant_op.constant(expected_train_result),
-             string_ops.as_string(loss, precision=2)])
+        return tf.strings.join(
+            [tf.constant(expected_train_result),
+             tf.strings.as_string(loss, precision=2)])
 
     # loss = sum(cross_entropy(labels, logits)) = sum(10, 0) = 10.
     expected_loss = 10.
@@ -1037,12 +1038,12 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
     n_classes = 3
     head = head_lib._multi_class_head_with_softmax_cross_entropy_loss(n_classes)
 
-    with ops.Graph().as_default():
-      w = variables.Variable(1)
+    with tf.Graph().as_default():
+      w = tf.Variable(1)
       update_op = w.assign_add(1)
-      ops.add_to_collection(ops.GraphKeys.UPDATE_OPS, update_op)
+      tf.compat.v1.add_to_collection(tf.compat.v1.GraphKeys.UPDATE_OPS, update_op)
 
-      t = variables.Variable('')
+      t = tf.Variable('')
       expected_train_result = b'my_train_op'
       def _train_op_fn(loss):
         del loss
@@ -1075,7 +1076,7 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
 
     def _train_op_fn(loss):
       del loss
-      return control_flow_ops.no_op()
+      return tf.no_op()
 
     spec = head.create_estimator_spec(
         features=features,
@@ -1100,16 +1101,16 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
   def test_train_with_regularization_losses(self):
     n_classes = 3
     head = head_lib._multi_class_head_with_softmax_cross_entropy_loss(
-        n_classes, loss_reduction=losses.Reduction.SUM_OVER_BATCH_SIZE)
+        n_classes, loss_reduction=tf.compat.v1.losses.Reduction.SUM_OVER_BATCH_SIZE)
 
     logits = np.array(((10, 0, 0), (0, 10, 0),), dtype=np.float32)
     labels = np.array(((1,), (1,)), dtype=np.int64)
     features = {'x': np.array(((42,),), dtype=np.int32)}
     expected_train_result = 'my_train_op'
     def _train_op_fn(loss):
-      return string_ops.string_join(
-          [constant_op.constant(expected_train_result),
-           string_ops.as_string(loss, precision=2)])
+      return tf.strings.join(
+          [tf.constant(expected_train_result),
+           tf.strings.as_string(loss, precision=2)])
 
     regularization_losses = [1.5, 0.5]
     expected_regularization_loss = 2.
@@ -1168,7 +1169,7 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
         labels=labels_rank_1)
     tol = 1e-2
     with self.cached_session():
-      _initialize_variables(self, monitored_session.Scaffold())
+      _initialize_variables(self, tf.compat.v1.train.Scaffold())
       self.assertAllClose(
           expected_training_loss, training_loss.eval(), rtol=tol, atol=tol)
       self.assertAllClose(
@@ -1189,9 +1190,9 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
 
     expected_train_result = 'my_train_op'
     def _train_op_fn(loss):
-      return string_ops.string_join(
-          [constant_op.constant(expected_train_result),
-           string_ops.as_string(loss, precision=2)])
+      return tf.strings.join(
+          [tf.constant(expected_train_result),
+           tf.strings.as_string(loss, precision=2)])
 
     # loss = sum(cross_entropy(labels, logits) * [1, 2, 3])
     #      = sum([10, 10, 0] * [1, 2, 3]) = 30
@@ -1247,7 +1248,7 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
         logits=logits,
         labels=labels)[0]
     with self.cached_session():
-      _initialize_variables(self, monitored_session.Scaffold())
+      _initialize_variables(self, tf.compat.v1.train.Scaffold())
       self.assertAllClose(
           expected_training_loss, training_loss.eval(), rtol=1e-2, atol=1e-2)
 
@@ -1262,7 +1263,7 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
 
     def _train_op_fn(loss):
       del loss
-      return control_flow_ops.no_op()
+      return tf.no_op()
 
     # loss = sum(cross_entropy(labels, logits)) = sum(10, 0) = 10.
     expected_loss = 10.
@@ -1294,9 +1295,9 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
     expected_loss = 30.
 
     def _train_op_fn(loss):
-      return string_ops.string_join(
-          [constant_op.constant(expected_train_result),
-           string_ops.as_string(loss, precision=2)])
+      return tf.strings.join(
+          [tf.constant(expected_train_result),
+           tf.strings.as_string(loss, precision=2)])
 
     spec = head.create_estimator_spec(
         features={
@@ -1356,7 +1357,7 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
         labels=labels)
     tol = 1e-2
     with self.cached_session():
-      _initialize_variables(self, monitored_session.Scaffold())
+      _initialize_variables(self, tf.compat.v1.train.Scaffold())
       self.assertAllClose(
           expected_training_loss, training_loss.eval(), rtol=tol, atol=tol)
       self.assertAllClose(
@@ -1374,9 +1375,9 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
     weights = np.array([[1., 1.5], [2., 2.5]], dtype=np.float32)
     expected_train_result = 'my_train_op'
     def _train_op_fn(loss):
-      return string_ops.string_join(
-          [constant_op.constant(expected_train_result),
-           string_ops.as_string(loss, precision=2)])
+      return tf.strings.join(
+          [tf.constant(expected_train_result),
+           tf.strings.as_string(loss, precision=2)])
 
     # loss = cross_entropy(labels, logits) = [[0, 12], [0, 15]].
     # weighted_sum_loss = 1*0 + 1.5*12 + 2*0 + 2.5*15 = 55.5
@@ -1408,7 +1409,7 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
     weights = np.array([[1.], [2.]], dtype=np.float32)
     def _no_op_train_fn(loss):
       del loss
-      return control_flow_ops.no_op()
+      return tf.no_op()
 
     spec = head.create_estimator_spec(
         features={'weights': weights},
@@ -1417,9 +1418,9 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
         labels=labels,
         train_op_fn=_no_op_train_fn)
     with self.cached_session():
-      _initialize_variables(self, monitored_session.Scaffold())
+      _initialize_variables(self, tf.compat.v1.train.Scaffold())
       with self.assertRaisesRegexp(
-          errors.InvalidArgumentError,
+          tf.errors.InvalidArgumentError,
           r'\[logits_shape: \] \[2 2 3\] \[weights_shape: \] \[2 1\]'):
         spec.loss.eval()
 
@@ -1432,10 +1433,10 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
     labels = np.array([[[0], [1]], [[1], [2]]], dtype=np.int64)
     weights = np.array([[[1., 1.1, 1.2], [1.5, 1.6, 1.7]],
                         [[2., 2.1, 2.2], [2.5, 2.6, 2.7]]])
-    weights_placeholder = array_ops.placeholder(dtype=dtypes.float32)
+    weights_placeholder = tf.compat.v1.placeholder(dtype=tf.dtypes.float32)
     def _no_op_train_fn(loss):
       del loss
-      return control_flow_ops.no_op()
+      return tf.no_op()
 
     spec = head.create_estimator_spec(
         features={'weights': weights_placeholder},
@@ -1444,9 +1445,9 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
         labels=labels,
         train_op_fn=_no_op_train_fn)
     with self.cached_session():
-      _initialize_variables(self, monitored_session.Scaffold())
+      _initialize_variables(self, tf.compat.v1.train.Scaffold())
       with self.assertRaisesRegexp(
-          errors.InvalidArgumentError,
+          tf.errors.InvalidArgumentError,
           r'\[logits_shape: \]\s\[2 2 3\]\s\[weights_shape: \]\s\[2 2 3\]'):
         spec.loss.eval({weights_placeholder: weights})
 
@@ -1490,10 +1491,10 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(test.TestCase):
 
 
 @test_util.run_v1_only("Tests v1 only symbols")
-class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
+class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(tf.test.TestCase):
 
   def setUp(self):
-    ops.reset_default_graph()
+    tf.compat.v1.reset_default_graph()
 
   def test_threshold_too_small(self):
     with self.assertRaisesRegexp(ValueError, r'thresholds not in \(0, 1\)'):
@@ -1513,7 +1514,7 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
     with self.assertRaisesRegexp(
         ValueError, r'Invalid loss_reduction: none'):
       head_lib._binary_logistic_head_with_sigmoid_cross_entropy_loss(
-          loss_reduction=losses.Reduction.NONE)
+          loss_reduction=tf.compat.v1.losses.Reduction.NONE)
 
   def test_loss_fn_arg_labels_missing(self):
     def _loss_fn(logits):
@@ -1565,13 +1566,13 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
           logits=logits_2x2)
 
     # Dynamic shape.
-    logits_placeholder = array_ops.placeholder(dtype=dtypes.float32)
+    logits_placeholder = tf.compat.v1.placeholder(dtype=tf.dtypes.float32)
     spec = head.create_estimator_spec(
         features={'x': np.array(((42.,),))},
         mode=ModeKeys.PREDICT,
         logits=logits_placeholder)
     with self.cached_session():
-      with self.assertRaisesRegexp(errors.OpError, 'logits shape'):
+      with self.assertRaisesRegexp(tf.errors.OpError, 'logits shape'):
         spec.predictions[prediction_keys.PredictionKeys.PROBABILITIES].eval({
             logits_placeholder: logits_2x2
         })
@@ -1593,8 +1594,8 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
           labels=labels_2x2)
 
     # Dynamic shape.
-    labels_placeholder = array_ops.placeholder(dtype=dtypes.float32)
-    logits_placeholder = array_ops.placeholder(dtype=dtypes.float32)
+    labels_placeholder = tf.compat.v1.placeholder(dtype=tf.dtypes.float32)
+    logits_placeholder = tf.compat.v1.placeholder(dtype=tf.dtypes.float32)
     training_loss = head.create_loss(
         features={'x': np.array(((42.,),))},
         mode=ModeKeys.EVAL,
@@ -1602,7 +1603,7 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
         labels=labels_placeholder)[0]
     with self.cached_session():
       with self.assertRaisesRegexp(
-          errors.InvalidArgumentError,
+          tf.errors.InvalidArgumentError,
           r'\[expected_labels_shape: \] \[2 1\] \[labels_shape: \] \[2 2\]'):
         training_loss.eval({
             logits_placeholder: logits_2x1,
@@ -1634,8 +1635,8 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
           labels=values_2x1)
 
     # Dynamic shape.
-    labels_placeholder = array_ops.placeholder(dtype=dtypes.float32)
-    logits_placeholder = array_ops.placeholder(dtype=dtypes.float32)
+    labels_placeholder = tf.compat.v1.placeholder(dtype=tf.dtypes.float32)
+    logits_placeholder = tf.compat.v1.placeholder(dtype=tf.dtypes.float32)
     training_loss = head.create_loss(
         features={'x': values_2x1},
         mode=ModeKeys.EVAL,
@@ -1643,7 +1644,7 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
         labels=labels_placeholder)[0]
     with self.cached_session():
       with self.assertRaisesRegexp(
-          errors.InvalidArgumentError,
+          tf.errors.InvalidArgumentError,
           r'\[expected_labels_shape: \] \[3 1\] \[labels_shape: \] \[2 1\]'):
         training_loss.eval({
             labels_placeholder: values_2x1,
@@ -1651,7 +1652,7 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
         })
     with self.cached_session():
       with self.assertRaisesRegexp(
-          errors.InvalidArgumentError,
+          tf.errors.InvalidArgumentError,
           r'\[expected_labels_shape: \] \[2 1\] \[labels_shape: \] \[3 1\]'):
         training_loss.eval({
             labels_placeholder: values_3x1,
@@ -1753,7 +1754,7 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
         logits=logits,
         labels=labels)[0]
     with self.cached_session():
-      _initialize_variables(self, monitored_session.Scaffold())
+      _initialize_variables(self, tf.compat.v1.train.Scaffold())
       self.assertAllClose(
           expected_training_loss, training_loss.eval(), rtol=1e-2, atol=1e-2)
 
@@ -1845,7 +1846,7 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
 
   def test_eval_with_regularization_losses(self):
     head = head_lib._binary_logistic_head_with_sigmoid_cross_entropy_loss(
-        loss_reduction=losses.Reduction.SUM_OVER_BATCH_SIZE)
+        loss_reduction=tf.compat.v1.losses.Reduction.SUM_OVER_BATCH_SIZE)
     logits = np.array(((45,), (-41,),), dtype=np.float32)
     labels = np.array(((1,), (1,),), dtype=np.int32)
     features = {'x': np.array(((42,),), dtype=np.int32)}
@@ -1905,7 +1906,7 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
         logits=logits,
         labels=labels)[0]
     with self.cached_session():
-      _initialize_variables(self, monitored_session.Scaffold())
+      _initialize_variables(self, tf.compat.v1.train.Scaffold())
       self.assertAllClose(41., training_loss.eval())
 
   def test_eval_with_vocabulary_list(self):
@@ -1950,7 +1951,7 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
         logits=logits,
         labels=labels)[0]
     with self.cached_session():
-      _initialize_variables(self, monitored_session.Scaffold())
+      _initialize_variables(self, tf.compat.v1.train.Scaffold())
       self.assertAllClose(
           expected_training_loss, training_loss.eval(), rtol=1e-2, atol=1e-2)
 
@@ -2030,7 +2031,7 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
         logits=logits,
         labels=labels)
     with self.cached_session():
-      _initialize_variables(self, monitored_session.Scaffold())
+      _initialize_variables(self, tf.compat.v1.train.Scaffold())
       self.assertAllClose(expected_training_loss, training_loss.eval())
       self.assertAllClose(expected_unreduced_loss, unreduced_loss.eval())
       self.assertAllClose(expected_weights, actual_weights)
@@ -2038,7 +2039,7 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
   def test_train_create_loss_loss_reduction(self):
     """Tests create_loss with loss_reduction."""
     head = head_lib._binary_logistic_head_with_sigmoid_cross_entropy_loss(
-        loss_reduction=losses.Reduction.SUM_BY_NONZERO_WEIGHTS)
+        loss_reduction=tf.compat.v1.losses.Reduction.SUM_BY_NONZERO_WEIGHTS)
 
     logits = np.array(((45,), (-41,),), dtype=np.float32)
     labels = np.array(((1,), (1,),), dtype=np.float64)
@@ -2056,7 +2057,7 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
         logits=logits,
         labels=labels)
     with self.cached_session():
-      _initialize_variables(self, monitored_session.Scaffold())
+      _initialize_variables(self, tf.compat.v1.train.Scaffold())
       self.assertAllClose(expected_training_loss, training_loss.eval())
       self.assertAllClose(expected_unreduced_loss, unreduced_loss.eval())
       self.assertAllClose(expected_weights, actual_weights)
@@ -2067,14 +2068,14 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
     logits_input = np.array([[-10.], [10.]], dtype=np.float32)
     labels_input = np.array([[1], [0]], dtype=np.int64)
     def _loss_fn(labels, logits):
-      check_labels = control_flow_ops.Assert(
-          math_ops.reduce_all(math_ops.equal(labels, labels_input)),
+      check_labels = tf.debugging.Assert(
+          tf.reduce_all(tf.math.equal(labels, labels_input)),
           data=[labels])
-      check_logits = control_flow_ops.Assert(
-          math_ops.reduce_all(math_ops.equal(logits, logits_input)),
+      check_logits = tf.debugging.Assert(
+          tf.reduce_all(tf.math.equal(logits, logits_input)),
           data=[logits])
-      with ops.control_dependencies([check_labels, check_logits]):
-        return constant_op.constant(loss)
+      with tf.control_dependencies([check_labels, check_logits]):
+        return tf.constant(loss)
     head = head_lib._binary_logistic_head_with_sigmoid_cross_entropy_loss(
         loss_fn=_loss_fn)
 
@@ -2084,7 +2085,7 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
         logits=logits_input,
         labels=labels_input)[0]
     with self.cached_session():
-      _initialize_variables(self, monitored_session.Scaffold())
+      _initialize_variables(self, tf.compat.v1.train.Scaffold())
       self.assertAllClose(np.sum(loss), actual_training_loss.eval())
 
   def test_eval_create_loss_loss_fn_wrong_shape(self):
@@ -2092,7 +2093,7 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
     loss = np.array([1., 2.], dtype=np.float32)
     def _loss_fn(labels, logits):
       del labels, logits  # Unused
-      return constant_op.constant(loss)
+      return tf.constant(loss)
     head = head_lib._binary_logistic_head_with_sigmoid_cross_entropy_loss(
         loss_fn=_loss_fn)
 
@@ -2104,9 +2105,9 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
         logits=logits,
         labels=labels)[0]
     with self.cached_session():
-      _initialize_variables(self, monitored_session.Scaffold())
+      _initialize_variables(self, tf.compat.v1.train.Scaffold())
       with self.assertRaisesRegexp(
-          errors.InvalidArgumentError,
+          tf.errors.InvalidArgumentError,
           r'\[loss_fn must return Tensor of shape \[D0, D1, ... DN, 1\]\. \] '
           r'\[logits_shape: \] \[2 1\] \[loss_shape: \] \[2\]'):
         actual_training_loss.eval()
@@ -2116,7 +2117,7 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
     head = head_lib._binary_logistic_head_with_sigmoid_cross_entropy_loss()
     def _no_op_train_fn(loss):
       del loss
-      return control_flow_ops.no_op()
+      return tf.no_op()
 
     with self.assertRaisesRegexp(
         ValueError, r'You must provide a labels Tensor\. Given: None\.'):
@@ -2137,11 +2138,11 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
     # loss = sum(cross_entropy(labels, logits)) = sum(0, 41) = 41
     expected_loss = 41.
     def _train_op_fn(loss):
-      with ops.control_dependencies((check_ops.assert_equal(
-          math_ops.cast(expected_loss, dtype=dtypes.float32),
-          math_ops.cast(loss, dtype=dtypes.float32),
+      with tf.control_dependencies((tf.compat.v1.debugging.assert_equal(
+          tf.cast(expected_loss, dtype=tf.dtypes.float32),
+          tf.cast(loss, dtype=tf.dtypes.float32),
           name='assert_loss'),)):
-        return constant_op.constant(expected_train_result)
+        return tf.constant(expected_train_result)
 
     # Create estimator spec.
     spec = head.create_estimator_spec(
@@ -2186,11 +2187,11 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
 
       def minimize(self, loss, global_step):
         del global_step
-        with ops.control_dependencies((check_ops.assert_equal(
-            math_ops.cast(expected_loss, dtype=dtypes.float32),
-            math_ops.cast(loss, dtype=dtypes.float32),
+        with tf.control_dependencies((tf.compat.v1.debugging.assert_equal(
+            tf.cast(expected_loss, dtype=tf.dtypes.float32),
+            tf.cast(loss, dtype=tf.dtypes.float32),
             name='assert_loss'),)):
-          return constant_op.constant(expected_train_result)
+          return tf.constant(expected_train_result)
 
     # Create estimator spec.
     spec = head.create_estimator_spec(
@@ -2209,12 +2210,12 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
   def test_train_with_update_ops(self):
     head = head_lib._binary_logistic_head_with_sigmoid_cross_entropy_loss()
 
-    with ops.Graph().as_default():
-      w = variables.Variable(1)
+    with tf.Graph().as_default():
+      w = tf.Variable(1)
       update_op = w.assign_add(1)
-      ops.add_to_collection(ops.GraphKeys.UPDATE_OPS, update_op)
+      tf.compat.v1.add_to_collection(tf.compat.v1.GraphKeys.UPDATE_OPS, update_op)
 
-      t = variables.Variable('')
+      t = tf.Variable('')
       expected_train_result = b'my_train_op'
       def _train_op_fn(loss):
         del loss
@@ -2246,7 +2247,7 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
 
     def _train_op_fn(loss):
       del loss
-      return control_flow_ops.no_op()
+      return tf.no_op()
 
     # Create estimator spec.
     spec = head.create_estimator_spec(
@@ -2273,7 +2274,7 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
 
   def test_train_with_regularization_losses(self):
     head = head_lib._binary_logistic_head_with_sigmoid_cross_entropy_loss(
-        loss_reduction=losses.Reduction.SUM_OVER_BATCH_SIZE)
+        loss_reduction=tf.compat.v1.losses.Reduction.SUM_OVER_BATCH_SIZE)
 
     logits = np.array(((45,), (-41,),), dtype=np.float32)
     labels = np.array(((1,), (1,),), dtype=np.float64)
@@ -2286,11 +2287,11 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
     # loss = unregularized_loss + regularization_loss = 7.
     expected_loss = 22.5
     def _train_op_fn(loss):
-      with ops.control_dependencies((check_ops.assert_equal(
-          math_ops.cast(expected_loss, dtype=dtypes.float32),
-          math_ops.cast(loss, dtype=dtypes.float32),
+      with tf.control_dependencies((tf.compat.v1.debugging.assert_equal(
+          tf.cast(expected_loss, dtype=tf.dtypes.float32),
+          tf.cast(loss, dtype=tf.dtypes.float32),
           name='assert_loss'),)):
-        return constant_op.constant(expected_train_result)
+        return tf.constant(expected_train_result)
 
     # Create estimator spec.
     spec = head.create_estimator_spec(
@@ -2322,7 +2323,7 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
     labels = np.array([[1.2], [0.4]], dtype=np.float32)
     features = {'x': np.array([[42]], dtype=np.float32)}
     with self.assertRaisesRegexp(
-        errors.InvalidArgumentError,
+        tf.errors.InvalidArgumentError,
         r'Labels must <= n_classes - 1'):
       training_loss = head.create_loss(
           features=features, mode=ModeKeys.TRAIN, logits=logits,
@@ -2348,7 +2349,7 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
         logits=logits,
         labels=labels)[0]
     with self.cached_session():
-      _initialize_variables(self, monitored_session.Scaffold())
+      _initialize_variables(self, tf.compat.v1.train.Scaffold())
       self.assertAllClose(
           expected_training_loss, training_loss.eval(), rtol=1e-2, atol=1e-2)
 
@@ -2366,10 +2367,10 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
     #      = 1.2484322
     expected_loss = 1.2484322
     def _train_op_fn(loss):
-      with ops.control_dependencies((dnn_testing_utils_v1.assert_close(
-          math_ops.cast(expected_loss, dtype=dtypes.float32),
-          math_ops.cast(loss, dtype=dtypes.float32)),)):
-        return constant_op.constant(expected_train_result)
+      with tf.control_dependencies((dnn_testing_utils_v1.assert_close(
+          tf.cast(expected_loss, dtype=tf.dtypes.float32),
+          tf.cast(loss, dtype=tf.dtypes.float32)),)):
+        return tf.constant(expected_train_result)
 
     # Create estimator spec.
     spec = head.create_estimator_spec(
@@ -2406,7 +2407,7 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
         logits=logits,
         labels=labels)[0]
     with self.cached_session():
-      _initialize_variables(self, monitored_session.Scaffold())
+      _initialize_variables(self, tf.compat.v1.train.Scaffold())
       self.assertAllClose(
           expected_training_loss, training_loss.eval(), rtol=1e-2, atol=1e-2)
 
@@ -2555,7 +2556,7 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
         logits=logits,
         labels=labels_rank_1)
     with self.cached_session():
-      _initialize_variables(self, monitored_session.Scaffold())
+      _initialize_variables(self, tf.compat.v1.train.Scaffold())
       self.assertAllClose(
           expected_training_loss, training_loss.eval(),
           rtol=1e-2, atol=1e-2)
@@ -2585,11 +2586,11 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
     # loss = sum(losses) = 1 + 4.1 + 66 = 70.1
     expected_loss = 70.1
     def _train_op_fn(loss):
-      with ops.control_dependencies((check_ops.assert_equal(
-          math_ops.cast(expected_loss, dtype=dtypes.float32),
-          math_ops.cast(loss, dtype=dtypes.float32),
+      with tf.control_dependencies((tf.compat.v1.debugging.assert_equal(
+          tf.cast(expected_loss, dtype=tf.dtypes.float32),
+          tf.cast(loss, dtype=tf.dtypes.float32),
           name='assert_loss'),)):
-        return constant_op.constant(expected_train_result)
+        return tf.constant(expected_train_result)
 
     spec = head.create_estimator_spec(
         features=features,
@@ -2630,11 +2631,11 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
     # loss = sum(losses) = 1 + 4.1 + 66 = 70.1
     expected_loss = 70.1
     def _train_op_fn(loss):
-      with ops.control_dependencies((check_ops.assert_equal(
-          math_ops.cast(expected_loss, dtype=dtypes.float32),
-          math_ops.cast(loss, dtype=dtypes.float32),
+      with tf.control_dependencies((tf.compat.v1.debugging.assert_equal(
+          tf.cast(expected_loss, dtype=tf.dtypes.float32),
+          tf.cast(loss, dtype=tf.dtypes.float32),
           name='assert_loss'),)):
-        return constant_op.constant(expected_train_result)
+        return tf.constant(expected_train_result)
     spec = head.create_estimator_spec(
         features={
             'x': np.array(((42.,), (43.,), (44.,)), dtype=np.float32),
@@ -2686,7 +2687,7 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
         labels=labels)
     tol = 1e-2
     with self.cached_session():
-      _initialize_variables(self, monitored_session.Scaffold())
+      _initialize_variables(self, tf.compat.v1.train.Scaffold())
       self.assertAllClose(
           expected_training_loss, training_loss.eval(),
           rtol=tol, atol=tol)
@@ -2708,9 +2709,9 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
     expected_loss = 40.
     expected_train_result = 'my_train_op'
     def _train_op_fn(loss):
-      return string_ops.string_join(
-          [constant_op.constant(expected_train_result),
-           string_ops.as_string(loss, precision=2)])
+      return tf.strings.join(
+          [tf.constant(expected_train_result),
+           tf.strings.as_string(loss, precision=2)])
 
     # Create estimator spec.
     spec = head.create_estimator_spec(
@@ -2740,7 +2741,7 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
     weights = np.array([[1.], [2.]], dtype=np.float32)
     def _no_op_train_fn(loss):
       del loss
-      return control_flow_ops.no_op()
+      return tf.no_op()
 
     spec = head.create_estimator_spec(
         features={'weights': weights},
@@ -2749,9 +2750,9 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
         labels=labels,
         train_op_fn=_no_op_train_fn)
     with self.cached_session():
-      _initialize_variables(self, monitored_session.Scaffold())
+      _initialize_variables(self, tf.compat.v1.train.Scaffold())
       with self.assertRaisesRegexp(
-          errors.InvalidArgumentError,
+          tf.errors.InvalidArgumentError,
           r'\[logits_shape: \] \[2 2 1\] \[weights_shape: \] \[2 1\]'):
         spec.loss.eval()
 
@@ -2762,10 +2763,10 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
 
     logits = np.array([[[10], [-10]], [[12], [-12]]], dtype=np.float32)
     labels = np.array([[[0], [0]], [[1], [1]]], dtype=np.float64)
-    weights_placeholder = array_ops.placeholder(dtype=dtypes.float32)
+    weights_placeholder = tf.compat.v1.placeholder(dtype=tf.dtypes.float32)
     def _no_op_train_fn(loss):
       del loss
-      return control_flow_ops.no_op()
+      return tf.no_op()
 
     spec = head.create_estimator_spec(
         features={'weights': weights_placeholder},
@@ -2774,9 +2775,9 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
         labels=labels,
         train_op_fn=_no_op_train_fn)
     with self.cached_session():
-      _initialize_variables(self, monitored_session.Scaffold())
+      _initialize_variables(self, tf.compat.v1.train.Scaffold())
       with self.assertRaisesRegexp(
-          errors.InvalidArgumentError,
+          tf.errors.InvalidArgumentError,
           r'\[logits_shape: \]\s\[2 2 1\]\s\[weights_shape: \]\s\[2 2 2\]'):
         spec.loss.eval({
             weights_placeholder: np.array([[[1., 1.1], [1.5, 1.6]],
@@ -2831,10 +2832,10 @@ class BinaryLogisticHeadWithSigmoidCrossEntropyLossTest(test.TestCase):
 
 
 @test_util.run_v1_only("Tests v1 only symbols")
-class RegressionHead(test.TestCase):
+class RegressionHead(tf.test.TestCase):
 
   def setUp(self):
-    ops.reset_default_graph()
+    tf.compat.v1.reset_default_graph()
 
   def test_invalid_label_dimension(self):
     with self.assertRaisesRegexp(ValueError, r'Invalid label_dimension'):
@@ -2848,7 +2849,7 @@ class RegressionHead(test.TestCase):
       head_lib._regression_head(loss_reduction='invalid_loss_reduction')
     with self.assertRaisesRegexp(
         ValueError, r'Invalid loss_reduction: none'):
-      head_lib._regression_head(loss_reduction=losses.Reduction.NONE)
+      head_lib._regression_head(loss_reduction=tf.compat.v1.losses.Reduction.NONE)
 
   def test_loss_fn_arg_labels_missing(self):
     def _loss_fn(logits):
@@ -2894,13 +2895,13 @@ class RegressionHead(test.TestCase):
           logits=logits_1d)
 
     # Dynamic shape.
-    logits_placeholder = array_ops.placeholder(dtype=dtypes.float32)
+    logits_placeholder = tf.compat.v1.placeholder(dtype=tf.dtypes.float32)
     spec = head.create_estimator_spec(
         features={'x': np.array(((42.,),))},
         mode=ModeKeys.PREDICT,
         logits=logits_placeholder)
     with self.cached_session():
-      with self.assertRaisesRegexp(errors.OpError, 'logits shape'):
+      with self.assertRaisesRegexp(tf.errors.OpError, 'logits shape'):
         spec.predictions[prediction_keys.PredictionKeys.PREDICTIONS].eval({
             logits_placeholder: logits_1d
         })
@@ -2924,15 +2925,15 @@ class RegressionHead(test.TestCase):
           mode=ModeKeys.EVAL, logits=values_1d, train_op_fn=None)
 
     # Dynamic shape.
-    labels_placeholder = array_ops.placeholder(dtype=dtypes.float32)
-    logits_placeholder = array_ops.placeholder(dtype=dtypes.float32)
+    labels_placeholder = tf.compat.v1.placeholder(dtype=tf.dtypes.float32)
+    logits_placeholder = tf.compat.v1.placeholder(dtype=tf.dtypes.float32)
     spec = head.create_estimator_spec(
         features={'x': values_1d},
         mode=ModeKeys.EVAL,
         logits=logits_placeholder,
         labels=labels_placeholder)
     with self.cached_session():
-      with self.assertRaisesRegexp(errors.OpError, 'logits shape'):
+      with self.assertRaisesRegexp(tf.errors.OpError, 'logits shape'):
         spec.loss.eval({
             labels_placeholder: values_3d,
             logits_placeholder: values_1d
@@ -2944,7 +2945,7 @@ class RegressionHead(test.TestCase):
         labels=labels_placeholder)[0]
     with self.cached_session():
       with self.assertRaisesRegexp(
-          errors.InvalidArgumentError,
+          tf.errors.InvalidArgumentError,
           r'\[expected_labels_shape: \] \[2 3\] \[labels_shape: \] \[2 1\]'):
         training_loss.eval({
             labels_placeholder: values_1d,
@@ -2974,8 +2975,8 @@ class RegressionHead(test.TestCase):
           train_op_fn=lambda x: x)
 
     # Dynamic shape.
-    labels_placeholder = array_ops.placeholder(dtype=dtypes.float32)
-    logits_placeholder = array_ops.placeholder(dtype=dtypes.float32)
+    labels_placeholder = tf.compat.v1.placeholder(dtype=tf.dtypes.float32)
+    logits_placeholder = tf.compat.v1.placeholder(dtype=tf.dtypes.float32)
     spec = head.create_estimator_spec(
         features={'x': values_1d},
         mode=ModeKeys.TRAIN,
@@ -2983,7 +2984,7 @@ class RegressionHead(test.TestCase):
         labels=labels_placeholder,
         train_op_fn=lambda x: x)
     with self.cached_session():
-      with self.assertRaisesRegexp(errors.OpError, 'logits shape'):
+      with self.assertRaisesRegexp(tf.errors.OpError, 'logits shape'):
         spec.loss.eval({
             labels_placeholder: values_3d,
             logits_placeholder: values_1d
@@ -2995,7 +2996,7 @@ class RegressionHead(test.TestCase):
         labels=labels_placeholder)[0]
     with self.cached_session():
       with self.assertRaisesRegexp(
-          errors.InvalidArgumentError,
+          tf.errors.InvalidArgumentError,
           r'\[expected_labels_shape: \] \[2 3\] \[labels_shape: \] \[2 1\]'):
         training_loss.eval({
             labels_placeholder: values_1d,
@@ -3020,11 +3021,11 @@ class RegressionHead(test.TestCase):
     # Assert spec contains expected tensors.
     prediction_key = prediction_keys.PredictionKeys.PREDICTIONS
     self.assertItemsEqual((prediction_key,), spec.predictions.keys())
-    self.assertEqual(dtypes.float32, spec.predictions[prediction_key].dtype)
+    self.assertEqual(tf.dtypes.float32, spec.predictions[prediction_key].dtype)
     self.assertIsNone(spec.loss)
     self.assertEqual({}, spec.eval_metric_ops)
     self.assertIsNone(spec.train_op)
-    default_serving_key = signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY
+    default_serving_key = tf.saved_model.DEFAULT_SERVING_SIGNATURE_DEF_KEY
     self.assertItemsEqual(
         (default_serving_key, 'predict', 'regression'),
         spec.export_outputs.keys())
@@ -3058,9 +3059,9 @@ class RegressionHead(test.TestCase):
     keys = prediction_keys.PredictionKeys
     self.assertItemsEqual(
         (keys.PREDICTIONS, keys.LOGITS), spec.predictions.keys())
-    self.assertEqual(dtypes.float32, spec.predictions[keys.PREDICTIONS].dtype)
-    self.assertEqual(dtypes.float32, spec.predictions[keys.LOGITS].dtype)
-    default_serving_key = signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY
+    self.assertEqual(tf.dtypes.float32, spec.predictions[keys.PREDICTIONS].dtype)
+    self.assertEqual(tf.dtypes.float32, spec.predictions[keys.LOGITS].dtype)
+    default_serving_key = tf.saved_model.DEFAULT_SERVING_SIGNATURE_DEF_KEY
     self.assertItemsEqual(
         (default_serving_key, 'predict', 'regression'),
         spec.export_outputs.keys())
@@ -3094,7 +3095,7 @@ class RegressionHead(test.TestCase):
         logits=logits,
         labels=labels)[0]
     with self.cached_session():
-      _initialize_variables(self, monitored_session.Scaffold())
+      _initialize_variables(self, tf.compat.v1.train.Scaffold())
       # loss = [(43-45)^2, (44-41)] = [4, 9]
       self.assertAllClose(13., training_loss.eval())
 
@@ -3104,14 +3105,14 @@ class RegressionHead(test.TestCase):
     logits_input = np.array([[-1., 1.], [-2., 2.]], dtype=np.float32)
     labels_input = np.array([[1., 0.], [2., -1.]], dtype=np.float32)
     def _loss_fn(labels, logits):
-      check_labels = control_flow_ops.Assert(
-          math_ops.reduce_all(math_ops.equal(labels, labels_input)),
+      check_labels = tf.debugging.Assert(
+          tf.reduce_all(tf.math.equal(labels, labels_input)),
           data=[labels])
-      check_logits = control_flow_ops.Assert(
-          math_ops.reduce_all(math_ops.equal(logits, logits_input)),
+      check_logits = tf.debugging.Assert(
+          tf.reduce_all(tf.math.equal(logits, logits_input)),
           data=[logits])
-      with ops.control_dependencies([check_labels, check_logits]):
-        return constant_op.constant(loss)
+      with tf.control_dependencies([check_labels, check_logits]):
+        return tf.constant(loss)
     head = head_lib._regression_head(label_dimension=2, loss_fn=_loss_fn)
 
     actual_training_loss = head.create_loss(
@@ -3120,7 +3121,7 @@ class RegressionHead(test.TestCase):
         logits=logits_input,
         labels=labels_input)[0]
     with self.cached_session():
-      _initialize_variables(self, monitored_session.Scaffold())
+      _initialize_variables(self, tf.compat.v1.train.Scaffold())
       self.assertAllClose(np.sum(loss), actual_training_loss.eval())
 
   def test_eval_create_loss_loss_fn_wrong_shape(self):
@@ -3128,7 +3129,7 @@ class RegressionHead(test.TestCase):
     loss = np.array([[1.], [2.]], dtype=np.float32)
     def _loss_fn(labels, logits):
       del labels, logits  # Unused
-      return constant_op.constant(loss)
+      return tf.constant(loss)
     head = head_lib._regression_head(label_dimension=2, loss_fn=_loss_fn)
 
     logits = np.array([[-1., 1.], [-2., 2.]], dtype=np.float32)
@@ -3139,9 +3140,9 @@ class RegressionHead(test.TestCase):
         logits=logits,
         labels=labels)[0]
     with self.cached_session():
-      _initialize_variables(self, monitored_session.Scaffold())
+      _initialize_variables(self, tf.compat.v1.train.Scaffold())
       with self.assertRaisesRegexp(
-          errors.InvalidArgumentError,
+          tf.errors.InvalidArgumentError,
           r'\[loss_fn must return Tensor of shape \[D0, D1, ... DN, 2\]\. \] '
           r'\[logits_shape: \] \[2 2\] \[loss_shape: \] \[2 1\]'):
         actual_training_loss.eval()
@@ -3175,8 +3176,8 @@ class RegressionHead(test.TestCase):
     # Assert spec contains expected tensors.
     prediction_key = prediction_keys.PredictionKeys.PREDICTIONS
     self.assertItemsEqual((prediction_key,), spec.predictions.keys())
-    self.assertEqual(dtypes.float32, spec.predictions[prediction_key].dtype)
-    self.assertEqual(dtypes.float32, spec.loss.dtype)
+    self.assertEqual(tf.dtypes.float32, spec.predictions[prediction_key].dtype)
+    self.assertEqual(tf.dtypes.float32, spec.loss.dtype)
     self.assertItemsEqual((metric_keys.MetricKeys.LOSS_MEAN,
                            metric_keys.MetricKeys.PREDICTION_MEAN,
                            metric_keys.MetricKeys.LABEL_MEAN),
@@ -3224,7 +3225,7 @@ class RegressionHead(test.TestCase):
 
   def test_eval_with_regularization_losses(self):
     head = head_lib._regression_head(
-        loss_reduction=losses.Reduction.SUM_OVER_BATCH_SIZE)
+        loss_reduction=tf.compat.v1.losses.Reduction.SUM_OVER_BATCH_SIZE)
     self.assertEqual(1, head.logits_dimension)
 
     logits = np.array(((45,), (41,),), dtype=np.float32)
@@ -3287,7 +3288,7 @@ class RegressionHead(test.TestCase):
         logits=logits,
         labels=labels)
     with self.cached_session():
-      _initialize_variables(self, monitored_session.Scaffold())
+      _initialize_variables(self, tf.compat.v1.train.Scaffold())
       self.assertAllClose(expected_training_loss, training_loss.eval())
       self.assertAllClose(expected_unreduced_loss, unreduced_loss.eval())
       self.assertAllClose(expected_weights, actual_weights)
@@ -3295,7 +3296,7 @@ class RegressionHead(test.TestCase):
   def test_train_create_loss_loss_reduction(self):
     """Tests create_loss with loss_reduction."""
     head = head_lib._regression_head(
-        loss_reduction=losses.Reduction.SUM_BY_NONZERO_WEIGHTS)
+        loss_reduction=tf.compat.v1.losses.Reduction.SUM_BY_NONZERO_WEIGHTS)
     logits = np.array(((45,), (41,),), dtype=np.float32)
     labels = np.array(((43,), (44,),), dtype=np.int32)
     features = {'x': np.array(((42,),), dtype=np.float32)}
@@ -3312,7 +3313,7 @@ class RegressionHead(test.TestCase):
         logits=logits,
         labels=labels)
     with self.cached_session():
-      _initialize_variables(self, monitored_session.Scaffold())
+      _initialize_variables(self, tf.compat.v1.train.Scaffold())
       self.assertAllClose(expected_training_loss, training_loss.eval())
       self.assertAllClose(expected_unreduced_loss, unreduced_loss.eval())
       self.assertAllClose(expected_weights, actual_weights)
@@ -3322,7 +3323,7 @@ class RegressionHead(test.TestCase):
     head = head_lib._regression_head()
     def _no_op_train_fn(loss):
       del loss
-      return control_flow_ops.no_op()
+      return tf.no_op()
 
     with self.assertRaisesRegexp(
         ValueError, r'You must provide a labels Tensor\. Given: None\.'):
@@ -3345,11 +3346,11 @@ class RegressionHead(test.TestCase):
     # loss = (43-45)^2 + (44-41)^2 = 4 + 9 = 13
     expected_loss = 13
     def _train_op_fn(loss):
-      with ops.control_dependencies((check_ops.assert_equal(
-          math_ops.cast(expected_loss, dtype=dtypes.float32),
-          math_ops.cast(loss, dtype=dtypes.float32),
+      with tf.control_dependencies((tf.compat.v1.debugging.assert_equal(
+          tf.cast(expected_loss, dtype=tf.dtypes.float32),
+          tf.cast(loss, dtype=tf.dtypes.float32),
           name='assert_loss'),)):
-        return constant_op.constant(expected_train_result)
+        return tf.constant(expected_train_result)
 
     spec = head.create_estimator_spec(
         features=features,
@@ -3361,8 +3362,8 @@ class RegressionHead(test.TestCase):
     # Assert spec contains expected tensors.
     prediction_key = prediction_keys.PredictionKeys.PREDICTIONS
     self.assertItemsEqual((prediction_key,), spec.predictions.keys())
-    self.assertEqual(dtypes.float32, spec.predictions[prediction_key].dtype)
-    self.assertEqual(dtypes.float32, spec.loss.dtype)
+    self.assertEqual(tf.dtypes.float32, spec.predictions[prediction_key].dtype)
+    self.assertEqual(tf.dtypes.float32, spec.loss.dtype)
     self.assertEqual({}, spec.eval_metric_ops)
     self.assertIsNotNone(spec.train_op)
     self.assertIsNone(spec.export_outputs)
@@ -3400,11 +3401,11 @@ class RegressionHead(test.TestCase):
 
       def minimize(self, loss, global_step):
         del global_step
-        with ops.control_dependencies((check_ops.assert_equal(
-            math_ops.cast(expected_loss, dtype=dtypes.float32),
-            math_ops.cast(loss, dtype=dtypes.float32),
+        with tf.control_dependencies((tf.compat.v1.debugging.assert_equal(
+            tf.cast(expected_loss, dtype=tf.dtypes.float32),
+            tf.cast(loss, dtype=tf.dtypes.float32),
             name='assert_loss'),)):
-          return constant_op.constant(expected_train_result)
+          return tf.constant(expected_train_result)
 
     spec = head.create_estimator_spec(
         features=features,
@@ -3422,12 +3423,12 @@ class RegressionHead(test.TestCase):
   def test_train_with_update_ops(self):
     head = head_lib._regression_head()
 
-    with ops.Graph().as_default():
-      w = variables.Variable(1)
+    with tf.Graph().as_default():
+      w = tf.Variable(1)
       update_op = w.assign_add(1)
-      ops.add_to_collection(ops.GraphKeys.UPDATE_OPS, update_op)
+      tf.compat.v1.add_to_collection(tf.compat.v1.GraphKeys.UPDATE_OPS, update_op)
 
-      t = variables.Variable('')
+      t = tf.Variable('')
       expected_train_result = b'my_train_op'
       def _train_op_fn(loss):
         del loss
@@ -3460,7 +3461,7 @@ class RegressionHead(test.TestCase):
 
     def _train_op_fn(loss):
       del loss
-      return control_flow_ops.no_op()
+      return tf.no_op()
 
     spec = head.create_estimator_spec(
         features=features,
@@ -3488,7 +3489,7 @@ class RegressionHead(test.TestCase):
 
   def test_train_with_regularization_losses(self):
     head = head_lib._regression_head(
-        loss_reduction=losses.Reduction.SUM_OVER_BATCH_SIZE)
+        loss_reduction=tf.compat.v1.losses.Reduction.SUM_OVER_BATCH_SIZE)
     self.assertEqual(1, head.logits_dimension)
 
     # Create estimator spec.
@@ -3503,11 +3504,11 @@ class RegressionHead(test.TestCase):
     # loss = unregularized_loss + regularization_loss = 8.5
     expected_loss = 8.5
     def _train_op_fn(loss):
-      with ops.control_dependencies((check_ops.assert_equal(
-          math_ops.cast(expected_loss, dtype=dtypes.float32),
-          math_ops.cast(loss, dtype=dtypes.float32),
+      with tf.control_dependencies((tf.compat.v1.debugging.assert_equal(
+          tf.cast(expected_loss, dtype=tf.dtypes.float32),
+          tf.cast(loss, dtype=tf.dtypes.float32),
           name='assert_loss'),)):
-        return constant_op.constant(expected_train_result)
+        return tf.constant(expected_train_result)
 
     spec = head.create_estimator_spec(
         features=features,
@@ -3553,8 +3554,8 @@ class RegressionHead(test.TestCase):
     # Assert spec contains expected tensors.
     prediction_key = prediction_keys.PredictionKeys.PREDICTIONS
     self.assertItemsEqual((prediction_key,), spec.predictions.keys())
-    self.assertEqual(dtypes.float32, spec.predictions[prediction_key].dtype)
-    self.assertEqual(dtypes.float32, spec.loss.dtype)
+    self.assertEqual(tf.dtypes.float32, spec.predictions[prediction_key].dtype)
+    self.assertEqual(tf.dtypes.float32, spec.loss.dtype)
     self.assertItemsEqual((metric_keys.MetricKeys.LOSS_MEAN,
                            metric_keys.MetricKeys.PREDICTION_MEAN,
                            metric_keys.MetricKeys.LABEL_MEAN),
@@ -3583,7 +3584,7 @@ class RegressionHead(test.TestCase):
   def test_weight_with_numeric_column(self):
     """1d label, 3 examples, 1 batch."""
     head = head_lib._regression_head(
-        weight_column=feature_column.numeric_column(
+        weight_column=tf.feature_column.numeric_column(
             'label_weights', normalizer_fn=lambda x: x + 1.))
 
     # Create estimator spec.
@@ -3617,11 +3618,11 @@ class RegressionHead(test.TestCase):
     # loss = 1*(35-45)^2 + .1*(42-41)^2 + 1.5*(45-44)^2 = 100+.1+1.5 = 101.6
     expected_loss = 101.6
     def _train_op_fn(loss):
-      with ops.control_dependencies((check_ops.assert_equal(
-          math_ops.cast(expected_loss, dtype=dtypes.float32),
-          math_ops.cast(loss, dtype=dtypes.float32),
+      with tf.control_dependencies((tf.compat.v1.debugging.assert_equal(
+          tf.cast(expected_loss, dtype=tf.dtypes.float32),
+          tf.cast(loss, dtype=tf.dtypes.float32),
           name='assert_loss'),)):
-        return constant_op.constant(expected_train_result)
+        return tf.constant(expected_train_result)
     spec = head.create_estimator_spec(
         features={
             'x': np.array(((42,), (43,), (44,)), dtype=np.float32),
@@ -3635,8 +3636,8 @@ class RegressionHead(test.TestCase):
     # Assert spec contains expected tensors.
     prediction_key = prediction_keys.PredictionKeys.PREDICTIONS
     self.assertItemsEqual((prediction_key,), spec.predictions.keys())
-    self.assertEqual(dtypes.float32, spec.predictions[prediction_key].dtype)
-    self.assertEqual(dtypes.float32, spec.loss.dtype)
+    self.assertEqual(tf.dtypes.float32, spec.predictions[prediction_key].dtype)
+    self.assertEqual(tf.dtypes.float32, spec.loss.dtype)
     self.assertEqual({}, spec.eval_metric_ops)
     self.assertIsNotNone(spec.train_op)
     self.assertIsNone(spec.export_outputs)
@@ -3679,7 +3680,7 @@ class RegressionHead(test.TestCase):
         logits=logits,
         labels=labels_rank_1)
     with self.cached_session():
-      _initialize_variables(self, monitored_session.Scaffold())
+      _initialize_variables(self, tf.compat.v1.train.Scaffold())
       self.assertAllClose(expected_training_loss, training_loss.eval())
       self.assertAllClose(expected_unreduced_loss, unreduced_loss.eval())
       self.assertAllClose(expected_weights, actual_weights.eval())
@@ -3695,11 +3696,11 @@ class RegressionHead(test.TestCase):
     # loss = 1*(35-45)^2 + .1*(42-41)^2 + 1.5*(45-44)^2 = 100+.1+1.5 = 101.6
     expected_loss = 101.6
     def _train_op_fn(loss):
-      with ops.control_dependencies((check_ops.assert_equal(
-          math_ops.cast(expected_loss, dtype=dtypes.float32),
-          math_ops.cast(loss, dtype=dtypes.float32),
+      with tf.control_dependencies((tf.compat.v1.debugging.assert_equal(
+          tf.cast(expected_loss, dtype=tf.dtypes.float32),
+          tf.cast(loss, dtype=tf.dtypes.float32),
           name='assert_loss'),)):
-        return constant_op.constant(expected_train_result)
+        return tf.constant(expected_train_result)
 
     x_feature_rank_1 = np.array((42., 43., 44.,), dtype=np.float32)
     weight_rank_1 = np.array((1., .1, 1.5,), dtype=np.float64)
@@ -3719,8 +3720,8 @@ class RegressionHead(test.TestCase):
     # Assert spec contains expected tensors.
     prediction_key = prediction_keys.PredictionKeys.PREDICTIONS
     self.assertItemsEqual((prediction_key,), spec.predictions.keys())
-    self.assertEqual(dtypes.float32, spec.predictions[prediction_key].dtype)
-    self.assertEqual(dtypes.float32, spec.loss.dtype)
+    self.assertEqual(tf.dtypes.float32, spec.predictions[prediction_key].dtype)
+    self.assertEqual(tf.dtypes.float32, spec.loss.dtype)
     self.assertEqual({}, spec.eval_metric_ops)
     self.assertIsNotNone(spec.train_op)
     self.assertIsNone(spec.export_outputs)
@@ -3759,7 +3760,7 @@ class RegressionHead(test.TestCase):
         logits=logits,
         labels=labels)[0]
     with self.cached_session():
-      _initialize_variables(self, monitored_session.Scaffold())
+      _initialize_variables(self, tf.compat.v1.train.Scaffold())
       # loss = [(35-45)^2, (42-41)^2, (45-44)^2] = [100, 1, 1].
       # weighted sum loss = 1 * 100 + .1 * 1 + 1.5 * 1 = 101.6
       self.assertAllClose(101.6, training_loss.eval())
@@ -3786,8 +3787,8 @@ class RegressionHead(test.TestCase):
     # Assert spec contains expected tensors.
     prediction_key = prediction_keys.PredictionKeys.PREDICTIONS
     self.assertItemsEqual((prediction_key,), spec.predictions.keys())
-    self.assertEqual(dtypes.float32, spec.predictions[prediction_key].dtype)
-    self.assertEqual(dtypes.float32, spec.loss.dtype)
+    self.assertEqual(tf.dtypes.float32, spec.predictions[prediction_key].dtype)
+    self.assertEqual(tf.dtypes.float32, spec.loss.dtype)
     self.assertItemsEqual((metric_keys.MetricKeys.LOSS_MEAN,
                            metric_keys.MetricKeys.PREDICTION_MEAN,
                            metric_keys.MetricKeys.LABEL_MEAN),
@@ -3830,7 +3831,7 @@ class RegressionHead(test.TestCase):
         logits=logits,
         labels=labels)[0]
     with self.cached_session():
-      _initialize_variables(self, monitored_session.Scaffold())
+      _initialize_variables(self, tf.compat.v1.train.Scaffold())
       # loss = [(35-45)^2, (42-41)^2, (45-44)^2] = [100, 1, 1].
       # weighted sum loss = 1 * 100 + .1 * 1 + 1.5 * 1 = 101.6
       self.assertAllClose(101.6, training_loss.eval())
@@ -3847,11 +3848,11 @@ class RegressionHead(test.TestCase):
     # loss = 1*(35-45)^2 + .1*(42-41)^2 + 1.5*(45-44)^2 = 100+.1+1.5 = 101.6
     expected_loss = 101.6
     def _train_op_fn(loss):
-      with ops.control_dependencies((check_ops.assert_equal(
-          math_ops.cast(expected_loss, dtype=dtypes.float32),
-          math_ops.cast(loss, dtype=dtypes.float32),
+      with tf.control_dependencies((tf.compat.v1.debugging.assert_equal(
+          tf.cast(expected_loss, dtype=tf.dtypes.float32),
+          tf.cast(loss, dtype=tf.dtypes.float32),
           name='assert_loss'),)):
-        return constant_op.constant(expected_train_result)
+        return tf.constant(expected_train_result)
 
     features = {
         'x': np.array(((42., 43., 44.),)),
@@ -3868,8 +3869,8 @@ class RegressionHead(test.TestCase):
     # Assert spec contains expected tensors.
     prediction_key = prediction_keys.PredictionKeys.PREDICTIONS
     self.assertItemsEqual((prediction_key,), spec.predictions.keys())
-    self.assertEqual(dtypes.float32, spec.predictions[prediction_key].dtype)
-    self.assertEqual(dtypes.float32, spec.loss.dtype)
+    self.assertEqual(tf.dtypes.float32, spec.predictions[prediction_key].dtype)
+    self.assertEqual(tf.dtypes.float32, spec.loss.dtype)
     self.assertEqual({}, spec.eval_metric_ops)
     self.assertIsNotNone(spec.train_op)
     self.assertIsNone(spec.export_outputs)
@@ -3932,7 +3933,7 @@ class RegressionHead(test.TestCase):
     }
 
     # Assert spec contains expected tensors.
-    self.assertEqual(dtypes.float32, spec.loss.dtype)
+    self.assertEqual(tf.dtypes.float32, spec.loss.dtype)
     self.assertItemsEqual(expected_metrics.keys(), spec.eval_metric_ops.keys())
     self.assertIsNone(spec.train_op)
     _assert_no_hooks(self, spec)
@@ -3941,7 +3942,7 @@ class RegressionHead(test.TestCase):
       # Finalize graph and initialize variables.
       _initialize_variables(self, spec.scaffold)
       self.assertIsNotNone(spec.scaffold.summary_op)
-      queue_runner_impl.start_queue_runners()
+      tf.compat.v1.train.queue_runner.start_queue_runners()
 
       # Run tensors for `steps` steps.
       steps = len(logits)
@@ -3992,14 +3993,14 @@ class RegressionHead(test.TestCase):
         train_op_fn=lambda loss: loss * -7.)
 
     # Assert spec contains expected tensors.
-    self.assertEqual(dtypes.float32, spec.loss.dtype)
+    self.assertEqual(tf.dtypes.float32, spec.loss.dtype)
     self.assertIsNotNone(spec.train_op)
 
     with self.cached_session() as sess:
       # Finalize graph and initialize variables.
       _initialize_variables(self, spec.scaffold)
       self.assertIsNotNone(spec.scaffold.summary_op)
-      queue_runner_impl.start_queue_runners()
+      tf.compat.v1.train.queue_runner.start_queue_runners()
 
       results = tuple([
           sess.run((spec.loss, spec.train_op)) for _ in range(len(logits))
@@ -4036,7 +4037,7 @@ class RegressionHead(test.TestCase):
         logits=logits,
         labels=labels)
     with self.cached_session():
-      _initialize_variables(self, monitored_session.Scaffold())
+      _initialize_variables(self, tf.compat.v1.train.Scaffold())
       self.assertAllClose(expected_training_loss, training_loss.eval())
       self.assertAllClose(expected_unreduced_loss, unreduced_loss.eval())
       self.assertAllClose(expected_weights, actual_weights.eval())
@@ -4057,11 +4058,11 @@ class RegressionHead(test.TestCase):
     expected_loss = 195.
     # Create estimator spec.
     def _train_op_fn(loss):
-      with ops.control_dependencies((check_ops.assert_equal(
-          math_ops.cast(expected_loss, dtype=dtypes.float32),
-          math_ops.cast(loss, dtype=dtypes.float32),
+      with tf.control_dependencies((tf.compat.v1.debugging.assert_equal(
+          tf.cast(expected_loss, dtype=tf.dtypes.float32),
+          tf.cast(loss, dtype=tf.dtypes.float32),
           name='assert_loss'),)):
-        return constant_op.constant(expected_train_result)
+        return tf.constant(expected_train_result)
 
     spec = head.create_estimator_spec(
         features=features,
@@ -4070,7 +4071,7 @@ class RegressionHead(test.TestCase):
         labels=labels,
         train_op_fn=_train_op_fn)
     with self.cached_session():
-      _initialize_variables(self, monitored_session.Scaffold())
+      _initialize_variables(self, tf.compat.v1.train.Scaffold())
       self.assertAllClose(expected_loss, spec.loss.eval())
 
   def test_multi_dim_train_weights_wrong_inner_dim(self):
@@ -4086,7 +4087,7 @@ class RegressionHead(test.TestCase):
     }
     def _no_op_train_fn(loss):
       del loss
-      return control_flow_ops.no_op()
+      return tf.no_op()
 
     spec = head.create_estimator_spec(
         features=features,
@@ -4095,9 +4096,9 @@ class RegressionHead(test.TestCase):
         labels=labels,
         train_op_fn=_no_op_train_fn)
     with self.cached_session():
-      _initialize_variables(self, monitored_session.Scaffold())
+      _initialize_variables(self, tf.compat.v1.train.Scaffold())
       with self.assertRaisesRegexp(
-          errors.InvalidArgumentError,
+          tf.errors.InvalidArgumentError,
           r'\[logits_shape: \] \[2 2 3\] \[weights_shape: \] \[2 1\]'):
         spec.loss.eval()
 
@@ -4109,13 +4110,13 @@ class RegressionHead(test.TestCase):
                        [[20., 21., 22.], [30., 31., 32.]]])
     labels = np.array([[[01., 02., 03.], [12., 13., 14.]],
                        [[23., 24., 25.], [34., 35., 36.]]])
-    weights_placeholder = array_ops.placeholder(dtype=dtypes.float32)
+    weights_placeholder = tf.compat.v1.placeholder(dtype=tf.dtypes.float32)
     features = {
         'label_weights': weights_placeholder,
     }
     def _no_op_train_fn(loss):
       del loss
-      return control_flow_ops.no_op()
+      return tf.no_op()
 
     spec = head.create_estimator_spec(
         features=features,
@@ -4124,9 +4125,9 @@ class RegressionHead(test.TestCase):
         labels=labels,
         train_op_fn=_no_op_train_fn)
     with self.cached_session():
-      _initialize_variables(self, monitored_session.Scaffold())
+      _initialize_variables(self, tf.compat.v1.train.Scaffold())
       with self.assertRaisesRegexp(
-          errors.InvalidArgumentError,
+          tf.errors.InvalidArgumentError,
           r'\[logits_shape: \]\s\[2 2 3\]\s\[weights_shape: \]\s\[2 2 2\]'):
         spec.loss.eval({
             weights_placeholder: np.array([[[1., 1.1], [1.5, 1.6]],
@@ -4134,4 +4135,4 @@ class RegressionHead(test.TestCase):
 
 
 if __name__ == '__main__':
-  test.main()
+  tf.test.main()

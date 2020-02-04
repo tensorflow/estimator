@@ -23,6 +23,7 @@ import os
 import shutil
 import tempfile
 
+import tensorflow as tf
 import numpy as np
 import six
 
@@ -77,9 +78,9 @@ def assert_close(expected, actual, rtol=1e-04, name='assert_close'):
   with ops.name_scope(name, 'assert_close', (expected, actual, rtol)) as scope:
     expected = ops.convert_to_tensor(expected, name='expected')
     actual = ops.convert_to_tensor(actual, name='actual')
-    rdiff = math_ops.abs(expected - actual, 'diff') / math_ops.abs(expected)
+    rdiff = tf.math.abs(expected - actual, 'diff') / tf.math.abs(expected)
     rtol = ops.convert_to_tensor(rtol, name='rtol')
-    return check_ops.assert_less(
+    return tf.compat.v1.debugging.assert_less(
         rdiff,
         rtol,
         data=('Condition expected =~ actual did not hold element-wise:'
@@ -89,10 +90,10 @@ def assert_close(expected, actual, rtol=1e-04, name='assert_close'):
 
 
 def save_variables_to_ckpt(model_dir):
-  init_all_op = [variables.global_variables_initializer()]
-  with tf_session.Session() as sess:
+  init_all_op = [tf.compat.v1.initializers.global_variables()]
+  with tf.compat.v1.Session() as sess:
     sess.run(init_all_op)
-    saver.Saver().save(sess, os.path.join(model_dir, 'model.ckpt'))
+    tf.compat.v1.train.Saver().save(sess, os.path.join(model_dir, 'model.ckpt'))
 
 
 def queue_parsed_features(feature_map):
@@ -102,9 +103,9 @@ def queue_parsed_features(feature_map):
     keys.append(key)
     tensors_to_enqueue.append(tensor)
   queue_dtypes = [x.dtype for x in tensors_to_enqueue]
-  input_queue = data_flow_ops.FIFOQueue(capacity=100, dtypes=queue_dtypes)
-  queue_runner.add_queue_runner(
-      queue_runner.QueueRunner(input_queue,
+  input_queue = tf.queue.FIFOQueue(capacity=100, dtypes=queue_dtypes)
+  tf.compat.v1.train.queue_runner.add_queue_runner(
+      tf.compat.v1.train.queue_runner.QueueRunner(input_queue,
                                [input_queue.enqueue(tensors_to_enqueue)]))
   dequeued_tensors = input_queue.dequeue()
   return {keys[i]: dequeued_tensors[i] for i in range(len(dequeued_tensors))}
@@ -131,21 +132,21 @@ def _baseline_classifier_fn(*args, **kwargs):
 
 # TODO(b/36813849): Add tests with dynamic shape inputs using placeholders.
 @test_util.run_v1_only("Tests v1 only symbols")
-class BaselineRegressorEvaluationTest(test.TestCase):
+class BaselineRegressorEvaluationTest(tf.test.TestCase):
 
   def setUp(self):
     self._model_dir = tempfile.mkdtemp()
 
   def tearDown(self):
     if self._model_dir:
-      writer_cache.FileWriterCache.clear()
+      tf.compat.v1.summary.FileWriterCache.clear()
       shutil.rmtree(self._model_dir)
 
   def test_evaluation_for_simple_data(self):
-    with ops.Graph().as_default():
-      variables.Variable([13.0], name=BIAS_NAME)
-      variables.Variable(
-          100, name=ops.GraphKeys.GLOBAL_STEP, dtype=dtypes.int64)
+    with tf.Graph().as_default():
+      tf.Variable([13.0], name=BIAS_NAME)
+      tf.Variable(
+          100, name=tf.compat.v1.GraphKeys.GLOBAL_STEP, dtype=tf.dtypes.int64)
       save_variables_to_ckpt(self._model_dir)
 
     baseline_regressor = _baseline_regressor_fn(model_dir=self._model_dir)
@@ -158,15 +159,15 @@ class BaselineRegressorEvaluationTest(test.TestCase):
         metric_keys.MetricKeys.LOSS_MEAN: 9.,
         metric_keys.MetricKeys.PREDICTION_MEAN: 13.,
         metric_keys.MetricKeys.LABEL_MEAN: 10.,
-        ops.GraphKeys.GLOBAL_STEP: 100
+        tf.compat.v1.GraphKeys.GLOBAL_STEP: 100
     }, eval_metrics)
 
   def test_evaluation_batch(self):
     """Tests evaluation for batch_size==2."""
-    with ops.Graph().as_default():
-      variables.Variable([13.0], name=BIAS_NAME)
-      variables.Variable(
-          100, name=ops.GraphKeys.GLOBAL_STEP, dtype=dtypes.int64)
+    with tf.Graph().as_default():
+      tf.Variable([13.0], name=BIAS_NAME)
+      tf.Variable(
+          100, name=tf.compat.v1.GraphKeys.GLOBAL_STEP, dtype=tf.dtypes.int64)
       save_variables_to_ckpt(self._model_dir)
 
     baseline_regressor = _baseline_regressor_fn(model_dir=self._model_dir)
@@ -182,15 +183,15 @@ class BaselineRegressorEvaluationTest(test.TestCase):
         metric_keys.MetricKeys.LOSS_MEAN: 9.,
         metric_keys.MetricKeys.PREDICTION_MEAN: 13.,
         metric_keys.MetricKeys.LABEL_MEAN: 10.,
-        ops.GraphKeys.GLOBAL_STEP: 100
+        tf.compat.v1.GraphKeys.GLOBAL_STEP: 100
     }, eval_metrics)
 
   def test_evaluation_weights(self):
     """Tests evaluation with weights."""
-    with ops.Graph().as_default():
-      variables.Variable([13.0], name=BIAS_NAME)
-      variables.Variable(
-          100, name=ops.GraphKeys.GLOBAL_STEP, dtype=dtypes.int64)
+    with tf.Graph().as_default():
+      tf.Variable([13.0], name=BIAS_NAME)
+      tf.Variable(
+          100, name=tf.compat.v1.GraphKeys.GLOBAL_STEP, dtype=tf.dtypes.int64)
       save_variables_to_ckpt(self._model_dir)
 
     def _input_fn():
@@ -212,14 +213,14 @@ class BaselineRegressorEvaluationTest(test.TestCase):
         metric_keys.MetricKeys.LOSS_MEAN: 9.,
         metric_keys.MetricKeys.PREDICTION_MEAN: 13.,
         metric_keys.MetricKeys.LABEL_MEAN: 10.,
-        ops.GraphKeys.GLOBAL_STEP: 100
+        tf.compat.v1.GraphKeys.GLOBAL_STEP: 100
     }, eval_metrics)
 
   def test_evaluation_for_multi_dimensions(self):
     label_dim = 2
-    with ops.Graph().as_default():
-      variables.Variable([46.0, 58.0], name=BIAS_NAME)
-      variables.Variable(100, name='global_step', dtype=dtypes.int64)
+    with tf.Graph().as_default():
+      tf.Variable([46.0, 58.0], name=BIAS_NAME)
+      tf.Variable(100, name='global_step', dtype=tf.dtypes.int64)
       save_variables_to_ckpt(self._model_dir)
 
     baseline_regressor = _baseline_regressor_fn(
@@ -238,7 +239,7 @@ class BaselineRegressorEvaluationTest(test.TestCase):
     self.assertItemsEqual(
         (metric_keys.MetricKeys.LOSS, metric_keys.MetricKeys.LOSS_MEAN,
          metric_keys.MetricKeys.PREDICTION_MEAN,
-         metric_keys.MetricKeys.LABEL_MEAN, ops.GraphKeys.GLOBAL_STEP),
+         metric_keys.MetricKeys.LABEL_MEAN, tf.compat.v1.GraphKeys.GLOBAL_STEP),
         eval_metrics.keys())
 
     # Logit is bias which is [46, 58]
@@ -246,21 +247,21 @@ class BaselineRegressorEvaluationTest(test.TestCase):
 
 
 @test_util.run_v1_only("Tests v1 only symbols")
-class BaselineRegressorPredictTest(test.TestCase):
+class BaselineRegressorPredictTest(tf.test.TestCase):
 
   def setUp(self):
     self._model_dir = tempfile.mkdtemp()
 
   def tearDown(self):
     if self._model_dir:
-      writer_cache.FileWriterCache.clear()
+      tf.compat.v1.summary.FileWriterCache.clear()
       shutil.rmtree(self._model_dir)
 
   def test_1d(self):
     """Tests predict when all variables are one-dimensional."""
-    with ops.Graph().as_default():
-      variables.Variable([.2], name=BIAS_NAME)
-      variables.Variable(100, name='global_step', dtype=dtypes.int64)
+    with tf.Graph().as_default():
+      tf.Variable([.2], name=BIAS_NAME)
+      tf.Variable(100, name='global_step', dtype=tf.dtypes.int64)
       save_variables_to_ckpt(self._model_dir)
 
     baseline_regressor = _baseline_regressor_fn(model_dir=self._model_dir)
@@ -280,10 +281,10 @@ class BaselineRegressorPredictTest(test.TestCase):
     """Tests predict when all variables are multi-dimenstional."""
     batch_size = 2
     label_dimension = 3
-    with ops.Graph().as_default():
-      variables.Variable(  # shape=[label_dimension]
+    with tf.Graph().as_default():
+      tf.Variable(  # shape=[label_dimension]
           [.2, .4, .6], name=BIAS_NAME)
-      variables.Variable(100, name='global_step', dtype=dtypes.int64)
+      tf.Variable(100, name='global_step', dtype=tf.dtypes.int64)
       save_variables_to_ckpt(self._model_dir)
 
     baseline_regressor = _baseline_regressor_fn(
@@ -305,20 +306,20 @@ class BaselineRegressorPredictTest(test.TestCase):
 
 
 @test_util.run_v1_only("Tests v1 only symbols")
-class BaselineRegressorIntegrationTest(test.TestCase):
+class BaselineRegressorIntegrationTest(tf.test.TestCase):
 
   def setUp(self):
     self._model_dir = tempfile.mkdtemp()
 
   def tearDown(self):
     if self._model_dir:
-      writer_cache.FileWriterCache.clear()
+      tf.compat.v1.summary.FileWriterCache.clear()
       shutil.rmtree(self._model_dir)
 
   def _test_complete_flow(self, train_input_fn, eval_input_fn, predict_input_fn,
                           input_dimension, label_dimension, prediction_length):
     feature_columns = [
-        feature_column_lib.numeric_column('x', shape=(input_dimension,))
+        tf.feature_column.numeric_column('x', shape=(input_dimension,))
     ]
     est = _baseline_regressor_fn(
         label_dimension=label_dimension,
@@ -330,7 +331,7 @@ class BaselineRegressorIntegrationTest(test.TestCase):
 
     # EVALUTE
     scores = est.evaluate(eval_input_fn)
-    self.assertEqual(200, scores[ops.GraphKeys.GLOBAL_STEP])
+    self.assertEqual(200, scores[tf.compat.v1.GraphKeys.GLOBAL_STEP])
     self.assertIn(metric_keys.MetricKeys.LOSS, six.iterkeys(scores))
 
     # PREDICT
@@ -339,12 +340,12 @@ class BaselineRegressorIntegrationTest(test.TestCase):
     self.assertAllEqual((prediction_length, label_dimension), predictions.shape)
 
     # EXPORT
-    feature_spec = feature_column_lib.make_parse_example_spec(feature_columns)
+    feature_spec = tf.compat.v1.feature_column.make_parse_example_spec(feature_columns)
     serving_input_receiver_fn = export.build_parsing_serving_input_receiver_fn(
         feature_spec)
     export_dir = est.export_saved_model(tempfile.mkdtemp(),
                                         serving_input_receiver_fn)
-    self.assertTrue(gfile.Exists(export_dir))
+    self.assertTrue(tf.compat.v1.gfile.Exists(export_dir))
 
   def test_numpy_input_fn(self):
     """Tests complete flow with numpy_input_fn."""
@@ -434,27 +435,27 @@ class BaselineRegressorIntegrationTest(test.TestCase):
       serialized_examples.append(example.SerializeToString())
 
     feature_spec = {
-        'x': parsing_ops.FixedLenFeature([input_dimension], dtypes.float32),
-        'y': parsing_ops.FixedLenFeature([label_dimension], dtypes.float32),
+        'x': tf.io.FixedLenFeature([input_dimension], tf.dtypes.float32),
+        'y': tf.io.FixedLenFeature([label_dimension], tf.dtypes.float32),
     }
 
     def _train_input_fn():
-      feature_map = parsing_ops.parse_example(serialized_examples, feature_spec)
+      feature_map = tf.compat.v1.io.parse_example(serialized_examples, feature_spec)
       features = queue_parsed_features(feature_map)
       labels = features.pop('y')
       return features, labels
 
     def _eval_input_fn():
-      feature_map = parsing_ops.parse_example(
-          input_lib.limit_epochs(serialized_examples, num_epochs=1),
+      feature_map = tf.compat.v1.io.parse_example(
+          tf.compat.v1.train.limit_epochs(serialized_examples, num_epochs=1),
           feature_spec)
       features = queue_parsed_features(feature_map)
       labels = features.pop('y')
       return features, labels
 
     def _predict_input_fn():
-      feature_map = parsing_ops.parse_example(
-          input_lib.limit_epochs(serialized_examples, num_epochs=1),
+      feature_map = tf.compat.v1.io.parse_example(
+          tf.compat.v1.train.limit_epochs(serialized_examples, num_epochs=1),
           feature_spec)
       features = queue_parsed_features(feature_map)
       features.pop('y')
@@ -470,14 +471,14 @@ class BaselineRegressorIntegrationTest(test.TestCase):
 
 
 @test_util.run_v1_only("Tests v1 only symbols")
-class BaselineRegressorTrainingTest(test.TestCase):
+class BaselineRegressorTrainingTest(tf.test.TestCase):
 
   def setUp(self):
     self._model_dir = tempfile.mkdtemp()
 
   def tearDown(self):
     if self._model_dir:
-      writer_cache.FileWriterCache.clear()
+      tf.compat.v1.summary.FileWriterCache.clear()
       shutil.rmtree(self._model_dir)
 
   def _mock_optimizer(self, expected_loss=None):
@@ -486,8 +487,8 @@ class BaselineRegressorTrainingTest(test.TestCase):
     ]
 
     def _minimize(loss, global_step=None, var_list=None):
-      trainable_vars = var_list or ops.get_collection(
-          ops.GraphKeys.TRAINABLE_VARIABLES)
+      trainable_vars = var_list or tf.compat.v1.get_collection(
+          tf.compat.v1.GraphKeys.TRAINABLE_VARIABLES)
       self.assertItemsEqual(expected_var_names,
                             [var.name for var in trainable_vars])
 
@@ -495,21 +496,21 @@ class BaselineRegressorTrainingTest(test.TestCase):
       self.assertEquals(0, loss.shape.ndims)
       if expected_loss is None:
         if global_step is not None:
-          return state_ops.assign_add(global_step, 1).op
-        return control_flow_ops.no_op()
+          return tf.compat.v1.assign_add(global_step, 1).op
+        return tf.no_op()
       assert_loss = assert_close(
-          math_ops.cast(expected_loss, name='expected', dtype=dtypes.float32),
+          tf.cast(expected_loss, name='expected', dtype=tf.dtypes.float32),
           loss,
           name='assert_loss')
-      with ops.control_dependencies((assert_loss,)):
+      with tf.control_dependencies((assert_loss,)):
         if global_step is not None:
-          return state_ops.assign_add(global_step, 1).op
-        return control_flow_ops.no_op()
+          return tf.compat.v1.assign_add(global_step, 1).op
+        return tf.no_op()
 
-    mock_optimizer = test.mock.NonCallableMock(
-        spec=optimizer.Optimizer,
-        wraps=optimizer.Optimizer(use_locking=False, name='my_optimizer'))
-    mock_optimizer.minimize = test.mock.MagicMock(wraps=_minimize)
+    mock_optimizer = tf.compat.v1.test.mock.NonCallableMock(
+        spec=tf.compat.v1.train.Optimizer,
+        wraps=tf.compat.v1.train.Optimizer(use_locking=False, name='my_optimizer'))
+    mock_optimizer.minimize = tf.compat.v1.test.mock.MagicMock(wraps=_minimize)
 
     # NOTE: Estimator.params performs a deepcopy, which wreaks havoc with mocks.
     # So, return mock_optimizer itself for deepcopy.
@@ -522,18 +523,18 @@ class BaselineRegressorTrainingTest(test.TestCase):
                          expected_bias=None):
     shapes = {
         name: shape
-        for (name, shape) in checkpoint_utils.list_variables(self._model_dir)
+        for (name, shape) in tf.train.list_variables(self._model_dir)
     }
 
-    self.assertEqual([], shapes[ops.GraphKeys.GLOBAL_STEP])
+    self.assertEqual([], shapes[tf.compat.v1.GraphKeys.GLOBAL_STEP])
     self.assertEqual(expected_global_step,
-                     checkpoint_utils.load_variable(self._model_dir,
-                                                    ops.GraphKeys.GLOBAL_STEP))
+                     tf.train.load_variable(self._model_dir,
+                                                    tf.compat.v1.GraphKeys.GLOBAL_STEP))
 
     self.assertEqual([label_dimension], shapes[BIAS_NAME])
     if expected_bias is not None:
       self.assertEqual(expected_bias,
-                       checkpoint_utils.load_variable(self._model_dir,
+                       tf.train.load_variable(self._model_dir,
                                                       BIAS_NAME))
 
   def testFromScratchWithDefaultOptimizer(self):
@@ -612,12 +613,12 @@ class BaselineRegressorTrainingTest(test.TestCase):
     # Create initial checkpoint.
     bias = 7.0
     initial_global_step = 100
-    with ops.Graph().as_default():
-      variables.Variable([bias], name=BIAS_NAME)
-      variables.Variable(
+    with tf.Graph().as_default():
+      tf.Variable([bias], name=BIAS_NAME)
+      tf.Variable(
           initial_global_step,
-          name=ops.GraphKeys.GLOBAL_STEP,
-          dtype=dtypes.int64)
+          name=tf.compat.v1.GraphKeys.GLOBAL_STEP,
+          dtype=tf.dtypes.int64)
       save_variables_to_ckpt(self._model_dir)
 
     # logits = bias = 6.
@@ -642,12 +643,12 @@ class BaselineRegressorTrainingTest(test.TestCase):
     # Create initial checkpoint.
     bias = 5.0
     initial_global_step = 100
-    with ops.Graph().as_default():
-      variables.Variable([bias], name=BIAS_NAME)
-      variables.Variable(
+    with tf.Graph().as_default():
+      tf.Variable([bias], name=BIAS_NAME)
+      tf.Variable(
           initial_global_step,
-          name=ops.GraphKeys.GLOBAL_STEP,
-          dtype=dtypes.int64)
+          name=tf.compat.v1.GraphKeys.GLOBAL_STEP,
+          dtype=tf.dtypes.int64)
       save_variables_to_ckpt(self._model_dir)
 
     # logits = bias
@@ -676,7 +677,7 @@ class BaselineRegressorTrainingTest(test.TestCase):
 
 
 @test_util.run_v1_only("Tests v1 only symbols")
-class BaselineClassifierTrainingTest(test.TestCase):
+class BaselineClassifierTrainingTest(tf.test.TestCase):
 
   def setUp(self):
     self._model_dir = tempfile.mkdtemp()
@@ -691,7 +692,7 @@ class BaselineClassifierTrainingTest(test.TestCase):
     ]
 
     def _minimize(loss, global_step):
-      trainable_vars = ops.get_collection(ops.GraphKeys.TRAINABLE_VARIABLES)
+      trainable_vars = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.TRAINABLE_VARIABLES)
       self.assertItemsEqual(
           expected_var_names,
           [var.name for var in trainable_vars])
@@ -699,18 +700,18 @@ class BaselineClassifierTrainingTest(test.TestCase):
       # Verify loss. We can't check the value directly, so we add an assert op.
       self.assertEquals(0, loss.shape.ndims)
       if expected_loss is None:
-        return state_ops.assign_add(global_step, 1).op
+        return tf.compat.v1.assign_add(global_step, 1).op
       assert_loss = assert_close(
-          math_ops.cast(expected_loss, name='expected', dtype=dtypes.float32),
+          tf.cast(expected_loss, name='expected', dtype=tf.dtypes.float32),
           loss,
           name='assert_loss')
-      with ops.control_dependencies((assert_loss,)):
-        return state_ops.assign_add(global_step, 1).op
+      with tf.control_dependencies((assert_loss,)):
+        return tf.compat.v1.assign_add(global_step, 1).op
 
-    mock_optimizer = test.mock.NonCallableMock(
-        spec=optimizer.Optimizer,
-        wraps=optimizer.Optimizer(use_locking=False, name='my_optimizer'))
-    mock_optimizer.minimize = test.mock.MagicMock(wraps=_minimize)
+    mock_optimizer = tf.compat.v1.test.mock.NonCallableMock(
+        spec=tf.compat.v1.train.Optimizer,
+        wraps=tf.compat.v1.train.Optimizer(use_locking=False, name='my_optimizer'))
+    mock_optimizer.minimize = tf.compat.v1.test.mock.MagicMock(wraps=_minimize)
 
     # NOTE: Estimator.params performs a deepcopy, which wreaks havoc with mocks.
     # So, return mock_optimizer itself for deepcopy.
@@ -723,19 +724,19 @@ class BaselineClassifierTrainingTest(test.TestCase):
 
     shapes = {
         name: shape for (name, shape) in
-        checkpoint_utils.list_variables(self._model_dir)
+        tf.train.list_variables(self._model_dir)
     }
 
-    self.assertEqual([], shapes[ops.GraphKeys.GLOBAL_STEP])
+    self.assertEqual([], shapes[tf.compat.v1.GraphKeys.GLOBAL_STEP])
     self.assertEqual(
         expected_global_step,
-        checkpoint_utils.load_variable(
-            self._model_dir, ops.GraphKeys.GLOBAL_STEP))
+        tf.train.load_variable(
+            self._model_dir, tf.compat.v1.GraphKeys.GLOBAL_STEP))
 
     self.assertEqual([logits_dimension], shapes[BIAS_NAME])
     if expected_bias is not None:
       self.assertAllEqual(expected_bias,
-                          checkpoint_utils.load_variable(
+                          tf.train.load_variable(
                               self._model_dir, BIAS_NAME))
 
   def _testFromScratchWithDefaultOptimizer(self, n_classes):
@@ -899,11 +900,11 @@ class BaselineClassifierTrainingTest(test.TestCase):
     age = 17
     bias = [-1.0] if n_classes == 2 else [-1.0] * n_classes
     initial_global_step = 100
-    with ops.Graph().as_default():
-      variables.Variable(bias, name=BIAS_NAME)
-      variables.Variable(
-          initial_global_step, name=ops.GraphKeys.GLOBAL_STEP,
-          dtype=dtypes.int64)
+    with tf.Graph().as_default():
+      tf.Variable(bias, name=BIAS_NAME)
+      tf.Variable(
+          initial_global_step, name=tf.compat.v1.GraphKeys.GLOBAL_STEP,
+          dtype=tf.dtypes.int64)
       save_variables_to_ckpt(self._model_dir)
 
     # For binary classifier:
@@ -955,11 +956,11 @@ class BaselineClassifierTrainingTest(test.TestCase):
     age = 17
     bias = [-1.0]
     initial_global_step = 100
-    with ops.Graph().as_default():
-      variables.Variable(bias, name=BIAS_NAME)
-      variables.Variable(
-          initial_global_step, name=ops.GraphKeys.GLOBAL_STEP,
-          dtype=dtypes.int64)
+    with tf.Graph().as_default():
+      tf.Variable(bias, name=BIAS_NAME)
+      tf.Variable(
+          initial_global_step, name=tf.compat.v1.GraphKeys.GLOBAL_STEP,
+          dtype=tf.dtypes.int64)
       save_variables_to_ckpt(self._model_dir)
 
     # logits = bias = -1.
@@ -994,11 +995,11 @@ class BaselineClassifierTrainingTest(test.TestCase):
     # weights as 2.0 * range(n_classes).
     bias = [-1.0] if n_classes == 2 else [-1.0] * n_classes
     initial_global_step = 100
-    with ops.Graph().as_default():
-      variables.Variable(bias, name=BIAS_NAME)
-      variables.Variable(
-          initial_global_step, name=ops.GraphKeys.GLOBAL_STEP,
-          dtype=dtypes.int64)
+    with tf.Graph().as_default():
+      tf.Variable(bias, name=BIAS_NAME)
+      tf.Variable(
+          initial_global_step, name=tf.compat.v1.GraphKeys.GLOBAL_STEP,
+          dtype=tf.dtypes.int64)
       save_variables_to_ckpt(self._model_dir)
 
     # For binary classifier:
@@ -1051,7 +1052,7 @@ class BaselineClassifierTrainingTest(test.TestCase):
 
 
 @test_util.run_v1_only("Tests v1 only symbols")
-class BaselineClassifierEvaluationTest(test.TestCase):
+class BaselineClassifierEvaluationTest(tf.test.TestCase):
 
   def setUp(self):
     self._model_dir = tempfile.mkdtemp()
@@ -1066,10 +1067,10 @@ class BaselineClassifierEvaluationTest(test.TestCase):
 
     bias = [-1.0] if n_classes == 2 else [-1.0] * n_classes
 
-    with ops.Graph().as_default():
-      variables.Variable(bias, name=BIAS_NAME)
-      variables.Variable(
-          100, name=ops.GraphKeys.GLOBAL_STEP, dtype=dtypes.int64)
+    with tf.Graph().as_default():
+      tf.Variable(bias, name=BIAS_NAME)
+      tf.Variable(
+          100, name=tf.compat.v1.GraphKeys.GLOBAL_STEP, dtype=tf.dtypes.int64)
       save_variables_to_ckpt(self._model_dir)
 
     est = _baseline_classifier_fn(
@@ -1083,7 +1084,7 @@ class BaselineClassifierEvaluationTest(test.TestCase):
       # Prediction = sigmoid(-1) = 0.2689
       expected_metrics = {
           metric_keys.MetricKeys.LOSS: 1.3133,
-          ops.GraphKeys.GLOBAL_STEP: 100,
+          tf.compat.v1.GraphKeys.GLOBAL_STEP: 100,
           metric_keys.MetricKeys.LOSS_MEAN: 1.3133,
           metric_keys.MetricKeys.ACCURACY: 0.,
           metric_keys.MetricKeys.PRECISION: 0.,
@@ -1103,7 +1104,7 @@ class BaselineClassifierEvaluationTest(test.TestCase):
 
       expected_metrics = {
           metric_keys.MetricKeys.LOSS: expected_loss,
-          ops.GraphKeys.GLOBAL_STEP: 100,
+          tf.compat.v1.GraphKeys.GLOBAL_STEP: 100,
           metric_keys.MetricKeys.LOSS_MEAN: expected_loss,
           metric_keys.MetricKeys.ACCURACY: 0.,
       }
@@ -1123,11 +1124,11 @@ class BaselineClassifierEvaluationTest(test.TestCase):
     age = [17., 18.]
     bias = [-1.0] if n_classes == 2 else [-1.0] * n_classes
     initial_global_step = 100
-    with ops.Graph().as_default():
-      variables.Variable(bias, name=BIAS_NAME)
-      variables.Variable(
-          initial_global_step, name=ops.GraphKeys.GLOBAL_STEP,
-          dtype=dtypes.int64)
+    with tf.Graph().as_default():
+      tf.Variable(bias, name=BIAS_NAME)
+      tf.Variable(
+          initial_global_step, name=tf.compat.v1.GraphKeys.GLOBAL_STEP,
+          dtype=tf.dtypes.int64)
       save_variables_to_ckpt(self._model_dir)
 
     est = _baseline_classifier_fn(
@@ -1146,7 +1147,7 @@ class BaselineClassifierEvaluationTest(test.TestCase):
 
       expected_metrics = {
           metric_keys.MetricKeys.LOSS: expected_loss,
-          ops.GraphKeys.GLOBAL_STEP: 100,
+          tf.compat.v1.GraphKeys.GLOBAL_STEP: 100,
           metric_keys.MetricKeys.LOSS_MEAN: expected_loss / 2,
           metric_keys.MetricKeys.ACCURACY: 0.5,
           metric_keys.MetricKeys.PRECISION: 0.,
@@ -1169,7 +1170,7 @@ class BaselineClassifierEvaluationTest(test.TestCase):
 
       expected_metrics = {
           metric_keys.MetricKeys.LOSS: expected_loss,
-          ops.GraphKeys.GLOBAL_STEP: 100,
+          tf.compat.v1.GraphKeys.GLOBAL_STEP: 100,
           metric_keys.MetricKeys.LOSS_MEAN: expected_loss / 2,
           metric_keys.MetricKeys.ACCURACY: 0.5,
       }
@@ -1194,11 +1195,11 @@ class BaselineClassifierEvaluationTest(test.TestCase):
     # weights as 2.0 * range(n_classes).
     bias = [-1.0] if n_classes == 2 else [-1.0] * n_classes
     initial_global_step = 100
-    with ops.Graph().as_default():
-      variables.Variable(bias, name=BIAS_NAME)
-      variables.Variable(
-          initial_global_step, name=ops.GraphKeys.GLOBAL_STEP,
-          dtype=dtypes.int64)
+    with tf.Graph().as_default():
+      tf.Variable(bias, name=BIAS_NAME)
+      tf.Variable(
+          initial_global_step, name=tf.compat.v1.GraphKeys.GLOBAL_STEP,
+          dtype=tf.dtypes.int64)
       save_variables_to_ckpt(self._model_dir)
 
     est = _baseline_classifier_fn(
@@ -1223,7 +1224,7 @@ class BaselineClassifierEvaluationTest(test.TestCase):
 
       expected_metrics = {
           metric_keys.MetricKeys.LOSS: expected_loss,
-          ops.GraphKeys.GLOBAL_STEP: 100,
+          tf.compat.v1.GraphKeys.GLOBAL_STEP: 100,
           metric_keys.MetricKeys.LOSS_MEAN: loss_mean,
           metric_keys.MetricKeys.ACCURACY: 2. / (1. + 2.),
           metric_keys.MetricKeys.PRECISION: 0.,
@@ -1250,7 +1251,7 @@ class BaselineClassifierEvaluationTest(test.TestCase):
 
       expected_metrics = {
           metric_keys.MetricKeys.LOSS: expected_loss,
-          ops.GraphKeys.GLOBAL_STEP: 100,
+          tf.compat.v1.GraphKeys.GLOBAL_STEP: 100,
           metric_keys.MetricKeys.LOSS_MEAN: loss_mean,
           metric_keys.MetricKeys.ACCURACY: 2. / (1. + 2.),
       }
@@ -1266,7 +1267,7 @@ class BaselineClassifierEvaluationTest(test.TestCase):
 
 
 @test_util.run_v1_only("Tests v1 only symbols")
-class BaselineClassifierPredictTest(test.TestCase):
+class BaselineClassifierPredictTest(tf.test.TestCase):
 
   def setUp(self):
     self._model_dir = tempfile.mkdtemp()
@@ -1281,9 +1282,9 @@ class BaselineClassifierPredictTest(test.TestCase):
 
     bias = [10.0] if n_classes == 2 else [10.0] * n_classes
 
-    with ops.Graph().as_default():
-      variables.Variable(bias, name=BIAS_NAME)
-      variables.Variable(100, name='global_step', dtype=dtypes.int64)
+    with tf.Graph().as_default():
+      tf.Variable(bias, name=BIAS_NAME)
+      tf.Variable(100, name='global_step', dtype=tf.dtypes.int64)
       save_variables_to_ckpt(self._model_dir)
 
     est = _baseline_classifier_fn(
@@ -1372,7 +1373,7 @@ class BaselineClassifierPredictTest(test.TestCase):
 
 
 @test_util.run_v1_only("Tests v1 only symbols")
-class BaselineClassifierIntegrationTest(test.TestCase):
+class BaselineClassifierIntegrationTest(tf.test.TestCase):
 
   def setUp(self):
     self._model_dir = tempfile.mkdtemp()
@@ -1384,7 +1385,7 @@ class BaselineClassifierIntegrationTest(test.TestCase):
   def _test_complete_flow(self, n_classes, train_input_fn, eval_input_fn,
                           predict_input_fn, input_dimension, prediction_length):
     feature_columns = [
-        feature_column_lib.numeric_column('x', shape=(input_dimension,))
+        tf.feature_column.numeric_column('x', shape=(input_dimension,))
     ]
     est = _baseline_classifier_fn(
         n_classes=n_classes,
@@ -1396,7 +1397,7 @@ class BaselineClassifierIntegrationTest(test.TestCase):
 
     # EVALUTE
     scores = est.evaluate(eval_input_fn)
-    self.assertEqual(200, scores[ops.GraphKeys.GLOBAL_STEP])
+    self.assertEqual(200, scores[tf.compat.v1.GraphKeys.GLOBAL_STEP])
     self.assertIn(metric_keys.MetricKeys.LOSS, six.iterkeys(scores))
 
     # PREDICT
@@ -1405,12 +1406,12 @@ class BaselineClassifierIntegrationTest(test.TestCase):
     self.assertAllEqual((prediction_length, 1), predictions.shape)
 
     # EXPORT
-    feature_spec = feature_column_lib.make_parse_example_spec(feature_columns)
+    feature_spec = tf.compat.v1.feature_column.make_parse_example_spec(feature_columns)
     serving_input_receiver_fn = export.build_parsing_serving_input_receiver_fn(
         feature_spec)
     export_dir = est.export_saved_model(tempfile.mkdtemp(),
                                         serving_input_receiver_fn)
-    self.assertTrue(gfile.Exists(export_dir))
+    self.assertTrue(tf.compat.v1.gfile.Exists(export_dir))
 
   def _test_numpy_input_fn(self, n_classes):
     """Tests complete flow with numpy_input_fn."""
@@ -1512,27 +1513,27 @@ class BaselineClassifierIntegrationTest(test.TestCase):
       serialized_examples.append(example.SerializeToString())
 
     feature_spec = {
-        'x': parsing_ops.FixedLenFeature([input_dimension], dtypes.float32),
-        'y': parsing_ops.FixedLenFeature([1], dtypes.int64),
+        'x': tf.io.FixedLenFeature([input_dimension], tf.dtypes.float32),
+        'y': tf.io.FixedLenFeature([1], tf.dtypes.int64),
     }
 
     def _train_input_fn():
-      feature_map = parsing_ops.parse_example(serialized_examples, feature_spec)
+      feature_map = tf.compat.v1.io.parse_example(serialized_examples, feature_spec)
       features = queue_parsed_features(feature_map)
       labels = features.pop('y')
       return features, labels
 
     def _eval_input_fn():
-      feature_map = parsing_ops.parse_example(
-          input_lib.limit_epochs(serialized_examples, num_epochs=1),
+      feature_map = tf.compat.v1.io.parse_example(
+          tf.compat.v1.train.limit_epochs(serialized_examples, num_epochs=1),
           feature_spec)
       features = queue_parsed_features(feature_map)
       labels = features.pop('y')
       return features, labels
 
     def _predict_input_fn():
-      feature_map = parsing_ops.parse_example(
-          input_lib.limit_epochs(serialized_examples, num_epochs=1),
+      feature_map = tf.compat.v1.io.parse_example(
+          tf.compat.v1.train.limit_epochs(serialized_examples, num_epochs=1),
           feature_spec)
       features = queue_parsed_features(feature_map)
       features.pop('y')
@@ -1557,21 +1558,21 @@ class BaselineClassifierIntegrationTest(test.TestCase):
 
 
 @test_util.run_v1_only("Tests v1 only symbols")
-class BaselineLogitFnTest(test.TestCase):
+class BaselineLogitFnTest(tf.test.TestCase):
 
   def test_basic_logit_correctness(self):
     """baseline_logit_fn simply returns the bias variable."""
-    with ops.Graph().as_default():
+    with tf.Graph().as_default():
       logit_fn = baseline._baseline_logit_fn_builder(num_outputs=2)
       logits = logit_fn(features={'age': [[23.], [31.]]})
-      with variable_scope.variable_scope('baseline', reuse=True):
-        bias_var = variable_scope.get_variable('bias')
-      with tf_session.Session() as sess:
-        sess.run([variables.global_variables_initializer()])
+      with tf.compat.v1.variable_scope('baseline', reuse=True):
+        bias_var = tf.compat.v1.get_variable('bias')
+      with tf.compat.v1.Session() as sess:
+        sess.run([tf.compat.v1.initializers.global_variables()])
         self.assertAllClose([[0., 0.], [0., 0.]], logits.eval())
         sess.run(bias_var.assign([10., 5.]))
         self.assertAllClose([[10., 5.], [10., 5.]], logits.eval())
 
 
 if __name__ == '__main__':
-  test.main()
+  tf.test.main()

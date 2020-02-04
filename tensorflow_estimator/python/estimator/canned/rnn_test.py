@@ -21,6 +21,7 @@ from __future__ import print_function
 import random
 import tempfile
 
+import tensorflow as tf
 from absl.testing import parameterized
 import numpy as np
 import six
@@ -72,9 +73,9 @@ def _assert_close(expected, actual, rtol=1e-04, name='assert_close'):
   with ops.name_scope(name, 'assert_close', (expected, actual, rtol)) as scope:
     expected = ops.convert_to_tensor(expected, name='expected')
     actual = ops.convert_to_tensor(actual, name='actual')
-    rdiff = math_ops.abs(expected - actual, 'diff') / math_ops.abs(expected)
+    rdiff = tf.math.abs(expected - actual, 'diff') / tf.math.abs(expected)
     rtol = ops.convert_to_tensor(rtol, name='rtol')
-    return check_ops.assert_less(
+    return tf.compat.v1.debugging.assert_less(
         rdiff,
         rtol,
         data=('Condition expected =~ actual did not hold element-wise:'
@@ -103,17 +104,17 @@ def create_checkpoint(kernel, recurrent, bias, dense_kernel, dense_bias,
   model_weights[LOGITS_WEIGHTS_NAME] = dense_kernel
   model_weights[LOGITS_BIAS_NAME] = dense_bias
 
-  with ops.Graph().as_default():
+  with tf.Graph().as_default():
     # Create model variables.
     for k, v in six.iteritems(model_weights):
-      variables_lib.Variable(v, name=k, dtype=dtypes.float32)
+      tf.Variable(v, name=k, dtype=tf.dtypes.float32)
 
     # Create non-model variables.
-    global_step_var = training_util.create_global_step()
+    global_step_var = tf.compat.v1.train.create_global_step()
     assign_op = global_step_var.assign(global_step)
 
     # Initialize vars and save checkpoint.
-    with monitored_session.MonitoredTrainingSession(
+    with tf.compat.v1.train.MonitoredTrainingSession(
         checkpoint_dir=model_dir) as sess:
       sess.run(assign_op)
 
@@ -126,7 +127,7 @@ def _make_rnn_layer(rnn_cell_fn=None, units=None, cell_type=rnn.USE_DEFAULT,
 
 
 @test_util.run_all_in_graph_and_eager_modes
-class RNNLayerFnTest(test.TestCase, parameterized.TestCase):
+class RNNLayerFnTest(tf.test.TestCase, parameterized.TestCase):
   """Tests for rnn layer function."""
 
   def testWrongClassProvided(self):
@@ -160,8 +161,8 @@ class RNNLayerFnTest(test.TestCase, parameterized.TestCase):
 
   def testSpecificLayerTypeArguments(self):
     """Tests arguments for specific layer types (GRU and LSTM)."""
-    mock_layer_type = test.mock.Mock()
-    with test.mock.patch.object(
+    mock_layer_type = tf.compat.v1.test.mock.Mock()
+    with tf.compat.v1.test.mock.patch.object(
         rnn, '_CELL_TYPE_TO_LAYER_MAPPING', {'custom-type': mock_layer_type}):
       _make_rnn_layer(
           cell_type='custom-type', units=11,
@@ -169,10 +170,10 @@ class RNNLayerFnTest(test.TestCase, parameterized.TestCase):
       mock_layer_type.assert_called_once_with(
           units=11, return_sequences='return-seq-value')
 
-  @test.mock.patch.object(keras_layers, 'RNN')
+  @tf.compat.v1.test.mock.patch.object(keras_layers, 'RNN')
   def testCustomCellProvided(self, mock_rnn_layer_type):
     """Tests behavior when a custom cell type is provided."""
-    mock_custom_cell = test.mock.Mock()
+    mock_custom_cell = tf.compat.v1.test.mock.Mock()
     _make_rnn_layer(
         units=[10], cell_type=lambda units: mock_custom_cell,
         return_sequences='return-seq-value')
@@ -187,10 +188,10 @@ class RNNLayerFnTest(test.TestCase, parameterized.TestCase):
     self.assertLen(layer.cell.cells, 2)
     self.assertIsInstance(layer.cell.cells[0], keras_layers.SimpleRNNCell)
 
-  @test.mock.patch.object(keras_layers, 'RNN')
+  @tf.compat.v1.test.mock.patch.object(keras_layers, 'RNN')
   def testCustomCellFnProvided(self, mock_rnn_layer_type):
     """Tests behavior when a custom cell function is provided."""
-    mock_cell_fn = test.mock.Mock(return_value='custom-cell')
+    mock_cell_fn = tf.compat.v1.test.mock.Mock(return_value='custom-cell')
     _make_rnn_layer(
         rnn_cell_fn=mock_cell_fn, return_sequences='return-seq-value')
     mock_rnn_layer_type.assert_called_once_with(
@@ -206,19 +207,19 @@ def _mock_logits_layer(kernel, bias):
       kwargs = {}
       if name == 'logits':
         kwargs = {
-            'kernel_initializer': initializers.Constant(kernel),
-            'bias_initializer': initializers.Constant(bias)}
+            'kernel_initializer': tf.compat.v1.initializers.constant(kernel),
+            'bias_initializer': tf.compat.v1.initializers.constant(bias)}
 
       super(_MockDenseLayer, self).__init__(
           units=units, name=name, activation=activation, **kwargs)
 
-  return test.mock.patch.object(keras_layers, 'Dense', _MockDenseLayer)
+  return tf.compat.v1.test.mock.patch.object(keras_layers, 'Dense', _MockDenseLayer)
 
 
 def _default_features_fn():
   return {
       'price':
-          sparse_tensor.SparseTensor(
+          tf.sparse.SparseTensor(
               values=[10., 5.],
               indices=[[0, 0], [0, 1]],
               dense_shape=[1, 2]),
@@ -227,13 +228,13 @@ def _default_features_fn():
 
 def _get_mock_head():
   mock_head = multi_head_lib.MultiClassHead(3)
-  mock_head.create_estimator_spec = test.mock.Mock(
+  mock_head.create_estimator_spec = tf.compat.v1.test.mock.Mock(
       return_value=model_fn.EstimatorSpec(None))
   return mock_head
 
 
 @test_util.run_all_in_graph_and_eager_modes
-class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
+class RNNLogitFnTest(tf.test.TestCase, parameterized.TestCase):
   """Tests correctness of logits calculated from RNNModel."""
 
   def setUp(self):
@@ -244,7 +245,7 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
     self.dense_kernel = [[-1.], [1.]]
     self.dense_bias = [0.3]
     self.sequence_feature_columns = [
-        fc.sequence_numeric_column('price', shape=(1,))]
+        tf.feature_column.sequence_numeric_column('price', shape=(1,))]
     self.context_feature_columns = []
     super(RNNLogitFnTest, self).setUp()
 
@@ -256,9 +257,9 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
     """Tests that the expected logits are calculated."""
     rnn_layer = keras_layers.SimpleRNN(
         2, return_sequences=return_sequences,
-        kernel_initializer=initializers.Constant(self.kernel),
-        recurrent_initializer=initializers.Constant(self.recurrent),
-        bias_initializer=initializers.Constant(self.bias))
+        kernel_initializer=tf.compat.v1.initializers.constant(self.kernel),
+        recurrent_initializer=tf.compat.v1.initializers.constant(self.recurrent),
+        bias_initializer=tf.compat.v1.initializers.constant(self.bias))
     with self._mock_logits_layer():
       logit_layer = rnn.RNNModel(
           rnn_layer=rnn_layer,
@@ -270,7 +271,7 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
     if return_sequences:
       logits = (logits, logits._keras_mask)
       expected_logits = (expected_logits, expected_mask)
-    self.evaluate(variables_lib.global_variables_initializer())
+    self.evaluate(tf.compat.v1.initializers.global_variables())
     self.assertAllClose(expected_logits, self.evaluate(logits), atol=1e-4)
 
   @parameterized.named_parameters(
@@ -410,7 +411,7 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
     def features_fn():
       return {
           'price':
-              sparse_tensor.SparseTensor(
+              tf.sparse.SparseTensor(
                   values=[10., 5., 2., 7.],
                   indices=[[0, 0], [0, 1], [1, 0], [1, 1]],
                   dense_shape=[2, 2]),
@@ -466,7 +467,7 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
     def features_fn():
       return {
           'price':
-              sparse_tensor.SparseTensor(
+              tf.sparse.SparseTensor(
                   values=[10., 5., 2.],
                   indices=[[0, 0], [0, 1], [1, 0]],
                   dense_shape=[2, 2]),
@@ -504,14 +505,14 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
     def features_fn():
       return {
           'price':
-              sparse_tensor.SparseTensor(
+              tf.sparse.SparseTensor(
                   values=[10., 5., 2.],
                   indices=[[0, 0], [0, 1], [1, 0]],
                   dense_shape=[2, 2]),
           'context': [[-0.5], [0.8]],
       }
 
-    self.context_feature_columns = [fc.numeric_column('context', shape=(1,))]
+    self.context_feature_columns = [tf.feature_column.numeric_column('context', shape=(1,))]
 
     self.kernel = [[.1, -.2], [1., 0.9]]
     self._test_logits(
@@ -545,20 +546,20 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
     def features_fn():
       return {
           'price':
-              sparse_tensor.SparseTensor(
+              tf.sparse.SparseTensor(
                   values=[10., 5., 2.],
                   indices=[[0, 0], [0, 1], [1, 0]],
                   dense_shape=[2, 2]),
           'on_sale':
-              sparse_tensor.SparseTensor(
+              tf.sparse.SparseTensor(
                   values=[0, 1, 0],
                   indices=[[0, 0], [0, 1], [1, 0]],
                   dense_shape=[2, 2]),
       }
 
-    price_column = fc.sequence_numeric_column('price', shape=(1,))
-    on_sale_column = fc.indicator_column(
-        fc.sequence_categorical_column_with_identity('on_sale', num_buckets=2))
+    price_column = tf.feature_column.sequence_numeric_column('price', shape=(1,))
+    on_sale_column = tf.feature_column.indicator_column(
+        tf.feature_column.sequence_categorical_column_with_identity('on_sale', num_buckets=2))
     self.sequence_feature_columns = [price_column, on_sale_column]
 
     self.kernel = [[.5, -.5], [1., -1.], [.1, -.2]]
@@ -593,7 +594,7 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
         sequence_feature_columns=self.sequence_feature_columns)
     features = {
         'price':
-            sparse_tensor.SparseTensor(
+            tf.sparse.SparseTensor(
                 values=[10.,],
                 indices=[[0, 0]],
                 dense_shape=[1, 1]),
@@ -601,7 +602,7 @@ class RNNLogitFnTest(test.TestCase, parameterized.TestCase):
     estimator.model_fn(features=features, labels=None, mode=mode, config=None)
 
 
-class RNNModelTest(test.TestCase, parameterized.TestCase):
+class RNNModelTest(tf.test.TestCase, parameterized.TestCase):
   """Tests for RNNModel."""
 
   def setUp(self):
@@ -612,10 +613,10 @@ class RNNModelTest(test.TestCase, parameterized.TestCase):
     self.dense_kernel = [[-1.], [1.]]
     self.dense_bias = [0.3]
     self.sequence_feature_columns = [
-        fc.sequence_numeric_column('price', shape=(1,))]
+        tf.feature_column.sequence_numeric_column('price', shape=(1,))]
     self.x = {
         'price':
-            sparse_tensor.SparseTensor(
+            tf.sparse.SparseTensor(
                 values=[10., 5., 2.],
                 indices=[[0, 0], [0, 1], [1, 0]],
                 dense_shape=[2, 2]),
@@ -627,9 +628,9 @@ class RNNModelTest(test.TestCase, parameterized.TestCase):
     """Initializes and compiles a RNN model with specific weights."""
     rnn_layer = keras_layers.SimpleRNN(
         2, return_sequences=return_sequences,
-        kernel_initializer=initializers.Constant(self.kernel),
-        recurrent_initializer=initializers.Constant(self.recurrent),
-        bias_initializer=initializers.Constant(self.bias))
+        kernel_initializer=tf.compat.v1.initializers.constant(self.kernel),
+        recurrent_initializer=tf.compat.v1.initializers.constant(self.recurrent),
+        bias_initializer=tf.compat.v1.initializers.constant(self.bias))
     with _mock_logits_layer(self.dense_kernel, bias=self.dense_bias):
       model = rnn.RNNModel(
           units=1,
@@ -646,11 +647,11 @@ class RNNModelTest(test.TestCase, parameterized.TestCase):
 
   def testModelWeights(self):
     """Tests that the layers weights are properly added to the model weights."""
-    col = fc.categorical_column_with_hash_bucket('tokens', hash_bucket_size=1)
-    context_feature_columns = [fc.embedding_column(col, dimension=1)]
-    seq_col = fc.sequence_categorical_column_with_hash_bucket(
+    col = tf.feature_column.categorical_column_with_hash_bucket('tokens', hash_bucket_size=1)
+    context_feature_columns = [tf.feature_column.embedding_column(col, dimension=1)]
+    seq_col = tf.feature_column.sequence_categorical_column_with_hash_bucket(
         'seq-tokens', hash_bucket_size=1)
-    sequence_feature_columns = [fc.embedding_column(seq_col, dimension=1)]
+    sequence_feature_columns = [tf.feature_column.embedding_column(seq_col, dimension=1)]
     model = rnn.RNNModel(
         units=1,
         rnn_layer=keras_layers.SimpleRNN(2),
@@ -683,10 +684,10 @@ class RNNModelTest(test.TestCase, parameterized.TestCase):
       A dictionary with RNNModel initialization arguments from the `from_config`
       call.
     """
-    seq_col = fc.sequence_categorical_column_with_hash_bucket(
+    seq_col = tf.feature_column.sequence_categorical_column_with_hash_bucket(
         'seq-tokens', hash_bucket_size=1)
-    sequence_feature_columns = [fc.embedding_column(
-        seq_col, dimension=1, initializer=initializers.Zeros())]
+    sequence_feature_columns = [tf.feature_column.embedding_column(
+        seq_col, dimension=1, initializer=tf.compat.v1.initializers.zeros())]
     model = rnn.RNNModel(
         units=11,
         rnn_layer=keras_layers.SimpleRNN(3),
@@ -695,10 +696,10 @@ class RNNModelTest(test.TestCase, parameterized.TestCase):
         name='rnn-model',
         **kwargs)
 
-    with test.mock.patch.object(
+    with tf.compat.v1.test.mock.patch.object(
         rnn.RNNModel, '__init__', return_value=None) as init:
       rnn.RNNModel.from_config(
-          model.get_config(), custom_objects={'Zeros': initializers.Zeros})
+          model.get_config(), custom_objects={'Zeros': tf.compat.v1.initializers.zeros})
       return list(init.call_args_list[0])[1]
 
   def testModelConfig(self):
@@ -722,7 +723,7 @@ class RNNModelTest(test.TestCase, parameterized.TestCase):
   def testModelConfigWithContextFeatures(self):
     """Tests store / restore from config with context features."""
     init_kwargs = self._testModelConfig(
-        context_feature_columns=[fc.numeric_column('context', shape=(1,))])
+        context_feature_columns=[tf.feature_column.numeric_column('context', shape=(1,))])
     self.assertEqual(init_kwargs['context_feature_columns'][0].name, 'context')
 
   def DISABLED_testSaveModelWeights(self):  # See b/129842600.
@@ -788,12 +789,12 @@ class RNNModelTest(test.TestCase, parameterized.TestCase):
 
 
 @test_util.run_all_in_graph_and_eager_modes
-class RNNEstimatorInitTest(test.TestCase):
+class RNNEstimatorInitTest(tf.test.TestCase):
 
   def setUp(self):
-    col = fc.sequence_categorical_column_with_hash_bucket(
+    col = tf.feature_column.sequence_categorical_column_with_hash_bucket(
         'tokens', hash_bucket_size=10)
-    self.feature_columns = [fc.embedding_column(col, dimension=2)]
+    self.feature_columns = [tf.feature_column.embedding_column(col, dimension=2)]
     self.cell_units = [4, 2]
     super(RNNEstimatorInitTest, self).setUp()
 
@@ -835,7 +836,7 @@ class RNNEstimatorInitTest(test.TestCase):
 
 
 @test_util.run_all_in_graph_and_eager_modes
-class RNNClassifierTrainingTest(test.TestCase):
+class RNNClassifierTrainingTest(tf.test.TestCase):
 
   def setUp(self):
     self.kernel = [[.1, -.2]]
@@ -844,7 +845,7 @@ class RNNClassifierTrainingTest(test.TestCase):
     self.dense_kernel = [[-1.], [1.]]
     self.dense_bias = [0.3]
     self.sequence_feature_columns = [
-        fc.sequence_numeric_column('price', shape=(1,))]
+        tf.feature_column.sequence_numeric_column('price', shape=(1,))]
     super(RNNClassifierTrainingTest, self).setUp()
 
   def _assert_checkpoint(
@@ -852,14 +853,14 @@ class RNNClassifierTrainingTest(test.TestCase):
 
     shapes = {
         name: shape for (name, shape) in
-        checkpoint_utils.list_variables(self.get_temp_dir())
+        tf.train.list_variables(self.get_temp_dir())
     }
 
-    self.assertEqual([], shapes[ops.GraphKeys.GLOBAL_STEP])
+    self.assertEqual([], shapes[tf.compat.v1.GraphKeys.GLOBAL_STEP])
     self.assertEqual(
         expected_global_step,
-        checkpoint_utils.load_variable(
-            self.get_temp_dir(), ops.GraphKeys.GLOBAL_STEP))
+        tf.train.load_variable(
+            self.get_temp_dir(), tf.compat.v1.GraphKeys.GLOBAL_STEP))
 
     # RNN Cell variables.
     for i, cell_unit in enumerate(cell_units):
@@ -893,7 +894,7 @@ class RNNClassifierTrainingTest(test.TestCase):
 
       def get_updates(self, loss, params):
         self.call_count += 1
-        trainable_vars = ops.get_collection(ops.GraphKeys.TRAINABLE_VARIABLES)
+        trainable_vars = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.TRAINABLE_VARIABLES)
         self._test_case.assertItemsEqual(
             expected_var_names,
             [var.name for var in trainable_vars])
@@ -903,10 +904,10 @@ class RNNClassifierTrainingTest(test.TestCase):
         if expected_loss is None:
           return [self.iterations.assign_add(1).op]
         assert_loss = _assert_close(
-            math_ops.cast(expected_loss, name='expected', dtype=dtypes.float32),
+            tf.cast(expected_loss, name='expected', dtype=tf.dtypes.float32),
             loss,
             name='assert_loss')
-        with ops.control_dependencies((assert_loss,)):
+        with tf.control_dependencies((assert_loss,)):
           return [self.iterations.assign_add(1).op]
 
       def get_config(self):
@@ -918,15 +919,15 @@ class RNNClassifierTrainingTest(test.TestCase):
     def train_input_fn():
       return {
           'tokens':
-              sparse_tensor.SparseTensor(
+              tf.sparse.SparseTensor(
                   values=['the', 'cat', 'sat'],
                   indices=[[0, 0], [0, 1], [0, 2]],
                   dense_shape=[1, 3]),
       }, [[1]]
 
-    col = fc.sequence_categorical_column_with_hash_bucket(
+    col = tf.feature_column.sequence_categorical_column_with_hash_bucket(
         'tokens', hash_bucket_size=10)
-    embed = fc.embedding_column(col, dimension=2)
+    embed = tf.feature_column.embedding_column(col, dimension=2)
     input_units = 2
 
     cell_units = [4, 2]
@@ -951,15 +952,15 @@ class RNNClassifierTrainingTest(test.TestCase):
     def train_input_fn():
       return {
           'tokens':
-              sparse_tensor.SparseTensor(
+              tf.sparse.SparseTensor(
                   values=['the', 'cat', 'sat'],
                   indices=[[0, 0], [0, 1], [0, 2]],
                   dense_shape=[1, 3]),
       }, [[1]]
 
-    col = fc.sequence_categorical_column_with_hash_bucket(
+    col = tf.feature_column.sequence_categorical_column_with_hash_bucket(
         'tokens', hash_bucket_size=10)
-    embed = fc.embedding_column(col, dimension=2)
+    embed = tf.feature_column.embedding_column(col, dimension=2)
     input_units = 2
     cell_units = [4, 2]
     n_classes = 2
@@ -983,16 +984,16 @@ class RNNClassifierTrainingTest(test.TestCase):
     def train_input_fn():
       return {
           'tokens':
-              sparse_tensor.SparseTensor(
+              tf.sparse.SparseTensor(
                   values=['the', 'cat', 'sat', 'dog', 'barked'],
                   indices=[[0, 0], [0, 1], [0, 2], [1, 0], [1, 1]],
                   dense_shape=[2, 3]),
           'w': [[1], [2]],
       }, [[1], [0]]
 
-    col = fc.sequence_categorical_column_with_hash_bucket(
+    col = tf.feature_column.sequence_categorical_column_with_hash_bucket(
         'tokens', hash_bucket_size=10)
-    embed = fc.embedding_column(col, dimension=2)
+    embed = tf.feature_column.embedding_column(col, dimension=2)
     input_units = 2
 
     cell_units = [4, 2]
@@ -1041,7 +1042,7 @@ class RNNClassifierTrainingTest(test.TestCase):
     def train_input_fn():
       return {
           'price':
-              sparse_tensor.SparseTensor(
+              tf.sparse.SparseTensor(
                   values=[10., 5., 2.],
                   indices=[[0, 0], [0, 1], [1, 0]],
                   dense_shape=[2, 2]),
@@ -1055,7 +1056,7 @@ class RNNClassifierTrainingTest(test.TestCase):
     def train_input_fn():
       return {
           'price':
-              sparse_tensor.SparseTensor(
+              tf.sparse.SparseTensor(
                   values=[10., 5., 2., 7.],
                   indices=[[0, 0], [0, 1], [1, 0], [1, 1]],
                   dense_shape=[2, 2]),
@@ -1072,11 +1073,11 @@ class RNNClassifierTrainingTest(test.TestCase):
     def train_input_fn():
       return {
           'price':
-              sparse_tensor.SparseTensor(
+              tf.sparse.SparseTensor(
                   values=[10., 5., 2.],
                   indices=[[0, 0], [0, 1], [1, 0]],
                   dense_shape=[2, 2]),
-      }, sparse_tensor.SparseTensor(
+      }, tf.sparse.SparseTensor(
           values=[0, 1, 0],
           indices=[[0, 0], [0, 1], [1, 0]],
           dense_shape=[2, 2])
@@ -1099,16 +1100,16 @@ class RNNClassifierTrainingTest(test.TestCase):
     def train_input_fn():
       return {
           'price':
-              sparse_tensor.SparseTensor(
+              tf.sparse.SparseTensor(
                   values=[10., 5., 2.],
                   indices=[[0, 0], [0, 1], [1, 0]],
                   dense_shape=[2, 2]),
           'weights':
-              sparse_tensor.SparseTensor(
+              tf.sparse.SparseTensor(
                   values=[0., 0.5, 0.5],
                   indices=[[0, 0], [0, 1], [1, 0]],
                   dense_shape=[2, 2])
-      }, sparse_tensor.SparseTensor(
+      }, tf.sparse.SparseTensor(
           values=[0, 0, 1],
           indices=[[0, 0], [0, 1], [1, 0]],
           dense_shape=[2, 2])
@@ -1130,7 +1131,7 @@ class RNNClassifierTrainingTest(test.TestCase):
     def train_input_fn():
       return {
           'price':
-              sparse_tensor.SparseTensor(
+              tf.sparse.SparseTensor(
                   values=[1.,],
                   indices=[[0, 0]],
                   dense_shape=[1, 1]),
@@ -1142,13 +1143,13 @@ class RNNClassifierTrainingTest(test.TestCase):
           obj, features, mode, logits, labels=None, optimizer=None,
           trainable_variables=None, train_op_fn=None, update_ops=None,
           regularization_losses=None):
-        var = variables_lib.Variable([1.0])
+        var = tf.Variable([1.0])
         mock_loss = 10 * var
         gradients = optimizer.get_gradients(mock_loss, [var])
         self.assertLen(gradients, 1)
         # Initial gradient value is 10 and expected to be clipped to 5 (default
         # clipping value).
-        with ops.control_dependencies((check_ops.assert_equal(
+        with tf.control_dependencies((tf.compat.v1.debugging.assert_equal(
             gradients[0], 5.0),)):
           return create_estimator_spec(
               obj, features, mode, logits, labels, optimizer,
@@ -1157,13 +1158,13 @@ class RNNClassifierTrainingTest(test.TestCase):
 
       return _wrapped_create_estimator_spec
 
-    with test.mock.patch.object(
+    with tf.compat.v1.test.mock.patch.object(
         multi_head_lib.MultiClassHead, 'create_estimator_spec',
         _wrap_create_estimator_spec(
             multi_head_lib.MultiClassHead.create_estimator_spec)):
       est = rnn.RNNClassifier(
           n_classes=3,
-          sequence_feature_columns=[fc.sequence_numeric_column('price')],
+          sequence_feature_columns=[tf.feature_column.sequence_numeric_column('price')],
           units=[2],
           model_dir=self.get_temp_dir())
       est.train(input_fn=train_input_fn, steps=1)
@@ -1174,7 +1175,7 @@ def sorted_key_dict(unsorted_dict):
 
 
 @test_util.run_all_in_graph_and_eager_modes
-class RNNClassifierEvaluationTest(test.TestCase):
+class RNNClassifierEvaluationTest(tf.test.TestCase):
 
   def setUp(self):
     self.kernel = [[.1, -.2]]
@@ -1184,7 +1185,7 @@ class RNNClassifierEvaluationTest(test.TestCase):
     self.dense_bias = [0.3]
     self.global_step = 100
     self.sequence_feature_columns = [
-        fc.sequence_numeric_column('price', shape=(1,))]
+        tf.feature_column.sequence_numeric_column('price', shape=(1,))]
     super(RNNClassifierEvaluationTest, self).setUp()
 
   def _testFromCheckpoint(self, input_fn, **kwargs):
@@ -1208,7 +1209,7 @@ class RNNClassifierEvaluationTest(test.TestCase):
     def eval_input_fn():
       return {
           'price':
-              sparse_tensor.SparseTensor(
+              tf.sparse.SparseTensor(
                   values=[10., 5., 2.],
                   indices=[[0, 0], [0, 1], [1, 0]],
                   dense_shape=[2, 2]),
@@ -1224,7 +1225,7 @@ class RNNClassifierEvaluationTest(test.TestCase):
     #      = [[0.436326], [0.683335]]
     # sum_over_batch_size = (0.436326 + 0.683335)/2
     expected_metrics = {
-        ops.GraphKeys.GLOBAL_STEP: self.global_step,
+        tf.compat.v1.GraphKeys.GLOBAL_STEP: self.global_step,
         metric_keys.MetricKeys.LOSS: 0.559831,
         metric_keys.MetricKeys.LOSS_MEAN: 0.559831,
         metric_keys.MetricKeys.ACCURACY: 1.0,
@@ -1245,11 +1246,11 @@ class RNNClassifierEvaluationTest(test.TestCase):
     def eval_input_fn():
       return {
           'price':
-              sparse_tensor.SparseTensor(
+              tf.sparse.SparseTensor(
                   values=[10., 5., 2.],
                   indices=[[0, 0], [0, 1], [1, 0]],
                   dense_shape=[2, 2]),
-      }, sparse_tensor.SparseTensor(
+      }, tf.sparse.SparseTensor(
           values=[0, 1, 0],
           indices=[[0, 0], [0, 1], [1, 0]],
           dense_shape=[2, 2])
@@ -1272,7 +1273,7 @@ class RNNClassifierEvaluationTest(test.TestCase):
     # accuracy = 1/3
     # prediction_mean = mean(probability) = 0.3501
     expected_metrics = {
-        ops.GraphKeys.GLOBAL_STEP: self.global_step,
+        tf.compat.v1.GraphKeys.GLOBAL_STEP: self.global_step,
         metric_keys.MetricKeys.LOSS: 0.651841,
         metric_keys.MetricKeys.LOSS_MEAN: 0.651841,
         metric_keys.MetricKeys.ACCURACY: 1.0 / 3,
@@ -1291,7 +1292,7 @@ class RNNClassifierEvaluationTest(test.TestCase):
     def eval_input_fn():
       return {
           'price':
-              sparse_tensor.SparseTensor(
+              tf.sparse.SparseTensor(
                   values=[10., 5., 2., 7.],
                   indices=[[0, 0], [0, 1], [1, 0], [1, 1]],
                   dense_shape=[2, 2]),
@@ -1315,7 +1316,7 @@ class RNNClassifierEvaluationTest(test.TestCase):
     eval_metrics = self._testFromCheckpoint(eval_input_fn, n_classes=3)
 
     expected_metrics = {
-        ops.GraphKeys.GLOBAL_STEP: self.global_step,
+        tf.compat.v1.GraphKeys.GLOBAL_STEP: self.global_step,
         metric_keys.MetricKeys.LOSS: 1.331465,
         metric_keys.MetricKeys.LOSS_MEAN: 1.331466,
         metric_keys.MetricKeys.ACCURACY: 0.5,
@@ -1326,7 +1327,7 @@ class RNNClassifierEvaluationTest(test.TestCase):
 
 
 @test_util.run_all_in_graph_and_eager_modes
-class RNNClassifierPredictionTest(test.TestCase):
+class RNNClassifierPredictionTest(tf.test.TestCase):
 
   def setUp(self):
     self.kernel = [[.1, -.2]]
@@ -1335,7 +1336,7 @@ class RNNClassifierPredictionTest(test.TestCase):
     self.dense_kernel = [[-1.], [1.]]
     self.dense_bias = [0.3]
     self.sequence_feature_columns = [
-        fc.sequence_numeric_column('price', shape=(1,))]
+        tf.feature_column.sequence_numeric_column('price', shape=(1,))]
     super(RNNClassifierPredictionTest, self).setUp()
 
   def _testFromCheckpoint(self, input_fn, **kwargs):
@@ -1409,7 +1410,7 @@ class RNNClassifierPredictionTest(test.TestCase):
     def predict_input_fn():
       return {
           'price':
-              sparse_tensor.SparseTensor(
+              tf.sparse.SparseTensor(
                   values=[10., 5.],
                   indices=[[0, 0], [0, 1]],
                   dense_shape=[1, 2]),
@@ -1444,9 +1445,9 @@ class RNNClassifierPredictionTest(test.TestCase):
 class BaseRNNClassificationIntegrationTest(object):
 
   def setUp(self):
-    col = fc.sequence_categorical_column_with_hash_bucket(
+    col = tf.feature_column.sequence_categorical_column_with_hash_bucket(
         'tokens', hash_bucket_size=10)
-    embed = fc.embedding_column(col, dimension=2)
+    embed = tf.feature_column.embedding_column(col, dimension=2)
     self.feature_columns = [embed]
     super(BaseRNNClassificationIntegrationTest, self).setUp()
 
@@ -1466,7 +1467,7 @@ class BaseRNNClassificationIntegrationTest(object):
 
     # EVALUATE
     scores = est.evaluate(eval_input_fn)
-    self.assertEqual(num_steps, scores[ops.GraphKeys.GLOBAL_STEP])
+    self.assertEqual(num_steps, scores[tf.compat.v1.GraphKeys.GLOBAL_STEP])
     self.assertIn('loss', six.iterkeys(scores))
 
     # PREDICT
@@ -1480,12 +1481,12 @@ class BaseRNNClassificationIntegrationTest(object):
     feature_spec = parsing_utils.classifier_parse_example_spec(
         self.feature_columns,
         label_key='label',
-        label_dtype=dtypes.int64)
+        label_dtype=tf.dtypes.int64)
     serving_input_receiver_fn = export.build_parsing_serving_input_receiver_fn(
         feature_spec)
     export_dir = est.export_savedmodel(tempfile.mkdtemp(),
                                        serving_input_receiver_fn)
-    self.assertTrue(gfile.Exists(export_dir))
+    self.assertTrue(tf.compat.v1.gfile.Exists(export_dir))
 
   def _testNumpyInputFn(self, optimizer):
     """Tests complete flow with numpy_input_fn."""
@@ -1541,7 +1542,7 @@ class BaseRNNClassificationIntegrationTest(object):
     words = [b'dog', b'cat', b'bird', b'the', b'a', b'sat', b'flew', b'slept']
 
     _, examples_file = tempfile.mkstemp()
-    writer = python_io.TFRecordWriter(examples_file)
+    writer = tf.io.TFRecordWriter(examples_file)
     for _ in range(batch_size):
       sequence_length = random.randint(1, len(words))
       sentence = random.sample(words, sequence_length)
@@ -1561,18 +1562,18 @@ class BaseRNNClassificationIntegrationTest(object):
     feature_spec = parsing_utils.classifier_parse_example_spec(
         self.feature_columns,
         label_key='label',
-        label_dtype=dtypes.int64)
+        label_dtype=tf.dtypes.int64)
 
     def _train_input_fn():
-      dataset = readers.make_batched_features_dataset(
+      dataset = tf.compat.v1.data.experimental.make_batched_features_dataset(
           examples_file, batch_size, feature_spec)
       return dataset.map(lambda features: (features, features.pop('label')))
     def _eval_input_fn():
-      dataset = readers.make_batched_features_dataset(
+      dataset = tf.compat.v1.data.experimental.make_batched_features_dataset(
           examples_file, batch_size, feature_spec, num_epochs=1)
       return dataset.map(lambda features: (features, features.pop('label')))
     def _predict_input_fn():
-      dataset = readers.make_batched_features_dataset(
+      dataset = tf.compat.v1.data.experimental.make_batched_features_dataset(
           examples_file, batch_size, feature_spec, num_epochs=1)
       def features_fn(features):
         features.pop('label')
@@ -1599,10 +1600,10 @@ def _rnn_classifier_fn(feature_columns, n_classes, cell_units, model_dir,
 
 @test_util.run_all_in_graph_and_eager_modes
 class RNNClassifierIntegrationTest(BaseRNNClassificationIntegrationTest,
-                                   test.TestCase):
+                                   tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
+    tf.test.TestCase.__init__(self, methodName)
     BaseRNNClassificationIntegrationTest.__init__(self, _rnn_classifier_fn)
 
 
@@ -1624,10 +1625,10 @@ def _rnn_classifier_dropout_fn(
 
 @test_util.run_all_in_graph_and_eager_modes
 class RNNClassifierDropoutIntegrationTest(BaseRNNClassificationIntegrationTest,
-                                          test.TestCase):
+                                          tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
+    tf.test.TestCase.__init__(self, methodName)
     BaseRNNClassificationIntegrationTest.__init__(
         self, _rnn_classifier_dropout_fn)
 
@@ -1644,20 +1645,20 @@ def _rnn_estimator_fn(feature_columns, n_classes, cell_units, model_dir,
 
 @test_util.run_all_in_graph_and_eager_modes
 class RNNEstimatorIntegrationTest(BaseRNNClassificationIntegrationTest,
-                                  test.TestCase):
+                                  tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
+    tf.test.TestCase.__init__(self, methodName)
     BaseRNNClassificationIntegrationTest.__init__(self, _rnn_estimator_fn)
 
 
 @test_util.run_all_in_graph_and_eager_modes
-class ModelFnTest(test.TestCase):
+class ModelFnTest(tf.test.TestCase):
   """Tests correctness of RNNEstimator's model function."""
 
   def _test_sequential_mask_in_head(self, mask=None):
     features = {
-        'price': sparse_tensor.SparseTensor(
+        'price': tf.sparse.SparseTensor(
             values=[10., 5., 4.],
             indices=[[0, 0], [0, 1], [1, 0]],
             dense_shape=[2, 2])}
@@ -1665,7 +1666,7 @@ class ModelFnTest(test.TestCase):
       features['sequence_mask'] = ops.convert_to_tensor(mask)
     expected_mask = mask or [[1, 1], [1, 0]]
 
-    sequence_feature_columns = [fc.sequence_numeric_column('price', shape=(1,))]
+    sequence_feature_columns = [tf.feature_column.sequence_numeric_column('price', shape=(1,))]
 
     mock_head = _get_mock_head()
     seq_head = seq_head_lib.SequentialHeadWrapper(
@@ -1690,4 +1691,4 @@ class ModelFnTest(test.TestCase):
     self._test_sequential_mask_in_head([[1, 1], [1, 1]])
 
 if __name__ == '__main__':
-  test.main()
+  tf.test.main()

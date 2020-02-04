@@ -23,6 +23,7 @@ import json
 import os
 import time
 
+import tensorflow as tf
 import six
 
 from tensorflow.core.protobuf import config_pb2
@@ -57,7 +58,7 @@ def _validate_hooks(hooks):
   """Validates the `hooks`."""
   hooks = tuple(hooks or [])
   for hook in hooks:
-    if not isinstance(hook, session_run_hook.SessionRunHook):
+    if not isinstance(hook, tf.compat.v1.train.SessionRunHook):
       raise TypeError(
           'All hooks must be `SessionRunHook` instances, given: {}'.format(
               hook))
@@ -112,7 +113,7 @@ def _is_google_env():
   """Detects whether current environment is google."""
   tf_config = json.loads(os.environ.get(_TF_CONFIG_ENV) or '{}')
   if not tf_config:
-    logging.warn('TF_CONFIG should not be empty in distributed environment.')
+    tf.compat.v1.logging.warn('TF_CONFIG should not be empty in distributed environment.')
   return tf_config.get(_ENVIRONMENT_KEY) == _ENVIRONMENT_GOOGLE_VALUE
 
 
@@ -460,7 +461,7 @@ def train_and_evaluate(estimator, train_spec, eval_spec):
   # If `distribute_coordinator_mode` is set and running in distributed
   # environment, we run `train_and_evaluate` via distribute coordinator.
   if distribute_coordinator_training.should_run_distribute_coordinator(config):
-    logging.info('Running `train_and_evaluate` with Distribute Coordinator.')
+    tf.compat.v1.logging.info('Running `train_and_evaluate` with Distribute Coordinator.')
     distribute_coordinator_training.train_and_evaluate(
         estimator, train_spec, eval_spec, _TrainingExecutor)
     return
@@ -474,7 +475,7 @@ def train_and_evaluate(estimator, train_spec, eval_spec):
   return executor.run()
 
 
-class _StopAtSecsHook(session_run_hook.SessionRunHook):
+class _StopAtSecsHook(tf.compat.v1.train.SessionRunHook):
   """Stops given secs after begin is called."""
 
   def __init__(self, stop_after_secs):
@@ -491,7 +492,7 @@ class _StopAtSecsHook(session_run_hook.SessionRunHook):
 
 
 class _NewCheckpointListenerForEvaluate(
-    basic_session_run_hooks.CheckpointSaverListener):
+    tf.compat.v1.train.CheckpointSaverListener):
   """A saver listener to run evaluate with every checkpoint."""
 
   def __init__(self, evaluator, eval_throttle_secs, continuous_eval_listener):
@@ -513,18 +514,18 @@ class _NewCheckpointListenerForEvaluate(
       return
 
     if not self._continuous_eval_listener.before_eval():
-      logging.info('Exiting training and evaluation loop, as requested by '
+      tf.compat.v1.logging.info('Exiting training and evaluation loop, as requested by '
                    '_ContinuousEvalListener.before_eval.')
       return True
     if self._timer.should_trigger_for_step(global_step_value):
       self._evaluate(global_step_value)  # updates self.eval_result
       if not self._continuous_eval_listener.after_eval(self.eval_result):
-        logging.info('Exiting evaluation, as requested by '
+        tf.compat.v1.logging.info('Exiting evaluation, as requested by '
                      '_ContinuousEvalListener.after_eval.')
         return True
     else:
       # TODO(ispir): add remaining time in the log.
-      logging.info('Skip the current checkpoint eval due to throttle secs '
+      tf.compat.v1.logging.info('Skip the current checkpoint eval due to throttle secs '
                    '({} secs).'.format(self._eval_throttle_secs))
 
   def end(self, session, global_step_value):
@@ -610,7 +611,7 @@ class _TrainingExecutor(object):
 
     if (not config.cluster_spec and
         config.task_type != run_config_lib.TaskType.EVALUATOR):
-      logging.info('Running training and evaluation locally (non-distributed).')
+      tf.compat.v1.logging.info('Running training and evaluation locally (non-distributed).')
       return self.run_local()
 
     # Distributed case.
@@ -693,7 +694,7 @@ class _TrainingExecutor(object):
     _assert_eval_spec(self._eval_spec)
 
     train_hooks = list(self._train_spec.hooks) + list(self._train_hooks)
-    logging.info('Start train and evaluate loop. The evaluate will happen '
+    tf.compat.v1.logging.info('Start train and evaluate loop. The evaluate will happen '
                  'after every checkpoint. Checkpoint frequency is determined '
                  'based on RunConfig arguments: save_checkpoints_steps {} or '
                  'save_checkpoints_secs {}.'.format(
@@ -734,7 +735,7 @@ class _TrainingExecutor(object):
         # For distributed training, config.master is empty if and only if it has
         # a single node in the cluster spec. In this case, we should not start
         # the server.
-        logging.info('Skip starting Tensorflow server as there is only one '
+        tf.compat.v1.logging.info('Skip starting Tensorflow server as there is only one '
                      'node in the cluster.')
         return
       else:
@@ -742,7 +743,7 @@ class _TrainingExecutor(object):
             'Could not start server; be sure to specify master in '
             'RunConfig or set the TF_CONFIG environment variable.')
 
-    logging.info('Start Tensorflow server.')
+    tf.compat.v1.logging.info('Start Tensorflow server.')
 
     if config.session_config is None:
       session_config = config_pb2.ConfigProto(log_device_placement=False)
@@ -786,7 +787,7 @@ class _TrainingExecutor(object):
       start_delay_secs = min(max_delay_secs,
                              (config.task_id + 1) * _DELAY_SECS_PER_WORKER)
     if start_delay_secs > 0:
-      logging.info('Waiting %d secs before starting training.',
+      tf.compat.v1.logging.info('Waiting %d secs before starting training.',
                    start_delay_secs)
       time.sleep(start_delay_secs)
 
@@ -803,7 +804,7 @@ class _TrainingExecutor(object):
 
     start_delay_secs = self._eval_spec.start_delay_secs
     if start_delay_secs:
-      logging.info('Waiting %f secs before starting eval.', start_delay_secs)
+      tf.compat.v1.logging.info('Waiting %f secs before starting eval.', start_delay_secs)
       time.sleep(start_delay_secs)
 
     latest_eval_result = None
@@ -814,7 +815,7 @@ class _TrainingExecutor(object):
     while not should_early_stop:
       if (latest_eval_result and
           latest_eval_result.status == _EvalStatus.EVALUATED):
-        global_step = latest_eval_result.metrics.get(ops.GraphKeys.GLOBAL_STEP)
+        global_step = latest_eval_result.metrics.get(tf.compat.v1.GraphKeys.GLOBAL_STEP)
         if (global_step and self._train_spec.max_steps and
             global_step >= self._train_spec.max_steps):
           logging.info(
@@ -838,7 +839,7 @@ class _TrainingExecutor(object):
     should_early_stop = False
 
     if not continuous_eval_listener.before_eval():
-      logging.info('Exiting evaluation, as requested by '
+      tf.compat.v1.logging.info('Exiting evaluation, as requested by '
                    '_ContinuousEvalListener.before_eval.')
       should_early_stop = True
       return (eval_result, should_early_stop)
@@ -851,7 +852,7 @@ class _TrainingExecutor(object):
     eval_result, _ = evaluator.evaluate_and_export()
 
     if not self._continuous_eval_listener.after_eval(eval_result):
-      logging.info('Exiting evaluation, as requested by '
+      tf.compat.v1.logging.info('Exiting evaluation, as requested by '
                    '_ContinuousEvalListener.after_eval.')
       should_early_stop = True
       return (eval_result, should_early_stop)
@@ -927,13 +928,13 @@ class _TrainingExecutor(object):
           checkpoint_path=latest_ckpt_path)
 
       is_the_final_export = (
-          eval_result.metrics[ops.GraphKeys.GLOBAL_STEP] >=
+          eval_result.metrics[tf.compat.v1.GraphKeys.GLOBAL_STEP] >=
           self._max_training_steps if self._max_training_steps else False)
       export_results = self._export_eval_result(eval_result,
                                                 is_the_final_export)
 
       if is_the_final_export:
-        logging.debug('Calling exporter with the `is_the_final_export=True`.')
+        tf.compat.v1.logging.debug('Calling exporter with the `is_the_final_export=True`.')
         self._is_final_export_triggered = True
 
       self._last_warning_time = 0
@@ -950,8 +951,8 @@ class _TrainingExecutor(object):
     def _export_eval_result(self, eval_result, is_the_final_export):
       """Export `eval_result` according to exporters in `EvalSpec`."""
       export_dir_base = os.path.join(
-          compat.as_str_any(self._estimator.model_dir),
-          compat.as_str_any('export'))
+          tf.compat.as_str_any(self._estimator.model_dir),
+          tf.compat.as_str_any('export'))
 
       export_results = []
       for exporter in self._eval_spec.exporters:
@@ -959,8 +960,8 @@ class _TrainingExecutor(object):
             exporter.export(
                 estimator=self._estimator,
                 export_path=os.path.join(
-                    compat.as_str_any(export_dir_base),
-                    compat.as_str_any(exporter.name)),
+                    tf.compat.as_str_any(export_dir_base),
+                    tf.compat.as_str_any(exporter.name)),
                 checkpoint_path=eval_result.checkpoint_path,
                 eval_result=eval_result.metrics,
                 is_the_final_export=is_the_final_export))
@@ -1036,7 +1037,7 @@ class _EvalResult(
       raise TypeError(
           '`Estimator.evaluate` should return dict. Given {}.'.format(
               type(metrics)))
-    if ops.GraphKeys.GLOBAL_STEP not in metrics:
+    if tf.compat.v1.GraphKeys.GLOBAL_STEP not in metrics:
       raise ValueError(
           'Internal error: `Estimator.evaluate` result should have '
           '`global_step` in result. Given {}'.format(metrics))

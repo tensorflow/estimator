@@ -18,6 +18,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import tensorflow as tf
+
 import glob
 import json
 import os
@@ -47,12 +49,12 @@ from tensorflow_estimator.python.estimator.hooks import hooks as hooks_lib
 
 
 def summary_step_keyword_to_value_mapping(dir_):
-  writer_cache.FileWriterCache.clear()
+  tf.compat.v1.summary.FileWriterCache.clear()
 
   # Get last Event written.
   event_paths = glob.glob(os.path.join(dir_, 'events*'))
   step_keyword_to_value = {}
-  for last_event in summary_iterator.summary_iterator(event_paths[-1]):
+  for last_event in tf.compat.v1.train.summary_iterator(event_paths[-1]):
     if last_event.step not in step_keyword_to_value:
       step_keyword_to_value[last_event.step] = {}
     if last_event.summary is not None:
@@ -65,11 +67,11 @@ def summary_step_keyword_to_value_mapping(dir_):
 def get_summary_value(dir_, step, keyword):
   """Get summary value for given step and keyword."""
 
-  writer_cache.FileWriterCache.clear()
+  tf.compat.v1.summary.FileWriterCache.clear()
   # Get last Event written.
   event_paths = glob.glob(os.path.join(dir_, 'events*'))
   print('XXX', event_paths)
-  for last_event in summary_iterator.summary_iterator(event_paths[-1]):
+  for last_event in tf.compat.v1.train.summary_iterator(event_paths[-1]):
     if last_event.step == step and last_event.summary is not None:
       for value in last_event.summary.value:
         if keyword in value.tag:
@@ -78,23 +80,23 @@ def get_summary_value(dir_, step, keyword):
 
 
 @test_util.deprecated_graph_mode_only
-class InMemoryEvaluatorHookTest(test.TestCase):
+class InMemoryEvaluatorHookTest(tf.test.TestCase):
 
   def test_runs_eval_metrics(self):
 
     def model_fn(features, labels, mode):
       _ = labels
       if estimator_lib.ModeKeys.TRAIN == mode:
-        with ops.control_dependencies([features]):
-          train_op = state_ops.assign_add(training.get_global_step(), 1)
+        with tf.control_dependencies([features]):
+          train_op = tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1)
         return estimator_lib.EstimatorSpec(
-            mode, loss=constant_op.constant(3.), train_op=train_op)
+            mode, loss=tf.constant(3.), train_op=train_op)
       if estimator_lib.ModeKeys.EVAL == mode:
         mean = metrics_module.Mean()
         mean.update_state(features)
         return estimator_lib.EstimatorSpec(
             mode,
-            loss=constant_op.constant(5.),
+            loss=tf.constant(5.),
             eval_metric_ops={
                 'mean_of_features': mean,
             })
@@ -102,7 +104,7 @@ class InMemoryEvaluatorHookTest(test.TestCase):
     estimator = estimator_lib.Estimator(model_fn=model_fn)
 
     def input_fn():
-      return dataset_ops.Dataset.range(10)
+      return tf.compat.v1.data.Dataset.range(10)
 
     evaluator = hooks_lib.InMemoryEvaluatorHook(
         estimator, input_fn, every_n_iter=4)
@@ -126,26 +128,26 @@ class InMemoryEvaluatorHookTest(test.TestCase):
 
     def model_fn(features, labels, mode):
       _ = labels
-      step = training.get_global_step()
-      w = variable_scope.get_variable(
+      step = tf.compat.v1.train.get_global_step()
+      w = tf.compat.v1.get_variable(
           'w',
           shape=[],
-          initializer=init_ops.zeros_initializer(),
-          dtype=dtypes.int64)
+          initializer=tf.compat.v1.initializers.zeros(),
+          dtype=tf.dtypes.int64)
       if estimator_lib.ModeKeys.TRAIN == mode:
         # to consume features, we have control dependency
-        with ops.control_dependencies([features]):
-          step_inc = state_ops.assign_add(training.get_global_step(), 1)
-        with ops.control_dependencies([step_inc]):
+        with tf.control_dependencies([features]):
+          step_inc = tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1)
+        with tf.control_dependencies([step_inc]):
           assign_w_to_step_plus_2 = w.assign(step + 2)
         return estimator_lib.EstimatorSpec(
             mode,
-            loss=constant_op.constant(3.),
+            loss=tf.constant(3.),
             train_op=assign_w_to_step_plus_2)
       if estimator_lib.ModeKeys.EVAL == mode:
         # to consume features, we have control dependency
-        with ops.control_dependencies([features]):
-          loss = constant_op.constant(5.)
+        with tf.control_dependencies([features]):
+          loss = tf.constant(5.)
         mean = metrics_module.Mean()
         mean.update_state(w)
         return estimator_lib.EstimatorSpec(
@@ -158,7 +160,7 @@ class InMemoryEvaluatorHookTest(test.TestCase):
     estimator = estimator_lib.Estimator(model_fn=model_fn)
 
     def input_fn():
-      return dataset_ops.Dataset.range(10)
+      return tf.compat.v1.data.Dataset.range(10)
 
     evaluator = hooks_lib.InMemoryEvaluatorHook(
         estimator, input_fn, every_n_iter=4)
@@ -173,19 +175,19 @@ class InMemoryEvaluatorHookTest(test.TestCase):
     self.assertEqual(12, step_keyword_to_value[10]['mean_of_const'])
 
   def test_dnn_classifier(self):
-    embedding = feature_column_lib.embedding_column(
-        feature_column_lib.categorical_column_with_vocabulary_list(
+    embedding = tf.feature_column.embedding_column(
+        tf.feature_column.categorical_column_with_vocabulary_list(
             'wire_cast', ['kima', 'omar', 'stringer']), 8)
     dnn = estimator_lib.DNNClassifier(
         feature_columns=[embedding], hidden_units=[3, 1])
 
     def train_input_fn():
-      return dataset_ops.Dataset.from_tensors(({
+      return tf.compat.v1.data.Dataset.from_tensors(({
           'wire_cast': [['omar'], ['kima']]
       }, [[0], [1]])).repeat(3)
 
     def eval_input_fn():
-      return dataset_ops.Dataset.from_tensors(({
+      return tf.compat.v1.data.Dataset.from_tensors(({
           'wire_cast': [['stringer'], ['kima']]
       }, [[0], [1]])).repeat(2)
 
@@ -197,9 +199,9 @@ class InMemoryEvaluatorHookTest(test.TestCase):
         dnn.eval_dir('in-memory'))
 
     final_metrics = dnn.evaluate(eval_input_fn)
-    step = final_metrics[ops.GraphKeys.GLOBAL_STEP]
+    step = final_metrics[tf.compat.v1.GraphKeys.GLOBAL_STEP]
     for summary_tag in final_metrics:
-      if summary_tag == ops.GraphKeys.GLOBAL_STEP:
+      if summary_tag == tf.compat.v1.GraphKeys.GLOBAL_STEP:
         continue
       self.assertEqual(final_metrics[summary_tag],
                        step_keyword_to_value[step][summary_tag])
@@ -215,10 +217,10 @@ class InMemoryEvaluatorHookTest(test.TestCase):
             'index': 0
         }
     }
-    with test.mock.patch.dict('os.environ',
+    with tf.compat.v1.test.mock.patch.dict('os.environ',
                               {'TF_CONFIG': json.dumps(tf_config)}):
       dnn = estimator_lib.DNNClassifier(
-          feature_columns=[feature_column_lib.numeric_column('x')],
+          feature_columns=[tf.feature_column.numeric_column('x')],
           hidden_units=[3, 1])
 
     def eval_input_fn():
@@ -238,10 +240,10 @@ class InMemoryEvaluatorHookTest(test.TestCase):
             'index': 0
         }
     }
-    with test.mock.patch.dict('os.environ',
+    with tf.compat.v1.test.mock.patch.dict('os.environ',
                               {'TF_CONFIG': json.dumps(tf_config)}):
       dnn = estimator_lib.DNNClassifier(
-          feature_columns=[feature_column_lib.numeric_column('x')],
+          feature_columns=[tf.feature_column.numeric_column('x')],
           hidden_units=[3, 1])
 
     def eval_input_fn():
@@ -255,12 +257,12 @@ class InMemoryEvaluatorHookTest(test.TestCase):
     def model_fn(features, labels, mode):
       _, _ = features, labels
       mean = metrics_module.Mean()
-      mean.update_state(constant_op.constant(2.))
+      mean.update_state(tf.constant(2.))
       return estimator_lib.EstimatorSpec(
           mode,
-          loss=constant_op.constant(3.),
-          scaffold=training.Scaffold(saver=training.Saver()),
-          train_op=constant_op.constant(5.),
+          loss=tf.constant(3.),
+          scaffold=tf.compat.v1.train.Scaffold(saver=tf.compat.v1.train.Saver()),
+          train_op=tf.constant(5.),
           eval_metric_ops={
               'mean_of_features': mean,
           })
@@ -268,7 +270,7 @@ class InMemoryEvaluatorHookTest(test.TestCase):
     estimator = estimator_lib.Estimator(model_fn=model_fn)
 
     def input_fn():
-      return dataset_ops.Dataset.range(10)
+      return tf.compat.v1.data.Dataset.range(10)
 
     evaluator = hooks_lib.InMemoryEvaluatorHook(estimator, input_fn)
     with self.assertRaisesRegexp(ValueError, 'does not support custom saver'):
@@ -283,12 +285,12 @@ class InMemoryEvaluatorHookTest(test.TestCase):
         _, _ = scaffold, session
 
       mean = metrics_module.Mean()
-      mean.update_state(constant_op.constant(2.))
+      mean.update_state(tf.constant(2.))
       return estimator_lib.EstimatorSpec(
           mode,
-          loss=constant_op.constant(3.),
-          scaffold=training.Scaffold(init_fn=init_fn),
-          train_op=constant_op.constant(5.),
+          loss=tf.constant(3.),
+          scaffold=tf.compat.v1.train.Scaffold(init_fn=init_fn),
+          train_op=tf.constant(5.),
           eval_metric_ops={
               'mean_of_features': mean,
           })
@@ -296,7 +298,7 @@ class InMemoryEvaluatorHookTest(test.TestCase):
     estimator = estimator_lib.Estimator(model_fn=model_fn)
 
     def input_fn():
-      return dataset_ops.Dataset.range(10)
+      return tf.compat.v1.data.Dataset.range(10)
 
     evaluator = hooks_lib.InMemoryEvaluatorHook(estimator, input_fn)
     with self.assertRaisesRegexp(ValueError, 'does not support custom init_fn'):
@@ -306,20 +308,20 @@ class InMemoryEvaluatorHookTest(test.TestCase):
 
     def model_fn(features, labels, mode):
       _, _ = features, labels
-      w = variables.VariableV1(
+      w = tf.compat.v1.Variable(
           initial_value=[0.],
           trainable=False,
-          collections=[ops.GraphKeys.SAVEABLE_OBJECTS])
-      init_op = control_flow_ops.group(
-          [w.initializer, training.get_global_step().initializer])
+          collections=[tf.compat.v1.GraphKeys.SAVEABLE_OBJECTS])
+      init_op = tf.group(
+          [w.initializer, tf.compat.v1.train.get_global_step().initializer])
 
       mean = metrics_module.Mean()
-      mean.update_state(constant_op.constant(2.))
+      mean.update_state(tf.constant(2.))
       return estimator_lib.EstimatorSpec(
           mode,
-          loss=constant_op.constant(3.),
-          scaffold=training.Scaffold(init_op=init_op),
-          train_op=constant_op.constant(5.),
+          loss=tf.constant(3.),
+          scaffold=tf.compat.v1.train.Scaffold(init_op=init_op),
+          train_op=tf.constant(5.),
           eval_metric_ops={
               'mean_of_features': mean,
           })
@@ -327,7 +329,7 @@ class InMemoryEvaluatorHookTest(test.TestCase):
     estimator = estimator_lib.Estimator(model_fn=model_fn)
 
     def input_fn():
-      return dataset_ops.Dataset.range(10)
+      return tf.compat.v1.data.Dataset.range(10)
 
     evaluator = hooks_lib.InMemoryEvaluatorHook(estimator, input_fn)
     with self.assertRaisesRegexp(ValueError, 'does not support saveables'):
@@ -335,55 +337,55 @@ class InMemoryEvaluatorHookTest(test.TestCase):
 
 
 @test_util.deprecated_graph_mode_only
-class StopAtCheckpointStepHookTest(test.TestCase):
+class StopAtCheckpointStepHookTest(tf.test.TestCase):
 
   def test_do_not_stop_if_checkpoint_is_not_there(self):
-    with ops.Graph().as_default():
-      step = training.create_global_step()
+    with tf.Graph().as_default():
+      step = tf.compat.v1.train.create_global_step()
       assign_ten = step.assign(10)
-      no_op = control_flow_ops.no_op()
+      no_op = tf.no_op()
       hook = hooks_lib._StopAtCheckpointStepHook(
           model_dir=tempfile.mkdtemp(), last_step=10)
-      with training.SingularMonitoredSession(hooks=[hook]) as mon_sess:
+      with tf.compat.v1.train.SingularMonitoredSession(hooks=[hook]) as mon_sess:
         mon_sess.raw_session().run(assign_ten)
-        with test.mock.patch.object(time, 'sleep') as mock_sleep:
+        with tf.compat.v1.test.mock.patch.object(time, 'sleep') as mock_sleep:
           mon_sess.run(no_op)
           self.assertTrue(mock_sleep.called)
         self.assertFalse(mon_sess.should_stop())
 
   def test_do_not_stop_if_checkpoint_step_is_smaller(self):
     model_dir = tempfile.mkdtemp()
-    with ops.Graph().as_default():
-      step = training.create_global_step()
+    with tf.Graph().as_default():
+      step = tf.compat.v1.train.create_global_step()
       assign_nine = step.assign(9)
       assign_ten = step.assign(10)
-      no_op = control_flow_ops.no_op()
+      no_op = tf.no_op()
       hook = hooks_lib._StopAtCheckpointStepHook(
           model_dir=model_dir, last_step=10)
-      with tf_session.Session() as sess:
+      with tf.compat.v1.Session() as sess:
         sess.run(assign_nine)
-        training.Saver().save(sess, os.path.join(model_dir, 'model.ckpt'))
-      with training.SingularMonitoredSession(hooks=[hook]) as mon_sess:
+        tf.compat.v1.train.Saver().save(sess, os.path.join(model_dir, 'model.ckpt'))
+      with tf.compat.v1.train.SingularMonitoredSession(hooks=[hook]) as mon_sess:
         mon_sess.raw_session().run(assign_ten)
-        with test.mock.patch.object(time, 'sleep') as mock_sleep:
+        with tf.compat.v1.test.mock.patch.object(time, 'sleep') as mock_sleep:
           mon_sess.run(no_op)
           self.assertTrue(mock_sleep.called)
         self.assertFalse(mon_sess.should_stop())
 
   def test_stop_if_checkpoint_step_is_laststep(self):
     model_dir = tempfile.mkdtemp()
-    with ops.Graph().as_default():
-      step = training.create_global_step()
+    with tf.Graph().as_default():
+      step = tf.compat.v1.train.create_global_step()
       assign_ten = step.assign(10)
-      no_op = control_flow_ops.no_op()
+      no_op = tf.no_op()
       hook = hooks_lib._StopAtCheckpointStepHook(
           model_dir=model_dir, last_step=10)
-      with tf_session.Session() as sess:
+      with tf.compat.v1.Session() as sess:
         sess.run(assign_ten)
-        training.Saver().save(sess, os.path.join(model_dir, 'model.ckpt'))
-      with training.SingularMonitoredSession(hooks=[hook]) as mon_sess:
+        tf.compat.v1.train.Saver().save(sess, os.path.join(model_dir, 'model.ckpt'))
+      with tf.compat.v1.train.SingularMonitoredSession(hooks=[hook]) as mon_sess:
         mon_sess.raw_session().run(assign_ten)
-        with test.mock.patch.object(time, 'sleep') as mock_sleep:
+        with tf.compat.v1.test.mock.patch.object(time, 'sleep') as mock_sleep:
           mon_sess.run(no_op)
           self.assertFalse(mock_sleep.called)
         self.assertTrue(mon_sess.should_stop())
@@ -391,10 +393,10 @@ class StopAtCheckpointStepHookTest(test.TestCase):
   def test_creates_regular_stop_at_step_hook_for_chief(self):
     # by default an estimator is in chief mode
     dnn = estimator_lib.DNNClassifier(
-        feature_columns=[feature_column_lib.numeric_column('x')],
+        feature_columns=[tf.feature_column.numeric_column('x')],
         hidden_units=[3, 1])
     hook = hooks_lib.make_stop_at_checkpoint_step_hook(dnn, 300)
-    self.assertIsInstance(hook, training.StopAtStepHook)
+    self.assertIsInstance(hook, tf.compat.v1.train.StopAtStepHook)
     self.assertEqual(300, hook._last_step)
 
   def test_creates_checkpoint_hook_for_workers(self):
@@ -406,7 +408,7 @@ class StopAtCheckpointStepHookTest(test.TestCase):
         return False
 
     dnn = estimator_lib.DNNClassifier(
-        feature_columns=[feature_column_lib.numeric_column('x')],
+        feature_columns=[tf.feature_column.numeric_column('x')],
         hidden_units=[3, 1],
         config=FakeWorkerConfig())
     hook = hooks_lib.make_stop_at_checkpoint_step_hook(dnn, 300)
@@ -416,4 +418,4 @@ class StopAtCheckpointStepHookTest(test.TestCase):
 
 
 if __name__ == '__main__':
-  test.main()
+  tf.test.main()

@@ -22,6 +22,7 @@ import os
 import re
 import sys
 import textwrap
+import tensorflow as tf
 import numpy as np
 
 from absl import flags

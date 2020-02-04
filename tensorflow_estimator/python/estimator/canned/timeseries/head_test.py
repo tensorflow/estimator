@@ -21,6 +21,7 @@ from __future__ import print_function
 import functools
 import os
 
+import tensorflow as tf
 from absl.testing import parameterized
 import numpy
 import six
@@ -54,7 +55,7 @@ from tensorflow_estimator.python.estimator.canned.timeseries import model
 from tensorflow_estimator.python.estimator.canned.timeseries import state_management
 
 
-class HeadTest(test.TestCase):
+class HeadTest(tf.test.TestCase):
 
   def test_labels_provided_error(self):
     model_fn = _stub_model_fn()
@@ -64,7 +65,7 @@ class HeadTest(test.TestCase):
         model_fn(features={}, labels={"a": "b"}, mode=mode)
 
       with self.assertRaisesRegexp(ValueError, "received a `labels`"):
-        model_fn(features={}, labels=array_ops.zeros([]), mode=mode)
+        model_fn(features={}, labels=tf.zeros([]), mode=mode)
 
   def test_unknown_mode(self):
     model_fn = _stub_model_fn()
@@ -74,7 +75,7 @@ class HeadTest(test.TestCase):
 
 class _TickerModel(object):
   num_features = 1
-  dtype = dtypes.float32
+  dtype = tf.dtypes.float32
 
   def initialize_graph(self, input_statistics):
     pass
@@ -84,48 +85,48 @@ class _TickerModel(object):
     return model.ModelOutputs(
         loss=features["ticker"],
         end_state=(features["ticker"], features["ticker"]),
-        prediction_times=array_ops.zeros(()),
+        prediction_times=tf.zeros(()),
         predictions={"ticker": features["ticker"]})
 
 
 @test_util.run_v1_only("Currently incompatible with ResourceVariable")
-class EvaluationMetricsTests(test.TestCase):
+class EvaluationMetricsTests(tf.test.TestCase):
 
   def test_metrics_consistent(self):
     # Tests that the identity metrics used to report in-sample predictions match
     # the behavior of standard metrics.
-    g = ops.Graph()
+    g = tf.Graph()
     with g.as_default():
       features = {
           feature_keys.TrainEvalFeatures.TIMES:
-              array_ops.zeros((1, 1)),
+              tf.zeros((1, 1)),
           feature_keys.TrainEvalFeatures.VALUES:
-              array_ops.zeros((1, 1, 1)),
+              tf.zeros((1, 1, 1)),
           "ticker":
-              array_ops.reshape(
-                  math_ops.cast(
-                      variables.VariableV1(
+              tf.reshape(
+                  tf.cast(
+                      tf.compat.v1.Variable(
                           name="ticker",
                           initial_value=0,
-                          dtype=dtypes.int64,
-                          collections=[ops.GraphKeys.LOCAL_VARIABLES])
+                          dtype=tf.dtypes.int64,
+                          collections=[tf.compat.v1.GraphKeys.LOCAL_VARIABLES])
                       .count_up_to(10),
-                      dtype=dtypes.float32), (1, 1, 1))
+                      dtype=tf.dtypes.float32), (1, 1, 1))
       }
       model_fn = ts_head_lib.TimeSeriesRegressionHead(
           model=_TickerModel(),
           state_manager=state_management.PassthroughStateManager(),
-          optimizer=train.GradientDescentOptimizer(0.001)).create_estimator_spec
+          optimizer=tf.compat.v1.train.GradientDescentOptimizer(0.001)).create_estimator_spec
       outputs = model_fn(
           features=features, labels=None, mode=estimator_lib.ModeKeys.EVAL)
       metric_update_ops = [
           metric[1] for metric in outputs.eval_metric_ops.values()]
-      loss_mean, loss_update = metrics.mean(outputs.loss)
+      loss_mean, loss_update = tf.compat.v1.metrics.mean(outputs.loss)
       metric_update_ops.append(loss_update)
       with self.cached_session() as sess:
-        coordinator = coordinator_lib.Coordinator()
-        queue_runner_impl.start_queue_runners(sess, coord=coordinator)
-        variables.local_variables_initializer().run()
+        coordinator = tf.train.Coordinator()
+        tf.compat.v1.train.queue_runner.start_queue_runners(sess, coord=coordinator)
+        tf.compat.v1.initializers.local_variables().run()
         sess.run(metric_update_ops)
         loss_evaled, metric_evaled, nested_metric_evaled = sess.run(
             (loss_mean, outputs.eval_metric_ops["ticker"][0],
@@ -148,7 +149,7 @@ class EvaluationMetricsTests(test.TestCase):
         output_window_size=1,
         num_features=1,
         num_units=4,
-        optimizer=adam.AdamOptimizer(0.001),
+        optimizer=tf.compat.v1.train.AdamOptimizer(0.001),
         config=estimator_lib.RunConfig(tf_random_seed=4),
         model_dir=model_dir)
 
@@ -165,10 +166,10 @@ class EvaluationMetricsTests(test.TestCase):
       target = features[feature_keys.TrainEvalFeatures.VALUES][:, -1, 0]
       return {
           "plain_boring_metric386":
-              (math_ops.reduce_mean(math_ops.abs(predict - target)),
-               control_flow_ops.no_op()),
-          "fun_metric101": (math_ops.reduce_sum(predict + target),
-                            control_flow_ops.no_op()),
+              (tf.math.reduce_mean(tf.math.abs(predict - target)),
+               tf.no_op()),
+          "fun_metric101": (tf.math.reduce_sum(predict + target),
+                            tf.no_op()),
       }
 
     # Evaluation without training is enough for testing custom metrics.
@@ -181,7 +182,7 @@ class EvaluationMetricsTests(test.TestCase):
 
 class _StubModel(object):
   num_features = 3
-  dtype = dtypes.float64
+  dtype = tf.dtypes.float64
 
   def initialize_graph(self, input_statistics):
     del input_statistics  # unused
@@ -191,10 +192,10 @@ def _stub_model_fn():
   return ts_head_lib.TimeSeriesRegressionHead(
       model=_StubModel(),
       state_manager=state_management.PassthroughStateManager(),
-      optimizer=train.AdamOptimizer(0.001)).create_estimator_spec
+      optimizer=tf.compat.v1.train.AdamOptimizer(0.001)).create_estimator_spec
 
 
-class TrainEvalFeatureCheckingTests(test.TestCase):
+class TrainEvalFeatureCheckingTests(tf.test.TestCase):
 
   def test_no_time_feature(self):
     model_fn = _stub_model_fn()
@@ -274,7 +275,7 @@ class TrainEvalFeatureCheckingTests(test.TestCase):
             mode=mode)
 
 
-class PredictFeatureCheckingTests(test.TestCase):
+class PredictFeatureCheckingTests(tf.test.TestCase):
 
   def test_no_time_feature(self):
     model_fn = _stub_model_fn()
@@ -330,14 +331,14 @@ class OneShotTests(parameterized.TestCase):
   def test_one_shot_prediction_head_export(self):
 
     def _new_temp_dir():
-      return os.path.join(test.get_temp_dir(), str(ops.uid()))
+      return os.path.join(tf.compat.v1.test.get_temp_dir(), str(ops.uid()))
     model_dir = _new_temp_dir()
-    categorical_column = feature_column.categorical_column_with_hash_bucket(
+    categorical_column = tf.feature_column.categorical_column_with_hash_bucket(
         key="categorical_exogenous_feature", hash_bucket_size=16)
     exogenous_feature_columns = [
-        feature_column.numeric_column(
+        tf.feature_column.numeric_column(
             "2d_exogenous_feature", shape=(2,)),
-        feature_column.embedding_column(
+        tf.feature_column.embedding_column(
             categorical_column=categorical_column, dimension=10)]
     estimator = ts_estimators.TimeSeriesRegressor(
         model=ar_model.ARModel(
@@ -352,18 +353,18 @@ class OneShotTests(parameterized.TestCase):
         model_dir=model_dir)
 
     def train_input_fn():
-      num_range = math_ops.range(16, dtype=dtypes.int64)
+      num_range = tf.range(16, dtype=tf.dtypes.int64)
       features = {
           feature_keys.TrainEvalFeatures.TIMES:
-              array_ops.expand_dims(num_range, axis=0),
+              tf.compat.v1.expand_dims(num_range, axis=0),
           feature_keys.TrainEvalFeatures.VALUES:
-              array_ops.expand_dims(
-                  array_ops.tile(num_range[:, None], [1, 5]), axis=0),
+              tf.compat.v1.expand_dims(
+                  tf.tile(num_range[:, None], [1, 5]), axis=0),
           "2d_exogenous_feature":
-              array_ops.ones([1, 16, 2]),
+              tf.ones([1, 16, 2]),
           "categorical_exogenous_feature":
-              array_ops.expand_dims(
-                  array_ops.tile(["strkey"], [16])[:, None], axis=0)
+              tf.compat.v1.expand_dims(
+                  tf.tile(["strkey"], [16])[:, None], axis=0)
       }
       return features
 
@@ -374,11 +375,11 @@ class OneShotTests(parameterized.TestCase):
     input_receiver_fn = estimator.build_raw_serving_input_receiver_fn()
     export_location = estimator.export_saved_model(_new_temp_dir(),
                                                    input_receiver_fn)
-    graph = ops.Graph()
+    graph = tf.Graph()
     with graph.as_default():
-      with session_lib.Session() as session:
-        signatures = loader.load(
-            session, [tag_constants.SERVING], export_location)
+      with tf.compat.v1.Session() as session:
+        signatures = tf.compat.v1.saved_model.load(
+            session, [tf.saved_model.SERVING], export_location)
         self.assertEqual([feature_keys.SavedModelLabels.PREDICT],
                          list(signatures.signature_def.keys()))
         predict_signature = signatures.signature_def[
@@ -412,9 +413,9 @@ class OneShotTests(parameterized.TestCase):
         _new_temp_dir(),
         estimator.build_one_shot_parsing_serving_input_receiver_fn(
             filtering_length=20, prediction_length=15))
-    graph = ops.Graph()
+    graph = tf.Graph()
     with graph.as_default():
-      with session_lib.Session() as session:
+      with tf.compat.v1.Session() as session:
         example = example_pb2.Example()
         times = example.features.feature[feature_keys.TrainEvalFeatures.TIMES]
         values = example.features.feature[feature_keys.TrainEvalFeatures.VALUES]
@@ -431,8 +432,8 @@ class OneShotTests(parameterized.TestCase):
           categortical_feature.bytes_list.value.append(b"strkey")
         # Serialize the tf.Example for feeding to the Session
         examples = [example.SerializeToString()] * 2
-        signatures = loader.load(
-            session, [tag_constants.SERVING], export_location)
+        signatures = tf.compat.v1.saved_model.load(
+            session, [tf.saved_model.SERVING], export_location)
         predict_signature = signatures.signature_def[
             feature_keys.SavedModelLabels.PREDICT]
         ((_, input_value),) = predict_signature.inputs.items()
@@ -445,4 +446,4 @@ class OneShotTests(parameterized.TestCase):
 
 
 if __name__ == "__main__":
-  test.main()
+  tf.test.main()

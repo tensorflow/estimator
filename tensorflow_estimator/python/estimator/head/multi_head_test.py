@@ -18,6 +18,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import tensorflow as tf
 import numpy as np
 import six
 
@@ -41,7 +42,7 @@ from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 
 
 @test_util.run_all_in_graph_and_eager_modes
-class MultiHeadTest(test.TestCase):
+class MultiHeadTest(tf.test.TestCase):
 
   def test_no_heads(self):
     with self.assertRaisesRegexp(
@@ -81,8 +82,8 @@ class MultiHeadTest(test.TestCase):
         'head2': np.array([[2., -2., 2.], [-3., 2., -2.]], dtype=np.float32)
     }
     expected_probabilities = {
-        'head1': nn.sigmoid(logits['head1']),
-        'head2': nn.sigmoid(logits['head2']),
+        'head1': tf.math.sigmoid(logits['head1']),
+        'head2': tf.math.sigmoid(logits['head2']),
     }
     pred_keys = prediction_keys.PredictionKeys
 
@@ -99,7 +100,7 @@ class MultiHeadTest(test.TestCase):
     self.assertAllClose(
         expected_probabilities['head2'],
         self.evaluate(predictions[('head2', pred_keys.PROBABILITIES)]))
-    if context.executing_eagerly():
+    if tf.executing_eagerly():
       return
 
     spec = multi_head.create_estimator_spec(
@@ -166,8 +167,8 @@ class MultiHeadTest(test.TestCase):
     expected_logits2 = np.array([[2., -2., 2.], [-3., 2., -2.]],
                                 dtype=np.float32)
     expected_probabilities = {
-        'head1': nn.sigmoid(expected_logits1),
-        'head2': nn.sigmoid(expected_logits2),
+        'head1': tf.math.sigmoid(expected_logits1),
+        'head2': tf.math.sigmoid(expected_logits2),
     }
     pred_keys = prediction_keys.PredictionKeys
 
@@ -184,7 +185,7 @@ class MultiHeadTest(test.TestCase):
     self.assertAllClose(
         expected_probabilities['head2'],
         self.evaluate(predictions[('head2', pred_keys.PROBABILITIES)]))
-    if context.executing_eagerly():
+    if tf.executing_eagerly():
       return
 
     spec = multi_head.create_estimator_spec(
@@ -250,7 +251,7 @@ class MultiHeadTest(test.TestCase):
     self.assertAllClose(
         expected_logits2,
         self.evaluate(predictions[('head2', pred_keys.PREDICTIONS)]))
-    if context.executing_eagerly():
+    if tf.executing_eagerly():
       return
 
     spec = multi_head.create_estimator_spec(
@@ -325,7 +326,7 @@ class MultiHeadTest(test.TestCase):
         keys.AUC_PR + '/head2': 0.40152,
     }
 
-    if context.executing_eagerly():
+    if tf.executing_eagerly():
       loss = multi_head.loss(
           labels, logits, features=features, mode=ModeKeys.EVAL)
       self.assertIsNotNone(loss)
@@ -557,7 +558,7 @@ class MultiHeadTest(test.TestCase):
 
     logits = {'head1': np.array([[-10., 10.], [-15., 10.]], dtype=np.float32)}
     expected_probabilities = {
-        'head1': nn.sigmoid(logits['head1']),
+        'head1': tf.math.sigmoid(logits['head1']),
     }
     labels = {'head1': np.array([[1, 0], [1, 1]], dtype=np.int64)}
     features = {'x': np.array(((42,),), dtype=np.int32)}
@@ -574,14 +575,14 @@ class MultiHeadTest(test.TestCase):
         features=features,
         mode=ModeKeys.TRAIN)
     self.assertAllClose(expected_loss, self.evaluate(loss), rtol=tol, atol=tol)
-    if context.executing_eagerly():
+    if tf.executing_eagerly():
       return
 
     expected_train_result = 'my_train_op'
     def _train_op_fn(loss):
-      return string_ops.string_join(
-          [constant_op.constant(expected_train_result),
-           string_ops.as_string(loss, precision=3)])
+      return tf.strings.join(
+          [tf.constant(expected_train_result),
+           tf.strings.as_string(loss, precision=3)])
     spec = multi_head.create_estimator_spec(
         features=features,
         mode=ModeKeys.TRAIN,
@@ -635,7 +636,7 @@ class MultiHeadTest(test.TestCase):
         features=features,
         mode=ModeKeys.TRAIN)
     self.assertAllClose(expected_loss, self.evaluate(loss), rtol=tol, atol=tol)
-    if context.executing_eagerly():
+    if tf.executing_eagerly():
       return
 
     expected_train_result = 'my_train_op'
@@ -644,9 +645,9 @@ class MultiHeadTest(test.TestCase):
 
       def get_updates(self, loss, params):
         del params
-        return [string_ops.string_join([
-            constant_op.constant(expected_train_result),
-            string_ops.as_string(loss, precision=3)
+        return [tf.strings.join([
+            tf.constant(expected_train_result),
+            tf.strings.as_string(loss, precision=3)
         ])]
 
       def get_config(self):
@@ -660,7 +661,7 @@ class MultiHeadTest(test.TestCase):
         labels=labels,
         optimizer=_Optimizer('my_optimizer'),
         trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+            tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
 
     with self.cached_session() as sess:
       test_lib._initialize_variables(self, spec.scaffold)
@@ -682,8 +683,8 @@ class MultiHeadTest(test.TestCase):
                           dtype=np.float32),
     }
     expected_probabilities = {
-        'head1': nn.sigmoid(logits['head1']),
-        'head2': nn.sigmoid(logits['head2']),
+        'head1': tf.math.sigmoid(logits['head1']),
+        'head2': tf.math.sigmoid(logits['head2']),
     }
     labels = {
         'head1': np.array([[1, 0], [1, 1]], dtype=np.int64),
@@ -708,14 +709,14 @@ class MultiHeadTest(test.TestCase):
         features=features,
         mode=ModeKeys.TRAIN)
     self.assertAllClose(expected_loss, self.evaluate(loss), rtol=tol, atol=tol)
-    if context.executing_eagerly():
+    if tf.executing_eagerly():
       return
 
     expected_train_result = 'my_train_op'
     def _train_op_fn(loss):
-      return string_ops.string_join(
-          [constant_op.constant(expected_train_result),
-           string_ops.as_string(loss, precision=3)])
+      return tf.strings.join(
+          [tf.constant(expected_train_result),
+           tf.strings.as_string(loss, precision=3)])
 
     spec = multi_head.create_estimator_spec(
         features=features,
@@ -769,8 +770,8 @@ class MultiHeadTest(test.TestCase):
                           dtype=np.float32),
     }
     expected_probabilities = {
-        'head1': nn.sigmoid(logits['head1']),
-        'head2': nn.sigmoid(logits['head2']),
+        'head1': tf.math.sigmoid(logits['head1']),
+        'head2': tf.math.sigmoid(logits['head2']),
     }
     labels = {
         'head1': np.array([[1, 0], [1, 1]], dtype=np.int64),
@@ -805,15 +806,15 @@ class MultiHeadTest(test.TestCase):
         mode=ModeKeys.TRAIN,
         regularization_losses=regularization_losses)
     self.assertAllClose(expected_loss, self.evaluate(loss), rtol=tol, atol=tol)
-    if context.executing_eagerly():
+    if tf.executing_eagerly():
       return
 
     keys = metric_keys.MetricKeys
     expected_train_result = 'my_train_op'
     def _train_op_fn(loss):
-      return string_ops.string_join(
-          [constant_op.constant(expected_train_result),
-           string_ops.as_string(loss, precision=3)])
+      return tf.strings.join(
+          [tf.constant(expected_train_result),
+           tf.strings.as_string(loss, precision=3)])
 
     spec = multi_head.create_estimator_spec(
         features=features,
@@ -859,7 +860,7 @@ class MultiHeadTest(test.TestCase):
 
 
 @test_util.deprecated_graph_mode_only
-class MultiHeadForEstimator(test.TestCase):
+class MultiHeadForEstimator(tf.test.TestCase):
   """Tests for create_estimator_spec running in Graph mode only."""
 
   def test_loss_reduction_must_be_same(self):
@@ -890,4 +891,4 @@ class MultiHeadForEstimator(test.TestCase):
 
 
 if __name__ == '__main__':
-  test.main()
+  tf.test.main()

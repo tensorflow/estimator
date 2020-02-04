@@ -18,6 +18,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import tensorflow as tf
 import six
 
 from tensorflow.python.feature_column import dense_features
@@ -206,14 +207,14 @@ class RNNModel(models.Model):
                        'Given type: {}'.format(type(inputs)))
     with ops.name_scope('sequence_input_layer'):
       sequence_input, sequence_length = self._sequence_features_layer(inputs)
-      summary.histogram('sequence_length', sequence_length)
+      tf.compat.v1.summary.histogram('sequence_length', sequence_length)
 
       if self._context_feature_columns:
         context_input = self._dense_features_layer(inputs)
         sequence_input = fc.concatenate_context_input(
             context_input, sequence_input=sequence_input)
 
-    sequence_length_mask = array_ops.sequence_mask(sequence_length)
+    sequence_length_mask = tf.sequence_mask(sequence_length)
     rnn_outputs = self._rnn_layer(
         sequence_input, mask=sequence_length_mask, training=training)
 
@@ -308,7 +309,7 @@ def _get_rnn_estimator_spec(
       optimizer.clipnorm = _DEFAULT_CLIP_NORM
     else:
       optimizer = optimizers.get_optimizer_instance_v2(optimizer)
-    optimizer.iterations = training_util.get_or_create_global_step()
+    optimizer.iterations = tf.compat.v1.train.get_or_create_global_step()
   else:
     optimizer = None
 
@@ -659,7 +660,7 @@ class RNNClassifier(RNNEstimator):
           loss_reduction=loss_reduction)
 
     if return_sequences:
-      logging.info('Converting head to sequential head with '
+      tf.compat.v1.logging.info('Converting head to sequential head with '
                    '`SequentialHeadWrapper` to allow sequential predictions.')
       head = seq_head_lib.SequentialHeadWrapper(
           head, sequence_length_mask=sequence_mask,

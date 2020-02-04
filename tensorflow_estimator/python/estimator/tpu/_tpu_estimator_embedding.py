@@ -19,6 +19,7 @@ from __future__ import division
 from __future__ import print_function
 
 import collections
+import tensorflow as tf
 import six
 
 from tensorflow.python.feature_column import feature_column as core_fc
@@ -78,21 +79,21 @@ def _get_slot_variable_names(scope_name, var_name, optimization_parameters):
   """Return embedding variable names which are consistent with CPU runs."""
   if scope_name:
     scope_name = scope_name + '/'
-  if isinstance(optimization_parameters, tpu_embedding.AdagradParameters):
+  if isinstance(optimization_parameters, tf.compat.v1.tpu.experimental.AdagradParameters):
     return tpu_embedding.AdagradSlotVariableName(
         '{}{}/Adagrad'.format(scope_name, var_name)
     )
-  elif isinstance(optimization_parameters, tpu_embedding.AdamParameters):
+  elif isinstance(optimization_parameters, tf.compat.v1.tpu.experimental.AdamParameters):
     return tpu_embedding.AdamSlotVariableNames(
         '{}{}/Adam/m'.format(scope_name, var_name),
         '{}{}/Adam/v'.format(scope_name, var_name)
     )
-  elif isinstance(optimization_parameters, tpu_embedding.FtrlParameters):
+  elif isinstance(optimization_parameters, tf.compat.v1.tpu.experimental.FtrlParameters):
     return tpu_embedding.FtrlSlotVariableName(
         '{}{}/Ftrl'.format(scope_name, var_name),  # accumulator
         '{}{}/Ftrl_1'.format(scope_name, var_name))  # linear
   elif isinstance(optimization_parameters,
-                  tpu_embedding.StochasticGradientDescentParameters):
+                  tf.compat.v1.tpu.experimental.StochasticGradientDescentParameters):
     return None
   else:
     raise ValueError('Support to infer full variable name '
@@ -147,7 +148,7 @@ def get_configs_from_feature_columns(feature_columns):
           'Unsupported feature column {}. Supported types are {}.'.format(
               type(column), allowed))
     if isinstance(column, warn):
-      logging.warn(
+      tf.compat.v1.logging.warn(
           'Columns of type {} are deprecated. Supported types are {}.'.format(
               type(column), allowed))
 
@@ -364,8 +365,8 @@ class EmbeddingConfig(object):
   def get_grad_multiplier(self):
     if self._grad_multiplier_fn:
       return ops.convert_to_tensor(
-          self._grad_multiplier_fn(training.get_global_step()),
-          dtype=dtypes.float32)
+          self._grad_multiplier_fn(tf.compat.v1.train.get_global_step()),
+          dtype=tf.dtypes.float32)
 
   def has_embedding_tables(self):
     return bool(self._table_to_config_dict)
@@ -424,12 +425,12 @@ class EmbeddingConfig(object):
 def _maybe_dense_to_sparse(tensor):
   """Possibly convert a dense (rank 1 or 2) tensor to a SparseTensor."""
   # If already sparse, return as is.
-  if isinstance(tensor, sparse_tensor.SparseTensor):
+  if isinstance(tensor, tf.sparse.SparseTensor):
     return tensor
-  indices = array_ops.where(tensor)
-  values = array_ops.gather_nd(tensor, indices)
-  shape = array_ops.shape(tensor, out_type=dtypes.int64)
-  return sparse_tensor.SparseTensor(indices, values, shape)
+  indices = tf.compat.v1.where(tensor)
+  values = tf.compat.v1.gather_nd(tensor, indices)
+  shape = tf.compat.v1.shape(tensor, out_type=tf.dtypes.int64)
+  return tf.sparse.SparseTensor(indices, values, shape)
 
 
 def split_inputs(ctx, features, labels, num_cores_per_batch=1):
@@ -448,7 +449,7 @@ def split_inputs(ctx, features, labels, num_cores_per_batch=1):
         length_feature_name = (
             tpu_fc.get_sequence_length_feature_key_name_from_feature_key_name(
                 feature_key))
-        length_feature = math_ops.minimum(
+        length_feature = tf.math.minimum(
             fc_utils.sequence_length_from_sparse_tensor(sparse_feature),
             max_sequence_length)
         length_feature.set_shape(ctx.batch_size_for_input_fn)
@@ -457,7 +458,7 @@ def split_inputs(ctx, features, labels, num_cores_per_batch=1):
       sparse_feature_split = _split_tensor(
           sparse_feature, num_cores_per_batch)
       if combiner is None and not isinstance(sparse_feature,
-                                             sparse_tensor.SparseTensor):
+                                             tf.sparse.SparseTensor):
         # A dense tensor with no combiner was provided so we assume that each
         # of the embedding_indices belongs to a different sample (setting
         # sample_indices to None).
@@ -472,7 +473,7 @@ def split_inputs(ctx, features, labels, num_cores_per_batch=1):
               sparse_feature_split[i]))
       else:
         weights = None
-        if isinstance(sparse_feature, sparse_tensor.SparseTensor):
+        if isinstance(sparse_feature, tf.sparse.SparseTensor):
           weights = _get_weights_from_features(weight_key, features)
           weights_split = _split_tensor(weights, num_cores_per_batch)
         enqueue_data = []
@@ -503,12 +504,12 @@ def _split_tensor(tensor, num_splits):
         'Tensors cannot be split into {} pieces.'.format(num_splits))
   elif num_splits == 1:
     return [tensor]
-  elif isinstance(tensor, sparse_tensor.SparseTensor):
+  elif isinstance(tensor, tf.sparse.SparseTensor):
     return sparse_ops.sparse_split_v2(tensor,
                                       num_splits,
                                       axis=0)
   else:
-    return array_ops.split(tensor, num_splits)
+    return tf.split(tensor, num_splits)
 
 
 def _get_sparse_feature_from_feature(feature_key, features):
@@ -537,13 +538,13 @@ def _get_weights_from_features(weight_key_name, features):
           ' Please check if the weights are present in feature dict. Also'
           ' note weight-sharing among weighted_categorical_column is not '
           'supported on TPU.'.format(weight_key_name))
-    if not isinstance(weights, sparse_tensor.SparseTensor):
+    if not isinstance(weights, tf.sparse.SparseTensor):
       raise ValueError(
           'weighted_categorical_column with weight key name {} has dense '
           'weights. Dense weights are not supported on TPU. Please use '
           'sparse weights instead.'.format(weight_key_name))
-    if weights.dtype is not dtypes.float32:
-      weights = math_ops.cast(weights, dtype=dtypes.float32)
+    if weights.dtype is not tf.dtypes.float32:
+      weights = tf.cast(weights, dtype=tf.dtypes.float32)
   return weights
 
 

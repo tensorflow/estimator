@@ -18,6 +18,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import tensorflow as tf
+
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import dtypes
 from tensorflow.python.keras import metrics
@@ -179,7 +181,7 @@ class RegressionHead(base_head.Head):
     labels = base_head.check_dense_labels_match_logits_and_reshape(
         labels=labels, logits=logits,
         expected_labels_dimension=self._logits_dimension)
-    labels = math_ops.cast(labels, dtype=dtypes.float32)
+    labels = tf.cast(labels, dtype=tf.dtypes.float32)
     return labels
 
   def _unweighted_loss_and_weights(self, logits, labels, features):
@@ -189,8 +191,8 @@ class RegressionHead(base_head.Head):
           loss_fn=self._loss_fn, labels=labels, logits=logits,
           features=features, expected_loss_dim=self._logits_dimension)
     else:
-      unweighted_loss = losses.mean_squared_error(
-          labels=labels, predictions=logits, reduction=losses.Reduction.NONE)
+      unweighted_loss = tf.compat.v1.losses.mean_squared_error(
+          labels=labels, predictions=logits, reduction=tf.compat.v1.losses.Reduction.NONE)
     weights = base_head.get_weights_and_check_match_logits(
         features=features, weight_column=self._weight_column, logits=logits,
         allow_per_logit_weights=True)
@@ -210,7 +212,7 @@ class RegressionHead(base_head.Head):
           unweighted_loss,
           sample_weight=weights,
           reduction=self._loss_reduction)
-      regularization_loss = math_ops.add_n(
+      regularization_loss = tf.math.add_n(
           regularization_losses) if regularization_losses is not None else None
       regularized_training_loss = (
           training_loss + regularization_loss if regularization_loss is not None
@@ -276,7 +278,7 @@ class RegressionHead(base_head.Head):
     base_head.update_metric_with_broadcast_weights(
         eval_metrics[self._prediction_mean_key], predicted_value, weights)
     if regularization_losses is not None:
-      regularization_loss = math_ops.add_n(regularization_losses)
+      regularization_loss = tf.math.add_n(regularization_losses)
       eval_metrics[self._loss_regularization_key].update_state(
           values=regularization_loss)
     return eval_metrics
@@ -463,11 +465,11 @@ class PoissonRegressionHead(RegressionHead):
         weight_column=weight_column,
         loss_reduction=loss_reduction,
         loss_fn=self._poisson_loss,
-        inverse_link_fn=math_ops.exp,
+        inverse_link_fn=tf.math.exp,
         name=name)
 
   def _poisson_loss(self, labels, logits):
-    return nn.log_poisson_loss(
+    return tf.nn.log_poisson_loss(
         targets=labels, log_input=logits,
         compute_full_loss=self._compute_full_loss)
 
@@ -543,7 +545,7 @@ class LogisticRegressionHead(RegressionHead):
   def _logistic_loss(self, labels, logits):
     labels = base_head.check_label_range(
         labels, n_classes=2, message='Labels must be in range [0, 1]')
-    return nn.sigmoid_cross_entropy_with_logits(
+    return tf.compat.v1.nn.sigmoid_cross_entropy_with_logits(
         labels=labels, logits=logits)
 
   def __init__(self,
@@ -555,5 +557,5 @@ class LogisticRegressionHead(RegressionHead):
         weight_column=weight_column,
         loss_reduction=loss_reduction,
         loss_fn=self._logistic_loss,
-        inverse_link_fn=math_ops.sigmoid,
+        inverse_link_fn=tf.math.sigmoid,
         name=name)

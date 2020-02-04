@@ -21,6 +21,7 @@ from __future__ import print_function
 
 import collections
 
+import tensorflow as tf
 import six
 
 from tensorflow.python.eager import context
@@ -294,11 +295,11 @@ def _validate_estimator_spec_train_op(train_op, mode):
     if mode == ModeKeys.TRAIN:
       raise ValueError('Missing train_op.')
   else:
-    default_graph = ops.get_default_graph()
+    default_graph = tf.compat.v1.get_default_graph()
     _check_is_tensor_or_operation(train_op, 'train_op')
-    if isinstance(train_op, variables.Variable):
+    if isinstance(train_op, tf.Variable):
       train_op = train_op.op
-    if not (context.executing_eagerly() or
+    if not (tf.executing_eagerly() or
             train_op.graph is default_graph):
       raise ValueError(
           _default_graph_error_message_template.format('train_op',
@@ -328,15 +329,15 @@ def _validate_estimator_spec_loss(loss, mode):
     if mode in (ModeKeys.TRAIN, ModeKeys.EVAL):
       raise ValueError('Missing loss.')
   else:
-    default_graph = ops.get_default_graph()
+    default_graph = tf.compat.v1.get_default_graph()
     # Loss must be a tensor.
     loss = _check_is_tensor(loss, 'loss')
     loss_shape = loss.get_shape()
     if loss_shape.num_elements() not in (None, 1):
       raise ValueError('Loss must be scalar, given: {}'.format(loss))
-    if not loss_shape.is_compatible_with(tensor_shape.TensorShape([])):
-      loss = array_ops.reshape(loss, [])
-    if not (context.executing_eagerly() or loss.graph is default_graph):
+    if not loss_shape.is_compatible_with(tf.TensorShape([])):
+      loss = tf.reshape(loss, [])
+    if not (tf.executing_eagerly() or loss.graph is default_graph):
       raise ValueError(
           _default_graph_error_message_template.format('loss', loss.name))
   return loss
@@ -366,13 +367,13 @@ def _validate_estimator_spec_predictions(predictions, mode):
       raise ValueError('Missing predictions.')
     predictions = {}
   else:
-    default_graph = ops.get_default_graph()
+    default_graph = tf.compat.v1.get_default_graph()
     if isinstance(predictions, dict):
       predictions = {
           k: _check_is_tensor(v, 'predictions[{}]'.format(k))
           for k, v in six.iteritems(predictions)
       }
-      if not context.executing_eagerly():
+      if not tf.executing_eagerly():
         for key, value in six.iteritems(predictions):
           if value.graph is not default_graph:
             raise ValueError(
@@ -381,7 +382,7 @@ def _validate_estimator_spec_predictions(predictions, mode):
     else:
       # Predictions should be a tensor.
       predictions = _check_is_tensor(predictions, 'predictions')
-      if not (context.executing_eagerly() or
+      if not (tf.executing_eagerly() or
               predictions.graph is default_graph):
         raise ValueError(
             _default_graph_error_message_template.format('prediction values',
@@ -437,7 +438,7 @@ def _validate_estimator_spec_hooks(hooks):
   hooks = tuple(hooks or [])
 
   for hook in hooks:
-    if not isinstance(hook, session_run_hook.SessionRunHook):
+    if not isinstance(hook, tf.compat.v1.train.SessionRunHook):
       raise TypeError(
           'All hooks must be SessionRunHook instances, given: {}'.format(hook))
   return hooks
@@ -491,15 +492,15 @@ def _validate_eval_metric_ops(eval_metric_ops):
               'Values of eval_metric_ops must be (metric_value, update_op) '
               'tuples, given: {} for key: {}'.format(value, key))
   # Verify all tensors and ops are from default graph.
-  default_graph = ops.get_default_graph()
+  default_graph = tf.compat.v1.get_default_graph()
   for key, value in list(six.iteritems(eval_metric_ops)):
     if isinstance(value, Metric):
       values_to_check = value.updates[:]
       values_to_check.append(value.result())
     else:
-      values_to_check = nest.flatten(value)
+      values_to_check = tf.nest.flatten(value)
     for val in values_to_check:
-      if not (context.executing_eagerly() or val.graph is default_graph):
+      if not (tf.executing_eagerly() or val.graph is default_graph):
         raise ValueError(
             _default_graph_error_message_template.format(
                 'eval_metric_ops', '{0}: {1}'.format(key, val.name)))
@@ -514,19 +515,19 @@ def _validate_eval_metric_ops(eval_metric_ops):
       vars_to_add.update(value.variables)
       # Convert Metric instances to (value_tensor, update_op) tuple.
       eval_metric_ops[key] = (value.result(), value.updates[0])
-  _update_variable_collection(ops.GraphKeys.LOCAL_VARIABLES, vars_to_add)
-  _update_variable_collection(ops.GraphKeys.METRIC_VARIABLES, vars_to_add)
+  _update_variable_collection(tf.compat.v1.GraphKeys.LOCAL_VARIABLES, vars_to_add)
+  _update_variable_collection(tf.compat.v1.GraphKeys.METRIC_VARIABLES, vars_to_add)
 
   return eval_metric_ops
 
 
 def _update_variable_collection(collection_name, vars_to_add):
   """Add variables to collection."""
-  collection = set(ops.get_collection(collection_name))
+  collection = set(tf.compat.v1.get_collection(collection_name))
   # Skip variables that are in the collection already.
   vars_to_add = vars_to_add.difference(collection)
   for v in vars_to_add:
-    ops.add_to_collection(collection_name, v)
+    tf.compat.v1.add_to_collection(collection_name, v)
 
 
 def _validate_scaffold(scaffold):
@@ -544,15 +545,15 @@ def _validate_scaffold(scaffold):
     TypeError: If the scaffold is not of type `monitored_session.Scaffold`
       or None.
   """
-  scaffold = scaffold or monitored_session.Scaffold()
-  if not isinstance(scaffold, monitored_session.Scaffold):
+  scaffold = scaffold or tf.compat.v1.train.Scaffold()
+  if not isinstance(scaffold, tf.compat.v1.train.Scaffold):
     raise TypeError(
         'scaffold must be tf.train.Scaffold. Given: {}'.format(scaffold))
   return scaffold
 
 
 def _check_is_tensor_or_operation(x, name):
-  if not (isinstance(x, ops.Operation) or ops.is_dense_tensor_like(x)):
+  if not (isinstance(x, tf.Operation) or ops.is_dense_tensor_like(x)):
     raise TypeError('{} must be Operation or Tensor, given: {}'.format(name, x))
 
 
@@ -599,9 +600,9 @@ def call_logit_fn(logit_fn, features, mode, params, config):
 
   result_is_valid_dictionary = (
       isinstance(logit_fn_results, dict) and
-      all([(isinstance(k, six.string_types) and isinstance(v, ops.Tensor))
+      all([(isinstance(k, six.string_types) and isinstance(v, tf.Tensor))
            for k, v in six.iteritems(logit_fn_results)]))
-  result_is_tensor = isinstance(logit_fn_results, ops.Tensor)
+  result_is_tensor = isinstance(logit_fn_results, tf.Tensor)
 
   if not (result_is_valid_dictionary or result_is_tensor):
     raise ValueError('logit_fn should return a Tensor or a dictionary mapping '
@@ -625,7 +626,7 @@ def verify_model_fn_args(model_fn, params):
                      'but params (%s) is passed to Estimator.' % (
                          model_fn, params))
   if params is None and 'params' in args:
-    logging.warning('Estimator\'s model_fn (%s) includes params '
+    tf.compat.v1.logging.warn('Estimator\'s model_fn (%s) includes params '
                     'argument, but params are not passed to Estimator.',
                     model_fn)
   non_valid_args = list(args - _VALID_MODEL_FN_ARGS)

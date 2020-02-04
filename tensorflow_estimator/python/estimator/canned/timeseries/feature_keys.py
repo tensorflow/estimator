@@ -18,6 +18,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import tensorflow as tf
+
 from tensorflow.python.saved_model import signature_constants
 
 
@@ -70,6 +72,6 @@ class FilteringResults(Times, State):
 
 class SavedModelLabels(object):
   """Names of signatures exported with export_saved_model."""
-  PREDICT = signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY
+  PREDICT = tf.saved_model.DEFAULT_SERVING_SIGNATURE_DEF_KEY
   FILTER = "filter"
   COLD_START_FILTER = "cold_start_filter"

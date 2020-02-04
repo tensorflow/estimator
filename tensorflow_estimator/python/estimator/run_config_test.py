@@ -18,6 +18,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import tensorflow as tf
+
 import json
 
 from tensorflow.core.protobuf import config_pb2
@@ -71,11 +73,11 @@ _SESSION_CREATION_TIMEOUT_SECS_ERR = ('session_creation_timeout_secs should be '
 
 
 def _create_run_config_with_cluster_spec(tf_config, **kwargs):
-  with test.mock.patch.dict('os.environ', {'TF_CONFIG': json.dumps(tf_config)}):
+  with tf.compat.v1.test.mock.patch.dict('os.environ', {'TF_CONFIG': json.dumps(tf_config)}):
     return run_config_lib.RunConfig(**kwargs)
 
 
-class RunConfigTest(test.TestCase):
+class RunConfigTest(tf.test.TestCase):
 
   def test_default_property_values(self):
     config = run_config_lib.RunConfig()
@@ -258,7 +260,7 @@ class RunConfigTest(test.TestCase):
       run_config_lib.RunConfig(experimental_max_worker_delay_secs='5')
 
 
-class RunConfigDistributedSettingTest(test.TestCase):
+class RunConfigDistributedSettingTest(tf.test.TestCase):
 
   def _assert_distributed_properties(self, run_config,
                                      expected_cluster_spec,
@@ -676,7 +678,7 @@ class RunConfigDistributedSettingTest(test.TestCase):
     self.assertEqual(2, run_config.global_id_in_cluster)
 
 
-class RunConfigDistributedSettingWithMasterTest(test.TestCase):
+class RunConfigDistributedSettingWithMasterTest(tf.test.TestCase):
 
   def _assert_distributed_properties(self, run_config,
                                      expected_cluster_spec,
@@ -994,7 +996,7 @@ class RunConfigDistributedSettingWithMasterTest(test.TestCase):
     self.assertEqual(2, run_config.global_id_in_cluster)
 
 
-class RunConfigSaveCheckpointsTest(test.TestCase):
+class RunConfigSaveCheckpointsTest(tf.test.TestCase):
 
   def test_save_checkpoint(self):
     empty_config = run_config_lib.RunConfig()
@@ -1042,7 +1044,7 @@ class RunConfigSaveCheckpointsTest(test.TestCase):
     self.assertIsNone(config_without_ckpt.save_checkpoints_secs)
 
 
-class RunConfigServiceKeyTest(test.TestCase):
+class RunConfigServiceKeyTest(tf.test.TestCase):
 
   def test_arbitrary_key_value_pairs(self):
     tf_config = {
@@ -1070,7 +1072,7 @@ class RunConfigServiceKeyTest(test.TestCase):
       _create_run_config_with_cluster_spec(tf_config)
 
 
-class RunConfigModelDirTest(test.TestCase):
+class RunConfigModelDirTest(tf.test.TestCase):
 
   def test_default(self):
     run_config = run_config_lib.RunConfig()
@@ -1110,7 +1112,7 @@ class RunConfigModelDirTest(test.TestCase):
       _create_run_config_with_cluster_spec(tf_config)
 
 
-class RunConfigSessionConfigTest(test.TestCase):
+class RunConfigSessionConfigTest(tf.test.TestCase):
 
   def _assert_equal_session_config(self, session_config,
                                    expected_device_filters):
@@ -1222,4 +1224,4 @@ class RunConfigSessionConfigTest(test.TestCase):
 
 
 if __name__ == '__main__':
-  test.main()
+  tf.test.main()

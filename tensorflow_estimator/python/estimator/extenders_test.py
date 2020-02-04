@@ -19,6 +19,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import tensorflow as tf
 import numpy as np
 
 from tensorflow.python.data.ops import dataset_ops
@@ -34,8 +35,8 @@ from tensorflow_estimator.python.estimator.canned import linear
 def get_input_fn(x, y):
 
   def input_fn():
-    dataset = dataset_ops.Dataset.from_tensor_slices({'x': x, 'y': y})
-    iterator = dataset_ops.make_one_shot_iterator(dataset)
+    dataset = tf.compat.v1.data.Dataset.from_tensor_slices({'x': x, 'y': y})
+    iterator = tf.compat.v1.data.make_one_shot_iterator(dataset)
     features = iterator.get_next()
     labels = features.pop('y')
     return features, labels
@@ -43,14 +44,14 @@ def get_input_fn(x, y):
   return input_fn
 
 
-class AddMetricsTest(test.TestCase):
+class AddMetricsTest(tf.test.TestCase):
 
   def test_should_add_metrics(self):
     def _test_metric_fn(metric_fn):
       input_fn = get_input_fn(
           x=np.arange(4)[:, None, None], y=np.ones(4)[:, None])
       config = run_config.RunConfig(log_step_count_steps=1)
-      estimator = linear.LinearClassifierV2([fc.numeric_column('x')],
+      estimator = linear.LinearClassifierV2([tf.feature_column.numeric_column('x')],
                                             config=config)
 
       estimator = extenders.add_metrics(estimator, metric_fn)
@@ -70,7 +71,7 @@ class AddMetricsTest(test.TestCase):
     _test_metric_fn(metric_fn)
 
   def test_should_error_out_for_not_recognized_args(self):
-    estimator = linear.LinearClassifierV2([fc.numeric_column('x')])
+    estimator = linear.LinearClassifierV2([tf.feature_column.numeric_column('x')])
 
     def metric_fn(features, not_recognized):
       _, _ = features, not_recognized
@@ -81,7 +82,7 @@ class AddMetricsTest(test.TestCase):
 
   def test_all_supported_args(self):
     input_fn = get_input_fn(x=[[[0.]]], y=[[[1]]])
-    estimator = linear.LinearClassifierV2([fc.numeric_column('x')])
+    estimator = linear.LinearClassifierV2([tf.feature_column.numeric_column('x')])
 
     def metric_fn(features, predictions, labels, config):
       self.assertIn('x', features)
@@ -97,7 +98,7 @@ class AddMetricsTest(test.TestCase):
 
   def test_all_supported_args_in_different_order(self):
     input_fn = get_input_fn(x=[[[0.]]], y=[[[1]]])
-    estimator = linear.LinearClassifierV2([fc.numeric_column('x')])
+    estimator = linear.LinearClassifierV2([tf.feature_column.numeric_column('x')])
 
     def metric_fn(labels, config, features, predictions):
       self.assertIn('x', features)
@@ -114,7 +115,7 @@ class AddMetricsTest(test.TestCase):
   def test_all_args_are_optional(self):
     def _test_metric_fn(metric_fn):
       input_fn = get_input_fn(x=[[[0.]]], y=[[[1]]])
-      estimator = linear.LinearClassifierV2([fc.numeric_column('x')])
+      estimator = linear.LinearClassifierV2([tf.feature_column.numeric_column('x')])
       estimator = extenders.add_metrics(estimator, metric_fn)
 
       estimator.train(input_fn=input_fn)
@@ -123,7 +124,7 @@ class AddMetricsTest(test.TestCase):
 
     def metric_fn():
       metric = metrics_module.Mean()
-      metric.update_state(constant_op.constant([2.]))
+      metric.update_state(tf.constant([2.]))
       return {'two': metric}
 
     _test_metric_fn(metric_fn)
@@ -131,7 +132,7 @@ class AddMetricsTest(test.TestCase):
   def test_overrides_existing_metrics(self):
     def _test_metric_fn(metric_fn):
       input_fn = get_input_fn(x=[[[0.]]], y=[[[1]]])
-      estimator = linear.LinearClassifierV2([fc.numeric_column('x')])
+      estimator = linear.LinearClassifierV2([tf.feature_column.numeric_column('x')])
       estimator.train(input_fn=input_fn)
       metrics = estimator.evaluate(input_fn=input_fn)
       self.assertNotEqual(2., metrics['auc'])
@@ -142,11 +143,11 @@ class AddMetricsTest(test.TestCase):
 
     def metric_fn():
       metric = metrics_module.Mean()
-      metric.update_state(constant_op.constant([2.]))
+      metric.update_state(tf.constant([2.]))
       return {'auc': metric}
 
     _test_metric_fn(metric_fn)
 
 
 if __name__ == '__main__':
-  test.main()
+  tf.test.main()

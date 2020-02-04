@@ -66,6 +66,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import tensorflow as tf
+
 import collections
 import heapq
 import math
@@ -198,14 +200,15 @@ def _get_paths(base_dir, parser):
     The parsing function is responsible for populating,
       - Path.export_version
   """
+  # We are mocking this in the test, hence we should not use public API
   raw_paths = gfile.ListDirectory(base_dir)
   paths = []
   for r in raw_paths:
     # ListDirectory() return paths with "/" at the last if base_dir was GCS URL
-    r = compat.as_str_any(r)
+    r = tf.compat.as_str_any(r)
     if r[-1] == '/':
       r = r[0:len(r)-1]
-    p = parser(Path(os.path.join(compat.as_str_any(base_dir), r), None))
+    p = parser(Path(os.path.join(tf.compat.as_str_any(base_dir), r), None))
     if p:
       paths.append(p)
   return sorted(paths)

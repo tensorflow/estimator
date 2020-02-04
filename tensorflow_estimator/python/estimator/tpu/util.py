@@ -22,6 +22,7 @@ from __future__ import print_function
 import collections
 import re
 import time
+import tensorflow as tf
 import numpy as np
 import six
 
@@ -85,7 +86,7 @@ def parse_iterations_per_loop(iterations_per_loop):
 # TODO(b/118302029) Remove this copy of MultiHostDatasetInitializerHook after we
 # release a tensorflow_estimator with MultiHostDatasetInitializerHook in
 # python/estimator/util.py.
-class MultiHostDatasetInitializerHook(training.SessionRunHook):
+class MultiHostDatasetInitializerHook(tf.compat.v1.train.SessionRunHook):
   """Creates a SessionRunHook that initializes all passed iterators."""
 
   def __init__(self, dataset_initializers):
@@ -95,5 +96,5 @@ class MultiHostDatasetInitializerHook(training.SessionRunHook):
     del coord
     start = time.time()
     session.run(self._initializers)
-    logging.info('Initialized dataset iterators in %d seconds',
+    tf.compat.v1.logging.info('Initialized dataset iterators in %d seconds',
                  time.time() - start)

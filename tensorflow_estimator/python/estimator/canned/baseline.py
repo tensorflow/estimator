@@ -49,6 +49,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import tensorflow as tf
 import six
 
 from tensorflow.python.feature_column import feature_column as feature_column_v1
@@ -110,11 +111,11 @@ def _get_batch_size_and_size_checks(features, weight_column_key):
     # These would introduce a dependency on the weight at serving time.
     if key == weight_column_key:
       continue
-    first_dim = array_ops.shape(feature)[0]
+    first_dim = tf.compat.v1.shape(feature)[0]
     if batch_size is None:
       batch_size = first_dim
     else:
-      size_checks.append(check_ops.assert_equal(batch_size, first_dim))
+      size_checks.append(tf.compat.v1.debugging.assert_equal(batch_size, first_dim))
 
   return size_checks, batch_size
 
@@ -148,11 +149,11 @@ def _baseline_logit_fn_builder(num_outputs, weight_column=None):
     weight_column_key = _get_weight_column_key(weight_column)
     size_checks, batch_size = _get_batch_size_and_size_checks(
         features, weight_column_key)
-    with ops.control_dependencies(size_checks):
-      with variable_scope.variable_scope('baseline'):
-        bias = variable_scope.get_variable('bias', shape=[num_outputs],
-                                           initializer=init_ops.Zeros)
-        return math_ops.multiply(bias, array_ops.ones([batch_size,
+    with tf.control_dependencies(size_checks):
+      with tf.compat.v1.variable_scope('baseline'):
+        bias = tf.compat.v1.get_variable('bias', shape=[num_outputs],
+                                           initializer=tf.compat.v1.initializers.zeros)
+        return tf.math.multiply(bias, tf.ones([batch_size,
                                                        num_outputs]))
 
   return baseline_logit_fn
@@ -191,7 +192,7 @@ def _baseline_model_fn(features, labels, mode, head, optimizer,
   def train_op_fn(loss):
     opt = optimizers.get_optimizer_instance(
         optimizer, learning_rate=_LEARNING_RATE)
-    return opt.minimize(loss, global_step=training_util.get_global_step())
+    return opt.minimize(loss, global_step=tf.compat.v1.train.get_global_step())
 
   return head.create_estimator_spec(
       features=features,
@@ -219,11 +220,11 @@ def _baseline_model_fn_builder_v2(features, num_outputs, weight_column=None):
   weight_column_key = _get_weight_column_key_v2(weight_column)
   size_checks, batch_size = _get_batch_size_and_size_checks(
       features, weight_column_key)
-  with ops.control_dependencies(size_checks):
+  with tf.control_dependencies(size_checks):
     with ops.name_scope('baseline'):
-      bias = variables.Variable(
-          initial_value=array_ops.zeros([num_outputs]), name='bias')
-      logits = math_ops.multiply(bias, array_ops.ones([batch_size,
+      bias = tf.Variable(
+          initial_value=tf.zeros([num_outputs]), name='bias')
+      logits = tf.math.multiply(bias, tf.ones([batch_size,
                                                        num_outputs]))
   return [bias], logits
 
@@ -274,7 +275,7 @@ def _baseline_model_fn_v2(
   if mode == ModeKeys.TRAIN:
     opt = optimizers.get_optimizer_instance_v2(
         optimizer, learning_rate=_LEARNING_RATE)
-    opt.iterations = training_util.get_or_create_global_step()
+    opt.iterations = tf.compat.v1.train.get_or_create_global_step()
 
   def train_op_fn(loss):
     # Scale loss by number of replicas.
@@ -412,7 +413,7 @@ class BaselineClassifier(estimator.Estimator):
                label_vocabulary=None,
                optimizer='Ftrl',
                config=None,
-               loss_reduction=losses.Reduction.SUM):
+               loss_reduction=tf.compat.v1.losses.Reduction.SUM):
     head = head_lib._binary_logistic_or_multi_class_head(  # pylint: disable=protected-access
         n_classes, weight_column, label_vocabulary, loss_reduction)
 
@@ -643,7 +644,7 @@ class BaselineRegressor(estimator.Estimator):
                weight_column=None,
                optimizer='Ftrl',
                config=None,
-               loss_reduction=losses.Reduction.SUM):
+               loss_reduction=tf.compat.v1.losses.Reduction.SUM):
     head = head_lib._regression_head(  # pylint: disable=protected-access
         label_dimension=label_dimension,
         weight_column=weight_column,

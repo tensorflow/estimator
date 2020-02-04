@@ -18,6 +18,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import tensorflow as tf
 import six
 import inspect
 
@@ -36,11 +37,11 @@ from tensorflow.python.training import rmsprop
 
 
 _OPTIMIZER_CLS_NAMES = {
-    'Adagrad': adagrad.AdagradOptimizer,
-    'Adam': adam.AdamOptimizer,
-    'Ftrl': ftrl.FtrlOptimizer,
-    'RMSProp': rmsprop.RMSPropOptimizer,
-    'SGD': gradient_descent.GradientDescentOptimizer,
+    'Adagrad': tf.compat.v1.train.AdagradOptimizer,
+    'Adam': tf.compat.v1.train.AdamOptimizer,
+    'Ftrl': tf.compat.v1.train.FtrlOptimizer,
+    'RMSProp': tf.compat.v1.train.RMSPropOptimizer,
+    'SGD': tf.compat.v1.train.GradientDescentOptimizer,
 }
 
 _OPTIMIZER_CLS_NAMES_V2 = {
@@ -92,7 +93,7 @@ def get_optimizer_instance(opt, learning_rate=None):
             opt, tuple(sorted(six.iterkeys(_OPTIMIZER_CLS_NAMES)))))
   if callable(opt):
     opt = opt()
-  if not isinstance(opt, optimizer_lib.Optimizer):
+  if not isinstance(opt, tf.compat.v1.train.Optimizer):
     raise ValueError(
         'The given object is not an Optimizer instance. Given: {}'.format(opt))
   return opt

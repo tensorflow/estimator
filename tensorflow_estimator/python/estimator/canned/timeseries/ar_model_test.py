@@ -18,6 +18,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import tensorflow as tf
+
 import functools
 
 from tensorflow.python.client import session
@@ -35,7 +37,7 @@ from tensorflow_estimator.python.estimator.canned.timeseries.feature_keys import
 
 
 @test_util.run_v1_only("Currently incompatible with ResourceVariable")
-class ARModelTest(test.TestCase):
+class ARModelTest(tf.test.TestCase):
 
   def test_wrong_window_size(self):
     estimator = LSTMAutoRegressor(
@@ -51,9 +53,9 @@ class ARModelTest(test.TestCase):
     def _good_data():
       return ({
           TrainEvalFeatures.TIMES:
-              math_ops.range(16)[None, :],
+              tf.range(16)[None, :],
           TrainEvalFeatures.VALUES:
-              array_ops.reshape(math_ops.range(16), [1, 16, 1])
+              tf.reshape(tf.range(16), [1, 16, 1])
       }, None)
 
     with self.assertRaisesRegexp(ValueError, "set window_size=16"):
@@ -72,13 +74,13 @@ class ARModelTest(test.TestCase):
                              prediction_model_factory=functools.partial(
                                  ar_model.LSTMPredictionModel,
                                  num_units=16))
-    with session.Session():
+    with tf.compat.v1.Session():
       predicted_values = model.predict({
           PredictionFeatures.TIMES: [[4, 6, 10]],
           PredictionFeatures.STATE_TUPLE: (
               [[1, 2]], [[[1.], [2.]]], [[[], []]])
       })
-      variables.global_variables_initializer().run()
+      tf.compat.v1.initializers.global_variables().run()
       self.assertAllEqual(predicted_values["mean"].eval().shape,
                           [1, 3, 1])
 
@@ -92,11 +94,11 @@ class ARModelTest(test.TestCase):
         TrainEvalFeatures.TIMES: [[1, 3, 5, 7, 11]],
         TrainEvalFeatures.VALUES: [[[1.], [2.], [3.], [4.], [5.]]]}
     model.initialize_graph()
-    with variable_scope.variable_scope("armodel"):
+    with tf.compat.v1.variable_scope("armodel"):
       raw_evaluation = model.define_loss(
           raw_features, mode=estimator_lib.ModeKeys.EVAL)
-    with session.Session() as sess:
-      variables.global_variables_initializer().run()
+    with tf.compat.v1.Session() as sess:
+      tf.compat.v1.initializers.global_variables().run()
       raw_evaluation_evaled = sess.run(raw_evaluation)
       self.assertAllEqual([[5, 7, 11]],
                           raw_evaluation_evaled.prediction_times)
@@ -118,8 +120,8 @@ class ARModelTest(test.TestCase):
     model.initialize_graph()
     raw_evaluation = model.define_loss(
         raw_features, mode=estimator_lib.ModeKeys.EVAL)
-    with session.Session() as sess:
-      variables.global_variables_initializer().run()
+    with tf.compat.v1.Session() as sess:
+      tf.compat.v1.initializers.global_variables().run()
       raw_evaluation_evaled = sess.run(raw_evaluation)
       self.assertAllEqual([[7, 11]],
                           raw_evaluation_evaled.prediction_times)
@@ -132,4 +134,4 @@ class ARModelTest(test.TestCase):
 
 
 if __name__ == "__main__":
-  test.main()
+  tf.test.main()

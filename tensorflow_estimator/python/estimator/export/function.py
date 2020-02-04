@@ -19,6 +19,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import tensorflow as tf
 import six
 
 from tensorflow.python.eager import def_function
@@ -220,7 +221,7 @@ class _EstimatorWrappedGraph(wrap_function.WrappedGraph):
     self._estimator_spec = None
 
   def _global_step(self):
-    return training.get_or_create_global_step()
+    return tf.compat.v1.train.get_or_create_global_step()
 
   @property
   def global_step(self):
@@ -355,8 +356,8 @@ _RECEIVER_FN_NAME = '_input_receiver'
 def _canonicalize_receiver_tensors(receiver_tensors):
   """Converts receiver tensors to the expected format of `as_signature_def`."""
   # TODO(b/129646028): Wrap function doesn't support composite tensors.
-  for tensor in nest.flatten(receiver_tensors):
-    if not isinstance(tensor, ops.Tensor):
+  for tensor in tf.nest.flatten(receiver_tensors):
+    if not isinstance(tensor, tf.Tensor):
       raise ValueError('All receiver tensors must be tensors (composite '
                        'tensors are not yet supported).')
 

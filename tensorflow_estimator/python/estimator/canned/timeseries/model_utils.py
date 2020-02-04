@@ -18,6 +18,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import tensorflow as tf
 import numpy
 from tensorflow.python.framework import dtypes
 from tensorflow.python.ops import init_ops
@@ -31,16 +32,16 @@ def fully_connected(inp,
                     inp_size,
                     layer_size,
                     name,
-                    activation=nn_ops.relu,
-                    dtype=dtypes.float32):
+                    activation=tf.nn.relu,
+                    dtype=tf.dtypes.float32):
   """Helper method to create a fully connected hidden layer."""
-  wt = variable_scope.get_variable(
+  wt = tf.compat.v1.get_variable(
       name="{}_weight".format(name), shape=[inp_size, layer_size], dtype=dtype)
-  bias = variable_scope.get_variable(
+  bias = tf.compat.v1.get_variable(
       name="{}_bias".format(name),
       shape=[layer_size],
-      initializer=init_ops.zeros_initializer())
-  output = nn_ops.xw_plus_b(inp, wt, bias)
+      initializer=tf.compat.v1.initializers.zeros())
+  output = tf.compat.v1.nn.xw_plus_b(inp, wt, bias)
   if activation is not None:
     assert callable(activation)
     output = activation(output)

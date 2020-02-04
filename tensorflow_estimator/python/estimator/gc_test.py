@@ -21,6 +21,7 @@ from __future__ import print_function
 import os
 import re
 
+import tensorflow as tf
 from six.moves import xrange  # pylint: disable=redefined-builtin
 
 from tensorflow.python.framework import test_util
@@ -36,11 +37,11 @@ def _create_parser(base_dir):
     # Modify the path object for RegEx match for Windows Paths
     if os.name == "nt":
       match = re.match(
-          "^" + compat.as_str_any(base_dir).replace("\\", "/") + "/(\\d+)$",
-          compat.as_str_any(path.path).replace("\\", "/"))
+          "^" + tf.compat.as_str_any(base_dir).replace("\\", "/") + "/(\\d+)$",
+          tf.compat.as_str_any(path.path).replace("\\", "/"))
     else:
-      match = re.match("^" + compat.as_str_any(base_dir) + "/(\\d+)$",
-                       compat.as_str_any(path.path))
+      match = re.match("^" + tf.compat.as_str_any(base_dir) + "/(\\d+)$",
+                       tf.compat.as_str_any(path.path))
     if not match:
       return None
     return path._replace(export_version=int(match.group(1)))
@@ -48,7 +49,7 @@ def _create_parser(base_dir):
   return parser
 
 
-class GcTest(test_util.TensorFlowTestCase):
+class GcTest(tf.test.TestCase):
 
   def testLargestExportVersions(self):
     paths = [gc.Path("/foo", 8), gc.Path("/foo", 9), gc.Path("/foo", 10)]
@@ -114,12 +115,12 @@ class GcTest(test_util.TensorFlowTestCase):
     self.assertEqual(mod(paths), [gc.Path("/foo", 4), gc.Path("/foo", 5)])
 
   def testPathsWithParse(self):
-    base_dir = os.path.join(test.get_temp_dir(), "paths_parse")
-    self.assertFalse(gfile.Exists(base_dir))
+    base_dir = os.path.join(tf.compat.v1.test.get_temp_dir(), "paths_parse")
+    self.assertFalse(tf.compat.v1.gfile.Exists(base_dir))
     for p in xrange(3):
-      gfile.MakeDirs(os.path.join(base_dir, "%d" % p))
+      tf.compat.v1.gfile.MakeDirs(os.path.join(base_dir, "%d" % p))
     # add a base_directory to ignore
-    gfile.MakeDirs(os.path.join(base_dir, "ignore"))
+    tf.compat.v1.gfile.MakeDirs(os.path.join(base_dir, "ignore"))
 
     self.assertEqual(
         gc._get_paths(base_dir, _create_parser(base_dir)),
@@ -128,23 +129,23 @@ class GcTest(test_util.TensorFlowTestCase):
             gc.Path(os.path.join(base_dir, "1"), 1),
             gc.Path(os.path.join(base_dir, "2"), 2)
         ])
-    gfile.DeleteRecursively(base_dir)
+    tf.compat.v1.gfile.DeleteRecursively(base_dir)
 
   def testMixedStrTypes(self):
-    temp_dir = compat.as_bytes(test.get_temp_dir())
+    temp_dir = tf.compat.as_bytes(tf.compat.v1.test.get_temp_dir())
 
     for sub_dir in ["str", b"bytes", u"unicode"]:
       base_dir = os.path.join(
           (temp_dir if isinstance(sub_dir, bytes) else temp_dir.decode()),
           sub_dir)
-      self.assertFalse(gfile.Exists(base_dir))
-      gfile.MakeDirs(os.path.join(compat.as_str_any(base_dir), "42"))
+      self.assertFalse(tf.compat.v1.gfile.Exists(base_dir))
+      tf.compat.v1.gfile.MakeDirs(os.path.join(tf.compat.as_str_any(base_dir), "42"))
       gc._get_paths(base_dir, _create_parser(base_dir))
-      gfile.DeleteRecursively(base_dir)
+      tf.compat.v1.gfile.DeleteRecursively(base_dir)
 
   def testGcsDirWithSeparator(self):
     base_dir = "gs://bucket/foo"
-    with test.mock.patch.object(gfile, "ListDirectory") as mock_list_directory:
+    with tf.compat.v1.test.mock.patch.object(gfile, "ListDirectory") as mock_list_directory:
       # gfile.ListDirectory returns directory names with separator '/'
       mock_list_directory.return_value = ["0/", "1/"]
       self.assertEqual(
@@ -155,4 +156,4 @@ class GcTest(test_util.TensorFlowTestCase):
           ])
 
 if __name__ == "__main__":
-  test.main()
+  tf.test.main()

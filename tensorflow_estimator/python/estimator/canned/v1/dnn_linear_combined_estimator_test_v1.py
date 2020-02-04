@@ -21,6 +21,7 @@ from __future__ import print_function
 import shutil
 import tempfile
 
+import tensorflow as tf
 import numpy as np
 import six
 
@@ -48,7 +49,7 @@ def _dnn_only_estimator_fn(
     label_dimension=1,
     weight_column=None,
     optimizer='Adagrad',
-    activation_fn=nn.relu,
+    activation_fn=tf.nn.relu,
     dropout=None,
     input_layer_partitioner=None,
     config=None):
@@ -57,7 +58,7 @@ def _dnn_only_estimator_fn(
           weight_column=weight_column,
           label_dimension=label_dimension,
           # Tests in core (from which this test inherits) test the sum loss.
-          loss_reduction=losses.Reduction.SUM),
+          loss_reduction=tf.compat.v1.losses.Reduction.SUM),
       model_dir=model_dir,
       dnn_feature_columns=feature_columns,
       dnn_optimizer=optimizer,
@@ -70,30 +71,30 @@ def _dnn_only_estimator_fn(
 
 @test_util.run_v1_only("Tests v1 only symbols")
 class DNNOnlyEstimatorEvaluateTest(
-    dnn_testing_utils_v1.BaseDNNRegressorEvaluateTest, test.TestCase):
+    dnn_testing_utils_v1.BaseDNNRegressorEvaluateTest, tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
+    tf.test.TestCase.__init__(self, methodName)
     dnn_testing_utils_v1.BaseDNNRegressorEvaluateTest.__init__(
         self, _dnn_only_estimator_fn)
 
 
 @test_util.run_v1_only("Tests v1 only symbols")
 class DNNOnlyEstimatorPredictTest(
-    dnn_testing_utils_v1.BaseDNNRegressorPredictTest, test.TestCase):
+    dnn_testing_utils_v1.BaseDNNRegressorPredictTest, tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
+    tf.test.TestCase.__init__(self, methodName)
     dnn_testing_utils_v1.BaseDNNRegressorPredictTest.__init__(
         self, _dnn_only_estimator_fn)
 
 
 @test_util.run_v1_only("Tests v1 only symbols")
 class DNNOnlyEstimatorTrainTest(
-    dnn_testing_utils_v1.BaseDNNRegressorTrainTest, test.TestCase):
+    dnn_testing_utils_v1.BaseDNNRegressorTrainTest, tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
+    tf.test.TestCase.__init__(self, methodName)
     dnn_testing_utils_v1.BaseDNNRegressorTrainTest.__init__(
         self, _dnn_only_estimator_fn)
 
@@ -112,7 +113,7 @@ def _linear_only_estimator_fn(
           weight_column=weight_column,
           label_dimension=label_dimension,
           # Tests in core (from which this test inherits) test the sum loss.
-          loss_reduction=losses.Reduction.SUM),
+          loss_reduction=tf.compat.v1.losses.Reduction.SUM),
       model_dir=model_dir,
       linear_feature_columns=feature_columns,
       linear_optimizer=optimizer,
@@ -123,43 +124,43 @@ def _linear_only_estimator_fn(
 
 @test_util.run_v1_only("Tests v1 only symbols")
 class LinearOnlyEstimatorEvaluateTest(
-    linear_testing_utils_v1.BaseLinearRegressorEvaluationTest, test.TestCase):
+    linear_testing_utils_v1.BaseLinearRegressorEvaluationTest, tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
+    tf.test.TestCase.__init__(self, methodName)
     linear_testing_utils_v1.BaseLinearRegressorEvaluationTest.__init__(
         self, _linear_only_estimator_fn)
 
 
 @test_util.run_v1_only("Tests v1 only symbols")
 class LinearOnlyEstimatorPredictTest(
-    linear_testing_utils_v1.BaseLinearRegressorPredictTest, test.TestCase):
+    linear_testing_utils_v1.BaseLinearRegressorPredictTest, tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
+    tf.test.TestCase.__init__(self, methodName)
     linear_testing_utils_v1.BaseLinearRegressorPredictTest.__init__(
         self, _linear_only_estimator_fn)
 
 
 @test_util.run_v1_only("Tests v1 only symbols")
 class LinearOnlyEstimatorTrainTest(
-    linear_testing_utils_v1.BaseLinearRegressorTrainingTest, test.TestCase):
+    linear_testing_utils_v1.BaseLinearRegressorTrainingTest, tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
+    tf.test.TestCase.__init__(self, methodName)
     linear_testing_utils_v1.BaseLinearRegressorTrainingTest.__init__(
         self, _linear_only_estimator_fn)
 
 
 @test_util.run_v1_only("Tests v1 only symbols")
-class DNNLinearCombinedEstimatorIntegrationTest(test.TestCase):
+class DNNLinearCombinedEstimatorIntegrationTest(tf.test.TestCase):
 
   def setUp(self):
     self._model_dir = tempfile.mkdtemp()
 
   def tearDown(self):
     if self._model_dir:
-      writer_cache.FileWriterCache.clear()
+      tf.compat.v1.summary.FileWriterCache.clear()
       shutil.rmtree(self._model_dir)
 
   def _test_complete_flow(
@@ -183,7 +184,7 @@ class DNNLinearCombinedEstimatorIntegrationTest(test.TestCase):
 
     # Evaluate
     scores = est.evaluate(eval_input_fn)
-    self.assertEqual(num_steps, scores[ops.GraphKeys.GLOBAL_STEP])
+    self.assertEqual(num_steps, scores[tf.compat.v1.GraphKeys.GLOBAL_STEP])
     self.assertIn('loss', six.iterkeys(scores))
 
     # Predict
@@ -194,12 +195,12 @@ class DNNLinearCombinedEstimatorIntegrationTest(test.TestCase):
     self.assertAllEqual((batch_size, label_dimension), predictions.shape)
 
     # Export
-    feature_spec = feature_column.make_parse_example_spec(feature_columns)
+    feature_spec = tf.compat.v1.feature_column.make_parse_example_spec(feature_columns)
     serving_input_receiver_fn = export.build_parsing_serving_input_receiver_fn(
         feature_spec)
     export_dir = est.export_saved_model(tempfile.mkdtemp(),
                                         serving_input_receiver_fn)
-    self.assertTrue(gfile.Exists(export_dir))
+    self.assertTrue(tf.compat.v1.gfile.Exists(export_dir))
 
   def test_numpy_input_fn(self):
     """Tests complete flow with numpy_input_fn."""
@@ -234,4 +235,4 @@ class DNNLinearCombinedEstimatorIntegrationTest(test.TestCase):
 
 
 if __name__ == '__main__':
-  test.main()
+  tf.test.main()

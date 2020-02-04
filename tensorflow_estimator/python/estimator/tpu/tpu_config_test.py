@@ -18,6 +18,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import tensorflow as tf
+
 import json
 
 from tensorflow.core.protobuf import config_pb2
@@ -28,12 +30,12 @@ from tensorflow_estimator.python.estimator.tpu import util as util_lib
 
 
 def _set_tf_config_env_variable(tf_config):
-  return test.mock.patch.dict('os.environ', {
+  return tf.compat.v1.test.mock.patch.dict('os.environ', {
       'TF_CONFIG': json.dumps(tf_config)
   })
 
 
-class TPURunConfigTest(test.TestCase):
+class TPURunConfigTest(tf.test.TestCase):
 
   def test_no_session_config_set_in_local_case(self):
     run_config = tpu_config_lib.RunConfig()
@@ -117,7 +119,7 @@ class TPURunConfigTest(test.TestCase):
     self._evaluate_iterations_per_loop_in_seconds('1h', 3600, 'seconds')
 
 
-class TPURunConfigMasterTest(test.TestCase):
+class TPURunConfigMasterTest(tf.test.TestCase):
 
   def test_default_values(self):
     run_config = tpu_config_lib.RunConfig()
@@ -190,7 +192,7 @@ class TPURunConfigMasterTest(test.TestCase):
       self.assertEqual('_eval_master_123', run_config.evaluation_master)
 
 
-class TPUJobNameTest(test.TestCase):
+class TPUJobNameTest(tf.test.TestCase):
 
   def test_default_name(self):
     config = tpu_config_lib.RunConfig()
@@ -204,4 +206,4 @@ class TPUJobNameTest(test.TestCase):
 
 
 if __name__ == '__main__':
-  test.main()
+  tf.test.main()

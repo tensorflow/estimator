@@ -19,6 +19,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import tensorflow as tf
+
 import time
 
 from tensorflow.python.data.ops import dataset_ops
@@ -76,7 +78,7 @@ def parse_iterator_result(result):
   return result, None
 
 
-class _DatasetInitializerHook(training.SessionRunHook):
+class _DatasetInitializerHook(tf.compat.v1.train.SessionRunHook):
   """Creates a SessionRunHook that initializes the passed iterator."""
 
   def __init__(self, iterator):
@@ -90,7 +92,7 @@ class _DatasetInitializerHook(training.SessionRunHook):
     session.run(self._initializer)
 
 
-class DistributedIteratorInitializerHook(training.SessionRunHook):
+class DistributedIteratorInitializerHook(tf.compat.v1.train.SessionRunHook):
   """Creates a SessionRunHook that initializes the passed iterator."""
 
   def __init__(self, iterator):
@@ -104,7 +106,7 @@ class DistributedIteratorInitializerHook(training.SessionRunHook):
     session.run(self._initializer)
 
 
-class MultiHostDatasetInitializerHook(training.SessionRunHook):
+class MultiHostDatasetInitializerHook(tf.compat.v1.train.SessionRunHook):
   """Creates a SessionRunHook that initializes all passed iterators."""
 
   def __init__(self, dataset_initializers):
@@ -114,5 +116,5 @@ class MultiHostDatasetInitializerHook(training.SessionRunHook):
     del coord
     start = time.time()
     session.run(self._initializers)
-    logging.info('Initialized dataset iterators in %d seconds',
+    tf.compat.v1.logging.info('Initialized dataset iterators in %d seconds',
                  time.time() - start)

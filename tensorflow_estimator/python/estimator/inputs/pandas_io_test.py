@@ -18,6 +18,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import tensorflow as tf
 import numpy as np
 
 from tensorflow.python.framework import errors
@@ -39,7 +40,7 @@ except ImportError:
 
 
 @test_util.run_v1_only('Tests v1 only symbols')
-class PandasIoTest(test.TestCase):
+class PandasIoTest(tf.test.TestCase):
 
   def makeTestDataFrame(self):
     index = np.arange(100, 104)
@@ -61,8 +62,8 @@ class PandasIoTest(test.TestCase):
 
   def callInputFnOnce(self, input_fn, session):
     results = input_fn()
-    coord = coordinator.Coordinator()
-    threads = queue_runner_impl.start_queue_runners(session, coord=coord)
+    coord = tf.train.Coordinator()
+    threads = tf.compat.v1.train.queue_runner.start_queue_runners(session, coord=coord)
     result_values = session.run(results)
     coord.request_stop()
     coord.join(threads)
@@ -176,15 +177,15 @@ class PandasIoTest(test.TestCase):
 
       results = input_fn()
 
-      coord = coordinator.Coordinator()
-      threads = queue_runner_impl.start_queue_runners(session, coord=coord)
+      coord = tf.train.Coordinator()
+      threads = tf.compat.v1.train.queue_runner.start_queue_runners(session, coord=coord)
 
       features, target = session.run(results)
       self.assertAllEqual(features['a'], [0, 1, 0, 1])
       self.assertAllEqual(features['b'], [32, 33, 32, 33])
       self.assertAllEqual(target, [-32, -31, -32, -31])
 
-      with self.assertRaises(errors.OutOfRangeError):
+      with self.assertRaises(tf.errors.OutOfRangeError):
         session.run(results)
 
       coord.request_stop()
@@ -205,8 +206,8 @@ class PandasIoTest(test.TestCase):
 
       results = input_fn()
 
-      coord = coordinator.Coordinator()
-      threads = queue_runner_impl.start_queue_runners(session, coord=coord)
+      coord = tf.train.Coordinator()
+      threads = tf.compat.v1.train.queue_runner.start_queue_runners(session, coord=coord)
 
       features, target = session.run(results)
       self.assertAllEqual(features['a'], [0, 1])
@@ -223,7 +224,7 @@ class PandasIoTest(test.TestCase):
       self.assertAllEqual(features['b'], [36])
       self.assertAllEqual(target, [-28])
 
-      with self.assertRaises(errors.OutOfRangeError):
+      with self.assertRaises(tf.errors.OutOfRangeError):
         session.run(results)
 
       coord.request_stop()
@@ -256,11 +257,11 @@ class PandasIoTest(test.TestCase):
 
   def assertInputsCallableNTimes(self, input_fn, session, n):
     inputs = input_fn()
-    coord = coordinator.Coordinator()
-    threads = queue_runner_impl.start_queue_runners(session, coord=coord)
+    coord = tf.train.Coordinator()
+    threads = tf.compat.v1.train.queue_runner.start_queue_runners(session, coord=coord)
     for _ in range(n):
       session.run(inputs)
-    with self.assertRaises(errors.OutOfRangeError):
+    with self.assertRaises(tf.errors.OutOfRangeError):
       session.run(inputs)
     coord.request_stop()
     coord.join(threads)
@@ -319,4 +320,4 @@ class PandasIoTest(test.TestCase):
 
 
 if __name__ == '__main__':
-  test.main()
+  tf.test.main()

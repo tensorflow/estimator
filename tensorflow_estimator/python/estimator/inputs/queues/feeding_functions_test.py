@@ -20,6 +20,7 @@ from __future__ import print_function
 
 import collections
 
+import tensorflow as tf
 import numpy as np
 
 from tensorflow.python.framework import test_util
@@ -44,7 +45,7 @@ def vals_to_list(a):
   }
 
 
-class _FeedingFunctionsTestCase(test.TestCase):
+class _FeedingFunctionsTestCase(tf.test.TestCase):
   """Tests for feeding functions."""
 
   def testArrayFeedFnBatchOne(self):
@@ -389,4 +390,4 @@ class _FeedingFunctionsTestCase(test.TestCase):
 
 
 if __name__ == "__main__":
-  test.main()
+  tf.test.main()

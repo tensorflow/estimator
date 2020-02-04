@@ -18,6 +18,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import tensorflow as tf
 import six
 
 from tensorflow.python.feature_column import feature_column_lib as fc
@@ -29,7 +30,7 @@ from tensorflow.python.util.tf_export import estimator_export
 @estimator_export('estimator.classifier_parse_example_spec', v1=[])
 def classifier_parse_example_spec_v2(feature_columns,
                                      label_key,
-                                     label_dtype=dtypes.int64,
+                                     label_dtype=tf.dtypes.int64,
                                      label_default=None,
                                      weight_column=None):
   """Generates parsing spec for tf.parse_example to be used with classifiers.
@@ -138,7 +139,7 @@ def classifier_parse_example_spec_v2(feature_columns,
     ValueError: if label_key is None.
   """
   parsing_spec = fc.make_parse_example_spec_v2(feature_columns)
-  label_spec = parsing_ops.FixedLenFeature((1,), label_dtype, label_default)
+  label_spec = tf.io.FixedLenFeature((1,), label_dtype, label_default)
   return _add_label_and_weight_to_parsing_spec(
       parsing_spec=parsing_spec,
       label_key=label_key,
@@ -149,7 +150,7 @@ def classifier_parse_example_spec_v2(feature_columns,
 @estimator_export('estimator.regressor_parse_example_spec', v1=[])
 def regressor_parse_example_spec_v2(feature_columns,
                                     label_key,
-                                    label_dtype=dtypes.float32,
+                                    label_dtype=tf.dtypes.float32,
                                     label_default=None,
                                     label_dimension=1,
                                     weight_column=None):
@@ -254,7 +255,7 @@ def regressor_parse_example_spec_v2(feature_columns,
     ValueError: if label_key is None.
   """
   parsing_spec = fc.make_parse_example_spec_v2(feature_columns)
-  label_spec = parsing_ops.FixedLenFeature(
+  label_spec = tf.io.FixedLenFeature(
       (label_dimension,), label_dtype, label_default)
   return _add_label_and_weight_to_parsing_spec(
       parsing_spec=parsing_spec,
@@ -295,7 +296,7 @@ def _add_label_and_weight_to_parsing_spec(
     return parsing_spec
 
   if isinstance(weight_column, six.string_types):
-    weight_column = fc.numeric_column(weight_column)
+    weight_column = tf.feature_column.numeric_column(weight_column)
 
   if not isinstance(weight_column, fc.NumericColumn):
     raise ValueError('weight_column should be an instance of '
@@ -315,11 +316,11 @@ def _add_label_and_weight_to_parsing_spec(
 @estimator_export(v1=['estimator.classifier_parse_example_spec'])
 def classifier_parse_example_spec(feature_columns,
                                   label_key,
-                                  label_dtype=dtypes.int64,
+                                  label_dtype=tf.dtypes.int64,
                                   label_default=None,
                                   weight_column=None):
-  parsing_spec = fc.make_parse_example_spec(feature_columns)
-  label_spec = parsing_ops.FixedLenFeature((1,), label_dtype, label_default)
+  parsing_spec = tf.compat.v1.feature_column.make_parse_example_spec(feature_columns)
+  label_spec = tf.io.FixedLenFeature((1,), label_dtype, label_default)
   return _add_label_and_weight_to_parsing_spec(
       parsing_spec=parsing_spec,
       label_key=label_key,
@@ -333,12 +334,12 @@ classifier_parse_example_spec.__doc__ = classifier_parse_example_spec_v2.__doc__
 @estimator_export(v1=['estimator.regressor_parse_example_spec'])
 def regressor_parse_example_spec(feature_columns,  # pylint: disable=missing-docstring
                                  label_key,
-                                 label_dtype=dtypes.float32,
+                                 label_dtype=tf.dtypes.float32,
                                  label_default=None,
                                  label_dimension=1,
                                  weight_column=None):
-  parsing_spec = fc.make_parse_example_spec(feature_columns)
-  label_spec = parsing_ops.FixedLenFeature(
+  parsing_spec = tf.compat.v1.feature_column.make_parse_example_spec(feature_columns)
+  label_spec = tf.io.FixedLenFeature(
       (label_dimension,), label_dtype, label_default)
   return _add_label_and_weight_to_parsing_spec(
       parsing_spec=parsing_spec,

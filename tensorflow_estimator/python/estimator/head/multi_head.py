@@ -18,6 +18,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import tensorflow as tf
 import six
 
 from tensorflow.python.eager import context
@@ -36,7 +37,7 @@ from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 
 def _no_op_train_fn(loss):
   del loss
-  return control_flow_ops.no_op()
+  return tf.no_op()
 
 
 def _default_export_output(export_outputs, head_name):
@@ -268,20 +269,20 @@ class MultiHead(base_head.Head):
                 total_logits_dimension)))
 
       # TODO(b/119617064): unify eager and graph implementations
-      if context.executing_eagerly():
+      if tf.executing_eagerly():
         logits_shape = logits._shape_tuple()  # pylint: disable=protected-access
         batch_shape = logits_shape[:-1]
       else:
-        batch_shape = array_ops.shape(logits)[:-1]
-      zeros_like_batch_shape = array_ops.zeros_like(batch_shape)
-      minus_ones_like_batch_shape = -1 * array_ops.ones_like(batch_shape)
+        batch_shape = tf.compat.v1.shape(logits)[:-1]
+      zeros_like_batch_shape = tf.compat.v1.zeros_like(batch_shape)
+      minus_ones_like_batch_shape = -1 * tf.compat.v1.ones_like(batch_shape)
       begin_idx = 0
       for head in self._heads:
-        begin_tensor = array_ops.concat(
+        begin_tensor = tf.concat(
             [zeros_like_batch_shape, [begin_idx]], axis=0)
-        size_tensor = array_ops.concat(
+        size_tensor = tf.concat(
             [minus_ones_like_batch_shape, [head.logits_dimension]], axis=0)
-        logits_dict[head.name] = array_ops.slice(
+        logits_dict[head.name] = tf.slice(
             logits, begin=begin_tensor, size=size_tensor)
         begin_idx += head.logits_dimension
     return logits_dict
@@ -330,10 +331,10 @@ class MultiHead(base_head.Head):
         for training_loss, head_weight in zip(
             training_losses, self._head_weights):
           head_weighted_training_losses.append(
-              math_ops.multiply(training_loss, head_weight))
+              tf.math.multiply(training_loss, head_weight))
         training_losses = head_weighted_training_losses
-      merged_training_loss = math_ops.add_n(training_losses)
-      regularization_loss = math_ops.add_n(
+      merged_training_loss = tf.math.add_n(training_losses)
+      regularization_loss = tf.math.add_n(
           regularization_losses) if regularization_losses is not None else None
       regularized_training_loss = (merged_training_loss + regularization_loss
                                    if regularization_loss is not None
@@ -371,7 +372,7 @@ class MultiHead(base_head.Head):
     logits_dict = self._check_logits_and_labels(logits, labels)
     # Update regularization loss metric
     if regularization_losses is not None:
-      regularization_loss = math_ops.add_n(regularization_losses)
+      regularization_loss = tf.math.add_n(regularization_losses)
       eval_metrics[self._loss_regularization_key].update_state(
           values=regularization_loss)
     # Update metrics for each head

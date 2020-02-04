@@ -18,6 +18,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import tensorflow as tf
+
 from contextlib import contextmanager
 import copy
 
@@ -218,9 +220,9 @@ class _InternalTPUContext(object):
     self._eval_batch_size = eval_batch_size
     self._predict_batch_size = predict_batch_size
     self._use_tpu = use_tpu
-    logging.info('_TPUContext: eval_on_tpu %s', eval_on_tpu)
+    tf.compat.v1.logging.info('_TPUContext: eval_on_tpu %s', eval_on_tpu)
     if not use_tpu and eval_on_tpu:
-      logging.warning('eval_on_tpu ignored because use_tpu is False.')
+      tf.compat.v1.logging.warn('eval_on_tpu ignored because use_tpu is False.')
 
     self._eval_on_tpu = eval_on_tpu
     self._model_parallelism_enabled = (
@@ -302,13 +304,13 @@ class _InternalTPUContext(object):
         computation_shape=self._computation_shape,
         num_replicas=self.num_replicas)
 
-    logging.info('num_cores_per_replica: %s',
+    tf.compat.v1.logging.info('num_cores_per_replica: %s',
                  str(self._config.tpu_config.num_cores_per_replica))
-    logging.info('computation_shape: %s', str(self._computation_shape))
-    logging.info('num_replicas: %d', self.num_replicas)
-    logging.info('device_assignment.topology.device_coordinates: %s',
+    tf.compat.v1.logging.info('computation_shape: %s', str(self._computation_shape))
+    tf.compat.v1.logging.info('num_replicas: %d', self.num_replicas)
+    tf.compat.v1.logging.info('device_assignment.topology.device_coordinates: %s',
                  str(device_assignment.topology.device_coordinates))
-    logging.info('device_assignment.core_assignment: %s',
+    tf.compat.v1.logging.info('device_assignment.core_assignment: %s',
                  str(device_assignment.core_assignment))
 
     self._lazy_device_assignment_dict[master] = device_assignment
@@ -471,7 +473,7 @@ class _InternalTPUContext(object):
       return True
 
     if mode == model_fn_lib.ModeKeys.EVAL and not self._eval_on_tpu:
-      logging.info('_is_running_on_cpu: eval_on_tpu disabled')
+      tf.compat.v1.logging.info('_is_running_on_cpu: eval_on_tpu disabled')
       return True
 
     if is_export_mode:
@@ -776,7 +778,7 @@ class _OneCoreTPUContext(_InternalTPUContext):
     return tpu_system_metadata
 
 
-class _TPUEstimatorReplicaContext(distribute_lib.ReplicaContext):
+class _TPUEstimatorReplicaContext(tf.distribute.ReplicaContext):
   """Internal context for storing replica id.
 
   This is to set eager.context.Context() so that only summary ops from
@@ -801,8 +803,8 @@ class _TPUEstimatorReplicaContext(distribute_lib.ReplicaContext):
 
   def __enter__(self):
     def replica_id_is_zero():
-      return math_ops.equal(self._replica_id_in_sync_group,
-                            constant_op.constant(0))
+      return tf.math.equal(self._replica_id_in_sync_group,
+                            tf.constant(0))
 
     if hasattr(summary_ops_v2, '_summary_state'):
       summary_state = summary_ops_v2._summary_state  # pylint: disable=protected-access
@@ -827,7 +829,7 @@ def _get_tpu_context(config, train_batch_size, eval_batch_size,
     if embedding_config_spec is not None:
       raise ValueError('Setting TPUConfig.num_shards==1 is unsupported '
                        'when embedding_config_spec is not None.')
-    logging.warning(
+    tf.compat.v1.logging.warn(
         'Setting TPUConfig.num_shards==1 is an unsupported behavior. '
         'Please fix as soon as possible (leaving num_shards as None.)')
     return _OneCoreTPUContext(config, train_batch_size, eval_batch_size,

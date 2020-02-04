@@ -18,6 +18,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import tensorflow as tf
+
 from tensorflow.python.eager import context
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import dtypes
@@ -232,7 +234,7 @@ class BinaryClassHead(base_head.Head):
     Returns:
       A hash table for lookup.
     """
-    if self._cached_class_id_table is None or not context.executing_eagerly():
+    if self._cached_class_id_table is None or not tf.executing_eagerly():
       self._cached_class_id_table = lookup_ops.index_table_from_tensor(
           vocabulary_list=tuple(self._label_vocabulary), name='class_id_lookup')
     return self._cached_class_id_table
@@ -249,7 +251,7 @@ class BinaryClassHead(base_head.Head):
       A hash table for lookup.
     """
     if (self._cached_class_string_table is None
-        or not context.executing_eagerly()):
+        or not tf.executing_eagerly()):
       self._cached_class_string_table = (
           lookup_ops.index_to_string_table_from_tensor(
               vocabulary_list=self._label_vocabulary, name='class_string_lookup'
@@ -262,7 +264,7 @@ class BinaryClassHead(base_head.Head):
         labels=labels, logits=logits, expected_labels_dimension=1)
     if self._label_vocabulary is not None:
       labels = self._class_id_table.lookup(labels)
-    labels = math_ops.cast(labels, dtype=dtypes.float32)
+    labels = tf.cast(labels, dtype=tf.dtypes.float32)
     return base_head.check_label_range(labels, n_classes=2)
 
   def _unweighted_loss_and_weights(self, logits, labels, features):
@@ -272,7 +274,7 @@ class BinaryClassHead(base_head.Head):
           loss_fn=self._loss_fn, labels=labels, logits=logits,
           features=features, expected_loss_dim=1)
     else:
-      unweighted_loss = nn.sigmoid_cross_entropy_with_logits(
+      unweighted_loss = tf.compat.v1.nn.sigmoid_cross_entropy_with_logits(
           labels=labels, logits=logits)
     weights = base_head.get_weights_and_check_match_logits(
         features=features, weight_column=self._weight_column, logits=logits)
@@ -292,7 +294,7 @@ class BinaryClassHead(base_head.Head):
           unweighted_loss,
           sample_weight=weights,
           reduction=self._loss_reduction)
-      regularization_loss = math_ops.add_n(
+      regularization_loss = tf.math.add_n(
           regularization_losses) if regularization_losses is not None else None
       regularized_training_loss = (
           training_loss + regularization_loss if regularization_loss is not None
@@ -328,26 +330,26 @@ class BinaryClassHead(base_head.Head):
       if pred_keys.LOGITS in keys:
         predictions[pred_keys.LOGITS] = logits
       if pred_keys.LOGISTIC in keys:
-        logistic = math_ops.sigmoid(logits, name=pred_keys.LOGISTIC)
+        logistic = tf.math.sigmoid(logits, name=pred_keys.LOGISTIC)
         predictions[pred_keys.LOGISTIC] = logistic
-      two_class_logits = array_ops.concat(
-          (array_ops.zeros_like(logits), logits),
+      two_class_logits = tf.concat(
+          (tf.compat.v1.zeros_like(logits), logits),
           axis=-1, name='two_class_logits')
       if pred_keys.PROBABILITIES in keys:
-        probabilities = nn.softmax(
+        probabilities = tf.compat.v1.nn.softmax(
             two_class_logits, name=pred_keys.PROBABILITIES)
         predictions[pred_keys.PROBABILITIES] = probabilities
       if pred_keys.CLASS_IDS in keys or pred_keys.CLASSES in keys:
-        class_ids = math_ops.argmax(
+        class_ids = tf.compat.v1.math.argmax(
             two_class_logits, axis=-1, name=pred_keys.CLASS_IDS)
-        class_ids = array_ops.expand_dims(class_ids, axis=-1)
+        class_ids = tf.compat.v1.expand_dims(class_ids, axis=-1)
         if pred_keys.CLASS_IDS in keys:
           predictions[pred_keys.CLASS_IDS] = class_ids
         if pred_keys.CLASSES in keys:
           if self._label_vocabulary is not None:
             classes = self._class_string_table.lookup(class_ids)
           else:
-            classes = string_ops.as_string(class_ids, name='str_classes')
+            classes = tf.strings.as_string(class_ids, name='str_classes')
           predictions[pred_keys.CLASSES] = classes
       if pred_keys.ALL_CLASS_IDS in keys:
         predictions[pred_keys.ALL_CLASS_IDS] = base_head.all_class_ids(
@@ -417,14 +419,14 @@ class BinaryClassHead(base_head.Head):
     label_mean_metric = eval_metrics[self._label_mean_key]
     accuracy_baseline_metric = eval_metrics[self._accuracy_baseline_key]
     # Mimic the call of accuracy_baseline_metric.update_state()
-    accuracy_baseline_metric._updates = [control_flow_ops.no_op()]  # pylint: disable=protected-access
-    accuracy_baseline_metric.total = math_ops.maximum(
+    accuracy_baseline_metric._updates = [tf.no_op()]  # pylint: disable=protected-access
+    accuracy_baseline_metric.total = tf.math.maximum(
         label_mean_metric.total,
         label_mean_metric.count - label_mean_metric.total)
     accuracy_baseline_metric.count = label_mean_metric.count
 
   def _update_auc(self, auc_metric, labels, predictions, weights=None):
-    predictions = math_ops.cast(predictions, dtype=dtypes.float32)
+    predictions = tf.cast(predictions, dtype=tf.dtypes.float32)
     if weights is not None:
       weights = weights_broadcast_ops.broadcast_weights(weights, predictions)
     auc_metric.update_state(
@@ -463,7 +465,7 @@ class BinaryClassHead(base_head.Head):
         auc_metric=eval_metrics[self._auc_pr_key], labels=labels,
         predictions=logistic, weights=weights)
     if regularization_losses is not None:
-      regularization_loss = math_ops.add_n(regularization_losses)
+      regularization_loss = tf.math.add_n(regularization_losses)
       eval_metrics[self._loss_regularization_key].update_state(
           values=regularization_loss)
     for i in range(len(self._thresholds)):

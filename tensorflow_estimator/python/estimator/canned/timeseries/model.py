@@ -21,6 +21,7 @@ from __future__ import print_function
 import abc
 import collections
 
+import tensorflow as tf
 import six
 from tensorflow.python.feature_column import feature_column_lib as feature_column
 from tensorflow.python.framework import dtypes
@@ -54,7 +55,7 @@ class TimeSeriesModel(object):
   def __init__(self,
                num_features,
                exogenous_feature_columns=None,
-               dtype=dtypes.float32):
+               dtype=tf.dtypes.float32):
     """Constructor for generative models.
 
     Args:
@@ -124,7 +125,7 @@ class TimeSeriesModel(object):
     if self._input_statistics:
       self._stats_means, variances = (
           self._input_statistics.overall_feature_moments)
-      self._stats_sigmas = math_ops.sqrt(variances)
+      self._stats_sigmas = tf.math.sqrt(variances)
 
   def _scale_data(self, data):
     """Scale data according to stats (input scale -> model scale)."""
@@ -191,7 +192,7 @@ class TimeSeriesModel(object):
     self._check_graph_initialized()
     start_state = math_utils.replicate_state(
         start_state=self.get_start_state(),
-        batch_size=array_ops.shape(features[TrainEvalFeatures.TIMES])[0])
+        batch_size=tf.compat.v1.shape(features[TrainEvalFeatures.TIMES])[0])
     return self.get_batch_loss(features=features, mode=mode, state=start_state)
 
   # TODO(vitalyk,allenl): Better documentation surrounding options for chunking,
@@ -257,14 +258,14 @@ class TimeSeriesModel(object):
     """
     if not self._exogenous_feature_columns:
       return (0,)
-    with ops.Graph().as_default():
+    with tf.Graph().as_default():
       parsed_features = (
-          feature_column.make_parse_example_spec(
+          tf.compat.v1.feature_column.make_parse_example_spec(
               self._exogenous_feature_columns))
-      placeholder_features = parsing_ops.parse_example(
-          serialized=array_ops.placeholder(shape=[None], dtype=dtypes.string),
+      placeholder_features = tf.compat.v1.io.parse_example(
+          serialized=tf.compat.v1.placeholder(shape=[None], dtype=tf.dtypes.string),
           features=parsed_features)
-      embedded = feature_column.input_layer(
+      embedded = tf.compat.v1.feature_column.input_layer(
           features=placeholder_features,
           feature_columns=self._exogenous_feature_columns)
       return embedded.get_shape().as_list()[1:]
@@ -295,35 +296,35 @@ class TimeSeriesModel(object):
           raise ValueError(
               ("Features with unknown rank are not supported. Got shape {} for "
                "feature {}.").format(tensor.get_shape(), name))
-        tensor_shape_dynamic = array_ops.shape(tensor)
-        tensor = array_ops.reshape(
+        tensor_shape_dynamic = tf.compat.v1.shape(tensor)
+        tensor = tf.reshape(
             tensor,
-            array_ops.concat([[tensor_shape_dynamic[0]
+            tf.concat([[tensor_shape_dynamic[0]
                                * tensor_shape_dynamic[1]],
                               tensor_shape_dynamic[2:]], axis=0))
         # Avoid shape warnings when embedding "scalar" exogenous features (those
         # with only batch and window dimensions); input_from_feature_columns
         # expects input ranks to match the embedded rank.
-        if tensor.get_shape().ndims == 1 and tensor.dtype != dtypes.string:
+        if tensor.get_shape().ndims == 1 and tensor.dtype != tf.dtypes.string:
           exogenous_features_single_batch_dimension[name] = tensor[:, None]
         else:
           exogenous_features_single_batch_dimension[name] = tensor
       embedded_exogenous_features_single_batch_dimension = (
-          feature_column.input_layer(
+          tf.compat.v1.feature_column.input_layer(
               features=exogenous_features_single_batch_dimension,
               feature_columns=self._exogenous_feature_columns,
               trainable=True))
-      exogenous_regressors = array_ops.reshape(
+      exogenous_regressors = tf.reshape(
           embedded_exogenous_features_single_batch_dimension,
-          array_ops.concat(
+          tf.concat(
               [
-                  array_ops.shape(times), array_ops.shape(
+                  tf.compat.v1.shape(times), tf.compat.v1.shape(
                       embedded_exogenous_features_single_batch_dimension)[1:]
               ],
               axis=0))
       exogenous_regressors.set_shape(times.get_shape().concatenate(
           embedded_exogenous_features_single_batch_dimension.get_shape()[1:]))
-      exogenous_regressors = math_ops.cast(
+      exogenous_regressors = tf.cast(
           exogenous_regressors, dtype=self.dtype)
     else:
       # Not having any exogenous features is a special case so that models can

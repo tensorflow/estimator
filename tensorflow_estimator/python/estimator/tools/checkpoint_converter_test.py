@@ -21,6 +21,7 @@ from __future__ import print_function
 import os
 import shutil
 
+import tensorflow as tf
 import numpy as np
 
 from tensorflow.python.feature_column import feature_column
@@ -37,7 +38,7 @@ from tensorflow_estimator.python.estimator.inputs import numpy_io
 from tensorflow_estimator.python.estimator.tools import checkpoint_converter
 
 
-class DNNCheckpointConverterTest(test.TestCase):
+class DNNCheckpointConverterTest(tf.test.TestCase):
 
   def setUp(self):
     self._old_ckpt_dir = os.path.join(self.get_temp_dir(), 'source_ckpt')
@@ -45,10 +46,10 @@ class DNNCheckpointConverterTest(test.TestCase):
 
   def tearDown(self):
     if os.path.exists(self._old_ckpt_dir):
-      writer_cache.FileWriterCache.clear()
+      tf.compat.v1.summary.FileWriterCache.clear()
       shutil.rmtree(self._old_ckpt_dir)
     if os.path.exists(self._new_ckpt_dir):
-      writer_cache.FileWriterCache.clear()
+      tf.compat.v1.summary.FileWriterCache.clear()
       shutil.rmtree(self._new_ckpt_dir)
 
   def _test_ckpt_converter(self, train_input_fn, eval_input_fn,
@@ -81,7 +82,7 @@ class DNNCheckpointConverterTest(test.TestCase):
 
     # Create CannedEstimator V2 and restore from the converted checkpoint.
     feature_columns_v2 = [
-        feature_column_v2.numeric_column('x', shape=(input_dimension,))
+        tf.feature_column.numeric_column('x', shape=(input_dimension,))
     ]
     est_v2 = dnn.DNNEstimatorV2(
         head=regression_head.RegressionHead(label_dimension=label_dimension),
@@ -97,7 +98,7 @@ class DNNCheckpointConverterTest(test.TestCase):
     # Make sure estimator v2 restores from the converted checkpoint, and
     # continues training extra steps.
     self.assertEqual(num_steps + extra_steps,
-                     est_v2.get_variable_value(ops.GraphKeys.GLOBAL_STEP))
+                     est_v2.get_variable_value(tf.compat.v1.GraphKeys.GLOBAL_STEP))
 
   def _create_input_fn(self, label_dimension, batch_size):
     """Creates input_fn for integration test."""
@@ -154,7 +155,7 @@ class DNNCheckpointConverterTest(test.TestCase):
     self._test_ckpt_converter_with_an_optimizer('SGD')
 
 
-class LinearCheckpointConverterTest(test.TestCase):
+class LinearCheckpointConverterTest(tf.test.TestCase):
 
   def setUp(self):
     self._old_ckpt_dir = os.path.join(self.get_temp_dir(), 'source_ckpt')
@@ -162,10 +163,10 @@ class LinearCheckpointConverterTest(test.TestCase):
 
   def tearDown(self):
     if os.path.exists(self._old_ckpt_dir):
-      writer_cache.FileWriterCache.clear()
+      tf.compat.v1.summary.FileWriterCache.clear()
       shutil.rmtree(self._old_ckpt_dir)
     if os.path.exists(self._new_ckpt_dir):
-      writer_cache.FileWriterCache.clear()
+      tf.compat.v1.summary.FileWriterCache.clear()
       shutil.rmtree(self._new_ckpt_dir)
 
   def _test_ckpt_converter(self, train_input_fn, eval_input_fn,
@@ -197,7 +198,7 @@ class LinearCheckpointConverterTest(test.TestCase):
 
     # Create CannedEstimator V2 and restore from the converted checkpoint.
     feature_columns_v2 = [
-        feature_column_v2.numeric_column('x', shape=(input_dimension,))
+        tf.feature_column.numeric_column('x', shape=(input_dimension,))
     ]
     est_v2 = linear.LinearEstimatorV2(
         head=regression_head.RegressionHead(label_dimension=label_dimension),
@@ -212,7 +213,7 @@ class LinearCheckpointConverterTest(test.TestCase):
     # Make sure estimator v2 restores from the converted checkpoint, and
     # continues training extra steps.
     self.assertEqual(num_steps + extra_steps,
-                     est_v2.get_variable_value(ops.GraphKeys.GLOBAL_STEP))
+                     est_v2.get_variable_value(tf.compat.v1.GraphKeys.GLOBAL_STEP))
 
   def _create_input_fn(self, label_dimension, batch_size):
     """Creates input_fn for integration test."""
@@ -269,7 +270,7 @@ class LinearCheckpointConverterTest(test.TestCase):
     self._test_ckpt_converter_with_an_optimizer('SGD')
 
 
-class DNNLinearCombinedCheckpointConverterTest(test.TestCase):
+class DNNLinearCombinedCheckpointConverterTest(tf.test.TestCase):
 
   def setUp(self):
     self._old_ckpt_dir = os.path.join(self.get_temp_dir(), 'source_ckpt')
@@ -277,10 +278,10 @@ class DNNLinearCombinedCheckpointConverterTest(test.TestCase):
 
   def tearDown(self):
     if os.path.exists(self._old_ckpt_dir):
-      writer_cache.FileWriterCache.clear()
+      tf.compat.v1.summary.FileWriterCache.clear()
       shutil.rmtree(self._old_ckpt_dir)
     if os.path.exists(self._new_ckpt_dir):
-      writer_cache.FileWriterCache.clear()
+      tf.compat.v1.summary.FileWriterCache.clear()
       shutil.rmtree(self._new_ckpt_dir)
 
   def _test_ckpt_converter(self, train_input_fn, eval_input_fn,
@@ -317,10 +318,10 @@ class DNNLinearCombinedCheckpointConverterTest(test.TestCase):
 
     # Create CannedEstimator V2 and restore from the converted checkpoint.
     linear_feature_columns_v2 = [
-        feature_column_v2.numeric_column('x', shape=(input_dimension,))
+        tf.feature_column.numeric_column('x', shape=(input_dimension,))
     ]
     dnn_feature_columns_v2 = [
-        feature_column_v2.numeric_column('x', shape=(input_dimension,))
+        tf.feature_column.numeric_column('x', shape=(input_dimension,))
     ]
     est_v2 = dnn_linear_combined.DNNLinearCombinedEstimatorV2(
         head=regression_head.RegressionHead(label_dimension=label_dimension),
@@ -338,7 +339,7 @@ class DNNLinearCombinedCheckpointConverterTest(test.TestCase):
     # Make sure estimator v2 restores from the converted checkpoint, and
     # continues training extra steps.
     self.assertEqual(num_steps + extra_steps,
-                     est_v2.get_variable_value(ops.GraphKeys.GLOBAL_STEP))
+                     est_v2.get_variable_value(tf.compat.v1.GraphKeys.GLOBAL_STEP))
 
   def _create_input_fn(self, label_dimension, batch_size):
     """Creates input_fn for integration test."""
@@ -397,4 +398,4 @@ class DNNLinearCombinedCheckpointConverterTest(test.TestCase):
 
 
 if __name__ == '__main__':
-  test.main()
+  tf.test.main()

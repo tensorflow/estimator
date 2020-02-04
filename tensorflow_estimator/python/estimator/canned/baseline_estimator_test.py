@@ -22,6 +22,7 @@ import os
 import shutil
 import tempfile
 
+import tensorflow as tf
 import numpy as np
 import six
 
@@ -54,9 +55,9 @@ def assert_close(expected, actual, rtol=1e-04, name='assert_close'):
   with ops.name_scope(name, 'assert_close', (expected, actual, rtol)) as scope:
     expected = ops.convert_to_tensor(expected, name='expected')
     actual = ops.convert_to_tensor(actual, name='actual')
-    rdiff = math_ops.abs(expected - actual, 'diff') / math_ops.abs(expected)
+    rdiff = tf.math.abs(expected - actual, 'diff') / tf.math.abs(expected)
     rtol = ops.convert_to_tensor(rtol, name='rtol')
-    return check_ops.assert_less(
+    return tf.compat.v1.debugging.assert_less(
         rdiff,
         rtol,
         data=('Condition expected =~ actual did not hold element-wise:'
@@ -66,10 +67,10 @@ def assert_close(expected, actual, rtol=1e-04, name='assert_close'):
 
 
 def save_variables_to_ckpt(model_dir):
-  init_all_op = [variables.global_variables_initializer()]
-  with tf_session.Session() as sess:
+  init_all_op = [tf.compat.v1.initializers.global_variables()]
+  with tf.compat.v1.Session() as sess:
     sess.run(init_all_op)
-    saver.Saver().save(sess, os.path.join(model_dir, 'model.ckpt'))
+    tf.compat.v1.train.Saver().save(sess, os.path.join(model_dir, 'model.ckpt'))
 
 
 def _baseline_estimator_fn(weight_column=None,
@@ -107,15 +108,15 @@ def mock_optimizer_v2(testcase, expected_loss=None):
       if expected_loss is None:
         if self.iterations is not None:
           return [self.iterations.assign_add(1).op]
-        return [control_flow_ops.no_op()]
+        return [tf.no_op()]
       assert_loss = assert_close(
-          math_ops.cast(expected_loss, name='expected', dtype=dtypes.float32),
+          tf.cast(expected_loss, name='expected', dtype=tf.dtypes.float32),
           loss,
           name='assert_loss')
-      with ops.control_dependencies((assert_loss,)):
+      with tf.control_dependencies((assert_loss,)):
         if self.iterations is not None:
           return [self.iterations.assign_add(1).op]
-        return [control_flow_ops.no_op()]
+        return [tf.no_op()]
 
     def get_config(self):
       config = super(_Optimizer, self).get_config()
@@ -126,22 +127,22 @@ def mock_optimizer_v2(testcase, expected_loss=None):
   return optimizer
 
 
-class BaselineEstimatorEvaluationTest(test.TestCase):
+class BaselineEstimatorEvaluationTest(tf.test.TestCase):
 
   def setUp(self):
     self._model_dir = tempfile.mkdtemp()
 
   def tearDown(self):
     if self._model_dir:
-      writer_cache.FileWriterCache.clear()
+      tf.compat.v1.summary.FileWriterCache.clear()
       shutil.rmtree(self._model_dir)
 
   def test_evaluation_batch(self):
     """Tests evaluation for batch_size==2."""
-    with ops.Graph().as_default():
-      variables.Variable([13.0], name=BIAS_NAME)
-      variables.Variable(
-          100, name=ops.GraphKeys.GLOBAL_STEP, dtype=dtypes.int64)
+    with tf.Graph().as_default():
+      tf.Variable([13.0], name=BIAS_NAME)
+      tf.Variable(
+          100, name=tf.compat.v1.GraphKeys.GLOBAL_STEP, dtype=tf.dtypes.int64)
       save_variables_to_ckpt(self._model_dir)
 
     baseline_estimator = _baseline_estimator_fn(model_dir=self._model_dir)
@@ -157,15 +158,15 @@ class BaselineEstimatorEvaluationTest(test.TestCase):
         metric_keys.MetricKeys.LOSS_MEAN: 9.,
         metric_keys.MetricKeys.PREDICTION_MEAN: 13.,
         metric_keys.MetricKeys.LABEL_MEAN: 10.,
-        ops.GraphKeys.GLOBAL_STEP: 100
+        tf.compat.v1.GraphKeys.GLOBAL_STEP: 100
     }, eval_metrics)
 
   def test_evaluation_weights(self):
     """Tests evaluation with weights."""
-    with ops.Graph().as_default():
-      variables.Variable([13.0], name=BIAS_NAME)
-      variables.Variable(
-          100, name=ops.GraphKeys.GLOBAL_STEP, dtype=dtypes.int64)
+    with tf.Graph().as_default():
+      tf.Variable([13.0], name=BIAS_NAME)
+      tf.Variable(
+          100, name=tf.compat.v1.GraphKeys.GLOBAL_STEP, dtype=tf.dtypes.int64)
       save_variables_to_ckpt(self._model_dir)
 
     def _input_fn():
@@ -187,14 +188,14 @@ class BaselineEstimatorEvaluationTest(test.TestCase):
         metric_keys.MetricKeys.LOSS_MEAN: 9.,
         metric_keys.MetricKeys.PREDICTION_MEAN: 13.,
         metric_keys.MetricKeys.LABEL_MEAN: 10.,
-        ops.GraphKeys.GLOBAL_STEP: 100
+        tf.compat.v1.GraphKeys.GLOBAL_STEP: 100
     }, eval_metrics)
 
   def test_evaluation_for_multi_dimensions(self):
     label_dim = 2
-    with ops.Graph().as_default():
-      variables.Variable([46.0, 58.0], name=BIAS_NAME)
-      variables.Variable(100, name='global_step', dtype=dtypes.int64)
+    with tf.Graph().as_default():
+      tf.Variable([46.0, 58.0], name=BIAS_NAME)
+      tf.Variable(100, name='global_step', dtype=tf.dtypes.int64)
       save_variables_to_ckpt(self._model_dir)
 
     baseline_estimator = _baseline_estimator_fn(
@@ -213,28 +214,28 @@ class BaselineEstimatorEvaluationTest(test.TestCase):
     self.assertItemsEqual(
         (metric_keys.MetricKeys.LOSS, metric_keys.MetricKeys.LOSS_MEAN,
          metric_keys.MetricKeys.PREDICTION_MEAN,
-         metric_keys.MetricKeys.LABEL_MEAN, ops.GraphKeys.GLOBAL_STEP),
+         metric_keys.MetricKeys.LABEL_MEAN, tf.compat.v1.GraphKeys.GLOBAL_STEP),
         eval_metrics.keys())
 
     # Logit is bias which is [46, 58]
     self.assertAlmostEqual(0, eval_metrics[metric_keys.MetricKeys.LOSS])
 
 
-class BaselineEstimatorPredictTest(test.TestCase):
+class BaselineEstimatorPredictTest(tf.test.TestCase):
 
   def setUp(self):
     self._model_dir = tempfile.mkdtemp()
 
   def tearDown(self):
     if self._model_dir:
-      writer_cache.FileWriterCache.clear()
+      tf.compat.v1.summary.FileWriterCache.clear()
       shutil.rmtree(self._model_dir)
 
   def test_1d(self):
     """Tests predict when all variables are one-dimensional."""
-    with ops.Graph().as_default():
-      variables.Variable([.2], name=BIAS_NAME)
-      variables.Variable(100, name='global_step', dtype=dtypes.int64)
+    with tf.Graph().as_default():
+      tf.Variable([.2], name=BIAS_NAME)
+      tf.Variable(100, name='global_step', dtype=tf.dtypes.int64)
       save_variables_to_ckpt(self._model_dir)
 
     baseline_estimator = _baseline_estimator_fn(model_dir=self._model_dir)
@@ -254,10 +255,10 @@ class BaselineEstimatorPredictTest(test.TestCase):
     """Tests predict when all variables are multi-dimenstional."""
     batch_size = 2
     label_dimension = 3
-    with ops.Graph().as_default():
-      variables.Variable(  # shape=[label_dimension]
+    with tf.Graph().as_default():
+      tf.Variable(  # shape=[label_dimension]
           [.2, .4, .6], name=BIAS_NAME)
-      variables.Variable(100, name='global_step', dtype=dtypes.int64)
+      tf.Variable(100, name='global_step', dtype=tf.dtypes.int64)
       save_variables_to_ckpt(self._model_dir)
 
     baseline_estimator = _baseline_estimator_fn(
@@ -278,20 +279,20 @@ class BaselineEstimatorPredictTest(test.TestCase):
                         predicted_scores)
 
 
-class BaselineEstimatorIntegrationTest(test.TestCase):
+class BaselineEstimatorIntegrationTest(tf.test.TestCase):
 
   def setUp(self):
     self._model_dir = tempfile.mkdtemp()
 
   def tearDown(self):
     if self._model_dir:
-      writer_cache.FileWriterCache.clear()
+      tf.compat.v1.summary.FileWriterCache.clear()
       shutil.rmtree(self._model_dir)
 
   def _test_complete_flow(self, train_input_fn, eval_input_fn, predict_input_fn,
                           input_dimension, label_dimension, prediction_length):
     feature_columns = [
-        feature_column_lib.numeric_column('x', shape=(input_dimension,))
+        tf.feature_column.numeric_column('x', shape=(input_dimension,))
     ]
     est = _baseline_estimator_fn(
         label_dimension=label_dimension,
@@ -303,7 +304,7 @@ class BaselineEstimatorIntegrationTest(test.TestCase):
 
     # EVALUTE
     scores = est.evaluate(eval_input_fn)
-    self.assertEqual(200, scores[ops.GraphKeys.GLOBAL_STEP])
+    self.assertEqual(200, scores[tf.compat.v1.GraphKeys.GLOBAL_STEP])
     self.assertIn(metric_keys.MetricKeys.LOSS, six.iterkeys(scores))
 
     # PREDICT
@@ -312,13 +313,13 @@ class BaselineEstimatorIntegrationTest(test.TestCase):
     self.assertAllEqual((prediction_length, label_dimension), predictions.shape)
 
     # EXPORT
-    feature_spec = feature_column_lib.make_parse_example_spec_v2(
+    feature_spec = tf.feature_column.make_parse_example_spec(
         feature_columns)
     serving_input_receiver_fn = export.build_parsing_serving_input_receiver_fn(
         feature_spec)
     export_dir = est.export_saved_model(tempfile.mkdtemp(),
                                         serving_input_receiver_fn)
-    self.assertTrue(gfile.Exists(export_dir))
+    self.assertTrue(tf.compat.v1.gfile.Exists(export_dir))
 
   def test_numpy_input_fn(self):
     """Tests complete flow with numpy_input_fn."""
@@ -357,14 +358,14 @@ class BaselineEstimatorIntegrationTest(test.TestCase):
         prediction_length=prediction_length)
 
 
-class BaselineEstimatorTrainingTest(test.TestCase):
+class BaselineEstimatorTrainingTest(tf.test.TestCase):
 
   def setUp(self):
     self._model_dir = tempfile.mkdtemp()
 
   def tearDown(self):
     if self._model_dir:
-      writer_cache.FileWriterCache.clear()
+      tf.compat.v1.summary.FileWriterCache.clear()
       shutil.rmtree(self._model_dir)
 
   def _assert_checkpoint(self,
@@ -373,18 +374,18 @@ class BaselineEstimatorTrainingTest(test.TestCase):
                          expected_bias=None):
     shapes = {
         name: shape
-        for (name, shape) in checkpoint_utils.list_variables(self._model_dir)
+        for (name, shape) in tf.train.list_variables(self._model_dir)
     }
 
-    self.assertEqual([], shapes[ops.GraphKeys.GLOBAL_STEP])
+    self.assertEqual([], shapes[tf.compat.v1.GraphKeys.GLOBAL_STEP])
     self.assertEqual(expected_global_step,
-                     checkpoint_utils.load_variable(self._model_dir,
-                                                    ops.GraphKeys.GLOBAL_STEP))
+                     tf.train.load_variable(self._model_dir,
+                                                    tf.compat.v1.GraphKeys.GLOBAL_STEP))
 
     self.assertEqual([label_dimension], shapes[BIAS_NAME])
     if expected_bias is not None:
       self.assertEqual(expected_bias,
-                       checkpoint_utils.load_variable(self._model_dir,
+                       tf.train.load_variable(self._model_dir,
                                                       BIAS_NAME))
 
   def testFromScratch(self):
@@ -413,12 +414,12 @@ class BaselineEstimatorTrainingTest(test.TestCase):
     # Create initial checkpoint.
     bias = 7.0
     initial_global_step = 100
-    with ops.Graph().as_default():
-      variables.Variable([bias], name=BIAS_NAME)
-      variables.Variable(
+    with tf.Graph().as_default():
+      tf.Variable([bias], name=BIAS_NAME)
+      tf.Variable(
           initial_global_step,
-          name=ops.GraphKeys.GLOBAL_STEP,
-          dtype=dtypes.int64)
+          name=tf.compat.v1.GraphKeys.GLOBAL_STEP,
+          dtype=tf.dtypes.int64)
       save_variables_to_ckpt(self._model_dir)
 
     # logits = bias = 6.
@@ -442,4 +443,4 @@ class BaselineEstimatorTrainingTest(test.TestCase):
 
 
 if __name__ == '__main__':
-  test.main()
+  tf.test.main()

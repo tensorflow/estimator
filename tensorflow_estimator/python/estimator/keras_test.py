@@ -22,6 +22,7 @@ import math
 import os
 import tempfile
 
+import tensorflow as tf
 from absl.testing import parameterized
 import numpy as np
 
@@ -113,7 +114,7 @@ def simple_subclassed_model():
 
 def gen_input_fn(x, y=None, batch_size=128, num_epochs=1, shuffle=False):
   def input_fn():
-    ds = dataset_ops.Dataset.from_tensor_slices((x, y) if y is not None else x)
+    ds = tf.compat.v1.data.Dataset.from_tensor_slices((x, y) if y is not None else x)
     if shuffle:
       ds = ds.shuffle(1000)
     return ds.repeat(num_epochs).batch(batch_size)
@@ -245,26 +246,26 @@ def multi_inputs_multi_outputs_model():
   return model
 
 
-class MyHook(session_run_hook.SessionRunHook):
+class MyHook(tf.compat.v1.train.SessionRunHook):
 
   def begin(self):
-    _ = variable_scope.get_variable('temp', [1])
+    _ = tf.compat.v1.get_variable('temp', [1])
 
 
-class TestKerasEstimator(test_util.TensorFlowTestCase, parameterized.TestCase):
+class TestKerasEstimator(tf.test.TestCase, parameterized.TestCase):
 
   def setUp(self):
     self._base_dir = os.path.join(self.get_temp_dir(), 'keras_estimator_test')
-    gfile.MakeDirs(self._base_dir)
+    tf.compat.v1.gfile.MakeDirs(self._base_dir)
     self._config = run_config_lib.RunConfig(
         tf_random_seed=_RANDOM_SEED, model_dir=self._base_dir)
     super(TestKerasEstimator, self).setUp()
 
   def tearDown(self):
     # Make sure nothing is stuck in limbo.
-    writer_cache.FileWriterCache.clear()
+    tf.compat.v1.summary.FileWriterCache.clear()
     if os.path.isdir(self._base_dir):
-      gfile.DeleteRecursively(self._base_dir)
+      tf.compat.v1.gfile.DeleteRecursively(self._base_dir)
     keras.backend.clear_session()
     super(TestKerasEstimator, self).tearDown()
 
@@ -302,7 +303,7 @@ class TestKerasEstimator(test_util.TensorFlowTestCase, parameterized.TestCase):
     tf_optimizer = False
     if optimizer == 'tf_rmsprop':
       tf_optimizer = True
-      optimizer = rmsprop.RMSPropOptimizer(1e-3)
+      optimizer = tf.compat.v1.train.RMSPropOptimizer(1e-3)
 
     keras_model, (x_train, y_train), (_, _), train_input_fn, eval_input_fn = (
         get_resource_for_simple_model(model_type=model_type, is_evaluate=True))
@@ -326,7 +327,7 @@ class TestKerasEstimator(test_util.TensorFlowTestCase, parameterized.TestCase):
     self.assertLess(after_eval_results['loss'], before_eval_results['loss'])
 
     if checkpoint_format == 'object' and tf_optimizer:
-      latest_checkpoint = checkpoint_management.latest_checkpoint(
+      latest_checkpoint = tf.train.latest_checkpoint(
           est_keras.model_dir)
       keras_model.load_weights(latest_checkpoint)
 
@@ -343,14 +344,14 @@ class TestKerasEstimator(test_util.TensorFlowTestCase, parameterized.TestCase):
     input_features = dict()
     for feature_name, data_array in feature_dict.items():
       feature_columns.append(
-          feature_column.indicator_column(
-              feature_column.categorical_column_with_identity(
+          tf.feature_column.indicator_column(
+              tf.feature_column.categorical_column_with_identity(
                   key=feature_name,
                   num_buckets=np.size(np.unique(data_array)))))
       input_features[feature_name] = keras.layers.Input(
           name=feature_name,
           shape=(np.size(np.unique(data_array)),),
-          dtype=dtypes.int64)
+          dtype=tf.dtypes.int64)
 
     x = dense_features.DenseFeatures(feature_columns)(input_features)
     x = keras.layers.Dense(16, activation='relu')(x)
@@ -376,14 +377,14 @@ class TestKerasEstimator(test_util.TensorFlowTestCase, parameterized.TestCase):
     input_features = dict()
     for feature_name, data_array in feature_dict.items():
       feature_columns.append(
-          feature_column.embedding_column(
-              feature_column.categorical_column_with_identity(
+          tf.feature_column.embedding_column(
+              tf.feature_column.categorical_column_with_identity(
                   key=feature_name, num_buckets=np.size(np.unique(data_array))),
               dimension=3))
       input_features[feature_name] = keras.layers.Input(
           name=feature_name,
           shape=(np.size(np.unique(data_array)),),
-          dtype=dtypes.int64)
+          dtype=tf.dtypes.int64)
 
     df = dense_features.DenseFeatures(feature_columns)
     x = df(input_features)
@@ -417,14 +418,14 @@ class TestKerasEstimator(test_util.TensorFlowTestCase, parameterized.TestCase):
     input_features = dict()
     for feature_name, data_array in feature_dict.items():
       feature_columns.append(
-          feature_column.embedding_column(
-              feature_column.categorical_column_with_identity(
+          tf.feature_column.embedding_column(
+              tf.feature_column.categorical_column_with_identity(
                   key=feature_name, num_buckets=np.size(np.unique(data_array))),
               dimension=3))
       input_features[feature_name] = keras.layers.Input(
           name=feature_name,
           shape=(np.size(np.unique(data_array)),),
-          dtype=dtypes.int64)
+          dtype=tf.dtypes.int64)
 
     df = dense_features_v2.DenseFeatures(feature_columns)
     x = df(input_features)
@@ -697,13 +698,13 @@ class TestKerasEstimator(test_util.TensorFlowTestCase, parameterized.TestCase):
             'index': 0
         }
     })
-    with test.mock.patch.dict('os.environ', {'TF_CONFIG': tf_config}):
+    with tf.compat.v1.test.mock.patch.dict('os.environ', {'TF_CONFIG': tf_config}):
       keras_lib.model_to_estimator(
           keras_model=keras_model,
           model_dir=tempfile.mkdtemp(dir=self._base_dir))
 
   def test_gpu_config(self):
-    with ops.Graph().as_default():
+    with tf.Graph().as_default():
       keras_model, (_, _), (_, _), _, _ = get_resource_for_simple_model()
       keras_model.compile(
           loss='categorical_crossentropy',
@@ -756,7 +757,7 @@ class TestKerasEstimator(test_util.TensorFlowTestCase, parameterized.TestCase):
         optimizer='rmsprop',
         metrics=['mse', keras.metrics.CategoricalAccuracy()])
 
-    with test.mock.patch.object(tempfile, 'mkdtemp', return_value=_TMP_DIR):
+    with tf.compat.v1.test.mock.patch.object(tempfile, 'mkdtemp', return_value=_TMP_DIR):
       est_keras = keras_lib.model_to_estimator(
           keras_model=keras_model, config=run_config_lib.RunConfig())
       self.assertEqual(est_keras._model_dir, _TMP_DIR)
@@ -781,7 +782,7 @@ class TestKerasEstimator(test_util.TensorFlowTestCase, parameterized.TestCase):
     keras_model, (_, _), (_, _), _, _ = get_resource_for_simple_model()
     keras_model.compile(
         loss='categorical_crossentropy',
-        optimizer=rmsprop.RMSPropOptimizer(1e-3),
+        optimizer=tf.compat.v1.train.RMSPropOptimizer(1e-3),
         metrics=['mse', keras.metrics.CategoricalAccuracy()])
     keras_model.train_on_batch(
         np.random.random((10,) + _INPUT_SIZE),
@@ -790,7 +791,7 @@ class TestKerasEstimator(test_util.TensorFlowTestCase, parameterized.TestCase):
     keras_model, (_, _), (_, _), _, _ = get_resource_for_simple_model()
     keras_model.set_weights(weights)
 
-    if context.executing_eagerly():
+    if tf.executing_eagerly():
       sgd_optimizer = optimizer_v2.SGD(lr=0.0001, momentum=0.9)
     else:
       sgd_optimizer = optimizer_v1.SGD(lr=0.0001, momentum=0.9)
@@ -809,12 +810,12 @@ class TestKerasEstimator(test_util.TensorFlowTestCase, parameterized.TestCase):
         metrics=['mse', keras.metrics.CategoricalAccuracy()])
     with self.cached_session() as sess:
       keras_model_fn = keras_lib._create_keras_model_fn(keras_model)
-      global_step = training_util.create_global_step()
+      global_step = tf.compat.v1.train.create_global_step()
       features, labels = train_input_fn().make_one_shot_iterator().get_next()
       spec = keras_model_fn(features, labels, mode=ModeKeys.TRAIN)
 
-      sess.run(variables.global_variables_initializer())
-      sess.run(variables.local_variables_initializer())
+      sess.run(tf.compat.v1.initializers.global_variables())
+      sess.run(tf.compat.v1.initializers.local_variables())
 
       self.assertEqual(global_step.eval(), 0)  # Sanity check
       sess.run(spec.train_op)
@@ -822,7 +823,7 @@ class TestKerasEstimator(test_util.TensorFlowTestCase, parameterized.TestCase):
 
   @test_util.run_v1_only('training_util.create_global_step is v1 only.')
   def test_model_fn_increments_global_step_tf_optimizer(self):
-    self.assert_increasing_global_step(rmsprop.RMSPropOptimizer(1e-3))
+    self.assert_increasing_global_step(tf.compat.v1.train.RMSPropOptimizer(1e-3))
 
   @test_util.run_v1_only('training_util.create_global_step is v1 only.')
   def test_model_fn_increments_global_step_keras_optimizer(self):
@@ -850,8 +851,8 @@ class TestKerasEstimator(test_util.TensorFlowTestCase, parameterized.TestCase):
 
     def serving_input_receiver_fn():
       feature_spec = {
-          'dense_input': parsing_ops.FixedLenFeature([1],
-                                                     dtype=dtypes.float32)}
+          'dense_input': tf.io.FixedLenFeature([1],
+                                                     dtype=tf.dtypes.float32)}
       return export_lib.build_parsing_serving_input_receiver_fn(feature_spec)
 
     # Try immediately exporting, testing that (1) exported values are the same,
@@ -867,7 +868,7 @@ class TestKerasEstimator(test_util.TensorFlowTestCase, parameterized.TestCase):
       variable_name = names_to_keys[variable_name]
 
     self.assertAllClose(
-        bias_value, training.load_variable(variables_path, variable_name))
+        bias_value, tf.train.load_variable(variables_path, variable_name))
 
     # Export the estimator after training a bit.
     est_keras.train(input_fn=train_input_fn, steps=_TRAIN_SIZE / 16)
@@ -875,14 +876,14 @@ class TestKerasEstimator(test_util.TensorFlowTestCase, parameterized.TestCase):
         tempfile.mkdtemp(dir=self._base_dir), serving_input_receiver_fn())
     variables_path = saved_model_utils.get_variables_path(saved_model_dir)
     self.assertNotAllClose(
-        bias_value, training.load_variable(variables_path, variable_name))
+        bias_value, tf.train.load_variable(variables_path, variable_name))
 
   def test_export_subclassed_model_retains_model_state(self):
     keras_model, (x_train, y_train), (
         _, _), train_input_fn, eval_input_fn = get_resource_for_simple_model(
             model_type='subclass', is_evaluate=True)
     keras_model.compile(
-        optimizer=rmsprop.RMSPropOptimizer(1e-3),
+        optimizer=tf.compat.v1.train.RMSPropOptimizer(1e-3),
         loss='categorical_crossentropy',
         metrics=['accuracy'])
     keras_model.fit(x_train, y_train, epochs=1)
@@ -905,7 +906,7 @@ class TestKerasEstimator(test_util.TensorFlowTestCase, parameterized.TestCase):
         _, _), train_input_fn, eval_input_fn = get_resource_for_simple_model(
             model_type='functional', is_evaluate=True)
     keras_model.compile(
-        optimizer=rmsprop.RMSPropOptimizer(1e-3),
+        optimizer=tf.compat.v1.train.RMSPropOptimizer(1e-3),
         loss='categorical_crossentropy',
         metrics=['accuracy'])
     keras_model.fit(x_train, y_train, epochs=1)
@@ -939,12 +940,12 @@ class TestKerasEstimator(test_util.TensorFlowTestCase, parameterized.TestCase):
     targets = [[0], [1], [0], [1]]
 
     expected_loss = keras_model.test_on_batch(
-        array_ops.constant(features),
-        array_ops.constant(targets),
-        array_ops.constant(sample_weights))
+        tf.constant(features),
+        tf.constant(targets),
+        tf.constant(sample_weights))
 
     def input_fn():
-      dataset = dataset_ops.Dataset.from_tensors(
+      dataset = tf.compat.v1.data.Dataset.from_tensors(
           ({'features': features,
             'sample_weights': sample_weights},
            targets))
@@ -963,13 +964,13 @@ class TestKerasEstimator(test_util.TensorFlowTestCase, parameterized.TestCase):
         loss='mean_absolute_error',
         optimizer='adam')
     expected_loss = keras_model.test_on_batch(
-        array_ops.constant(features),
-        [array_ops.constant(targets), array_ops.constant(targets)],
-        [array_ops.constant(sample_weights),
-         array_ops.constant(sample_weights)])[0]
+        tf.constant(features),
+        [tf.constant(targets), tf.constant(targets)],
+        [tf.constant(sample_weights),
+         tf.constant(sample_weights)])[0]
 
     def input_fn_multiple_targets():
-      dataset = dataset_ops.Dataset.from_tensors(
+      dataset = tf.compat.v1.data.Dataset.from_tensors(
           (features, sample_weights, targets))
       dataset = dataset.map(
           lambda x, y, z: ({'features': x, 'sample_weights': (y, y)}, (z, z)))
@@ -1003,4 +1004,4 @@ class TestKerasEstimator(test_util.TensorFlowTestCase, parameterized.TestCase):
 
 
 if __name__ == '__main__':
-  test.main()
+  tf.test.main()

@@ -18,6 +18,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import tensorflow as tf
+
 from tensorflow.python.framework import constant_op
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
@@ -212,7 +214,7 @@ class ARModel(model.TimeSeriesModel):
 
   def initialize_graph(self, input_statistics=None):
     super(ARModel, self).initialize_graph(input_statistics=input_statistics)
-    self._model_scope = variable_scope.variable_scope(
+    self._model_scope = tf.compat.v1.variable_scope(
         # The trailing slash means we strip all enclosing variable_scopes, which
         # unfortunately is necessary because the model gets called inside and
         # outside a "while" scope (for prediction and training respectively),
@@ -227,10 +229,10 @@ class ARModel(model.TimeSeriesModel):
     # State which matches the format we'll return later. Typically this will not
     # be used by the model directly, but the shapes and dtypes should match so
     # that the serving input_receiver_fn gets placeholder shapes correct.
-    return (array_ops.zeros([self.input_window_size], dtype=dtypes.int64),
-            array_ops.zeros(
+    return (tf.zeros([self.input_window_size], dtype=tf.dtypes.int64),
+            tf.zeros(
                 [self.input_window_size, self.num_features], dtype=self.dtype),
-            array_ops.zeros(
+            tf.zeros(
                 [self.input_window_size, self.exogenous_size],
                 dtype=self.dtype))
 
@@ -252,15 +254,15 @@ class ARModel(model.TimeSeriesModel):
           name="log_sigma_square",
           activation=None)
       predicted_covariance = gen_math_ops.exp(log_sigma_square)
-      predicted_covariance = array_ops.reshape(
+      predicted_covariance = tf.reshape(
           predicted_covariance, [-1, self.output_window_size, num_values])
     else:
-      shape = array_ops.stack([
-          array_ops.shape(activation)[0],
-          constant_op.constant(self.output_window_size),
-          constant_op.constant(num_values)
+      shape = tf.stack([
+          tf.compat.v1.shape(activation)[0],
+          tf.constant(self.output_window_size),
+          tf.constant(num_values)
       ])
-      predicted_covariance = array_ops.ones(shape=shape, dtype=activation.dtype)
+      predicted_covariance = tf.ones(shape=shape, dtype=activation.dtype)
     return predicted_covariance
 
   def _predicted_mean_op(self, activations):
@@ -271,7 +273,7 @@ class ARModel(model.TimeSeriesModel):
         self.output_window_size * self.num_features,
         name="predicted_mean",
         activation=None)
-    return array_ops.reshape(predicted_mean,
+    return tf.reshape(predicted_mean,
                              [-1, self.output_window_size, self.num_features])
 
   def prediction_ops(self, times, values, exogenous_regressors):
@@ -292,7 +294,7 @@ class ARModel(model.TimeSeriesModel):
       self.num_features].
     """
     times.get_shape().assert_is_compatible_with([None, self.window_size])
-    batch_size = array_ops.shape(times)[0]
+    batch_size = tf.compat.v1.shape(times)[0]
     if self.input_window_size:
       values.get_shape().assert_is_compatible_with(
           [None, self.input_window_size, self.num_features])
@@ -307,12 +309,12 @@ class ARModel(model.TimeSeriesModel):
     if self._periodicities:
       _, time_features = self._compute_time_features(times)
       num_time_features = self._buckets * len(self._periodicities)
-      time_features = array_ops.reshape(
+      time_features = tf.reshape(
           time_features,
           [batch_size,
            self.window_size,
            num_time_features])
-      input_time_features, output_time_features = array_ops.split(
+      input_time_features, output_time_features = tf.split(
           time_features, (self.input_window_size, self.output_window_size),
           axis=1)
       input_feature_size += num_time_features
@@ -320,14 +322,14 @@ class ARModel(model.TimeSeriesModel):
       input_window_features.append(input_time_features)
       output_window_features.append(output_time_features)
     if self.input_window_size:
-      inp = array_ops.slice(values, [0, 0, 0], [-1, self.input_window_size, -1])
+      inp = tf.slice(values, [0, 0, 0], [-1, self.input_window_size, -1])
       input_window_features.append(
-          array_ops.reshape(
+          tf.reshape(
               inp,
               [batch_size, self.input_window_size, self.num_features]))
       input_feature_size += self.num_features
     if self.exogenous_size:
-      input_exogenous_features, output_exogenous_features = array_ops.split(
+      input_exogenous_features, output_exogenous_features = tf.split(
           exogenous_regressors,
           (self.input_window_size, self.output_window_size),
           axis=1)
@@ -336,11 +338,11 @@ class ARModel(model.TimeSeriesModel):
       input_window_features.append(input_exogenous_features)
       output_window_features.append(output_exogenous_features)
     assert input_window_features
-    input_window_features = array_ops.concat(input_window_features, axis=2)
+    input_window_features = tf.concat(input_window_features, axis=2)
     if output_window_features:
-      output_window_features = array_ops.concat(output_window_features, axis=2)
+      output_window_features = tf.concat(output_window_features, axis=2)
     else:
-      output_window_features = array_ops.zeros(
+      output_window_features = tf.zeros(
           [batch_size, self.output_window_size, 0],
           dtype=self.dtype)
     static_batch_size = times.get_shape().dims[0].value
@@ -366,14 +368,14 @@ class ARModel(model.TimeSeriesModel):
     prediction = prediction_ops["mean"]
     if self.loss == ARModel.NORMAL_LIKELIHOOD_LOSS:
       covariance = prediction_ops["covariance"]
-      sigma = math_ops.sqrt(gen_math_ops.maximum(covariance, 1e-5))
+      sigma = tf.math.sqrt(tf.math.maximum(covariance, 1e-5))
       normal = distributions.normal.Normal(loc=targets, scale=sigma)
-      loss_op = -math_ops.reduce_sum(normal.log_prob(prediction))
+      loss_op = -tf.math.reduce_sum(normal.log_prob(prediction))
     else:
       assert self.loss == ARModel.SQUARED_LOSS, self.loss
-      loss_op = math_ops.reduce_sum(math_ops.square(prediction - targets))
-    loss_op /= math_ops.cast(
-        math_ops.reduce_prod(array_ops.shape(targets)), loss_op.dtype)
+      loss_op = tf.math.reduce_sum(tf.math.square(prediction - targets))
+    loss_op /= tf.cast(
+        tf.math.reduce_prod(tf.compat.v1.shape(targets)), loss_op.dtype)
     return loss_op
 
   def _process_exogenous_features(self, times, features):
@@ -383,8 +385,8 @@ class ARModel(model.TimeSeriesModel):
       assert self.exogenous_size == 0
       # No embeddings. Return a zero-size [batch, times, 0] array so we don't
       # have to special case it downstream.
-      return array_ops.zeros(
-          array_ops.concat([array_ops.shape(times), constant_op.constant([0])],
+      return tf.zeros(
+          tf.concat([tf.compat.v1.shape(times), tf.constant([0])],
                            axis=0))
     else:
       return embedded
@@ -412,34 +414,34 @@ class ARModel(model.TimeSeriesModel):
     """
     if not self._graph_initialized:
       self.initialize_graph()
-    predict_times = math_ops.cast(
-        ops.convert_to_tensor(features[PredictionFeatures.TIMES]), dtypes.int32)
+    predict_times = tf.cast(
+        ops.convert_to_tensor(features[PredictionFeatures.TIMES]), tf.dtypes.int32)
     exogenous_regressors = self._process_exogenous_features(
         times=predict_times,
         features={key: value for key, value in features.items()
                   if key not in [TrainEvalFeatures.TIMES,
                                  TrainEvalFeatures.VALUES,
                                  PredictionFeatures.STATE_TUPLE]})
-    with ops.control_dependencies(
-        [check_ops.assert_equal(array_ops.shape(predict_times)[1],
-                                array_ops.shape(exogenous_regressors)[1])]):
-      exogenous_regressors = array_ops.identity(exogenous_regressors)
-    batch_size = array_ops.shape(predict_times)[0]
-    num_predict_values = array_ops.shape(predict_times)[1]
+    with tf.control_dependencies(
+        [tf.compat.v1.debugging.assert_equal(tf.compat.v1.shape(predict_times)[1],
+                                tf.compat.v1.shape(exogenous_regressors)[1])]):
+      exogenous_regressors = tf.identity(exogenous_regressors)
+    batch_size = tf.compat.v1.shape(predict_times)[0]
+    num_predict_values = tf.compat.v1.shape(predict_times)[1]
     prediction_iterations = ((num_predict_values + self.output_window_size - 1)
                              // self.output_window_size)
     # Pad predict_times and exogenous regressors so as to have exact multiple of
     # self.output_window_size values per example.
     padding_size = (prediction_iterations * self.output_window_size -
                     num_predict_values)
-    predict_times = array_ops.pad(
+    predict_times = tf.compat.v1.pad(
         predict_times, [[0, 0], [0, padding_size]])
-    exogenous_regressors = array_ops.pad(
+    exogenous_regressors = tf.compat.v1.pad(
         exogenous_regressors, [[0, 0], [0, padding_size], [0, 0]])
     state = features[PredictionFeatures.STATE_TUPLE]
     (state_times, state_values, state_exogenous_regressors) = state
-    state_times = math_ops.cast(
-        ops.convert_to_tensor(state_times), dtypes.int32)
+    state_times = tf.cast(
+        ops.convert_to_tensor(state_times), tf.dtypes.int32)
     state_values = ops.convert_to_tensor(state_values, dtype=self.dtype)
     state_exogenous_regressors = ops.convert_to_tensor(
         state_exogenous_regressors, dtype=self.dtype)
@@ -448,16 +450,16 @@ class ARModel(model.TimeSeriesModel):
     initial_input_exogenous_regressors = (
         exogenous_regressors[:, :self.output_window_size, :])
     if self.input_window_size > 0:
-      initial_input_times = array_ops.concat(
+      initial_input_times = tf.concat(
           [state_times[:, -self.input_window_size:], initial_input_times], 1)
-      values_size = array_ops.shape(state_values)[1]
-      times_size = array_ops.shape(state_times)[1]
-      with ops.control_dependencies([
-          check_ops.assert_greater_equal(values_size, self.input_window_size),
-          check_ops.assert_equal(values_size, times_size)
+      values_size = tf.compat.v1.shape(state_values)[1]
+      times_size = tf.compat.v1.shape(state_times)[1]
+      with tf.control_dependencies([
+          tf.compat.v1.debugging.assert_greater_equal(values_size, self.input_window_size),
+          tf.compat.v1.debugging.assert_equal(values_size, times_size)
       ]):
         initial_input_values = state_values[:, -self.input_window_size:, :]
-        initial_input_exogenous_regressors = array_ops.concat(
+        initial_input_exogenous_regressors = tf.concat(
             [state_exogenous_regressors[:, -self.input_window_size:, :],
              initial_input_exogenous_regressors[
                  :, :self.output_window_size, :]],
@@ -468,7 +470,7 @@ class ARModel(model.TimeSeriesModel):
     # Iterate over the predict_times, predicting self.output_window_size values
     # in each iteration.
     def _while_condition(iteration_number, *unused_args):
-      return math_ops.less(iteration_number, prediction_iterations)
+      return tf.math.less(iteration_number, prediction_iterations)
 
     def _while_body(iteration_number, input_times, input_values,
                     input_exogenous_regressors, mean_ta, covariance_ta):
@@ -477,18 +479,18 @@ class ARModel(model.TimeSeriesModel):
           input_times, input_values, input_exogenous_regressors)
       predicted_mean = prediction_ops["mean"]
       predicted_covariance = prediction_ops["covariance"]
-      offset = self.output_window_size * gen_math_ops.minimum(
+      offset = self.output_window_size * tf.math.minimum(
           iteration_number + 1, prediction_iterations - 1)
       if self.input_window_size > 0:
         if self.output_window_size < self.input_window_size:
-          new_input_values = array_ops.concat(
+          new_input_values = tf.concat(
               [input_values[:, self.output_window_size:, :], predicted_mean], 1)
-          new_input_exogenous_regressors = array_ops.concat(
+          new_input_exogenous_regressors = tf.concat(
               [input_exogenous_regressors[:, -self.input_window_size:, :],
                exogenous_regressors[
                    :, offset:offset + self.output_window_size, :]],
               axis=1)
-          new_input_times = array_ops.concat([
+          new_input_times = tf.concat([
               input_times[:, -self.input_window_size:],
               predict_times[:, offset:offset + self.output_window_size]
           ], 1)
@@ -511,7 +513,7 @@ class ARModel(model.TimeSeriesModel):
       new_input_exogenous_regressors.set_shape(
           initial_input_exogenous_regressors.get_shape())
       new_mean_ta = mean_ta.write(iteration_number, predicted_mean)
-      if isinstance(covariance_ta, tensor_array_ops.TensorArray):
+      if isinstance(covariance_ta, tf.TensorArray):
         new_covariance_ta = covariance_ta.write(iteration_number,
                                                 predicted_covariance)
       else:
@@ -525,12 +527,12 @@ class ARModel(model.TimeSeriesModel):
 
     # Note that control_flow_ops.while_loop doesn't seem happy with None. Hence
     # using 0 for cases where we don't want to predict covariance.
-    covariance_ta_init = (tensor_array_ops.TensorArray(
+    covariance_ta_init = (tf.TensorArray(
         dtype=self.dtype, size=prediction_iterations)
                           if self.loss != ARModel.SQUARED_LOSS else 0.)
-    mean_ta_init = tensor_array_ops.TensorArray(
+    mean_ta_init = tf.TensorArray(
         dtype=self.dtype, size=prediction_iterations)
-    _, _, _, _, mean_ta, covariance_ta = control_flow_ops.while_loop(
+    _, _, _, _, mean_ta, covariance_ta = tf.compat.v1.while_loop(
         _while_condition, _while_body, [
             0,
             initial_input_times,
@@ -543,23 +545,23 @@ class ARModel(model.TimeSeriesModel):
     def _parse_ta(values_ta):
       """Helper function to parse the returned TensorArrays."""
 
-      if not isinstance(values_ta, tensor_array_ops.TensorArray):
+      if not isinstance(values_ta, tf.TensorArray):
         return None
       predictions_length = prediction_iterations * self.output_window_size
       # Shape [prediction_iterations, batch_size, self.output_window_size,
       #        self.num_features]
       values_packed = values_ta.stack()
       # Transpose to move batch dimension outside.
-      output_values = array_ops.reshape(
-          array_ops.transpose(values_packed, [1, 0, 2, 3]),
-          array_ops.stack([batch_size, predictions_length, -1]))
+      output_values = tf.reshape(
+          tf.compat.v1.transpose(values_packed, [1, 0, 2, 3]),
+          tf.stack([batch_size, predictions_length, -1]))
       # Clip to desired size
       return output_values[:, :num_predict_values, :]
 
     predicted_mean = _parse_ta(mean_ta)
     predicted_covariance = _parse_ta(covariance_ta)
     if predicted_covariance is None:
-      predicted_covariance = array_ops.ones_like(predicted_mean)
+      predicted_covariance = tf.compat.v1.ones_like(predicted_mean)
 
     # Transform and scale the mean and covariance appropriately.
     predicted_mean = self._scale_back_data(predicted_mean)
@@ -570,9 +572,9 @@ class ARModel(model.TimeSeriesModel):
 
   def _process_window(self, features, mode, exogenous_regressors):
     """Compute model outputs on a single window of data."""
-    times = math_ops.cast(features[TrainEvalFeatures.TIMES], dtypes.int64)
-    values = math_ops.cast(features[TrainEvalFeatures.VALUES], dtype=self.dtype)
-    exogenous_regressors = math_ops.cast(exogenous_regressors, dtype=self.dtype)
+    times = tf.cast(features[TrainEvalFeatures.TIMES], tf.dtypes.int64)
+    values = tf.cast(features[TrainEvalFeatures.VALUES], dtype=self.dtype)
+    exogenous_regressors = tf.cast(exogenous_regressors, dtype=self.dtype)
     original_values = values
 
     # Extra shape checking for the window size (above that in
@@ -601,7 +603,7 @@ class ARModel(model.TimeSeriesModel):
         times, input_values, exogenous_regressors)
     prediction = prediction_ops["mean"]
     covariance = prediction_ops["covariance"]
-    targets = array_ops.slice(values, [0, self.input_window_size, 0],
+    targets = tf.slice(values, [0, self.input_window_size, 0],
                               [-1, -1, -1])
     targets.get_shape().assert_is_compatible_with(prediction.get_shape())
     if (mode == estimator_lib.ModeKeys.EVAL
@@ -687,7 +689,7 @@ class ARModel(model.TimeSeriesModel):
              "size, window size)).").format(
                  self.input_window_size, self.output_window_size,
                  times.get_shape(), TrainEvalFeatures.TIMES))
-      num_iterations = ((array_ops.shape(times)[1] -  self.input_window_size)
+      num_iterations = ((tf.compat.v1.shape(times)[1] -  self.input_window_size)
                         // self.output_window_size)
       output_size = num_iterations * self.output_window_size
       # Rather than dealing with overlapping windows of output, discard a bit at
@@ -726,15 +728,15 @@ class ARModel(model.TimeSeriesModel):
                     iteration_number, model_outputs.predictions["mean"]),
                 covariance_ta.write(
                     iteration_number, model_outputs.predictions["covariance"]))
-      _, loss_ta, mean_ta, covariance_ta = control_flow_ops.while_loop(
+      _, loss_ta, mean_ta, covariance_ta = tf.compat.v1.while_loop(
           _while_condition, _while_body,
           [0,
-           tensor_array_ops.TensorArray(dtype=self.dtype, size=num_iterations),
-           tensor_array_ops.TensorArray(dtype=self.dtype, size=num_iterations),
-           tensor_array_ops.TensorArray(dtype=self.dtype, size=num_iterations)])
-      values = math_ops.cast(features[TrainEvalFeatures.VALUES],
+           tf.TensorArray(dtype=self.dtype, size=num_iterations),
+           tf.TensorArray(dtype=self.dtype, size=num_iterations),
+           tf.TensorArray(dtype=self.dtype, size=num_iterations)])
+      values = tf.cast(features[TrainEvalFeatures.VALUES],
                              dtype=self.dtype)
-      batch_size = array_ops.shape(times)[0]
+      batch_size = tf.compat.v1.shape(times)[0]
       prediction_shape = [batch_size, self.output_window_size * num_iterations,
                           self.num_features]
       (previous_state_times,
@@ -744,17 +746,17 @@ class ARModel(model.TimeSeriesModel):
       # even if we were passed fewer than self.input_window_size points this
       # time.
       if self.input_window_size > 0:
-        new_state_times = array_ops.concat(
+        new_state_times = tf.concat(
             [previous_state_times,
-             math_ops.cast(times, dtype=dtypes.int64)],
+             tf.cast(times, dtype=tf.dtypes.int64)],
             axis=1)[:, -self.input_window_size:]
         new_state_times.set_shape((None, self.input_window_size))
-        new_state_values = array_ops.concat(
+        new_state_values = tf.concat(
             [previous_state_values,
              self._scale_data(values)], axis=1)[:, -self.input_window_size:, :]
         new_state_values.set_shape((None, self.input_window_size,
                                     self.num_features))
-        new_exogenous_regressors = array_ops.concat(
+        new_exogenous_regressors = tf.concat(
             [previous_state_exogenous_regressors,
              exogenous_regressors], axis=1)[:, -self.input_window_size:, :]
         new_exogenous_regressors.set_shape(
@@ -768,16 +770,16 @@ class ARModel(model.TimeSeriesModel):
         new_state_values = previous_state_values
         new_exogenous_regressors = previous_state_exogenous_regressors
       return model.ModelOutputs(
-          loss=math_ops.reduce_mean(loss_ta.stack(), axis=0),
+          loss=tf.math.reduce_mean(loss_ta.stack(), axis=0),
           end_state=(new_state_times,
                      new_state_values,
                      new_exogenous_regressors),
           predictions={
-              "mean": array_ops.reshape(
-                  array_ops.transpose(mean_ta.stack(), [1, 0, 2, 3]),
+              "mean": tf.reshape(
+                  tf.compat.v1.transpose(mean_ta.stack(), [1, 0, 2, 3]),
                   prediction_shape),
-              "covariance": array_ops.reshape(
-                  array_ops.transpose(covariance_ta.stack(), [1, 0, 2, 3]),
+              "covariance": tf.reshape(
+                  tf.compat.v1.transpose(covariance_ta.stack(), [1, 0, 2, 3]),
                   prediction_shape),
               "observed": values[:, -output_size:]},
           prediction_times=times[:, -output_size:])
@@ -787,21 +789,21 @@ class ARModel(model.TimeSeriesModel):
 
   def _compute_time_features(self, time):
     """Compute some features on the time value."""
-    batch_size = array_ops.shape(time)[0]
+    batch_size = tf.compat.v1.shape(time)[0]
     num_periods = len(self._periodicities)
     # Reshape to 3D.
-    periods = constant_op.constant(
+    periods = tf.constant(
         self._periodicities, shape=[1, 1, num_periods, 1], dtype=time.dtype)
-    time = array_ops.reshape(time, [batch_size, -1, 1, 1])
+    time = tf.reshape(time, [batch_size, -1, 1, 1])
     window_offset = time / self._periodicities
     # Cast to appropriate type and scale to [0, 1) range
-    mod = (math_ops.cast(time % periods, self.dtype) * self._buckets /
-           math_ops.cast(periods, self.dtype))
+    mod = (tf.cast(time % periods, self.dtype) * self._buckets /
+           tf.cast(periods, self.dtype))
     # Bucketize based on some fixed width intervals. For a value t and interval
     # [a, b), we return (t - a) if a <= t < b, else 0.
-    intervals = array_ops.reshape(
-        math_ops.range(self._buckets, dtype=self.dtype),
+    intervals = tf.reshape(
+        tf.range(self._buckets, dtype=self.dtype),
         [1, 1, 1, self._buckets])
-    mod = nn_ops.relu(mod - intervals)
-    mod = array_ops.where_v2(mod < 1.0, mod, array_ops.zeros_like(mod))
+    mod = tf.nn.relu(mod - intervals)
+    mod = tf.where(mod < 1.0, mod, tf.compat.v1.zeros_like(mod))
     return window_offset, mod

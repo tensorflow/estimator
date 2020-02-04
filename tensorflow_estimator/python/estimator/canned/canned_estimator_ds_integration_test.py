@@ -21,6 +21,7 @@ from __future__ import print_function
 import inspect
 import tempfile
 
+import tensorflow as tf
 from absl.testing import parameterized
 import numpy as np
 
@@ -38,20 +39,20 @@ from tensorflow_estimator.python.estimator.canned import linear
 from tensorflow_estimator.python.estimator.extenders import add_metrics
 
 
-class CannedEstimatorDistributionStrategyTest(test.TestCase,
+class CannedEstimatorDistributionStrategyTest(tf.test.TestCase,
                                               parameterized.TestCase):
 
   def setUp(self):
     super(CannedEstimatorDistributionStrategyTest, self).setUp()
     np.random.seed(1337)
-    random_seed.set_random_seed(1337)
+    tf.compat.v1.random.set_random_seed(1337)
 
     self._model_dir = tempfile.mkdtemp()
 
   def dataset_input_fn(self, x, y, batch_size, shuffle):
 
     def input_fn():
-      dataset = dataset_ops.Dataset.from_tensor_slices((x, y))
+      dataset = tf.compat.v1.data.Dataset.from_tensor_slices((x, y))
       if shuffle:
         dataset = dataset.shuffle(batch_size)
       dataset = dataset.repeat(10).batch(batch_size)
@@ -83,7 +84,7 @@ class CannedEstimatorDistributionStrategyTest(test.TestCase,
         batch_size * label_dimension + label_dimension,
         dtype=np.float32)
     data = data.reshape(batch_size + 1, label_dimension)
-    fc = fc_impl.numeric_column('x', shape=(2,))
+    fc = tf.feature_column.numeric_column('x', shape=(2,))
 
     # Set kwargs based on the current canned estimator class.
     estimator_kw_args = {
@@ -153,4 +154,4 @@ class CannedEstimatorDistributionStrategyTest(test.TestCase,
 
 
 if __name__ == '__main__':
-  test.main()
+  tf.test.main()

@@ -18,12 +18,14 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import tensorflow as tf
+
 from tensorflow.python.framework import errors
 from tensorflow.python.platform import test
 from tensorflow_estimator.python.estimator.tpu import error_handling
 
 
-class ErrorHandlingTest(test.TestCase):
+class ErrorHandlingTest(tf.test.TestCase):
 
   def catch_and_raise(self, error):
     er = error_handling.ErrorRendezvous(1)
@@ -32,12 +34,12 @@ class ErrorHandlingTest(test.TestCase):
     er.raise_errors()
 
   def testInterestingError(self):
-    with self.assertRaises(errors.InternalError):
-      self.catch_and_raise(errors.InternalError('message', None, None))
+    with self.assertRaises(tf.errors.InternalError):
+      self.catch_and_raise(tf.errors.InternalError('message', None, None))
 
   def testIgnoredError(self):
     """Expect no error to be raised."""
-    self.catch_and_raise(errors.AbortedError('message', None, None))
+    self.catch_and_raise(tf.errors.AbortedError('message', None, None))
 
 if __name__ == '__main__':
-  test.main()
+  tf.test.main()

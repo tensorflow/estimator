@@ -18,6 +18,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import tensorflow as tf
+
 import os
 import time
 from tensorflow.python.framework import ops
@@ -32,7 +34,7 @@ from tensorflow_estimator.python.estimator import estimator as estimator_lib
 
 # pylint: disable=protected-access
 @estimator_export('estimator.experimental.InMemoryEvaluatorHook')
-class InMemoryEvaluatorHook(training.SessionRunHook):
+class InMemoryEvaluatorHook(tf.compat.v1.train.SessionRunHook):
   """Hook to run evaluation in training without a checkpoint.
 
   Example:
@@ -123,13 +125,13 @@ class InMemoryEvaluatorHook(training.SessionRunHook):
     self._graph = None
     self._hooks = estimator_lib._check_hooks_type(hooks)
     self._hooks.extend(self._estimator._convert_eval_steps_to_hooks(steps))
-    self._timer = training.SecondOrStepTimer(every_steps=every_n_iter)
+    self._timer = tf.compat.v1.train.SecondOrStepTimer(every_steps=every_n_iter)
 
   def begin(self):
     """Build eval graph and restoring op."""
     self._timer.reset()
     self._iter_count = 0
-    self._graph = ops.Graph()
+    self._graph = tf.Graph()
     with self._graph.as_default():
       (self._scaffold, self._update_op, self._eval_dict,
        self._all_hooks) = self._estimator._evaluate_build_graph(
@@ -141,21 +143,21 @@ class InMemoryEvaluatorHook(training.SessionRunHook):
         raise ValueError('InMemoryEvaluator does not support custom init_fn')
 
       self._var_name_to_eval_var = {
-          v.name: v for v in ops.get_collection(ops.GraphKeys.GLOBAL_VARIABLES)
+          v.name: v for v in tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.GLOBAL_VARIABLES)
       }
       self._var_name_to_placeholder = {
-          v.name: array_ops.placeholder(v.dtype)
-          for v in ops.get_collection(ops.GraphKeys.GLOBAL_VARIABLES)
+          v.name: tf.compat.v1.placeholder(v.dtype)
+          for v in tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.GLOBAL_VARIABLES)
       }
 
   def after_create_session(self, session, coord):  # pylint: disable=unused-argument
     """Does first run which shows the eval metrics before training."""
-    if ops.get_collection(ops.GraphKeys.SAVEABLE_OBJECTS):
+    if tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.SAVEABLE_OBJECTS):
       raise ValueError(
           'InMemoryEvaluator does not support saveables other than global '
           'variables.')
     self._var_name_to_train_var = {
-        v.name: v for v in ops.get_collection(ops.GraphKeys.GLOBAL_VARIABLES)
+        v.name: v for v in tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.GLOBAL_VARIABLES)
     }
     var_names_to_transfer = set(self._var_name_to_placeholder.keys()) & set(
         self._var_name_to_train_var.keys())
@@ -171,8 +173,8 @@ class InMemoryEvaluatorHook(training.SessionRunHook):
     }
 
     with self._graph.as_default():
-      self._var_feed_op = control_flow_ops.group([
-          state_ops.assign(self._var_name_to_eval_var[v_name],
+      self._var_feed_op = tf.group([
+          tf.compat.v1.assign(self._var_name_to_eval_var[v_name],
                            self._var_name_to_placeholder[v_name])
           for v_name in var_names_to_transfer
       ])
@@ -190,7 +192,7 @@ class InMemoryEvaluatorHook(training.SessionRunHook):
       del scaffold
       session.run(self._var_feed_op, feed_dict=placeholder_to_value)
 
-    scaffold = training.Scaffold(
+    scaffold = tf.compat.v1.train.Scaffold(
         init_fn=feed_variables, copy_from_scaffold=self._scaffold)
 
     with self._graph.as_default():
@@ -215,7 +217,7 @@ class InMemoryEvaluatorHook(training.SessionRunHook):
     self._evaluate(session)
 
 
-class _StopAtCheckpointStepHook(training.SessionRunHook):
+class _StopAtCheckpointStepHook(tf.compat.v1.train.SessionRunHook):
   """Hook that requests stop at a specified step based on checkpoint.
 
   Note: We recommend using 'make_stop_at_checkpoint_step_hook` to get the proper
@@ -255,7 +257,7 @@ class _StopAtCheckpointStepHook(training.SessionRunHook):
           'Global step should be created to use StopAtCheckpointStepHook.')
 
   def before_run(self, run_context):  # pylint: disable=unused-argument
-    return training.SessionRunArgs(self._global_step_tensor)
+    return tf.compat.v1.train.SessionRunArgs(self._global_step_tensor)
 
   def after_run(self, run_context, run_values):
     global_step = run_values.results + 1
@@ -278,7 +280,7 @@ def make_stop_at_checkpoint_step_hook(estimator,
   """Creates a proper StopAtCheckpointStepHook based on chief status."""
 
   if estimator.config.is_chief:
-    return training.StopAtStepHook(last_step=last_step)
+    return tf.compat.v1.train.StopAtStepHook(last_step=last_step)
   return _StopAtCheckpointStepHook(
       model_dir=estimator.model_dir,
       last_step=last_step,

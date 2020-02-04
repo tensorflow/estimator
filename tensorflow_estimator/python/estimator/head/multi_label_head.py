@@ -18,6 +18,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import tensorflow as tf
 import six
 
 from tensorflow.python.eager import context
@@ -284,7 +285,7 @@ class MultiLabelHead(base_head.Head):
     Returns:
       A hash table for lookup.
     """
-    if self._cached_class_id_table is None or not context.executing_eagerly():
+    if self._cached_class_id_table is None or not tf.executing_eagerly():
       self._cached_class_id_table = lookup_ops.index_table_from_tensor(
           vocabulary_list=tuple(self._label_vocabulary), name='class_id_lookup')
     return self._cached_class_id_table
@@ -293,15 +294,15 @@ class MultiLabelHead(base_head.Head):
     """Converts labels to integer id space."""
     if labels is None:
       raise ValueError(base_head._LABEL_NONE_ERR_MSG)  # pylint:disable=protected-access
-    if isinstance(labels, sparse_tensor.SparseTensor):
+    if isinstance(labels, tf.sparse.SparseTensor):
       label_values = labels.values
-      if labels.dtype == dtypes.string:
+      if labels.dtype == tf.dtypes.string:
         label_ids_values = self._class_id_table.lookup(label_values)
-        label_ids = sparse_tensor.SparseTensor(
+        label_ids = tf.sparse.SparseTensor(
             indices=labels.indices,
             values=label_ids_values,
             dense_shape=labels.dense_shape)
-        processed_labels = sparse_ops.sparse_to_indicator(
+        processed_labels = tf.sparse.to_indicator(
             label_ids, self._n_classes)
       else:
         if not label_values.dtype.is_integer:
@@ -312,14 +313,14 @@ class MultiLabelHead(base_head.Head):
             r'[0, {})'.format(self._n_classes))
         label_values = base_head.check_label_range(
             labels.values, self._n_classes, message=err_msg)
-        if context.executing_eagerly():
-          processed_labels = sparse_ops.sparse_to_indicator(
+        if tf.executing_eagerly():
+          processed_labels = tf.sparse.to_indicator(
               labels, self._n_classes)
         else:
-          with ops.control_dependencies([label_values]):
-            processed_labels = sparse_ops.sparse_to_indicator(
+          with tf.control_dependencies([label_values]):
+            processed_labels = tf.sparse.to_indicator(
                 labels, self._n_classes)
-      processed_labels = math_ops.cast(processed_labels, dtype=dtypes.int64)
+      processed_labels = tf.cast(processed_labels, dtype=tf.dtypes.int64)
     else:
       err_msg = (
           r'labels must be an integer indicator Tensor with values in [0, 1]')
@@ -339,12 +340,12 @@ class MultiLabelHead(base_head.Head):
           features=features,
           expected_loss_dim=1)
     else:
-      unweighted_loss = losses.sigmoid_cross_entropy(
+      unweighted_loss = tf.compat.v1.losses.sigmoid_cross_entropy(
           multi_class_labels=processed_labels,
           logits=logits,
-          reduction=losses.Reduction.NONE)
+          reduction=tf.compat.v1.losses.Reduction.NONE)
       # Averages loss over classes.
-      unweighted_loss = math_ops.reduce_mean(
+      unweighted_loss = tf.math.reduce_mean(
           unweighted_loss, axis=-1, keepdims=True)
     weights = base_head.get_weights_and_check_match_logits(
         features=features,
@@ -366,7 +367,7 @@ class MultiLabelHead(base_head.Head):
           unweighted_loss,
           sample_weight=weights,
           reduction=self._loss_reduction)
-      regularization_loss = math_ops.add_n(
+      regularization_loss = tf.math.add_n(
           regularization_losses) if regularization_losses is not None else None
       regularized_training_loss = (
           training_loss + regularization_loss if regularization_loss is not None
@@ -398,7 +399,7 @@ class MultiLabelHead(base_head.Head):
       if pred_keys.LOGITS in keys:
         predictions[pred_keys.LOGITS] = logits
       if pred_keys.PROBABILITIES in keys:
-        probabilities = math_ops.sigmoid(logits, name=pred_keys.PROBABILITIES)
+        probabilities = tf.math.sigmoid(logits, name=pred_keys.PROBABILITIES)
         predictions[pred_keys.PROBABILITIES] = probabilities
       if pred_keys.CLASSES in keys:
         predictions[pred_keys.CLASSES] = base_head.all_classes(
@@ -453,7 +454,7 @@ class MultiLabelHead(base_head.Head):
     eval_metrics[self._auc_pr_key].update_state(
         y_true=processed_labels, y_pred=probabilities, sample_weight=weights)
     if regularization_losses is not None:
-      regularization_loss = math_ops.add_n(regularization_losses)
+      regularization_loss = tf.math.add_n(regularization_losses)
       eval_metrics[self._loss_regularization_key].update_state(
           values=regularization_loss)
     for i in range(len(self._thresholds)):
@@ -464,16 +465,16 @@ class MultiLabelHead(base_head.Head):
       eval_metrics[self._recall_keys[i]].update_state(
           y_true=processed_labels, y_pred=probabilities, sample_weight=weights)
     for i, class_id in enumerate(self._classes_for_class_based_metrics):
-      batch_rank = array_ops.rank(probabilities) - 1
-      begin = array_ops.concat(
-          [array_ops.zeros([batch_rank], dtype=dtypes.int32), [class_id]],
+      batch_rank = tf.rank(probabilities) - 1
+      begin = tf.concat(
+          [tf.zeros([batch_rank], dtype=tf.dtypes.int32), [class_id]],
           axis=0)
-      size = array_ops.concat(
-          [-1 * array_ops.ones([batch_rank], dtype=dtypes.int32), [1]],
+      size = tf.concat(
+          [-1 * tf.ones([batch_rank], dtype=tf.dtypes.int32), [1]],
           axis=0)
-      class_probabilities = array_ops.slice(
+      class_probabilities = tf.slice(
           probabilities, begin=begin, size=size)
-      class_labels = array_ops.slice(processed_labels, begin=begin, size=size)
+      class_labels = tf.slice(processed_labels, begin=begin, size=size)
       base_head.update_metric_with_broadcast_weights(
           eval_metrics[self._prob_keys[i]], class_probabilities, weights)
       eval_metrics[self._auc_keys[i]].update_state(

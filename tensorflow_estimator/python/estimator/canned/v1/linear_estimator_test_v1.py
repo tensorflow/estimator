@@ -21,6 +21,7 @@ from __future__ import print_function
 import shutil
 import tempfile
 
+import tensorflow as tf
 import numpy as np
 import six
 
@@ -47,56 +48,56 @@ def _linear_estimator_fn(
           weight_column=weight_column,
           label_dimension=label_dimension,
           # Tests in core (from which this test inherits) test the sum loss.
-          loss_reduction=losses.Reduction.SUM),
+          loss_reduction=tf.compat.v1.losses.Reduction.SUM),
       **kwargs)
 
 
 @test_util.run_v1_only("Tests v1 only symbols")
 class LinearEstimatorEvaluateTest(
-    linear_testing_utils_v1.BaseLinearRegressorEvaluationTest, test.TestCase):
+    linear_testing_utils_v1.BaseLinearRegressorEvaluationTest, tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
+    tf.test.TestCase.__init__(self, methodName)
     linear_testing_utils_v1.BaseLinearRegressorEvaluationTest.__init__(
         self, _linear_estimator_fn)
 
 
 @test_util.run_v1_only("Tests v1 only symbols")
 class LinearEstimatorPredictTest(
-    linear_testing_utils_v1.BaseLinearRegressorPredictTest, test.TestCase):
+    linear_testing_utils_v1.BaseLinearRegressorPredictTest, tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
+    tf.test.TestCase.__init__(self, methodName)
     linear_testing_utils_v1.BaseLinearRegressorPredictTest.__init__(
         self, _linear_estimator_fn)
 
 
 @test_util.run_v1_only("Tests v1 only symbols")
 class LinearEstimatorTrainTest(
-    linear_testing_utils_v1.BaseLinearRegressorTrainingTest, test.TestCase):
+    linear_testing_utils_v1.BaseLinearRegressorTrainingTest, tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
+    tf.test.TestCase.__init__(self, methodName)
     linear_testing_utils_v1.BaseLinearRegressorTrainingTest.__init__(
         self, _linear_estimator_fn)
 
 
 @test_util.run_v1_only("Tests v1 only symbols")
-class LinearEstimatorIntegrationTest(test.TestCase):
+class LinearEstimatorIntegrationTest(tf.test.TestCase):
 
   def setUp(self):
     self._model_dir = tempfile.mkdtemp()
 
   def tearDown(self):
     if self._model_dir:
-      writer_cache.FileWriterCache.clear()
+      tf.compat.v1.summary.FileWriterCache.clear()
       shutil.rmtree(self._model_dir)
 
   def _test_complete_flow(
       self, train_input_fn, eval_input_fn, predict_input_fn, input_dimension,
       label_dimension, batch_size):
     feature_columns = [
-        feature_column.numeric_column('x', shape=(input_dimension,))]
+        tf.feature_column.numeric_column('x', shape=(input_dimension,))]
     est = linear.LinearEstimator(
         head=head_lib._regression_head(label_dimension=label_dimension),
         feature_columns=feature_columns,
@@ -108,7 +109,7 @@ class LinearEstimatorIntegrationTest(test.TestCase):
 
     # Evaluate
     scores = est.evaluate(eval_input_fn)
-    self.assertEqual(num_steps, scores[ops.GraphKeys.GLOBAL_STEP])
+    self.assertEqual(num_steps, scores[tf.compat.v1.GraphKeys.GLOBAL_STEP])
     self.assertIn('loss', six.iterkeys(scores))
 
     # Predict
@@ -119,12 +120,12 @@ class LinearEstimatorIntegrationTest(test.TestCase):
     self.assertAllEqual((batch_size, label_dimension), predictions.shape)
 
     # Export
-    feature_spec = feature_column.make_parse_example_spec(feature_columns)
+    feature_spec = tf.compat.v1.feature_column.make_parse_example_spec(feature_columns)
     serving_input_receiver_fn = export.build_parsing_serving_input_receiver_fn(
         feature_spec)
     export_dir = est.export_saved_model(tempfile.mkdtemp(),
                                         serving_input_receiver_fn)
-    self.assertTrue(gfile.Exists(export_dir))
+    self.assertTrue(tf.compat.v1.gfile.Exists(export_dir))
 
   def test_numpy_input_fn(self):
     """Tests complete flow with numpy_input_fn."""
@@ -159,4 +160,4 @@ class LinearEstimatorIntegrationTest(test.TestCase):
 
 
 if __name__ == '__main__':
-  test.main()
+  tf.test.main()

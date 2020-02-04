@@ -20,6 +20,7 @@ from __future__ import print_function
 
 import math
 
+import tensorflow as tf
 import six
 
 from tensorflow.python.framework import ops
@@ -50,7 +51,7 @@ _LINEAR_LEARNING_RATE = 0.005
 
 
 def _check_no_sync_replicas_optimizer(optimizer):
-  if isinstance(optimizer, sync_replicas_optimizer.SyncReplicasOptimizer):
+  if isinstance(optimizer, tf.compat.v1.train.SyncReplicasOptimizer):
     raise ValueError(
         'SyncReplicasOptimizer does not support multi optimizers case. '
         'Therefore, it is not supported in DNNLinearCombined model. '
@@ -76,8 +77,8 @@ def _linear_learning_rate(num_linear_feature_columns):
 
 
 def _add_layer_summary(value, tag):
-  summary.scalar('%s/fraction_of_zero_values' % tag, nn.zero_fraction(value))
-  summary.histogram('%s/activation' % tag, value)
+  tf.compat.v1.summary.scalar('%s/fraction_of_zero_values' % tag, tf.math.zero_fraction(value))
+  tf.compat.v1.summary.histogram('%s/activation' % tag, value)
 
 
 def _validate_feature_columns(linear_feature_columns, dnn_feature_columns):
@@ -102,7 +103,7 @@ def _dnn_linear_combined_model_fn_v2(
     dnn_feature_columns=None,
     dnn_optimizer='Adagrad',
     dnn_hidden_units=None,
-    dnn_activation_fn=nn.relu,
+    dnn_activation_fn=tf.nn.relu,
     dnn_dropout=None,
     config=None,
     batch_norm=False,
@@ -225,7 +226,7 @@ def _dnn_linear_combined_model_fn_v2(
           linear_optimizer.get_updates(
               loss,
               linear_trainable_variables))
-    train_op = control_flow_ops.group(*train_ops)
+    train_op = tf.group(*train_ops)
     return train_op
 
   # In TRAIN mode, asssign global_step variable to optimizer.iterations to
@@ -233,9 +234,9 @@ def _dnn_linear_combined_model_fn_v2(
   # step counter. Note that, Only one model's optimizer needs this assignment.
   if mode == ModeKeys.TRAIN:
     if dnn_logits is not None:
-      dnn_optimizer.iterations = training_util.get_or_create_global_step()
+      dnn_optimizer.iterations = tf.compat.v1.train.get_or_create_global_step()
     else:
-      linear_optimizer.iterations = training_util.get_or_create_global_step()
+      linear_optimizer.iterations = tf.compat.v1.train.get_or_create_global_step()
 
   return head.create_estimator_spec(
       features=features,
@@ -254,7 +255,7 @@ def _dnn_linear_combined_model_fn(features,
                                   dnn_feature_columns=None,
                                   dnn_optimizer='Adagrad',
                                   dnn_hidden_units=None,
-                                  dnn_activation_fn=nn.relu,
+                                  dnn_activation_fn=tf.nn.relu,
                                   dnn_dropout=None,
                                   input_layer_partitioner=None,
                                   config=None,
@@ -307,7 +308,7 @@ def _dnn_linear_combined_model_fn(features,
 
   num_ps_replicas = config.num_ps_replicas if config else 0
   input_layer_partitioner = input_layer_partitioner or (
-      partitioned_variables.min_max_variable_partitioner(
+      tf.compat.v1.min_max_variable_partitioner(
           max_partitions=num_ps_replicas,
           min_slice_size=64 << 20))
 
@@ -325,9 +326,9 @@ def _dnn_linear_combined_model_fn(features,
           'dnn_hidden_units must be defined when dnn_feature_columns is '
           'specified.')
     dnn_partitioner = (
-        partitioned_variables.min_max_variable_partitioner(
+        tf.compat.v1.min_max_variable_partitioner(
             max_partitions=num_ps_replicas))
-    with variable_scope.variable_scope(
+    with tf.compat.v1.variable_scope(
         dnn_parent_scope,
         values=tuple(six.itervalues(features)),
         partitioner=dnn_partitioner) as scope:
@@ -351,7 +352,7 @@ def _dnn_linear_combined_model_fn(features,
         linear_optimizer,
         learning_rate=_linear_learning_rate(len(linear_feature_columns)))
     _check_no_sync_replicas_optimizer(linear_optimizer)
-    with variable_scope.variable_scope(
+    with tf.compat.v1.variable_scope(
         linear_parent_scope,
         values=tuple(six.itervalues(features)),
         partitioner=input_layer_partitioner) as scope:
@@ -374,25 +375,25 @@ def _dnn_linear_combined_model_fn(features,
   def _train_op_fn(loss):
     """Returns the op to optimize the loss."""
     train_ops = []
-    global_step = training_util.get_global_step()
+    global_step = tf.compat.v1.train.get_global_step()
     if dnn_logits is not None:
       train_ops.append(
           dnn_optimizer.minimize(
               loss,
-              var_list=ops.get_collection(
-                  ops.GraphKeys.TRAINABLE_VARIABLES,
+              var_list=tf.compat.v1.get_collection(
+                  tf.compat.v1.GraphKeys.TRAINABLE_VARIABLES,
                   scope=dnn_absolute_scope)))
     if linear_logits is not None:
       train_ops.append(
           linear_optimizer.minimize(
               loss,
-              var_list=ops.get_collection(
-                  ops.GraphKeys.TRAINABLE_VARIABLES,
+              var_list=tf.compat.v1.get_collection(
+                  tf.compat.v1.GraphKeys.TRAINABLE_VARIABLES,
                   scope=linear_absolute_scope)))
 
-    train_op = control_flow_ops.group(*train_ops)
-    with ops.control_dependencies([train_op]):
-      return state_ops.assign_add(global_step, 1).op
+    train_op = tf.group(*train_ops)
+    with tf.control_dependencies([train_op]):
+      return tf.compat.v1.assign_add(global_step, 1).op
 
   return head.create_estimator_spec(
       features=features,
@@ -494,7 +495,7 @@ class DNNLinearCombinedClassifierV2(estimator.EstimatorV2):
                dnn_feature_columns=None,
                dnn_optimizer='Adagrad',
                dnn_hidden_units=None,
-               dnn_activation_fn=nn.relu,
+               dnn_activation_fn=tf.nn.relu,
                dnn_dropout=None,
                n_classes=2,
                weight_column=None,
@@ -614,7 +615,7 @@ class DNNLinearCombinedClassifier(estimator.Estimator):
                dnn_feature_columns=None,
                dnn_optimizer='Adagrad',
                dnn_hidden_units=None,
-               dnn_activation_fn=nn.relu,
+               dnn_activation_fn=tf.nn.relu,
                dnn_dropout=None,
                n_classes=2,
                weight_column=None,
@@ -622,7 +623,7 @@ class DNNLinearCombinedClassifier(estimator.Estimator):
                input_layer_partitioner=None,
                config=None,
                warm_start_from=None,
-               loss_reduction=losses.Reduction.SUM,
+               loss_reduction=tf.compat.v1.losses.Reduction.SUM,
                batch_norm=False,
                linear_sparse_combiner='sum'):
     self._feature_columns = _validate_feature_columns(
@@ -792,7 +793,7 @@ class DNNLinearCombinedEstimatorV2(estimator.EstimatorV2):
                dnn_feature_columns=None,
                dnn_optimizer='Adagrad',
                dnn_hidden_units=None,
-               dnn_activation_fn=nn.relu,
+               dnn_activation_fn=tf.nn.relu,
                dnn_dropout=None,
                config=None,
                linear_sparse_combiner='sum'):
@@ -876,7 +877,7 @@ class DNNLinearCombinedEstimator(estimator.Estimator):
                dnn_feature_columns=None,
                dnn_optimizer='Adagrad',
                dnn_hidden_units=None,
-               dnn_activation_fn=nn.relu,
+               dnn_activation_fn=tf.nn.relu,
                dnn_dropout=None,
                input_layer_partitioner=None,
                config=None,
@@ -1003,7 +1004,7 @@ class DNNLinearCombinedRegressorV2(estimator.EstimatorV2):
                dnn_feature_columns=None,
                dnn_optimizer='Adagrad',
                dnn_hidden_units=None,
-               dnn_activation_fn=nn.relu,
+               dnn_activation_fn=tf.nn.relu,
                dnn_dropout=None,
                label_dimension=1,
                weight_column=None,
@@ -1115,14 +1116,14 @@ class DNNLinearCombinedRegressor(estimator.Estimator):
                dnn_feature_columns=None,
                dnn_optimizer='Adagrad',
                dnn_hidden_units=None,
-               dnn_activation_fn=nn.relu,
+               dnn_activation_fn=tf.nn.relu,
                dnn_dropout=None,
                label_dimension=1,
                weight_column=None,
                input_layer_partitioner=None,
                config=None,
                warm_start_from=None,
-               loss_reduction=losses.Reduction.SUM,
+               loss_reduction=tf.compat.v1.losses.Reduction.SUM,
                batch_norm=False,
                linear_sparse_combiner='sum'):
     self._feature_columns = _validate_feature_columns(

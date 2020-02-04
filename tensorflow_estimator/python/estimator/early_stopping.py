@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+
+import tensorflow as tf
 """Utilities for early stopping."""
 
 import collections
@@ -368,7 +370,7 @@ def _stop_if_threshold_crossed_hook(estimator, metric_name, threshold,
         continue
       val = metrics[metric_name]
       if is_lhs_better(val, threshold):
-        tf_logging.info(
+        tf.compat.v1.logging.info(
             'At step %s, metric "%s" has value %s which is %s the configured '
             'threshold (%s) for early stopping.', step, metric_name, val,
             greater_or_lesser, threshold)
@@ -408,7 +410,7 @@ def _stop_if_no_metric_improvement_hook(
         best_val = val
         best_val_step = step
       if step - best_val_step >= max_steps_without_improvement:
-        tf_logging.info(
+        tf.compat.v1.logging.info(
             'No %s in metric "%s" for %s steps, which is greater than or equal '
             'to max steps (%s) configured for early stopping.',
             increase_or_decrease, metric_name, step - best_val_step,
@@ -432,28 +434,28 @@ def _summaries(eval_dir):
   Yields:
     `tensorflow.Event` object read from the event files.
   """
-  if gfile.Exists(eval_dir):
-    for event_file in gfile.Glob(
+  if tf.compat.v1.gfile.Exists(eval_dir):
+    for event_file in tf.compat.v1.gfile.Glob(
         os.path.join(eval_dir, _EVENT_FILE_GLOB_PATTERN)):
-      for event in summary_iterator.summary_iterator(event_file):
+      for event in tf.compat.v1.train.summary_iterator(event_file):
         yield event
 
 
 def _get_or_create_stop_var():
-  with variable_scope.variable_scope(
+  with tf.compat.v1.variable_scope(
       name_or_scope='signal_early_stopping',
       values=[],
-      reuse=variable_scope.AUTO_REUSE):
-    return variable_scope.get_variable(
+      reuse=tf.compat.v1.AUTO_REUSE):
+    return tf.compat.v1.get_variable(
         name='STOP',
         shape=[],
-        dtype=dtypes.bool,
-        initializer=init_ops.constant_initializer(False),
-        collections=[ops.GraphKeys.GLOBAL_VARIABLES],
+        dtype=tf.dtypes.bool,
+        initializer=tf.compat.v1.initializers.constant(False),
+        collections=[tf.compat.v1.GraphKeys.GLOBAL_VARIABLES],
         trainable=False)
 
 
-class _StopOnPredicateHook(session_run_hook.SessionRunHook):
+class _StopOnPredicateHook(tf.compat.v1.train.SessionRunHook):
   """Hook that requests stop when `should_stop_fn` returns `True`."""
 
   def __init__(self, should_stop_fn, run_every_secs=60, run_every_steps=None):
@@ -461,33 +463,33 @@ class _StopOnPredicateHook(session_run_hook.SessionRunHook):
       raise TypeError('`should_stop_fn` must be callable.')
 
     self._should_stop_fn = should_stop_fn
-    self._timer = basic_session_run_hooks.SecondOrStepTimer(
+    self._timer = tf.compat.v1.train.SecondOrStepTimer(
         every_secs=run_every_secs, every_steps=run_every_steps)
     self._global_step_tensor = None
     self._stop_var = None
     self._stop_op = None
 
   def begin(self):
-    self._global_step_tensor = training_util.get_global_step()
+    self._global_step_tensor = tf.compat.v1.train.get_global_step()
     self._stop_var = _get_or_create_stop_var()
-    self._stop_op = state_ops.assign(self._stop_var, True)
+    self._stop_op = tf.compat.v1.assign(self._stop_var, True)
 
   def before_run(self, run_context):
     del run_context
-    return session_run_hook.SessionRunArgs(self._global_step_tensor)
+    return tf.compat.v1.train.SessionRunArgs(self._global_step_tensor)
 
   def after_run(self, run_context, run_values):
     global_step = run_values.results
     if self._timer.should_trigger_for_step(global_step):
       self._timer.update_last_triggered_step(global_step)
       if self._should_stop_fn():
-        tf_logging.info('Requesting early stopping at global step %d',
+        tf.compat.v1.logging.info('Requesting early stopping at global step %d',
                         global_step)
         run_context.session.run(self._stop_op)
         run_context.request_stop()
 
 
-class _CheckForStoppingHook(session_run_hook.SessionRunHook):
+class _CheckForStoppingHook(tf.compat.v1.train.SessionRunHook):
   """Hook that requests stop if stop is requested by `_StopOnPredicateHook`."""
 
   def __init__(self):
@@ -497,10 +499,10 @@ class _CheckForStoppingHook(session_run_hook.SessionRunHook):
 
   def before_run(self, run_context):
     del run_context
-    return session_run_hook.SessionRunArgs(self._stop_var)
+    return tf.compat.v1.train.SessionRunArgs(self._stop_var)
 
   def after_run(self, run_context, run_values):
     should_early_stop = run_values.results
     if should_early_stop:
-      tf_logging.info('Early stopping requested, suspending run.')
+      tf.compat.v1.logging.info('Early stopping requested, suspending run.')
       run_context.request_stop()

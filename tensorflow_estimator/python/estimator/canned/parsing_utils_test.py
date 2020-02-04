@@ -18,6 +18,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import tensorflow as tf
+
 from tensorflow.python.feature_column import feature_column_lib as fc
 from tensorflow.python.framework import dtypes
 from tensorflow.python.ops import parsing_ops
@@ -33,60 +35,60 @@ class BaseClassifierParseExampleSpec(object):
 
   def test_defaults(self):
     parsing_spec = self._parse_example_fn(
-        feature_columns=[fc.numeric_column('a')], label_key='b')
+        feature_columns=[tf.feature_column.numeric_column('a')], label_key='b')
     expected_spec = {
-        'a': parsing_ops.FixedLenFeature((1,), dtype=dtypes.float32),
-        'b': parsing_ops.FixedLenFeature((1,), dtype=dtypes.int64),
+        'a': tf.io.FixedLenFeature((1,), dtype=tf.dtypes.float32),
+        'b': tf.io.FixedLenFeature((1,), dtype=tf.dtypes.int64),
     }
     self.assertDictEqual(expected_spec, parsing_spec)
 
   def test_string(self):
     parsing_spec = self._parse_example_fn(
-        feature_columns=[fc.numeric_column('a')],
+        feature_columns=[tf.feature_column.numeric_column('a')],
         label_key='b',
-        label_dtype=dtypes.string)
+        label_dtype=tf.dtypes.string)
     expected_spec = {
-        'a': parsing_ops.FixedLenFeature((1,), dtype=dtypes.float32),
-        'b': parsing_ops.FixedLenFeature((1,), dtype=dtypes.string),
+        'a': tf.io.FixedLenFeature((1,), dtype=tf.dtypes.float32),
+        'b': tf.io.FixedLenFeature((1,), dtype=tf.dtypes.string),
     }
     self.assertDictEqual(expected_spec, parsing_spec)
 
   # TODO(ispir): test label_default_value compatibility with label_dtype
   def test_label_default_value(self):
     parsing_spec = self._parse_example_fn(
-        feature_columns=[fc.numeric_column('a')],
+        feature_columns=[tf.feature_column.numeric_column('a')],
         label_key='b',
         label_default=0)
     expected_spec = {
         'a':
-            parsing_ops.FixedLenFeature((1,), dtype=dtypes.float32),
+            tf.io.FixedLenFeature((1,), dtype=tf.dtypes.float32),
         'b':
-            parsing_ops.FixedLenFeature(
-                (1,), dtype=dtypes.int64, default_value=0),
+            tf.io.FixedLenFeature(
+                (1,), dtype=tf.dtypes.int64, default_value=0),
     }
     self.assertDictEqual(expected_spec, parsing_spec)
 
   def test_weight_column_as_string(self):
     parsing_spec = self._parse_example_fn(
-        feature_columns=[fc.numeric_column('a')],
+        feature_columns=[tf.feature_column.numeric_column('a')],
         label_key='b',
         weight_column='c')
     expected_spec = {
-        'a': parsing_ops.FixedLenFeature((1,), dtype=dtypes.float32),
-        'b': parsing_ops.FixedLenFeature((1,), dtype=dtypes.int64),
-        'c': parsing_ops.FixedLenFeature((1,), dtype=dtypes.float32),
+        'a': tf.io.FixedLenFeature((1,), dtype=tf.dtypes.float32),
+        'b': tf.io.FixedLenFeature((1,), dtype=tf.dtypes.int64),
+        'c': tf.io.FixedLenFeature((1,), dtype=tf.dtypes.float32),
     }
     self.assertDictEqual(expected_spec, parsing_spec)
 
   def test_weight_column_as_numeric_column(self):
     parsing_spec = self._parse_example_fn(
-        feature_columns=[fc.numeric_column('a')],
+        feature_columns=[tf.feature_column.numeric_column('a')],
         label_key='b',
-        weight_column=fc.numeric_column('c'))
+        weight_column=tf.feature_column.numeric_column('c'))
     expected_spec = {
-        'a': parsing_ops.FixedLenFeature((1,), dtype=dtypes.float32),
-        'b': parsing_ops.FixedLenFeature((1,), dtype=dtypes.int64),
-        'c': parsing_ops.FixedLenFeature((1,), dtype=dtypes.float32),
+        'a': tf.io.FixedLenFeature((1,), dtype=tf.dtypes.float32),
+        'b': tf.io.FixedLenFeature((1,), dtype=tf.dtypes.int64),
+        'c': tf.io.FixedLenFeature((1,), dtype=tf.dtypes.float32),
     }
     self.assertDictEqual(expected_spec, parsing_spec)
 
@@ -94,49 +96,49 @@ class BaseClassifierParseExampleSpec(object):
     with self.assertRaisesRegexp(ValueError,
                                  'label should not be used as feature'):
       self._parse_example_fn(
-          feature_columns=[fc.numeric_column('a')], label_key='a')
+          feature_columns=[tf.feature_column.numeric_column('a')], label_key='a')
 
   def test_weight_column_should_not_be_used_as_feature(self):
     with self.assertRaisesRegexp(ValueError,
                                  'weight_column should not be used as feature'):
       self._parse_example_fn(
-          feature_columns=[fc.numeric_column('a')],
+          feature_columns=[tf.feature_column.numeric_column('a')],
           label_key='b',
-          weight_column=fc.numeric_column('a'))
+          weight_column=tf.feature_column.numeric_column('a'))
 
   def test_weight_column_should_be_a_numeric_column(self):
     with self.assertRaisesRegexp(ValueError,
                                  'tf.feature_column.numeric_column'):
       not_a_numeric_column = 3
       self._parse_example_fn(
-          feature_columns=[fc.numeric_column('a')],
+          feature_columns=[tf.feature_column.numeric_column('a')],
           label_key='b',
           weight_column=not_a_numeric_column)
 
 
 class ClassifierParseExampleSpecV2(BaseClassifierParseExampleSpec,
-                                   test.TestCase):
+                                   tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
+    tf.test.TestCase.__init__(self, methodName)
     BaseClassifierParseExampleSpec.__init__(
         self, parsing_utils.classifier_parse_example_spec_v2)
 
   def test_non_v1_feature_column(self):
     parsing_spec = self._parse_example_fn(
-        feature_columns=[fc.sequence_numeric_column('a')], label_key='b')
+        feature_columns=[tf.feature_column.sequence_numeric_column('a')], label_key='b')
     expected_spec = {
-        'a': parsing_ops.VarLenFeature(dtype=dtypes.float32),
-        'b': parsing_ops.FixedLenFeature((1,), dtype=dtypes.int64),
+        'a': tf.io.VarLenFeature(dtype=tf.dtypes.float32),
+        'b': tf.io.FixedLenFeature((1,), dtype=tf.dtypes.int64),
     }
     self.assertDictEqual(expected_spec, parsing_spec)
 
 
 class ClassifierParseExampleSpecV1(BaseClassifierParseExampleSpec,
-                                   test.TestCase):
+                                   tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
+    tf.test.TestCase.__init__(self, methodName)
     BaseClassifierParseExampleSpec.__init__(
         self, parsing_utils.classifier_parse_example_spec)
 
@@ -149,70 +151,70 @@ class BaseRegressorParseExampleSpec(object):
 
   def test_defaults(self):
     parsing_spec = self._parse_example_fn(
-        feature_columns=[fc.numeric_column('a')], label_key='b')
+        feature_columns=[tf.feature_column.numeric_column('a')], label_key='b')
     expected_spec = {
-        'a': parsing_ops.FixedLenFeature((1,), dtype=dtypes.float32),
-        'b': parsing_ops.FixedLenFeature((1,), dtype=dtypes.float32),
+        'a': tf.io.FixedLenFeature((1,), dtype=tf.dtypes.float32),
+        'b': tf.io.FixedLenFeature((1,), dtype=tf.dtypes.float32),
     }
     self.assertDictEqual(expected_spec, parsing_spec)
 
   def test_int64(self):
     parsing_spec = self._parse_example_fn(
-        feature_columns=[fc.numeric_column('a')],
+        feature_columns=[tf.feature_column.numeric_column('a')],
         label_key='b',
-        label_dtype=dtypes.int64)
+        label_dtype=tf.dtypes.int64)
     expected_spec = {
-        'a': parsing_ops.FixedLenFeature((1,), dtype=dtypes.float32),
-        'b': parsing_ops.FixedLenFeature((1,), dtype=dtypes.int64),
+        'a': tf.io.FixedLenFeature((1,), dtype=tf.dtypes.float32),
+        'b': tf.io.FixedLenFeature((1,), dtype=tf.dtypes.int64),
     }
     self.assertDictEqual(expected_spec, parsing_spec)
 
   def test_label_default_value(self):
     parsing_spec = self._parse_example_fn(
-        feature_columns=[fc.numeric_column('a')],
+        feature_columns=[tf.feature_column.numeric_column('a')],
         label_key='b',
         label_default=0.)
     expected_spec = {
         'a':
-            parsing_ops.FixedLenFeature((1,), dtype=dtypes.float32),
+            tf.io.FixedLenFeature((1,), dtype=tf.dtypes.float32),
         'b':
-            parsing_ops.FixedLenFeature(
-                (1,), dtype=dtypes.float32, default_value=0.),
+            tf.io.FixedLenFeature(
+                (1,), dtype=tf.dtypes.float32, default_value=0.),
     }
     self.assertDictEqual(expected_spec, parsing_spec)
 
   def test_label_dimension(self):
     parsing_spec = self._parse_example_fn(
-        feature_columns=[fc.numeric_column('a')],
+        feature_columns=[tf.feature_column.numeric_column('a')],
         label_key='b',
         label_dimension=3)
     expected_spec = {
-        'a': parsing_ops.FixedLenFeature((1,), dtype=dtypes.float32),
-        'b': parsing_ops.FixedLenFeature((3,), dtype=dtypes.float32),
+        'a': tf.io.FixedLenFeature((1,), dtype=tf.dtypes.float32),
+        'b': tf.io.FixedLenFeature((3,), dtype=tf.dtypes.float32),
     }
     self.assertDictEqual(expected_spec, parsing_spec)
 
   def test_weight_column_as_string(self):
     parsing_spec = self._parse_example_fn(
-        feature_columns=[fc.numeric_column('a')],
+        feature_columns=[tf.feature_column.numeric_column('a')],
         label_key='b',
         weight_column='c')
     expected_spec = {
-        'a': parsing_ops.FixedLenFeature((1,), dtype=dtypes.float32),
-        'b': parsing_ops.FixedLenFeature((1,), dtype=dtypes.float32),
-        'c': parsing_ops.FixedLenFeature((1,), dtype=dtypes.float32),
+        'a': tf.io.FixedLenFeature((1,), dtype=tf.dtypes.float32),
+        'b': tf.io.FixedLenFeature((1,), dtype=tf.dtypes.float32),
+        'c': tf.io.FixedLenFeature((1,), dtype=tf.dtypes.float32),
     }
     self.assertDictEqual(expected_spec, parsing_spec)
 
   def test_weight_column_as_numeric_column(self):
     parsing_spec = self._parse_example_fn(
-        feature_columns=[fc.numeric_column('a')],
+        feature_columns=[tf.feature_column.numeric_column('a')],
         label_key='b',
-        weight_column=fc.numeric_column('c'))
+        weight_column=tf.feature_column.numeric_column('c'))
     expected_spec = {
-        'a': parsing_ops.FixedLenFeature((1,), dtype=dtypes.float32),
-        'b': parsing_ops.FixedLenFeature((1,), dtype=dtypes.float32),
-        'c': parsing_ops.FixedLenFeature((1,), dtype=dtypes.float32),
+        'a': tf.io.FixedLenFeature((1,), dtype=tf.dtypes.float32),
+        'b': tf.io.FixedLenFeature((1,), dtype=tf.dtypes.float32),
+        'c': tf.io.FixedLenFeature((1,), dtype=tf.dtypes.float32),
     }
     self.assertDictEqual(expected_spec, parsing_spec)
 
@@ -220,50 +222,50 @@ class BaseRegressorParseExampleSpec(object):
     with self.assertRaisesRegexp(ValueError,
                                  'label should not be used as feature'):
       self._parse_example_fn(
-          feature_columns=[fc.numeric_column('a')], label_key='a')
+          feature_columns=[tf.feature_column.numeric_column('a')], label_key='a')
 
   def test_weight_column_should_not_be_used_as_feature(self):
     with self.assertRaisesRegexp(ValueError,
                                  'weight_column should not be used as feature'):
       self._parse_example_fn(
-          feature_columns=[fc.numeric_column('a')],
+          feature_columns=[tf.feature_column.numeric_column('a')],
           label_key='b',
-          weight_column=fc.numeric_column('a'))
+          weight_column=tf.feature_column.numeric_column('a'))
 
   def test_weight_column_should_be_a_numeric_column(self):
     with self.assertRaisesRegexp(ValueError,
                                  'tf.feature_column.numeric_column'):
       not_a_numeric_column = 3
       self._parse_example_fn(
-          feature_columns=[fc.numeric_column('a')],
+          feature_columns=[tf.feature_column.numeric_column('a')],
           label_key='b',
           weight_column=not_a_numeric_column)
 
 
-class RegressorParseExampleSpecV2(BaseRegressorParseExampleSpec, test.TestCase):
+class RegressorParseExampleSpecV2(BaseRegressorParseExampleSpec, tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
+    tf.test.TestCase.__init__(self, methodName)
     BaseRegressorParseExampleSpec.__init__(
         self, parsing_utils.regressor_parse_example_spec_v2)
 
   def test_non_v1_feature_column(self):
     parsing_spec = self._parse_example_fn(
-        feature_columns=[fc.sequence_numeric_column('a')], label_key='b')
+        feature_columns=[tf.feature_column.sequence_numeric_column('a')], label_key='b')
     expected_spec = {
-        'a': parsing_ops.VarLenFeature(dtype=dtypes.float32),
-        'b': parsing_ops.FixedLenFeature((1,), dtype=dtypes.float32),
+        'a': tf.io.VarLenFeature(dtype=tf.dtypes.float32),
+        'b': tf.io.FixedLenFeature((1,), dtype=tf.dtypes.float32),
     }
     self.assertDictEqual(expected_spec, parsing_spec)
 
 
-class RegressorParseExampleSpecV1(BaseRegressorParseExampleSpec, test.TestCase):
+class RegressorParseExampleSpecV1(BaseRegressorParseExampleSpec, tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
+    tf.test.TestCase.__init__(self, methodName)
     BaseRegressorParseExampleSpec.__init__(
         self, parsing_utils.regressor_parse_example_spec)
 
 
 if __name__ == '__main__':
-  test.main()
+  tf.test.main()

@@ -20,6 +20,7 @@ from __future__ import print_function
 
 import math
 
+import tensorflow as tf
 import six
 
 from tensorflow.python.feature_column import feature_column
@@ -153,38 +154,38 @@ class LinearSDCA(object):
     if id_weight_pair.weight_tensor:
       weight_tensor = id_weight_pair.weight_tensor.values
     else:
-      weight_tensor = array_ops.ones(
-          [array_ops.shape(id_tensor.indices)[0]], dtypes.float32)
+      weight_tensor = tf.ones(
+          [tf.compat.v1.shape(id_tensor.indices)[0]], tf.dtypes.float32)
 
-    example_ids = array_ops.reshape(id_tensor.indices[:, 0], [-1])
-    flat_ids = math_ops.cast(
-        array_ops.reshape(id_tensor.values, [-1]), dtype=dtypes.int64)
+    example_ids = tf.reshape(id_tensor.indices[:, 0], [-1])
+    flat_ids = tf.cast(
+        tf.reshape(id_tensor.values, [-1]), dtype=tf.dtypes.int64)
     # Prune invalid IDs (< 0) from the flat_ids, example_ids, and
     # weight_tensor.  These can come from looking up an OOV entry in the
     # vocabulary (default value being -1).
-    is_id_valid = math_ops.greater_equal(flat_ids, 0)
-    flat_ids = array_ops.boolean_mask(flat_ids, is_id_valid)
-    example_ids = array_ops.boolean_mask(example_ids, is_id_valid)
-    weight_tensor = array_ops.boolean_mask(weight_tensor, is_id_valid)
+    is_id_valid = tf.math.greater_equal(flat_ids, 0)
+    flat_ids = tf.compat.v1.boolean_mask(flat_ids, is_id_valid)
+    example_ids = tf.compat.v1.boolean_mask(example_ids, is_id_valid)
+    weight_tensor = tf.compat.v1.boolean_mask(weight_tensor, is_id_valid)
 
-    projection_length = math_ops.reduce_max(flat_ids) + 1
+    projection_length = tf.math.reduce_max(flat_ids) + 1
     # project ids based on example ids so that we can dedup ids that
     # occur multiple times for a single example.
     projected_ids = projection_length * example_ids + flat_ids
 
     # Remove any redundant ids.
-    ids, idx = array_ops.unique(projected_ids)
+    ids, idx = tf.unique(projected_ids)
     # Keep only one example id per duplicated ids.
-    example_ids_filtered = math_ops.unsorted_segment_min(
+    example_ids_filtered = tf.math.unsorted_segment_min(
         example_ids, idx,
-        array_ops.shape(ids)[0])
+        tf.compat.v1.shape(ids)[0])
 
     # reproject ids back feature id space.
     reproject_ids = (ids - projection_length * example_ids_filtered)
 
-    weights = array_ops.reshape(
-        math_ops.unsorted_segment_sum(weight_tensor, idx,
-                                      array_ops.shape(ids)[0]), [-1])
+    weights = tf.reshape(
+        tf.math.unsorted_segment_sum(weight_tensor, idx,
+                                      tf.compat.v1.shape(ids)[0]), [-1])
     return sdca_ops._SparseFeatureColumn(  # pylint: disable=protected-access
         example_ids_filtered, reproject_ids, weights)
 
@@ -192,7 +193,7 @@ class LinearSDCA(object):
                      feature_columns, features, targets, bias_var, global_step):
     """Returns the training operation of an SdcaModel optimizer."""
 
-    batch_size = array_ops.shape(targets)[0]
+    batch_size = tf.compat.v1.shape(targets)[0]
     cache = feature_column_lib.FeatureTransformationCache(features)
 
     # Iterate over all feature columns and create appropriate lists for dense
@@ -223,18 +224,18 @@ class LinearSDCA(object):
                          type(column).__name__)
 
     # Add the bias column
-    dense_features.append(array_ops.ones([batch_size, 1]))
+    dense_features.append(tf.ones([batch_size, 1]))
     dense_feature_weights.append(bias_var)
 
-    example_weights = array_ops.reshape(
+    example_weights = tf.reshape(
         features[weight_column_name],
-        shape=[-1]) if weight_column_name else array_ops.ones([batch_size])
+        shape=[-1]) if weight_column_name else tf.ones([batch_size])
     example_ids = features[self._example_id_column]
     training_examples = dict(
         sparse_features=sparse_feature_with_values,
         dense_features=dense_features,
-        example_labels=math_ops.to_float(
-            array_ops.reshape(targets, shape=[-1])),
+        example_labels=tf.compat.v1.to_float(
+            tf.reshape(targets, shape=[-1])),
         example_weights=example_weights,
         example_ids=example_ids)
     training_variables = dict(
@@ -261,7 +262,7 @@ def _get_default_optimizer_v2(feature_columns):
 
 def _get_default_optimizer(feature_columns):
   learning_rate = min(_LEARNING_RATE, 1.0 / math.sqrt(len(feature_columns)))
-  return ftrl.FtrlOptimizer(learning_rate=learning_rate)
+  return tf.compat.v1.train.FtrlOptimizer(learning_rate=learning_rate)
 
 
 def _get_expanded_variable_list(var_list):
@@ -276,9 +277,9 @@ def _get_expanded_variable_list(var_list):
   """
   returned_list = []
   for variable in var_list:
-    if (isinstance(variable, variable_ops.Variable) or
+    if (isinstance(variable, tf.Variable) or
         resource_variable_ops.is_resource_variable(variable) or
-        isinstance(variable, ops.Tensor)):
+        isinstance(variable, tf.Tensor)):
       returned_list.append(variable)  # Single variable/tensor case.
     else:  # Must be a PartitionedVariable, so convert into a list.
       returned_list.extend(list(variable))
@@ -296,27 +297,27 @@ def _compute_fraction_of_zero(variables):
     The fraction of zeros (sparsity) in the linear model.
   """
   with ops.name_scope('zero_fraction'):
-    variables = nest.flatten(variables)
+    variables = tf.nest.flatten(variables)
 
     with ops.name_scope('total_size'):
-      sizes = [array_ops.size(x, out_type=dtypes.int64) for x in variables]
-      total_size_int64 = math_ops.add_n(sizes)
+      sizes = [tf.compat.v1.size(x, out_type=tf.dtypes.int64) for x in variables]
+      total_size_int64 = tf.math.add_n(sizes)
     with ops.name_scope('total_zero'):
-      total_zero_float32 = math_ops.add_n([
-          control_flow_ops.cond(
-              math_ops.equal(size, constant_op.constant(0, dtype=dtypes.int64)),
-              true_fn=lambda: constant_op.constant(0, dtype=dtypes.float32),
-              false_fn=lambda: nn.zero_fraction(x) * math_ops.cast(
-                  size, dtype=dtypes.float32),
+      total_zero_float32 = tf.math.add_n([
+          tf.compat.v1.cond(
+              tf.math.equal(size, tf.constant(0, dtype=tf.dtypes.int64)),
+              true_fn=lambda: tf.constant(0, dtype=tf.dtypes.float32),
+              false_fn=lambda: tf.math.zero_fraction(x) * tf.cast(
+                  size, dtype=tf.dtypes.float32),
               name='zero_count') for x, size in zip(variables, sizes)
       ])
 
     with ops.name_scope('compute'):
-      total_size_float32 = math_ops.cast(
-          total_size_int64, dtype=dtypes.float32, name='float32_size')
+      total_size_float32 = tf.cast(
+          total_size_int64, dtype=tf.dtypes.float32, name='float32_size')
       zero_fraction_or_nan = total_zero_float32 / total_size_float32
 
-    zero_fraction_or_nan = array_ops.identity(
+    zero_fraction_or_nan = tf.identity(
         zero_fraction_or_nan, name='zero_fraction_or_nan')
     return zero_fraction_or_nan
 
@@ -376,12 +377,12 @@ def linear_logit_fn_builder_v2(units, feature_columns, sparse_combiner='sum'):
     variables = _get_expanded_variable_list(variables)
 
     if units > 1:
-      summary.histogram('bias', bias)
+      tf.compat.v1.summary.histogram('bias', bias)
     else:
       # If units == 1, the bias value is a length-1 list of a scalar Tensor,
       # so we should provide a scalar summary.
-      summary.scalar('bias', bias[0][0])
-    summary.scalar('fraction_of_zero_weights',
+      tf.compat.v1.summary.scalar('bias', bias[0][0])
+    tf.compat.v1.summary.scalar('fraction_of_zero_weights',
                    _compute_fraction_of_zero(variables))
     return logits
 
@@ -449,12 +450,12 @@ def linear_logit_fn_builder(units, feature_columns, sparse_combiner='sum'):
       variables = _get_expanded_variable_list(variables)
 
     if units > 1:
-      summary.histogram('bias', bias)
+      tf.compat.v1.summary.histogram('bias', bias)
     else:
       # If units == 1, the bias value is a length-1 list of a scalar Tensor,
       # so we should provide a scalar summary.
-      summary.scalar('bias', bias[0][0])
-    summary.scalar('fraction_of_zero_weights',
+      tf.compat.v1.summary.scalar('bias', bias[0][0])
+    tf.compat.v1.summary.scalar('fraction_of_zero_weights',
                    _compute_fraction_of_zero(variables))
     return logits
 
@@ -519,8 +520,8 @@ def _sdca_model_fn(features, labels, mode, head, feature_columns, optimizer):
   variables = _get_expanded_variable_list(variables)
   variables = [var for var in variables if var not in bias]
 
-  summary.scalar('bias', bias[0][0])
-  summary.scalar('fraction_of_zero_weights',
+  tf.compat.v1.summary.scalar('bias', bias[0][0])
+  tf.compat.v1.summary.scalar('fraction_of_zero_weights',
                  _compute_fraction_of_zero(variables))
 
   if mode == ModeKeys.TRAIN:
@@ -532,7 +533,7 @@ def _sdca_model_fn(features, labels, mode, head, feature_columns, optimizer):
         features,
         labels,
         linear_model.bias,
-        training.get_global_step())
+        tf.compat.v1.train.get_global_step())
 
     update_weights_hook = _SDCAUpdateWeightsHook(sdca_model, train_op)
 
@@ -552,7 +553,7 @@ def _sdca_model_fn(features, labels, mode, head, feature_columns, optimizer):
         logits=logits)
 
 
-class _SDCAUpdateWeightsHook(session_run_hook.SessionRunHook):
+class _SDCAUpdateWeightsHook(tf.compat.v1.train.SessionRunHook):
   """SessionRunHook to update and shrink SDCA model weights."""
 
   def __init__(self, sdca_model, train_op):
@@ -568,7 +569,7 @@ class _SDCAUpdateWeightsHook(session_run_hook.SessionRunHook):
 
   def before_run(self, run_context):
     """Return the update_weights op so that it is executed during this run."""
-    return session_run_hook.SessionRunArgs(self._update_op)
+    return tf.compat.v1.train.SessionRunArgs(self._update_op)
 
 
 def _linear_model_fn_builder_v2(units, feature_columns, sparse_combiner='sum',
@@ -618,12 +619,12 @@ def _linear_model_fn_builder_v2(units, feature_columns, sparse_combiner='sum',
   variables.remove(bias)
 
   if units > 1:
-    summary.histogram('bias', bias)
+    tf.compat.v1.summary.histogram('bias', bias)
   else:
     # If units == 1, the bias value is a length-1 list of a scalar Tensor,
     # so we should provide a scalar summary.
-    summary.scalar('bias', bias[0])
-  summary.scalar('fraction_of_zero_weights',
+    tf.compat.v1.summary.scalar('bias', bias[0])
+  tf.compat.v1.summary.scalar('fraction_of_zero_weights',
                  _compute_fraction_of_zero(variables))
 
   return logits, linear_model.variables
@@ -683,7 +684,7 @@ def _linear_model_fn_v2(features,
       optimizer = optimizers.get_optimizer_instance_v2(
           optimizer or _get_default_optimizer_v2(feature_columns),
           learning_rate=_LEARNING_RATE)
-      optimizer.iterations = training_util.get_or_create_global_step()
+      optimizer.iterations = tf.compat.v1.train.get_or_create_global_step()
 
     return head.create_estimator_spec(
         features=features,
@@ -726,11 +727,11 @@ def _linear_model_fn(features, labels, mode, head, feature_columns, optimizer,
   num_ps_replicas = config.num_ps_replicas if config else 0
 
   partitioner = partitioner or (
-      partitioned_variables.min_max_variable_partitioner(
+      tf.compat.v1.min_max_variable_partitioner(
           max_partitions=num_ps_replicas,
           min_slice_size=64 << 20))
 
-  with variable_scope.variable_scope(
+  with tf.compat.v1.variable_scope(
       'linear',
       values=tuple(six.itervalues(features)),
       partitioner=partitioner):
@@ -970,7 +971,7 @@ class LinearClassifier(estimator.Estimator):
                config=None,
                partitioner=None,
                warm_start_from=None,
-               loss_reduction=losses.Reduction.SUM,
+               loss_reduction=tf.compat.v1.losses.Reduction.SUM,
                sparse_combiner='sum'):
     _validate_linear_sdca_optimizer_for_linear_classifier(
         feature_columns=feature_columns,
@@ -1374,7 +1375,7 @@ class LinearRegressor(estimator.Estimator):
                config=None,
                partitioner=None,
                warm_start_from=None,
-               loss_reduction=losses.Reduction.SUM,
+               loss_reduction=tf.compat.v1.losses.Reduction.SUM,
                sparse_combiner='sum'):
     _validate_linear_sdca_optimizer_for_linear_regressor(
         feature_columns=feature_columns,

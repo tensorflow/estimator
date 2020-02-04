@@ -18,6 +18,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import tensorflow as tf
+
 from tensorflow.python.eager import context
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
@@ -207,7 +209,7 @@ class MultiClassHead(base_head.Head):
     Returns:
       A hash table for lookup.
     """
-    if self._cached_class_id_table is None or not context.executing_eagerly():
+    if self._cached_class_id_table is None or not tf.executing_eagerly():
       self._cached_class_id_table = lookup_ops.index_table_from_tensor(
           vocabulary_list=tuple(self._label_vocabulary), name='class_id_lookup')
     return self._cached_class_id_table
@@ -224,7 +226,7 @@ class MultiClassHead(base_head.Head):
       A hash table for lookup.
     """
     if (self._cached_class_string_table is None
-        or not context.executing_eagerly()):
+        or not tf.executing_eagerly()):
       self._cached_class_string_table = (
           lookup_ops.index_to_string_table_from_tensor(
               vocabulary_list=self._label_vocabulary, name='class_string_lookup'
@@ -243,7 +245,7 @@ class MultiClassHead(base_head.Head):
                          format(labels.dtype))
       label_ids = labels
     else:
-      if labels.dtype != dtypes.string:
+      if labels.dtype != tf.dtypes.string:
         raise ValueError('Labels dtype should be string if there is a '
                          'vocabulary. Instead got {}'.format(labels.dtype))
       label_ids = self._class_id_table.lookup(labels)
@@ -259,10 +261,10 @@ class MultiClassHead(base_head.Head):
           features=features,
           expected_loss_dim=1)
     else:
-      unweighted_loss = losses.sparse_softmax_cross_entropy(
-          labels=label_ids, logits=logits, reduction=losses.Reduction.NONE)
+      unweighted_loss = tf.compat.v1.losses.sparse_softmax_cross_entropy(
+          labels=label_ids, logits=logits, reduction=tf.compat.v1.losses.Reduction.NONE)
       # Restore the squeezed dim, so unweighted_loss matches the weights shape.
-      unweighted_loss = array_ops.expand_dims(unweighted_loss, axis=-1)
+      unweighted_loss = tf.compat.v1.expand_dims(unweighted_loss, axis=-1)
     weights = base_head.get_weights_and_check_match_logits(
         features=features,
         weight_column=self._weight_column,
@@ -283,7 +285,7 @@ class MultiClassHead(base_head.Head):
           unweighted_loss,
           sample_weight=weights,
           reduction=self._loss_reduction)
-      regularization_loss = math_ops.add_n(
+      regularization_loss = tf.math.add_n(
           regularization_losses) if regularization_losses is not None else None
       regularized_training_loss = (
           training_loss + regularization_loss if regularization_loss is not None
@@ -318,20 +320,20 @@ class MultiClassHead(base_head.Head):
       if pred_keys.LOGITS in keys:
         predictions[pred_keys.LOGITS] = logits
       if pred_keys.PROBABILITIES in keys:
-        probabilities = nn.softmax(logits, name=pred_keys.PROBABILITIES)
+        probabilities = tf.compat.v1.nn.softmax(logits, name=pred_keys.PROBABILITIES)
         predictions[pred_keys.PROBABILITIES] = probabilities
       if pred_keys.CLASS_IDS in keys or pred_keys.CLASSES in keys:
         # class_ids's shape is [D0, D1, ... DN].
-        class_ids = math_ops.argmax(logits, axis=-1, name=pred_keys.CLASS_IDS)
+        class_ids = tf.compat.v1.math.argmax(logits, axis=-1, name=pred_keys.CLASS_IDS)
         # Expand to [batch_size, 1].
-        class_ids = array_ops.expand_dims(class_ids, axis=-1)
+        class_ids = tf.compat.v1.expand_dims(class_ids, axis=-1)
         if pred_keys.CLASS_IDS in keys:
           predictions[pred_keys.CLASS_IDS] = class_ids
         if pred_keys.CLASSES in keys:
           if self._label_vocabulary:
             classes = self._class_string_table.lookup(class_ids)
           else:
-            classes = string_ops.as_string(class_ids, name='str_classes')
+            classes = tf.strings.as_string(class_ids, name='str_classes')
           predictions[pred_keys.CLASSES] = classes
       if pred_keys.ALL_CLASS_IDS in keys:
         predictions[pred_keys.ALL_CLASS_IDS] = base_head.all_class_ids(
@@ -373,7 +375,7 @@ class MultiClassHead(base_head.Head):
         y_true=label_ids, y_pred=class_ids, sample_weight=weights)
 
     if regularization_losses is not None:
-      regularization_loss = math_ops.add_n(regularization_losses)
+      regularization_loss = tf.math.add_n(regularization_losses)
       eval_metrics[self._loss_regularization_key].update_state(
           values=regularization_loss)
     return eval_metrics

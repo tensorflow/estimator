@@ -17,6 +17,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import tensorflow as tf
+
 import re
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
@@ -81,7 +83,7 @@ class TimeSeriesRegressionHead(head_lib._Head):  # pylint:disable=protected-acce
     """See `_Head`."""
     model_outputs = self.state_manager.define_loss(
         self.model, features, mode)
-    summary.scalar(
+    tf.compat.v1.summary.scalar(
         head_lib._summary_key(self._name, metric_keys.MetricKeys.LOSS),
         model_outputs.loss)
     return model_outputs
@@ -94,7 +96,7 @@ class TimeSeriesRegressionHead(head_lib._Head):  # pylint:disable=protected-acce
   def _train_ops(self, features):
     """Add training ops to the graph."""
     mode = estimator_lib.ModeKeys.TRAIN
-    with variable_scope.variable_scope(
+    with tf.compat.v1.variable_scope(
         "model",
         # Use ResourceVariables to avoid race conditions.
         use_resource=True):
@@ -102,7 +104,7 @@ class TimeSeriesRegressionHead(head_lib._Head):  # pylint:disable=protected-acce
 
     train_op = self.optimizer.minimize(
         model_outputs.loss,
-        global_step=training_util.get_global_step())
+        global_step=tf.compat.v1.train.get_global_step())
     return estimator_lib.EstimatorSpec(
         loss=model_outputs.loss,
         mode=mode,
@@ -111,7 +113,7 @@ class TimeSeriesRegressionHead(head_lib._Head):  # pylint:disable=protected-acce
   def _evaluate_ops(self, features):
     """Add ops for evaluation (aka filtering) to the graph."""
     mode = estimator_lib.ModeKeys.EVAL
-    with variable_scope.variable_scope("model", use_resource=True):
+    with tf.compat.v1.variable_scope("model", use_resource=True):
       model_outputs = self.create_loss(features, mode)
     metrics = {}
     # Just output in-sample predictions for the last chunk seen
@@ -123,7 +125,7 @@ class TimeSeriesRegressionHead(head_lib._Head):  # pylint:disable=protected-acce
     metrics[feature_keys.FilteringResults.STATE_TUPLE] = (
         _identity_metric_nested(feature_keys.FilteringResults.STATE_TUPLE,
                                 model_outputs.end_state))
-    metrics[metric_keys.MetricKeys.LOSS_MEAN] = metrics_impl.mean(
+    metrics[metric_keys.MetricKeys.LOSS_MEAN] = tf.compat.v1.metrics.mean(
         model_outputs.loss, name="average_loss")
     return estimator_lib.EstimatorSpec(
         loss=model_outputs.loss,
@@ -134,7 +136,7 @@ class TimeSeriesRegressionHead(head_lib._Head):  # pylint:disable=protected-acce
 
   def _predict_ops(self, features):
     """Add ops for prediction to the graph."""
-    with variable_scope.variable_scope("model", use_resource=True):
+    with tf.compat.v1.variable_scope("model", use_resource=True):
       prediction = self.model.predict(features=features)
     prediction[feature_keys.PredictionResults.TIMES] = features[
         feature_keys.PredictionFeatures.TIMES]
@@ -143,12 +145,12 @@ class TimeSeriesRegressionHead(head_lib._Head):  # pylint:disable=protected-acce
 
   def _serving_ops(self, features):
     """Add ops for serving to the graph."""
-    with variable_scope.variable_scope("model", use_resource=True):
+    with tf.compat.v1.variable_scope("model", use_resource=True):
       prediction_outputs = self.model.predict(features=features)
-    with variable_scope.variable_scope("model", reuse=True):
+    with tf.compat.v1.variable_scope("model", reuse=True):
       filtering_outputs = self.create_loss(
           features, estimator_lib.ModeKeys.EVAL)
-    with variable_scope.variable_scope("model", reuse=True):
+    with tf.compat.v1.variable_scope("model", reuse=True):
       no_state_features = {
           k: v for k, v in features.items()
           if not k.startswith(feature_keys.State.STATE_PREFIX)}
@@ -178,12 +180,12 @@ class TimeSeriesRegressionHead(head_lib._Head):  # pylint:disable=protected-acce
         feature_keys.TrainEvalFeatures.TIMES,
         feature_keys.PredictionFeatures.TIMES
     ]:
-      return math_ops.cast(value, dtypes.int64)
+      return tf.cast(value, tf.dtypes.int64)
     if name == feature_keys.TrainEvalFeatures.VALUES:
-      return math_ops.cast(value, self.model.dtype)
+      return tf.cast(value, self.model.dtype)
     if name == feature_keys.PredictionFeatures.STATE_TUPLE:
       return value  # Correct dtypes are model-dependent
-    return sparse_tensor.convert_to_tensor_or_sparse_tensor(value)
+    return tf.compat.v1.convert_to_tensor_or_sparse_tensor(value)
 
   def _gather_state(self, features):
     """Returns `features` with state packed, indicates if packing was done."""
@@ -200,7 +202,7 @@ class TimeSeriesRegressionHead(head_lib._Head):  # pylint:disable=protected-acce
     for _, key, _ in numbered_state:
       del features[key]
     numbered_state.sort(key=lambda number, *_: number)
-    features[feature_keys.State.STATE_TUPLE] = nest.pack_sequence_as(
+    features[feature_keys.State.STATE_TUPLE] = tf.nest.pack_sequence_as(
         structure=self.model.get_start_state(),
         flat_sequence=[tensor for _, _, tensor in numbered_state])
     return features, True
@@ -334,10 +336,10 @@ class OneShotPredictionHead(TimeSeriesRegressionHead):
 
   def _serving_ops(self, features):
     """Add ops for serving to the graph."""
-    with variable_scope.variable_scope("model", use_resource=True):
+    with tf.compat.v1.variable_scope("model", use_resource=True):
       filtering_features = {}
       prediction_features = {}
-      values_length = array_ops.shape(
+      values_length = tf.compat.v1.shape(
           features[feature_keys.FilteringFeatures.VALUES])[1]
       for key, value in features.items():
         if key == feature_keys.State.STATE_TUPLE:
@@ -353,7 +355,7 @@ class OneShotPredictionHead(TimeSeriesRegressionHead):
           features=filtering_features, mode=estimator_lib.ModeKeys.EVAL)
       prediction_features[feature_keys.State.STATE_TUPLE] = (
           cold_filtering_outputs.end_state)
-    with variable_scope.variable_scope("model", reuse=True):
+    with tf.compat.v1.variable_scope("model", reuse=True):
       prediction_outputs = self.model.predict(
           features=prediction_features)
     return estimator_lib.EstimatorSpec(
@@ -446,12 +448,12 @@ def _identity_metric_single(name, input_tensor):
   Returns:
     A tuple of (value, update_op).
   """
-  metric_variable = variable_scope.variable(
+  metric_variable = tf.compat.v1.Variable(
       name="{}_identity_metric".format(name),
-      initial_value=array_ops.zeros([], dtype=input_tensor.dtype),
-      collections=[ops.GraphKeys.LOCAL_VARIABLES],
+      initial_value=tf.zeros([], dtype=input_tensor.dtype),
+      collections=[tf.compat.v1.GraphKeys.LOCAL_VARIABLES],
       validate_shape=False)
-  update_op = state_ops.assign(
+  update_op = tf.compat.v1.assign(
       metric_variable, input_tensor, validate_shape=False)
   # This shape will be correct once the first update runs (but may be
   # incomplete, so is not helpful for initializing the variable).
@@ -463,19 +465,19 @@ def _identity_metric_nested(name, input_tensors):
   """Create identity metrics for a nested tuple of Tensors."""
   update_ops = []
   value_tensors = []
-  for tensor_number, tensor in enumerate(nest.flatten(input_tensors)):
+  for tensor_number, tensor in enumerate(tf.nest.flatten(input_tensors)):
     value_tensor, update_op = _identity_metric_single(
         name="{}_{}".format(name, tensor_number), input_tensor=tensor)
     update_ops.append(update_op)
     value_tensors.append(value_tensor)
-  return (nest.pack_sequence_as(input_tensors, value_tensors),
-          control_flow_ops.group(*update_ops))
+  return (tf.nest.pack_sequence_as(input_tensors, value_tensors),
+          tf.group(*update_ops))
 
 
 def state_to_dictionary(state_tuple):
   """Flatten model state into a dictionary with string keys."""
   flattened = {}
-  for state_number, state_value in enumerate(nest.flatten(state_tuple)):
+  for state_number, state_value in enumerate(tf.nest.flatten(state_tuple)):
     prefixed_state_name = "{}_{:02d}".format(feature_keys.State.STATE_PREFIX,
                                              state_number)
     flattened[prefixed_state_name] = state_value

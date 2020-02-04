@@ -26,6 +26,7 @@ from __future__ import print_function
 
 import collections
 
+import tensorflow as tf
 import six
 
 from tensorflow.python.framework import dtypes
@@ -79,8 +80,8 @@ def wrap_and_check_input_tensors(tensors, field_name, allow_int_keys=False):
 
 def _check_tensor(tensor, name, error_label='feature'):
   """Check that passed `tensor` is a Tensor or SparseTensor."""
-  if not (isinstance(tensor, ops.Tensor) or
-          isinstance(tensor, sparse_tensor.SparseTensor)):
+  if not (isinstance(tensor, tf.Tensor) or
+          isinstance(tensor, tf.sparse.SparseTensor)):
     fmt_name = ' {}'.format(name) if name else ''
     value_error = ValueError('{}{} must be a Tensor or SparseTensor.'.format(
         error_label, fmt_name))
@@ -307,12 +308,12 @@ def build_parsing_serving_input_receiver_fn(feature_spec,
 
   def serving_input_receiver_fn():
     """An input_fn that expects a serialized tf.Example."""
-    serialized_tf_example = array_ops.placeholder(
-        dtype=dtypes.string,
+    serialized_tf_example = tf.compat.v1.placeholder(
+        dtype=tf.dtypes.string,
         shape=[default_batch_size],
         name='input_example_tensor')
     receiver_tensors = {'examples': serialized_tf_example}
-    features = parsing_ops.parse_example(serialized_tf_example, feature_spec)
+    features = tf.compat.v1.io.parse_example(serialized_tf_example, feature_spec)
     return ServingInputReceiver(features, receiver_tensors)
 
   return serving_input_receiver_fn
@@ -329,7 +330,7 @@ def _placeholder_from_tensor(t, default_batch_size=None):
   Returns:
     Placeholder that matches the passed tensor.
   """
-  batch_shape = tensor_shape.TensorShape([default_batch_size])
+  batch_shape = tf.TensorShape([default_batch_size])
   shape = batch_shape.concatenate(t.get_shape()[1:])
 
   # Reuse the feature tensor's op name (t.op.name) for the placeholder,
@@ -345,7 +346,7 @@ def _placeholder_from_tensor(t, default_batch_size=None):
     # name if none is available.
     name = None
 
-  return array_ops.placeholder(dtype=t.dtype, shape=shape, name=name)
+  return tf.compat.v1.placeholder(dtype=t.dtype, shape=shape, name=name)
 
 
 def _placeholders_from_receiver_tensors_dict(input_vals,
@@ -474,7 +475,7 @@ def build_supervised_input_receiver_fn_from_input_fn(input_fn, **input_fn_args):
     modes.
   """
   # Wrap the input_fn call in a graph to prevent sullying the default namespace
-  with ops.Graph().as_default():
+  with tf.Graph().as_default():
     result = input_fn(**input_fn_args)
     features, labels, _ = util.parse_input_fn_result(result)
   # Placeholders are created back in the default graph.

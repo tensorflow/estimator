@@ -19,6 +19,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import tensorflow as tf
+
 import threading
 
 from tensorflow.python.framework import errors
@@ -26,7 +28,7 @@ from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.training import queue_runner as qr
 
 
-class _FeedingQueueRunner(qr.QueueRunner):
+class _FeedingQueueRunner(tf.compat.v1.train.queue_runner.QueueRunner):
   """A queue runner that allows the feeding of values such as numpy arrays."""
 
   def __init__(self, queue=None, enqueue_ops=None, close_op=None,
@@ -56,7 +58,7 @@ class _FeedingQueueRunner(qr.QueueRunner):
     """
     if queue_closed_exception_types is None:
       queue_closed_exception_types = (
-          errors.OutOfRangeError, errors.CancelledError)
+          tf.errors.OutOfRangeError, tf.errors.CancelledError)
     super(_FeedingQueueRunner, self).__init__(
         queue, enqueue_ops, close_op,
         cancel_op, queue_closed_exception_types=queue_closed_exception_types)
@@ -92,7 +94,7 @@ class _FeedingQueueRunner(qr.QueueRunner):
         try:
           feed_dict = None if feed_fn is None else feed_fn()
           sess.run(enqueue_op, feed_dict=feed_dict)
-        except (errors.OutOfRangeError, errors.CancelledError):
+        except (tf.errors.OutOfRangeError, tf.errors.CancelledError):
           # This exception indicates that a queue was closed.
           with self._lock:
             self._runs_per_session[sess] -= 1
@@ -102,14 +104,14 @@ class _FeedingQueueRunner(qr.QueueRunner):
                 sess.run(self._close_op)
               except Exception as e:
                 # Intentionally ignore errors from close_op.
-                logging.vlog(1, "Ignored exception: %s", str(e))
+                tf.compat.v1.logging.vlog(1, "Ignored exception: %s", str(e))
             return
     except Exception as e:
       # This catches all other exceptions.
       if coord:
         coord.request_stop(e)
       else:
-        logging.error("Exception in QueueRunner: %s", str(e))
+        tf.compat.v1.logging.error("Exception in QueueRunner: %s", str(e))
         with self._lock:
           self._exceptions_raised.append(e)
         raise
