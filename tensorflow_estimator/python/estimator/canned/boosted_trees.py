@@ -1501,6 +1501,7 @@ def per_example_maxent_loss(labels, weights, logits, num_classes, eps=1e-15):
 
 def _multiclass_head(n_classes,
                      weight_column=None,
+                     label_vocabulary=None,
                      loss_reduction=losses.Reduction.SUM_OVER_NONZERO_WEIGHTS):
   """Core head for multiclass problems."""
 
@@ -1517,6 +1518,7 @@ def _multiclass_head(n_classes,
       n_classes=n_classes,
       loss_fn=loss_fn,
       loss_reduction=loss_reduction,
+      label_vocabulary=label_vocabulary,
       weight_column=weight_column)
   # pylint:enable=protected-access
 
@@ -1538,6 +1540,7 @@ def _create_classification_head(n_classes,
     return _multiclass_head(
         n_classes,
         weight_column,
+        label_vocabulary=label_vocabulary,
         loss_reduction=losses.Reduction.SUM_OVER_NONZERO_WEIGHTS)
 
 
