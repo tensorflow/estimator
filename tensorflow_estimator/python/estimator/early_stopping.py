@@ -20,8 +20,10 @@ import collections
 import operator
 import os
 
+from tensorflow.python.distribute import distribution_strategy_context
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
+from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import init_ops
 from tensorflow.python.ops import state_ops
 from tensorflow.python.ops import variable_scope
@@ -90,6 +92,15 @@ def make_early_stopping_hook(estimator,
   if run_every_secs is not None and run_every_steps is not None:
     raise ValueError('Only one of `run_every_secs` and `run_every_steps` must '
                      'be set.')
+
+  train_distribute = estimator.config.train_distribute
+  mwms = ['CollectiveAllReduceStrategy', 'MultiWorkerMirroredStrategy']
+  if train_distribute and (train_distribute.__class__.__name__.startswith(
+      strategy) for strategy in mwms):
+    if run_every_secs:
+      raise ValueError('run_every_secs should not be set when using '
+                       'MultiWorkerMirroredStrategy.')
+    return _MultiWorkerEarlyStoppingHook(should_stop_fn, run_every_steps)
 
   if estimator.config.is_chief:
     return _StopOnPredicateHook(should_stop_fn, run_every_secs, run_every_steps)
@@ -506,3 +517,78 @@ class _CheckForStoppingHook(tf.compat.v1.train.SessionRunHook):
     if should_early_stop:
       tf.compat.v1.logging.info('Early stopping requested, suspending run.')
       run_context.request_stop()
+
+
+class _MultiWorkerEarlyStoppingHook(session_run_hook.SessionRunHook):
+  """Hook that requests stop when `should_stop_fn` returns `True`."""
+
+  def _get_or_create_stop_var_with_aggregation(self):
+    with variable_scope.variable_scope(
+        name_or_scope='signal_early_stopping',
+        values=[],
+        reuse=variable_scope.AUTO_REUSE):
+      return variable_scope.get_variable(
+          name='STOP',
+          shape=[],
+          dtype=dtypes.int32,
+          initializer=init_ops.constant_initializer(0),
+          collections=[ops.GraphKeys.GLOBAL_VARIABLES],
+          synchronization=variable_scope.VariableSynchronization.ON_WRITE,
+          aggregation=variable_scope.VariableAggregation.SUM,
+          trainable=False)
+
+  def __init__(self, should_stop_fn, run_every_steps=None):
+    if not callable(should_stop_fn):
+      raise TypeError('`should_stop_fn` must be callable.')
+
+    self._should_stop_fn = should_stop_fn
+    self._timer = basic_session_run_hooks.SecondOrStepTimer(
+        every_secs=None, every_steps=run_every_steps)
+    self._global_step_tensor = None
+    self._stop_var = None
+    self._stop_op = None
+    self._non_stop_op = None
+
+  def begin(self):
+    self._global_step_tensor = training_util.get_global_step()
+    self._stop_var = self._get_or_create_stop_var_with_aggregation()
+    assert distribution_strategy_context.in_cross_replica_context()
+
+    strategy = distribution_strategy_context.get_strategy()
+    self._stop_placeholder = None
+
+    def stop_op_fn(var):
+      placeholder = array_ops.placeholder_with_default(
+          0, tuple(), name='stop_value')
+      if self._stop_placeholder is None:
+        self._stop_placeholder = placeholder
+      return var.assign_add(placeholder)
+
+    self._stop_op = strategy.experimental_run_v2(
+        stop_op_fn, args=(self._stop_var,))
+
+  def before_run(self, run_context):
+    del run_context
+    return session_run_hook.SessionRunArgs({
+        'global_step': self._global_step_tensor,
+        'stop_var': self._stop_var
+    })
+
+  def after_run(self, run_context, run_values):
+    global_step = run_values.results['global_step']
+    should_early_stop = run_values.results['stop_var']
+
+    if should_early_stop > 0:
+      tf_logging.info('Early stopping requested, suspending run.')
+      run_context.request_stop()
+      return
+    if self._timer.should_trigger_for_step(global_step):
+      self._timer.update_last_triggered_step(global_step)
+      if self._should_stop_fn():
+        run_context.session.run(
+            self._stop_op, feed_dict={self._stop_placeholder: 1})
+        tf_logging.info('Requesting early stopping at global step %d',
+                        global_step)
+      else:
+        run_context.session.run(
+            self._stop_op, feed_dict={self._stop_placeholder: 0})
