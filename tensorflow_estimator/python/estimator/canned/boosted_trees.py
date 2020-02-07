@@ -2011,13 +2011,13 @@ class BoostedTreesClassifier(_BoostedTreesBase):
         multiplied by the loss of the example. If it is a string, it is used as
         a key to fetch weight tensor from the `features`. If it is a
         `NumericColumn`, raw tensor is fetched by key `weight_column.key`, then
-        weight_column.normalizer_fn is applied on it to get weight tensor.
+        `weight_column.normalizer_fn` is applied on it to get weight tensor.
       label_vocabulary: A list of strings represents possible label values. If
         given, labels must be string type and have any value in
         `label_vocabulary`. If it is not given, that means labels are already
-        encoded as integer or float within [0, 1] for `n_classes=2` and encoded
-        as integer values in {0, 1,..., n_classes-1} for `n_classes`>2 . Also
-        there will be errors if vocabulary is not provided and labels are
+        encoded as integer or float within `[0, 1]` for `n_classes=2` and
+        encoded as integer values in {0, 1,..., n_classes-1} for `n_classes>2`.
+        Also, there will be errors if vocabulary is not provided and labels are
         string.
       n_trees: number trees to be created.
       max_depth: maximum depth of the tree to grow.
@@ -2030,7 +2030,7 @@ class BoostedTreesClassifier(_BoostedTreesBase):
       tree_complexity: regularization factor to penalize trees with more leaves.
       min_node_weight: min_node_weight: minimum hessian a node must have for a
         split to be considered. The value will be compared with
-        sum(leaf_hessian)/(batch_size * n_batches_per_layer).
+        `sum(leaf_hessian)/(batch_size * n_batches_per_layer)`.
       config: `RunConfig` object to configure the runtime settings.
       center_bias: Whether bias centering needs to occur. Bias centering refers
         to the first node in the very first tree returning the prediction that
@@ -2038,18 +2038,18 @@ class BoostedTreesClassifier(_BoostedTreesBase):
         regression problems, the first node will return the mean of the labels.
         For binary classification problems, it will return a logit for a prior
         probability of label 1.
-      pruning_mode: one of 'none', 'pre', 'post' to indicate no pruning, pre-
+      pruning_mode: one of `none`, `pre`, `post` to indicate no pruning, pre-
         pruning (do not split a node if not enough gain is observed) and post
         pruning (build the tree up to a max depth and then prune branches with
         negative gain). For pre and post pruning, you MUST provide
-        tree_complexity >0.
+        `tree_complexity >0`.
       quantile_sketch_epsilon: float between 0 and 1. Error bound for quantile
         computation. This is only used for float feature columns, and the number
-        of buckets generated per float feature is 1/quantile_sketch_epsilon.
+        of buckets generated per float feature is `1/quantile_sketch_epsilon`.
       train_in_memory: `bool`, when true, it assumes the dataset is in memory,
-        i.e., input_fn should return the entire dataset as a single batch,
-        n_batches_per_layer should be set as 1, num_worker_replicas should be 1,
-        and num_ps_replicas should be 0 in `tf.Estimator.RunConfig`.
+        i.e., `input_fn` should return the entire dataset as a single batch,
+        `n_batches_per_layer` should be set as 1, `num_worker_replicas` should
+         be 1, and `num_ps_replicas` should be 0 in `tf.Estimator.RunConfig`.
 
     Raises:
       ValueError: when wrong arguments are given or unsupported functionalities
@@ -2170,7 +2170,7 @@ class BoostedTreesRegressor(_BoostedTreesBase):
         multiplied by the loss of the example. If it is a string, it is used as
         a key to fetch weight tensor from the `features`. If it is a
         `NumericColumn`, raw tensor is fetched by key `weight_column.key`, then
-        weight_column.normalizer_fn is applied on it to get weight tensor.
+        `weight_column.normalizer_fn` is applied on it to get weight tensor.
       n_trees: number trees to be created.
       max_depth: maximum depth of the tree to grow.
       learning_rate: shrinkage parameter to be used when a tree added to the
@@ -2182,7 +2182,7 @@ class BoostedTreesRegressor(_BoostedTreesBase):
       tree_complexity: regularization factor to penalize trees with more leaves.
       min_node_weight: min_node_weight: minimum hessian a node must have for a
         split to be considered. The value will be compared with
-        sum(leaf_hessian)/(batch_size * n_batches_per_layer).
+        `sum(leaf_hessian)/(batch_size * n_batches_per_layer)`.
       config: `RunConfig` object to configure the runtime settings.
       center_bias: Whether bias centering needs to occur. Bias centering refers
         to the first node in the very first tree returning the prediction that
@@ -2190,18 +2190,18 @@ class BoostedTreesRegressor(_BoostedTreesBase):
         regression problems, the first node will return the mean of the labels.
         For binary classification problems, it will return a logit for a prior
         probability of label 1.
-      pruning_mode: one of 'none', 'pre', 'post' to indicate no pruning, pre-
+      pruning_mode: one of `none`, `pre`, `post` to indicate no pruning, pre-
         pruning (do not split a node if not enough gain is observed) and post
         pruning (build the tree up to a max depth and then prune branches with
         negative gain). For pre and post pruning, you MUST provide
-        tree_complexity >0.
+        `tree_complexity>0`.
       quantile_sketch_epsilon: float between 0 and 1. Error bound for quantile
         computation. This is only used for float feature columns, and the number
-        of buckets generated per float feature is 1/quantile_sketch_epsilon.
+        of buckets generated per float feature is `1/quantile_sketch_epsilon`.
       train_in_memory: `bool`, when true, it assumes the dataset is in memory,
-        i.e., input_fn should return the entire dataset as a single batch,
-        n_batches_per_layer should be set as 1, num_worker_replicas should be 1,
-        and num_ps_replicas should be 0 in `tf.Estimator.RunConfig`.
+        i.e., `input_fn` should return the entire dataset as a single batch,
+        `n_batches_per_layer` should be set as 1, `num_worker_replicas` should
+         be 1, and `num_ps_replicas` should be 0 in `tf.Estimator.RunConfig`.
 
     Raises:
       ValueError: when wrong arguments are given or unsupported functionalities
@@ -2308,8 +2308,8 @@ class BoostedTreesEstimator(_BoostedTreesBase):  # pylint: disable=protected-acc
         of the tree leafs.
       tree_complexity: regularization factor to penalize trees with more leaves.
       min_node_weight: minimum hessian a node must have for a split to be
-        considered. The value will be compared with sum(leaf_hessian)/
-        (batch_size * n_batches_per_layer).
+        considered. The value will be compared with `sum(leaf_hessian)/
+        (batch_size * n_batches_per_layer)`.
       config: `RunConfig` object to configure the runtime settings.
       center_bias: Whether bias centering needs to occur. Bias centering refers
         to the first node in the very first tree returning the prediction that
@@ -2317,14 +2317,14 @@ class BoostedTreesEstimator(_BoostedTreesBase):  # pylint: disable=protected-acc
         regression problems, the first node will return the mean of the labels.
         For binary classification problems, it will return a logit for a prior
         probability of label 1.
-      pruning_mode: one of 'none', 'pre', 'post' to indicate no pruning, pre-
+      pruning_mode: one of `none`, `pre`, `post` to indicate no pruning, pre-
         pruning (do not split a node if not enough gain is observed) and post
         pruning (build the tree up to a max depth and then prune branches with
         negative gain). For pre and post pruning, you MUST provide
-        tree_complexity >0.
+        `tree_complexity>0`.
       quantile_sketch_epsilon: float between 0 and 1. Error bound for quantile
         computation. This is only used for float feature columns, and the number
-        of buckets generated per float feature is 1/quantile_sketch_epsilon.
+        of buckets generated per float feature is `1/quantile_sketch_epsilon`.
 
     Raises:
       ValueError: when wrong arguments are given or unsupported functionalities
