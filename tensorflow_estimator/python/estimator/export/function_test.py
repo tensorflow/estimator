@@ -20,22 +20,9 @@ from __future__ import print_function
 
 import os
 
-import tensorflow as tf
 import six as six
-
-from tensorflow.python.framework import constant_op
-from tensorflow.python.framework import dtypes
+import tensorflow as tf
 from tensorflow.python.framework import test_util
-from tensorflow.python.ops import array_ops
-from tensorflow.python.ops import state_ops
-from tensorflow.python.ops import string_ops
-from tensorflow.python.ops import variables
-from tensorflow.python.platform import test
-from tensorflow.python.saved_model import load
-from tensorflow.python.saved_model import save
-from tensorflow.python.training import training
-from tensorflow.python.util import compat
-from tensorflow.python.util import nest
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
 from tensorflow_estimator.python.estimator.export import export_lib
 from tensorflow_estimator.python.estimator.export import function
@@ -44,27 +31,25 @@ from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 
 def _string_fix(obj):
   return tf.nest.map_structure(
-      lambda x: tf.compat.as_bytes(x) if isinstance(x, six.string_types) else x,
-      obj)
+      lambda x: tf.compat.as_bytes(x)
+      if isinstance(x, six.string_types) else x, obj)
 
 
 def _model_fn(features, labels, mode):
   v = tf.Variable(tf.constant(23), name='v')
   if mode == ModeKeys.PREDICT:
     return model_fn_lib.EstimatorSpec(
-        ModeKeys.PREDICT,
-        predictions=features + 1)
+        ModeKeys.PREDICT, predictions=features + 1)
   elif mode == ModeKeys.EVAL:
     return model_fn_lib.EstimatorSpec(
-        ModeKeys.EVAL,
-        loss=tf.constant(5) + v,
-        predictions=features + labels)
+        ModeKeys.EVAL, loss=tf.constant(5) + v, predictions=features + labels)
   elif mode == ModeKeys.TRAIN:
     return model_fn_lib.EstimatorSpec(
         ModeKeys.TRAIN,
         predictions=features * labels,
         loss=tf.constant(5) + v,
-        train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1))
+        train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(),
+                                         1))
 
 
 def _model_fn_train_only(features, labels):
@@ -77,9 +62,7 @@ def _model_fn_train_only(features, labels):
 
 
 def _model_fn_predict_only(features):
-  return model_fn_lib.EstimatorSpec(
-      ModeKeys.PREDICT,
-      predictions=features + 1)
+  return model_fn_lib.EstimatorSpec(ModeKeys.PREDICT, predictions=features + 1)
 
 
 # TODO(kathywu): Re-enable test after def_function changes are built into
@@ -145,17 +128,16 @@ class ModelFunctionTest(object):
     obj = tf.saved_model.load(save_dir)
     variables_by_name = obj._variables_by_name
 
-    self.evaluate(tf.compat.v1.initializers.variables(
-        variables_by_name._unconditional_dependency_names.values()))
+    self.evaluate(
+        tf.compat.v1.initializers.variables(
+            variables_by_name._unconditional_dependency_names.values()))
     self.assertEqual(3, self.evaluate(variables_by_name.global_step))
 
-    out = obj._functions['train'](tf.constant(3),
-                                  tf.constant(5))
+    out = obj._functions['train'](tf.constant(3), tf.constant(5))
     self.assertEqual(15, self.evaluate(out['predictions']))
     self.assertEqual(4, self.evaluate(variables_by_name.global_step))
 
-    out = obj._functions['eval'](tf.constant(7),
-                                 tf.constant(9))
+    out = obj._functions['eval'](tf.constant(7), tf.constant(9))
     self.assertEqual(16, self.evaluate(out['predictions']))
 
     out = obj._functions['infer'](tf.constant(10))
@@ -168,19 +150,17 @@ def _model_fn_callable_variable_initializers(features, labels, mode):
   v = tf.Variable(lambda: tf.constant(23), name='v')
   if mode == ModeKeys.PREDICT:
     return model_fn_lib.EstimatorSpec(
-        ModeKeys.PREDICT,
-        predictions=features + 1)
+        ModeKeys.PREDICT, predictions=features + 1)
   elif mode == ModeKeys.EVAL:
     return model_fn_lib.EstimatorSpec(
-        ModeKeys.EVAL,
-        loss=tf.constant(5) + v,
-        predictions=features + labels)
+        ModeKeys.EVAL, loss=tf.constant(5) + v, predictions=features + labels)
   elif mode == ModeKeys.TRAIN:
     return model_fn_lib.EstimatorSpec(
         ModeKeys.TRAIN,
         predictions=features * labels,
         loss=tf.constant(5) + v,
-        train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1))
+        train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(),
+                                         1))
 
 
 @test_util.run_all_in_graph_and_eager_modes
@@ -193,14 +173,15 @@ class EstimatorWrappedGraphTest(tf.test.TestCase):
     mode = ModeKeys.TRAIN
     fn = graph.wrap_model_fn(
         _model_fn_callable_variable_initializers,
-        mode=mode, args=[features, labels, mode], kwargs={})
+        mode=mode,
+        args=[features, labels, mode],
+        kwargs={})
     self.evaluate(tf.compat.v1.initializers.variables(graph.variables.values()))
     self.assertEqual(0, self.evaluate(graph.global_step))
     self.assertEqual(12, self.evaluate(fn(features, labels)['predictions']))
     self.assertEqual(1, self.evaluate(graph.global_step))
 
-    self.assertEqual('AssignAddVariableOp',
-                     graph.estimator_spec.train_op.type)
+    self.assertEqual('AssignAddVariableOp', graph.estimator_spec.train_op.type)
 
   def test_wrap_model_fn_eval(self):
     graph = function._EstimatorWrappedGraph()
@@ -209,7 +190,9 @@ class EstimatorWrappedGraphTest(tf.test.TestCase):
     mode = ModeKeys.EVAL
     fn = graph.wrap_model_fn(
         _model_fn_callable_variable_initializers,
-        mode=mode, args=[features, labels, mode], kwargs={})
+        mode=mode,
+        args=[features, labels, mode],
+        kwargs={})
     self.assertDictEqual({'predictions': 11},
                          self.evaluate(fn(features, labels)))
 
@@ -219,9 +202,10 @@ class EstimatorWrappedGraphTest(tf.test.TestCase):
     mode = ModeKeys.PREDICT
     fn = graph.wrap_model_fn(
         _model_fn_callable_variable_initializers,
-        mode=mode, args=[features, None, mode], kwargs={})
-    self.assertDictEqual({'predictions': 8},
-                         self.evaluate(fn(features)))
+        mode=mode,
+        args=[features, None, mode],
+        kwargs={})
+    self.assertDictEqual({'predictions': 8}, self.evaluate(fn(features)))
 
   def test_wrap_input_receiver_fn(self):
 
@@ -245,10 +229,11 @@ class EstimatorWrappedGraphTest(tf.test.TestCase):
           'alt_name_1': concat,
           'alt_name_2': {
               'tensor1': concat,
-              'tensor2': concat2}
+              'tensor2': concat2
+          }
       }
-      return export_lib.ServingInputReceiver(
-          features, receiver_tensors, alternate_tensors)
+      return export_lib.ServingInputReceiver(features, receiver_tensors,
+                                             alternate_tensors)
 
     graph = function._EstimatorWrappedGraph()
     fns = graph.wrap_input_receiver_fn(serving_input_fn)
@@ -257,18 +242,24 @@ class EstimatorWrappedGraphTest(tf.test.TestCase):
       if name is None:
         out = fn(tf.constant('1'), tf.constant('2'))
         self.assertDictEqual(
-            _string_fix({'feature0': '12:12', 'feature1': [1]}),
-            _string_fix(self.evaluate(out)))
+            _string_fix({
+                'feature0': '12:12',
+                'feature1': [1]
+            }), _string_fix(self.evaluate(out)))
       elif name == 'alt_name_1':
         out = fn(tf.constant('3'))
         self.assertDictEqual(
-            _string_fix({'feature0': '3:3', 'feature1': [1]}),
-            _string_fix(self.evaluate(out)))
+            _string_fix({
+                'feature0': '3:3',
+                'feature1': [1]
+            }), _string_fix(self.evaluate(out)))
       elif name == 'alt_name_2':
         out = fn(tf.constant('4'), tf.constant('5'))
         self.assertDictEqual(
-            _string_fix({'feature0': '4:5', 'feature1': [1]}),
-            _string_fix(self.evaluate(out)))
+            _string_fix({
+                'feature0': '4:5',
+                'feature1': [1]
+            }), _string_fix(self.evaluate(out)))
 
 
 if __name__ == '__main__':
