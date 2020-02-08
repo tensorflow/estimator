@@ -18,15 +18,9 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
 import numpy as np
-
-from tensorflow.python.client import session
-from tensorflow.python.framework import ops
+import tensorflow as tf
 from tensorflow.python.framework import test_util
-from tensorflow.python.platform import test
-from tensorflow.python.training import coordinator
-from tensorflow.python.training import queue_runner_impl
 from tensorflow_estimator.python.estimator.inputs.queues import feeding_functions as ff
 
 try:
@@ -57,7 +51,8 @@ class FeedingQueueRunnerTestCase(tf.test.TestCase):
       dq_op = q.dequeue_many(batch_size)
       with tf.compat.v1.Session() as sess:
         coord = tf.train.Coordinator()
-        threads = tf.compat.v1.train.queue_runner.start_queue_runners(sess=sess, coord=coord)
+        threads = tf.compat.v1.train.queue_runner.start_queue_runners(
+            sess=sess, coord=coord)
         for i in range(100):
           indices = [
               j % array.shape[0]
@@ -78,7 +73,8 @@ class FeedingQueueRunnerTestCase(tf.test.TestCase):
       dq_op = q.dequeue_many(batch_size)
       with tf.compat.v1.Session() as sess:
         coord = tf.train.Coordinator()
-        threads = tf.compat.v1.train.queue_runner.start_queue_runners(sess=sess, coord=coord)
+        threads = tf.compat.v1.train.queue_runner.start_queue_runners(
+            sess=sess, coord=coord)
         for _ in range(100):
           dq = sess.run(dq_op)
           indices = dq[0]
@@ -99,7 +95,8 @@ class FeedingQueueRunnerTestCase(tf.test.TestCase):
       dq_op = q.dequeue_many(5)
       with tf.compat.v1.Session() as sess:
         coord = tf.train.Coordinator()
-        threads = tf.compat.v1.train.queue_runner.start_queue_runners(sess=sess, coord=coord)
+        threads = tf.compat.v1.train.queue_runner.start_queue_runners(
+            sess=sess, coord=coord)
         for i in range(100):
           indices = [
               j % array1.shape[0]
@@ -127,7 +124,8 @@ class FeedingQueueRunnerTestCase(tf.test.TestCase):
       dq_op = q.dequeue_many(batch_size)
       with tf.compat.v1.Session() as sess:
         coord = tf.train.Coordinator()
-        threads = tf.compat.v1.train.queue_runner.start_queue_runners(sess=sess, coord=coord)
+        threads = tf.compat.v1.train.queue_runner.start_queue_runners(
+            sess=sess, coord=coord)
         for _ in range(100):
           dq = sess.run(dq_op)
           indices = dq[0]

@@ -18,21 +18,10 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
 import numpy as np
-from tensorflow.python.client import session as session_lib
-from tensorflow.python.framework import test_util
-from tensorflow.python.feature_column import feature_column_lib as fc
+import tensorflow as tf
 from tensorflow.python.feature_column.feature_column import _LinearModel
-from tensorflow.python.framework import errors
-from tensorflow.python.framework import ops
-from tensorflow.python.ops import lookup_ops
-from tensorflow.python.ops import variable_scope
-from tensorflow.python.ops import variables as variables_lib
-from tensorflow.python.platform import test
-from tensorflow.python.training import coordinator
-from tensorflow.python.training import monitored_session
-from tensorflow.python.training import queue_runner_impl
+from tensorflow.python.framework import test_util
 from tensorflow_estimator.python.estimator.inputs import numpy_io
 
 
@@ -51,7 +40,8 @@ class NumpyIoTest(tf.test.TestCase):
       features, target = input_fn()
 
       coord = tf.train.Coordinator()
-      threads = tf.compat.v1.train.queue_runner.start_queue_runners(session, coord=coord)
+      threads = tf.compat.v1.train.queue_runner.start_queue_runners(
+          session, coord=coord)
 
       res = session.run([features, target])
       self.assertAllEqual(res[0]['a'], [0, 1])
@@ -77,7 +67,8 @@ class NumpyIoTest(tf.test.TestCase):
       features, target = input_fn()
 
       coord = tf.train.Coordinator()
-      threads = tf.compat.v1.train.queue_runner.start_queue_runners(session, coord=coord)
+      threads = tf.compat.v1.train.queue_runner.start_queue_runners(
+          session, coord=coord)
 
       res = session.run([features, target])
       self.assertAllEqual(res[0]['a'], [0, 1, 0, 1])
@@ -102,7 +93,8 @@ class NumpyIoTest(tf.test.TestCase):
       features, target = input_fn()
 
       coord = tf.train.Coordinator()
-      threads = tf.compat.v1.train.queue_runner.start_queue_runners(session, coord=coord)
+      threads = tf.compat.v1.train.queue_runner.start_queue_runners(
+          session, coord=coord)
 
       with self.assertRaises(tf.errors.OutOfRangeError):
         session.run([features, target])
@@ -123,7 +115,8 @@ class NumpyIoTest(tf.test.TestCase):
       features, target = input_fn()
 
       coord = tf.train.Coordinator()
-      threads = tf.compat.v1.train.queue_runner.start_queue_runners(session, coord=coord)
+      threads = tf.compat.v1.train.queue_runner.start_queue_runners(
+          session, coord=coord)
 
       res = session.run([features, target])
       self.assertAllEqual(res[0]['a'], [0, 1])
@@ -159,7 +152,8 @@ class NumpyIoTest(tf.test.TestCase):
       features, target = input_fn()
 
       coord = tf.train.Coordinator()
-      threads = tf.compat.v1.train.queue_runner.start_queue_runners(session, coord=coord)
+      threads = tf.compat.v1.train.queue_runner.start_queue_runners(
+          session, coord=coord)
 
       res = session.run([features, target])
       self.assertAllEqual(res[0]['a'], [0, 1])
@@ -205,7 +199,8 @@ class NumpyIoTest(tf.test.TestCase):
       features, target = input_fn()
 
       coord = tf.train.Coordinator()
-      threads = tf.compat.v1.train.queue_runner.start_queue_runners(session, coord=coord)
+      threads = tf.compat.v1.train.queue_runner.start_queue_runners(
+          session, coord=coord)
 
       res = session.run([features, target])
       self.assertAllEqual(res[0]['a'], [0, 1, 2, 3])
@@ -230,7 +225,8 @@ class NumpyIoTest(tf.test.TestCase):
       features, target = input_fn()
 
       coord = tf.train.Coordinator()
-      threads = tf.compat.v1.train.queue_runner.start_queue_runners(session, coord=coord)
+      threads = tf.compat.v1.train.queue_runner.start_queue_runners(
+          session, coord=coord)
 
       res = session.run([features, target])
       self.assertAllEqual(res[0]['a'], [[1, 2], [3, 4]])
@@ -277,7 +273,8 @@ class NumpyIoTest(tf.test.TestCase):
       features_tensor = input_fn()
 
       coord = tf.train.Coordinator()
-      threads = tf.compat.v1.train.queue_runner.start_queue_runners(session, coord=coord)
+      threads = tf.compat.v1.train.queue_runner.start_queue_runners(
+          session, coord=coord)
 
       feature = session.run(features_tensor)
       self.assertEqual(len(feature), 2)
@@ -295,9 +292,9 @@ class NumpyIoTest(tf.test.TestCase):
     x = np.arange(32, 36)
     y = np.arange(4)
     with self.cached_session():
-      with self.assertRaisesRegexp(ValueError,
-                                   'shuffle must be provided and explicitly '
-                                   'set as boolean'):
+      with self.assertRaisesRegexp(
+          ValueError, 'shuffle must be provided and explicitly '
+          'set as boolean'):
         # Default shuffle is None.
         numpy_io.numpy_input_fn(x, y)
 
@@ -350,7 +347,8 @@ class NumpyIoTest(tf.test.TestCase):
       features_tensor, targets_tensor = input_fn()
 
       coord = tf.train.Coordinator()
-      threads = tf.compat.v1.train.queue_runner.start_queue_runners(session, coord=coord)
+      threads = tf.compat.v1.train.queue_runner.start_queue_runners(
+          session, coord=coord)
 
       features, targets = session.run([features_tensor, targets_tensor])
       self.assertEqual(len(features), 2)
@@ -416,8 +414,8 @@ class NumpyIoTest(tf.test.TestCase):
     with tf.compat.v1.train.MonitoredSession() as session:
       res = session.run([features, target])
       self.assertAllEqual(res[0], [[[0, 1], [2, 3]], [[4, 5], [6, 7]]])
-      self.assertAllEqual(
-          res[1], [[[-48, -47], [-46, -45]], [[-44, -43], [-42, -41]]])
+      self.assertAllEqual(res[1],
+                          [[[-48, -47], [-46, -45]], [[-44, -43], [-42, -41]]])
 
       session.run([features, target])
       with self.assertRaises(tf.errors.OutOfRangeError):
@@ -458,8 +456,8 @@ class NumpyIoTest(tf.test.TestCase):
     features_dict, targets_dict = input_fn_dict()
 
     with tf.compat.v1.train.MonitoredSession() as session:
-      res_arr, res_dict = session.run([
-          (features_arr, targets_arr), (features_dict, targets_dict)])
+      res_arr, res_dict = session.run([(features_arr, targets_arr),
+                                       (features_dict, targets_dict)])
 
       self.assertAllEqual(res_arr[0], res_dict[0]['feature1'])
       self.assertAllEqual(res_arr[1], res_dict[1])
@@ -480,17 +478,16 @@ class FeatureColumnIntegrationTest(tf.test.TestCase):
 
   def _get_linear_model_column_var(self, column, name='linear_model'):
     return tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.GLOBAL_VARIABLES,
-                              name + '/' + column.name)[0]
+                                       name + '/' + column.name)[0]
 
-  def _get_keras_linear_model_predictions(
-      self,
-      features,
-      feature_columns,
-      units=1,
-      sparse_combiner='sum',
-      weight_collections=None,
-      trainable=True,
-      cols_to_vars=None):
+  def _get_keras_linear_model_predictions(self,
+                                          features,
+                                          feature_columns,
+                                          units=1,
+                                          sparse_combiner='sum',
+                                          weight_collections=None,
+                                          trainable=True,
+                                          cols_to_vars=None):
     keras_linear_model = _LinearModel(
         feature_columns,
         units,
@@ -505,7 +502,8 @@ class FeatureColumnIntegrationTest(tf.test.TestCase):
 
   def test_linear_model_numpy_input_fn(self):
     price = tf.feature_column.numeric_column('price')
-    price_buckets = tf.feature_column.bucketized_column(price, boundaries=[0., 10., 100.,])
+    price_buckets = tf.feature_column.bucketized_column(
+        price, boundaries=[0., 10., 100.,])
     body_style = tf.feature_column.categorical_column_with_vocabulary_list(
         'body-style', vocabulary_list=['hardtop', 'wagon', 'sedan'])
 
@@ -517,11 +515,13 @@ class FeatureColumnIntegrationTest(tf.test.TestCase):
         batch_size=2,
         shuffle=False)
     features = input_fn()
-    net = tf.compat.v1.feature_column.linear_model(features, [price_buckets, body_style])
+    net = tf.compat.v1.feature_column.linear_model(features,
+                                                   [price_buckets, body_style])
     # self.assertEqual(1 + 3 + 5, net.shape[1])
     with self._initialized_session() as sess:
       coord = tf.train.Coordinator()
-      threads = tf.compat.v1.train.queue_runner.start_queue_runners(sess, coord=coord)
+      threads = tf.compat.v1.train.queue_runner.start_queue_runners(
+          sess, coord=coord)
 
       bias = self._get_linear_model_bias()
       price_buckets_var = self._get_linear_model_column_var(price_buckets)
@@ -555,12 +555,13 @@ class FeatureColumnIntegrationTest(tf.test.TestCase):
         batch_size=2,
         shuffle=False)
     features = input_fn()
-    net = self._get_keras_linear_model_predictions(
-        features, [price_buckets, body_style])
+    net = self._get_keras_linear_model_predictions(features,
+                                                   [price_buckets, body_style])
     # self.assertEqual(1 + 3 + 5, net.shape[1])
     with self._initialized_session() as sess:
       coord = tf.train.Coordinator()
-      threads = tf.compat.v1.train.queue_runner.start_queue_runners(sess, coord=coord)
+      threads = tf.compat.v1.train.queue_runner.start_queue_runners(
+          sess, coord=coord)
 
       bias = self._get_linear_model_bias()
       price_buckets_var = self._get_linear_model_column_var(price_buckets)
@@ -581,6 +582,7 @@ class FeatureColumnIntegrationTest(tf.test.TestCase):
         (6., 7., 8., 9., 10.),  # id 1
         (11., 12., 13., 14., 15.)  # id 2
     )
+
     def _initializer(shape, dtype, partition_info):
       del shape, dtype, partition_info
       return embedding_values
@@ -592,8 +594,8 @@ class FeatureColumnIntegrationTest(tf.test.TestCase):
     # one_hot_body_style has 3 dims in input_layer.
     one_hot_body_style = tf.feature_column.indicator_column(body_style)
     # embedded_body_style has 5 dims in input_layer.
-    embedded_body_style = tf.feature_column.embedding_column(body_style, dimension=5,
-                                              initializer=_initializer)
+    embedded_body_style = tf.feature_column.embedding_column(
+        body_style, dimension=5, initializer=_initializer)
 
     input_fn = numpy_io.numpy_input_fn(
         x={
@@ -603,22 +605,22 @@ class FeatureColumnIntegrationTest(tf.test.TestCase):
         batch_size=2,
         shuffle=False)
     features = input_fn()
-    net = tf.compat.v1.feature_column.input_layer(features,
-                         [price, one_hot_body_style, embedded_body_style])
+    net = tf.compat.v1.feature_column.input_layer(
+        features, [price, one_hot_body_style, embedded_body_style])
     self.assertEqual(1 + 3 + 5, net.shape[1])
     with self._initialized_session() as sess:
       coord = tf.train.Coordinator()
-      threads = tf.compat.v1.train.queue_runner.start_queue_runners(sess, coord=coord)
+      threads = tf.compat.v1.train.queue_runner.start_queue_runners(
+          sess, coord=coord)
 
       # Each row is formed by concatenating `embedded_body_style`,
       # `one_hot_body_style`, and `price` in order.
-      self.assertAllEqual(
-          [[11., 12., 13., 14., 15., 0., 0., 1., 11.],
-           [1., 2., 3., 4., 5., 1., 0., 0., 12]],
-          sess.run(net))
+      self.assertAllEqual([[11., 12., 13., 14., 15., 0., 0., 1., 11.],
+                           [1., 2., 3., 4., 5., 1., 0., 0., 12]], sess.run(net))
 
       coord.request_stop()
       coord.join(threads)
+
 
 if __name__ == '__main__':
   tf.test.main()
