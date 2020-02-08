@@ -21,13 +21,9 @@ from __future__ import print_function
 import os
 import re
 
-import tensorflow as tf
 from six.moves import xrange  # pylint: disable=redefined-builtin
-
-from tensorflow.python.framework import test_util
+import tensorflow as tf
 from tensorflow.python.platform import gfile
-from tensorflow.python.platform import test
-from tensorflow.python.util import compat
 from tensorflow_estimator.python.estimator import gc
 
 
@@ -65,7 +61,9 @@ class GcTest(tf.test.TestCase):
 
   def testModExportVersion(self):
     paths = [
-        gc.Path("/foo", 4), gc.Path("/foo", 5), gc.Path("/foo", 6),
+        gc.Path("/foo", 4),
+        gc.Path("/foo", 5),
+        gc.Path("/foo", 6),
         gc.Path("/foo", 9)
     ]
     mod = gc._mod_export_version(2)
@@ -75,14 +73,21 @@ class GcTest(tf.test.TestCase):
 
   def testOneOfEveryNExportVersions(self):
     paths = [
-        gc.Path("/foo", 0), gc.Path("/foo", 1), gc.Path("/foo", 3),
-        gc.Path("/foo", 5), gc.Path("/foo", 6), gc.Path("/foo", 7),
-        gc.Path("/foo", 8), gc.Path("/foo", 33)
+        gc.Path("/foo", 0),
+        gc.Path("/foo", 1),
+        gc.Path("/foo", 3),
+        gc.Path("/foo", 5),
+        gc.Path("/foo", 6),
+        gc.Path("/foo", 7),
+        gc.Path("/foo", 8),
+        gc.Path("/foo", 33)
     ]
     one_of = gc._one_of_every_n_export_versions(3)
     self.assertEqual(
         one_of(paths), [
-            gc.Path("/foo", 3), gc.Path("/foo", 6), gc.Path("/foo", 8),
+            gc.Path("/foo", 3),
+            gc.Path("/foo", 6),
+            gc.Path("/foo", 8),
             gc.Path("/foo", 33)
         ])
 
@@ -100,13 +105,19 @@ class GcTest(tf.test.TestCase):
     f = gc._union(gc._largest_export_versions(3), gc._mod_export_version(3))
     self.assertEqual(
         f(paths), [
-            gc.Path("/foo", 0), gc.Path("/foo", 3), gc.Path("/foo", 6),
-            gc.Path("/foo", 7), gc.Path("/foo", 8), gc.Path("/foo", 9)
+            gc.Path("/foo", 0),
+            gc.Path("/foo", 3),
+            gc.Path("/foo", 6),
+            gc.Path("/foo", 7),
+            gc.Path("/foo", 8),
+            gc.Path("/foo", 9)
         ])
 
   def testNegation(self):
     paths = [
-        gc.Path("/foo", 4), gc.Path("/foo", 5), gc.Path("/foo", 6),
+        gc.Path("/foo", 4),
+        gc.Path("/foo", 5),
+        gc.Path("/foo", 6),
         gc.Path("/foo", 9)
     ]
     mod = gc._negation(gc._mod_export_version(2))
@@ -123,8 +134,7 @@ class GcTest(tf.test.TestCase):
     tf.compat.v1.gfile.MakeDirs(os.path.join(base_dir, "ignore"))
 
     self.assertEqual(
-        gc._get_paths(base_dir, _create_parser(base_dir)),
-        [
+        gc._get_paths(base_dir, _create_parser(base_dir)), [
             gc.Path(os.path.join(base_dir, "0"), 0),
             gc.Path(os.path.join(base_dir, "1"), 1),
             gc.Path(os.path.join(base_dir, "2"), 2)
@@ -139,21 +149,23 @@ class GcTest(tf.test.TestCase):
           (temp_dir if isinstance(sub_dir, bytes) else temp_dir.decode()),
           sub_dir)
       self.assertFalse(tf.compat.v1.gfile.Exists(base_dir))
-      tf.compat.v1.gfile.MakeDirs(os.path.join(tf.compat.as_str_any(base_dir), "42"))
+      tf.compat.v1.gfile.MakeDirs(
+          os.path.join(tf.compat.as_str_any(base_dir), "42"))
       gc._get_paths(base_dir, _create_parser(base_dir))
       tf.compat.v1.gfile.DeleteRecursively(base_dir)
 
   def testGcsDirWithSeparator(self):
     base_dir = "gs://bucket/foo"
-    with tf.compat.v1.test.mock.patch.object(gfile, "ListDirectory") as mock_list_directory:
+    with tf.compat.v1.test.mock.patch.object(
+        gfile, "ListDirectory") as mock_list_directory:
       # gfile.ListDirectory returns directory names with separator '/'
       mock_list_directory.return_value = ["0/", "1/"]
       self.assertEqual(
-          gc._get_paths(base_dir, _create_parser(base_dir)),
-          [
+          gc._get_paths(base_dir, _create_parser(base_dir)), [
               gc.Path(os.path.join(base_dir, "0"), 0),
               gc.Path(os.path.join(base_dir, "1"), 1)
           ])
+
 
 if __name__ == "__main__":
   tf.test.main()

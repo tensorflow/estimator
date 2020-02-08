@@ -12,23 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-
 """Tests for util.py."""
 
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
 from absl.testing import parameterized
 import numpy as np
-
-from tensorflow.python.data.ops import dataset_ops
-from tensorflow.python.framework import constant_op
-from tensorflow.python.framework import ops
+import tensorflow as tf
 from tensorflow.python.framework import test_util
-from tensorflow.python.platform import test
-from tensorflow.python.training import training
 from tensorflow_estimator.python.estimator import util
 
 
@@ -37,6 +30,7 @@ class UtilTest(tf.test.TestCase, parameterized.TestCase):
   """Tests for miscellaneous Estimator utils."""
 
   def test_parse_input_fn_result_tuple(self):
+
     def _input_fn():
       features = tf.constant(np.arange(100))
       labels = tf.constant(np.arange(100, 200))
@@ -70,6 +64,7 @@ class UtilTest(tf.test.TestCase, parameterized.TestCase):
     self.assertIsInstance(hooks[0], util._DatasetInitializerHook)
 
   def test_parse_input_fn_result_features_only(self):
+
     def _input_fn():
       return tf.constant(np.arange(100))
 

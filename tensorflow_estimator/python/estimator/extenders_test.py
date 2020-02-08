@@ -14,19 +14,13 @@
 # ==============================================================================
 """extenders tests."""
 
-
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
 import numpy as np
-
-from tensorflow.python.data.ops import dataset_ops
-from tensorflow.python.feature_column import feature_column_lib as fc
-from tensorflow.python.framework import constant_op
+import tensorflow as tf
 from tensorflow.python.keras import metrics as metrics_module
-from tensorflow.python.platform import test
 from tensorflow_estimator.python.estimator import extenders
 from tensorflow_estimator.python.estimator import run_config
 from tensorflow_estimator.python.estimator.canned import linear
@@ -47,12 +41,13 @@ def get_input_fn(x, y):
 class AddMetricsTest(tf.test.TestCase):
 
   def test_should_add_metrics(self):
+
     def _test_metric_fn(metric_fn):
       input_fn = get_input_fn(
           x=np.arange(4)[:, None, None], y=np.ones(4)[:, None])
       config = run_config.RunConfig(log_step_count_steps=1)
-      estimator = linear.LinearClassifierV2([tf.feature_column.numeric_column('x')],
-                                            config=config)
+      estimator = linear.LinearClassifierV2(
+          [tf.feature_column.numeric_column('x')], config=config)
 
       estimator = extenders.add_metrics(estimator, metric_fn)
 
@@ -71,7 +66,8 @@ class AddMetricsTest(tf.test.TestCase):
     _test_metric_fn(metric_fn)
 
   def test_should_error_out_for_not_recognized_args(self):
-    estimator = linear.LinearClassifierV2([tf.feature_column.numeric_column('x')])
+    estimator = linear.LinearClassifierV2(
+        [tf.feature_column.numeric_column('x')])
 
     def metric_fn(features, not_recognized):
       _, _ = features, not_recognized
@@ -82,7 +78,8 @@ class AddMetricsTest(tf.test.TestCase):
 
   def test_all_supported_args(self):
     input_fn = get_input_fn(x=[[[0.]]], y=[[[1]]])
-    estimator = linear.LinearClassifierV2([tf.feature_column.numeric_column('x')])
+    estimator = linear.LinearClassifierV2(
+        [tf.feature_column.numeric_column('x')])
 
     def metric_fn(features, predictions, labels, config):
       self.assertIn('x', features)
@@ -98,7 +95,8 @@ class AddMetricsTest(tf.test.TestCase):
 
   def test_all_supported_args_in_different_order(self):
     input_fn = get_input_fn(x=[[[0.]]], y=[[[1]]])
-    estimator = linear.LinearClassifierV2([tf.feature_column.numeric_column('x')])
+    estimator = linear.LinearClassifierV2(
+        [tf.feature_column.numeric_column('x')])
 
     def metric_fn(labels, config, features, predictions):
       self.assertIn('x', features)
@@ -113,9 +111,11 @@ class AddMetricsTest(tf.test.TestCase):
     estimator.evaluate(input_fn=input_fn)
 
   def test_all_args_are_optional(self):
+
     def _test_metric_fn(metric_fn):
       input_fn = get_input_fn(x=[[[0.]]], y=[[[1]]])
-      estimator = linear.LinearClassifierV2([tf.feature_column.numeric_column('x')])
+      estimator = linear.LinearClassifierV2(
+          [tf.feature_column.numeric_column('x')])
       estimator = extenders.add_metrics(estimator, metric_fn)
 
       estimator.train(input_fn=input_fn)
@@ -130,9 +130,11 @@ class AddMetricsTest(tf.test.TestCase):
     _test_metric_fn(metric_fn)
 
   def test_overrides_existing_metrics(self):
+
     def _test_metric_fn(metric_fn):
       input_fn = get_input_fn(x=[[[0.]]], y=[[[1]]])
-      estimator = linear.LinearClassifierV2([tf.feature_column.numeric_column('x')])
+      estimator = linear.LinearClassifierV2(
+          [tf.feature_column.numeric_column('x')])
       estimator.train(input_fn=input_fn)
       metrics = estimator.evaluate(input_fn=input_fn)
       self.assertNotEqual(2., metrics['auc'])

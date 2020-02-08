@@ -22,47 +22,27 @@ import math
 import os
 import tempfile
 
-import tensorflow as tf
 from absl.testing import parameterized
 import numpy as np
-
+import tensorflow as tf
 from tensorflow.core.protobuf import config_pb2
 from tensorflow.python import keras
-from tensorflow.python.data.ops import dataset_ops
-from tensorflow.python.eager import context
 from tensorflow.python.feature_column import dense_features
 from tensorflow.python.feature_column import dense_features_v2
-from tensorflow.python.feature_column import feature_column_v2 as feature_column
-from tensorflow.python.framework import dtypes
-from tensorflow.python.framework import ops
 from tensorflow.python.framework import test_util
+from tensorflow.python.keras import optimizers as optimizer_v1
 from tensorflow.python.keras import testing_utils
 from tensorflow.python.keras.layers import recurrent_v2 as rnn_v2
-from tensorflow.python.keras import optimizers as optimizer_v1
 from tensorflow.python.keras.optimizer_v2 import gradient_descent as optimizer_v2
 from tensorflow.python.keras.utils import np_utils
-
-from tensorflow.python.ops import array_ops
-from tensorflow.python.ops import parsing_ops
-from tensorflow.python.ops import variable_scope
-from tensorflow.python.ops import variables
 from tensorflow.python.ops.parsing_ops import gen_parsing_ops
-from tensorflow.python.platform import gfile
-from tensorflow.python.platform import test
 from tensorflow.python.saved_model import utils_impl as saved_model_utils
-from tensorflow.python.summary.writer import writer_cache
-from tensorflow.python.training import checkpoint_management
-from tensorflow.python.training import rmsprop
 from tensorflow.python.training import saver as saver_lib
-from tensorflow.python.training import session_run_hook
-from tensorflow.python.training import training
-from tensorflow.python.training import training_util
 from tensorflow_estimator.python.estimator import keras as keras_lib
 from tensorflow_estimator.python.estimator import run_config as run_config_lib
 from tensorflow_estimator.python.estimator.export import export_lib
 from tensorflow_estimator.python.estimator.inputs import numpy_io
 from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
-
 
 try:
   import h5py  # pylint:disable=g-import-not-at-top
@@ -113,11 +93,14 @@ def simple_subclassed_model():
 
 
 def gen_input_fn(x, y=None, batch_size=128, num_epochs=1, shuffle=False):
+
   def input_fn():
-    ds = tf.compat.v1.data.Dataset.from_tensor_slices((x, y) if y is not None else x)
+    ds = tf.compat.v1.data.Dataset.from_tensor_slices((
+        x, y) if y is not None else x)
     if shuffle:
       ds = ds.shuffle(1000)
     return ds.repeat(num_epochs).batch(batch_size)
+
   return input_fn
 
 
@@ -164,8 +147,10 @@ def get_multi_inputs_multi_outputs_data():
   return (train_data, test_data)
 
 
-def get_resource_for_simple_model(model_type='sequential',
-                                  is_evaluate=False,):
+def get_resource_for_simple_model(
+    model_type='sequential',
+    is_evaluate=False,
+):
   if model_type == 'sequential':
     model = simple_sequential_model()
     model.build()
@@ -201,7 +186,8 @@ def get_resource_for_simple_model(model_type='sequential',
   evaluate_input_fn = gen_input_fn(
       x=randomize_io_type(x_test, input_name),
       y=randomize_io_type(y_test, output_name),
-      num_epochs=1, shuffle=False)
+      num_epochs=1,
+      shuffle=False)
 
   predict_input_fn = gen_input_fn(
       x=randomize_io_type(x_test, input_name), num_epochs=1, shuffle=False)
@@ -270,35 +256,68 @@ class TestKerasEstimator(tf.test.TestCase, parameterized.TestCase):
     super(TestKerasEstimator, self).tearDown()
 
   @parameterized.named_parameters(
-      dict(testcase_name='functional', model_type='functional',
-           checkpoint_format='saver'),
-      dict(testcase_name='sequential', model_type='sequential',
-           checkpoint_format='saver'),
-      dict(testcase_name='subclass', model_type='subclass',
-           optimizer='tf_rmsprop', checkpoint_format='saver'),
-      dict(testcase_name='functional_object_ckpt', model_type='functional',
-           checkpoint_format='checkpoint'),
-      dict(testcase_name='sequential_object_ckpt_w_fit',
-           model_type='sequential', checkpoint_format='checkpoint',
-           fit_before_export=True, optimizer='tf_rmsprop'),
-      dict(testcase_name='functional_w_fit', model_type='functional',
-           fit_before_export=True, optimizer='tf_rmsprop',
-           checkpoint_format='saver'),
-      dict(testcase_name='subclass_w_fit', model_type='subclass',
-           fit_before_export=True, optimizer='tf_rmsprop',
-           checkpoint_format='saver'),
+      dict(
+          testcase_name='functional',
+          model_type='functional',
+          checkpoint_format='saver'),
+      dict(
+          testcase_name='sequential',
+          model_type='sequential',
+          checkpoint_format='saver'),
+      dict(
+          testcase_name='subclass',
+          model_type='subclass',
+          optimizer='tf_rmsprop',
+          checkpoint_format='saver'),
+      dict(
+          testcase_name='functional_object_ckpt',
+          model_type='functional',
+          checkpoint_format='checkpoint'),
+      dict(
+          testcase_name='sequential_object_ckpt_w_fit',
+          model_type='sequential',
+          checkpoint_format='checkpoint',
+          fit_before_export=True,
+          optimizer='tf_rmsprop'),
+      dict(
+          testcase_name='functional_w_fit',
+          model_type='functional',
+          fit_before_export=True,
+          optimizer='tf_rmsprop',
+          checkpoint_format='saver'),
+      dict(
+          testcase_name='subclass_w_fit',
+          model_type='subclass',
+          fit_before_export=True,
+          optimizer='tf_rmsprop',
+          checkpoint_format='saver'),
       # b/109935364
-      dict(testcase_name='hooks', model_type='subclass',
-           hook=MyHook, optimizer='tf_rmsprop', checkpoint_format='saver'),
-      dict(testcase_name='hooks_and_fit', model_type='subclass',
-           hook=MyHook, fit_before_export=True, optimizer='tf_rmsprop',
-           checkpoint_format='saver'),
-      dict(testcase_name='tf_optimizer', model_type='subclass',
-           hook=MyHook, optimizer='tf_rmsprop', fit_before_export=True,
-           checkpoint_format='saver'))
-  def test_train_keras_estimator(
-      self, model_type, checkpoint_format=None, fit_before_export=False,
-      optimizer='rmsprop', hook=None):
+      dict(
+          testcase_name='hooks',
+          model_type='subclass',
+          hook=MyHook,
+          optimizer='tf_rmsprop',
+          checkpoint_format='saver'),
+      dict(
+          testcase_name='hooks_and_fit',
+          model_type='subclass',
+          hook=MyHook,
+          fit_before_export=True,
+          optimizer='tf_rmsprop',
+          checkpoint_format='saver'),
+      dict(
+          testcase_name='tf_optimizer',
+          model_type='subclass',
+          hook=MyHook,
+          optimizer='tf_rmsprop',
+          fit_before_export=True,
+          checkpoint_format='saver'))
+  def test_train_keras_estimator(self,
+                                 model_type,
+                                 checkpoint_format=None,
+                                 fit_before_export=False,
+                                 optimizer='rmsprop',
+                                 hook=None):
     hooks = [hook()] if hook else None
     tf_optimizer = False
     if optimizer == 'tf_rmsprop':
@@ -315,20 +334,20 @@ class TestKerasEstimator(tf.test.TestCase, parameterized.TestCase):
       keras_model.fit(x_train, y_train, epochs=1)
 
     est_keras = keras_lib.model_to_estimator(
-        keras_model=keras_model, config=self._config,
+        keras_model=keras_model,
+        config=self._config,
         checkpoint_format=checkpoint_format)
 
-    est_keras.train(input_fn=train_input_fn, steps=_TRAIN_SIZE / 16,
-                    hooks=hooks)
+    est_keras.train(
+        input_fn=train_input_fn, steps=_TRAIN_SIZE / 16, hooks=hooks)
     before_eval_results = est_keras.evaluate(input_fn=eval_input_fn, steps=1)
-    est_keras.train(input_fn=train_input_fn, steps=_TRAIN_SIZE / 16,
-                    hooks=hooks)
+    est_keras.train(
+        input_fn=train_input_fn, steps=_TRAIN_SIZE / 16, hooks=hooks)
     after_eval_results = est_keras.evaluate(input_fn=eval_input_fn, steps=1)
     self.assertLess(after_eval_results['loss'], before_eval_results['loss'])
 
     if checkpoint_format == 'object' and tf_optimizer:
-      latest_checkpoint = tf.train.latest_checkpoint(
-          est_keras.model_dir)
+      latest_checkpoint = tf.train.latest_checkpoint(est_keras.model_dir)
       keras_model.load_weights(latest_checkpoint)
 
   def test_train_with_dense_features(self):
@@ -491,9 +510,7 @@ class TestKerasEstimator(tf.test.TestCase, parameterized.TestCase):
             model_type='sequential', is_evaluate=False)
 
     keras_model.compile(
-        loss='categorical_crossentropy',
-        optimizer='adam',
-        metrics=['accuracy'])
+        loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
 
   def test_multi_inputs_multi_outputs_with_input_fn_as_dict(self):
     train_data, test_data = get_multi_inputs_multi_outputs_data()
@@ -562,8 +579,9 @@ class TestKerasEstimator(tf.test.TestCase, parameterized.TestCase):
     self.do_test_multi_inputs_multi_outputs_with_input_fn(
         train_input_fn, eval_input_fn, pred_input_fn)
 
-  def do_test_multi_inputs_multi_outputs_with_input_fn(
-      self, train_input_fn, eval_input_fn, pred_input_fn):
+  def do_test_multi_inputs_multi_outputs_with_input_fn(self, train_input_fn,
+                                                       eval_input_fn,
+                                                       pred_input_fn):
     model = multi_inputs_multi_outputs_model()
     est_keras = keras_lib.model_to_estimator(
         keras_model=model, config=self._config)
@@ -628,6 +646,7 @@ class TestKerasEstimator(tf.test.TestCase, parameterized.TestCase):
       input_dict = {'input_layer': x_train}
       output_dict = {'invalid_output_name': y_train}
       return input_dict, output_dict
+
     model = simple_functional_model()
     model.compile(
         loss='categorical_crossentropy', optimizer='adam', metrics=['acc'])
@@ -639,8 +658,7 @@ class TestKerasEstimator(tf.test.TestCase, parameterized.TestCase):
       est_keras.train(input_fn=invald_input_name_input_fn, steps=100)
 
     with self.assertRaisesRegexp(
-        KeyError,
-        'labels keys: .*invalid_output_name.*Missed keys: .*dense_1'):
+        KeyError, 'labels keys: .*invalid_output_name.*Missed keys: .*dense_1'):
       est_keras.train(input_fn=invald_output_name_input_fn, steps=100)
 
   def test_custom_objects(self):
@@ -650,9 +668,7 @@ class TestKerasEstimator(tf.test.TestCase, parameterized.TestCase):
 
     keras_model = simple_functional_model(activation=relu6)
     keras_model.compile(loss='categorical_crossentropy', optimizer='adam')
-    custom_objects = {
-        'relu6': relu6
-    }
+    custom_objects = {'relu6': relu6}
 
     (x_train, y_train), _ = testing_utils.get_test_data(
         train_samples=_TRAIN_SIZE,
@@ -698,7 +714,8 @@ class TestKerasEstimator(tf.test.TestCase, parameterized.TestCase):
             'index': 0
         }
     })
-    with tf.compat.v1.test.mock.patch.dict('os.environ', {'TF_CONFIG': tf_config}):
+    with tf.compat.v1.test.mock.patch.dict('os.environ',
+                                           {'TF_CONFIG': tf_config}):
       keras_lib.model_to_estimator(
           keras_model=keras_model,
           model_dir=tempfile.mkdtemp(dir=self._base_dir))
@@ -714,11 +731,10 @@ class TestKerasEstimator(tf.test.TestCase, parameterized.TestCase):
       gpu_options = config_pb2.GPUOptions(per_process_gpu_memory_fraction=0.3)
       sess_config = config_pb2.ConfigProto(gpu_options=gpu_options)
       self._config._session_config = sess_config
-      keras_lib.model_to_estimator(
-          keras_model=keras_model, config=self._config)
+      keras_lib.model_to_estimator(keras_model=keras_model, config=self._config)
       self.assertEqual(
-          keras.backend.get_session()
-          ._config.gpu_options.per_process_gpu_memory_fraction,
+          keras.backend.get_session(
+          )._config.gpu_options.per_process_gpu_memory_fraction,
           gpu_options.per_process_gpu_memory_fraction)
 
   def test_with_empty_config(self):
@@ -757,7 +773,8 @@ class TestKerasEstimator(tf.test.TestCase, parameterized.TestCase):
         optimizer='rmsprop',
         metrics=['mse', keras.metrics.CategoricalAccuracy()])
 
-    with tf.compat.v1.test.mock.patch.object(tempfile, 'mkdtemp', return_value=_TMP_DIR):
+    with tf.compat.v1.test.mock.patch.object(
+        tempfile, 'mkdtemp', return_value=_TMP_DIR):
       est_keras = keras_lib.model_to_estimator(
           keras_model=keras_model, config=run_config_lib.RunConfig())
       self.assertEqual(est_keras._model_dir, _TMP_DIR)
@@ -785,8 +802,8 @@ class TestKerasEstimator(tf.test.TestCase, parameterized.TestCase):
         optimizer=tf.compat.v1.train.RMSPropOptimizer(1e-3),
         metrics=['mse', keras.metrics.CategoricalAccuracy()])
     keras_model.train_on_batch(
-        np.random.random((10,) + _INPUT_SIZE),
-        np.random.random((10, _NUM_CLASS)))
+        np.random.random((10,) + _INPUT_SIZE), np.random.random(
+            (10, _NUM_CLASS)))
     weights = keras_model.get_weights()
     keras_model, (_, _), (_, _), _, _ = get_resource_for_simple_model()
     keras_model.set_weights(weights)
@@ -823,7 +840,8 @@ class TestKerasEstimator(tf.test.TestCase, parameterized.TestCase):
 
   @test_util.run_v1_only('training_util.create_global_step is v1 only.')
   def test_model_fn_increments_global_step_tf_optimizer(self):
-    self.assert_increasing_global_step(tf.compat.v1.train.RMSPropOptimizer(1e-3))
+    self.assert_increasing_global_step(
+        tf.compat.v1.train.RMSPropOptimizer(1e-3))
 
   @test_util.run_v1_only('training_util.create_global_step is v1 only.')
   def test_model_fn_increments_global_step_keras_optimizer(self):
@@ -838,9 +856,7 @@ class TestKerasEstimator(tf.test.TestCase, parameterized.TestCase):
             model_type='sequential', is_evaluate=False)
 
     keras_model.compile(
-        loss='categorical_crossentropy',
-        optimizer='adam',
-        metrics=['accuracy'])
+        loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
     keras_model.fit(x_train, y_train, epochs=1)
     bias_value = keras.backend.get_value(keras_model.layers[0].bias)
 
@@ -851,8 +867,8 @@ class TestKerasEstimator(tf.test.TestCase, parameterized.TestCase):
 
     def serving_input_receiver_fn():
       feature_spec = {
-          'dense_input': tf.io.FixedLenFeature([1],
-                                                     dtype=tf.dtypes.float32)}
+          'dense_input': tf.io.FixedLenFeature([1], dtype=tf.dtypes.float32)
+      }
       return export_lib.build_parsing_serving_input_receiver_fn(feature_spec)
 
     # Try immediately exporting, testing that (1) exported values are the same,
@@ -867,8 +883,8 @@ class TestKerasEstimator(tf.test.TestCase, parameterized.TestCase):
       names_to_keys = saver_lib.object_graph_key_mapping(variables_path)
       variable_name = names_to_keys[variable_name]
 
-    self.assertAllClose(
-        bias_value, tf.train.load_variable(variables_path, variable_name))
+    self.assertAllClose(bias_value,
+                        tf.train.load_variable(variables_path, variable_name))
 
     # Export the estimator after training a bit.
     est_keras.train(input_fn=train_input_fn, steps=_TRAIN_SIZE / 16)
@@ -911,13 +927,12 @@ class TestKerasEstimator(tf.test.TestCase, parameterized.TestCase):
         metrics=['accuracy'])
     keras_model.fit(x_train, y_train, epochs=1)
 
-    warm_start_path = os.path.join(
-        self._config.model_dir, 'keras', 'warm_start.ckpt')
+    warm_start_path = os.path.join(self._config.model_dir, 'keras',
+                                   'warm_start.ckpt')
     keras_model.save_weights(warm_start_path)
 
     est_keras = keras_lib.model_to_estimator(
-        keras_model=keras_model, config=self._config,
-        checkpoint_format='saver')
+        keras_model=keras_model, config=self._config, checkpoint_format='saver')
 
     self.assertEqual(warm_start_path,
                      est_keras._warm_start_settings.ckpt_to_initialize_from)
@@ -931,38 +946,32 @@ class TestKerasEstimator(tf.test.TestCase, parameterized.TestCase):
     input_layer = keras.layers.Input(shape=1, name='input_layer')
     keras_model = keras.Model(inputs=input_layer, outputs=input_layer)
 
-    keras_model.compile(
-        loss='mean_absolute_error',
-        optimizer='adam')
+    keras_model.compile(loss='mean_absolute_error', optimizer='adam')
 
     features = [[0.], [0], [1], [1]]
     sample_weights = [0, .4, 1, 1]
     targets = [[0], [1], [0], [1]]
 
     expected_loss = keras_model.test_on_batch(
-        tf.constant(features),
-        tf.constant(targets),
+        tf.constant(features), tf.constant(targets),
         tf.constant(sample_weights))
 
     def input_fn():
-      dataset = tf.compat.v1.data.Dataset.from_tensors(
-          ({'features': features,
-            'sample_weights': sample_weights},
-           targets))
+      dataset = tf.compat.v1.data.Dataset.from_tensors(({
+          'features': features,
+          'sample_weights': sample_weights
+      }, targets))
       return dataset
 
     est_keras = keras_lib.model_to_estimator(
-        keras_model=keras_model,
-        model_dir=tempfile.mkdtemp(dir=self._base_dir))
+        keras_model=keras_model, model_dir=tempfile.mkdtemp(dir=self._base_dir))
     eval_results = est_keras.evaluate(input_fn, steps=1)
     self.assertAllClose(expected_loss, eval_results['loss'])
 
     # Test multiple with outputs and sample weights.
-    keras_model = keras.Model(inputs=input_layer,
-                              outputs=[input_layer, input_layer])
-    keras_model.compile(
-        loss='mean_absolute_error',
-        optimizer='adam')
+    keras_model = keras.Model(
+        inputs=input_layer, outputs=[input_layer, input_layer])
+    keras_model.compile(loss='mean_absolute_error', optimizer='adam')
     expected_loss = keras_model.test_on_batch(
         tf.constant(features),
         [tf.constant(targets), tf.constant(targets)],
@@ -972,13 +981,14 @@ class TestKerasEstimator(tf.test.TestCase, parameterized.TestCase):
     def input_fn_multiple_targets():
       dataset = tf.compat.v1.data.Dataset.from_tensors(
           (features, sample_weights, targets))
-      dataset = dataset.map(
-          lambda x, y, z: ({'features': x, 'sample_weights': (y, y)}, (z, z)))
+      dataset = dataset.map(lambda x, y, z: ({
+          'features': x,
+          'sample_weights': (y, y)
+      }, (z, z)))
       return dataset
 
     est_keras = keras_lib.model_to_estimator(
-        keras_model=keras_model,
-        model_dir=tempfile.mkdtemp(dir=self._base_dir))
+        keras_model=keras_model, model_dir=tempfile.mkdtemp(dir=self._base_dir))
     eval_results = est_keras.evaluate(input_fn_multiple_targets, steps=1)
     self.assertAllClose(expected_loss, eval_results['loss'])
 
@@ -989,7 +999,9 @@ class TestKerasEstimator(tf.test.TestCase, parameterized.TestCase):
     rnn_cell_size = 8
 
     layers = [
-        keras.layers.Reshape([timestep, 1], input_shape=[timestep,]),
+        keras.layers.Reshape([timestep, 1], input_shape=[
+            timestep,
+        ]),
         layer(rnn_cell_size, return_sequences=True),
         layer(rnn_cell_size),
         keras.layers.Dense(1)

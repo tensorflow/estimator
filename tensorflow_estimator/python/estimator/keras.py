@@ -13,41 +13,24 @@
 # limitations under the License.
 # ==============================================================================
 # pylint: disable=protected-access
-"""Home of estimator related functions.
-"""
+"""Home of estimator related functions."""
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
-
 import os
 import re
-
-from tensorflow.python.client import session
-from tensorflow.python.distribute import distribution_strategy_context
+import tensorflow as tf
 from tensorflow.python.framework import ops
-from tensorflow.python.framework import random_seed
-from tensorflow.python.framework import sparse_tensor as sparse_tensor_lib
-from tensorflow.python.framework import tensor_util
 from tensorflow.python.keras import backend as K
 from tensorflow.python.keras import models
 from tensorflow.python.keras.engine import training_utils
-from tensorflow.python.ops import math_ops
-from tensorflow.python.platform import gfile
-from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.saved_model import signature_constants
-from tensorflow.python.training import checkpoint_management
-from tensorflow.python.training import monitored_session
-from tensorflow.python.training import saver as saver_lib
-from tensorflow.python.training import training_util
 from tensorflow.python.training.tracking import graph_view
 from tensorflow.python.training.tracking import util as trackable_util
 from tensorflow_estimator.python.estimator import estimator as estimator_lib
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
 from tensorflow_estimator.python.estimator.export import export_lib
 from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
-
 
 _DEFAULT_SERVING_KEY = tf.saved_model.DEFAULT_SERVING_SIGNATURE_DEF_KEY
 
@@ -139,8 +122,10 @@ def _convert_estimator_io_to_keras(keras_model, features, labels):
             '\n\tExpected keys: {order_keys}'
             '\n\t{obj_name} keys: {obj_keys}'
             '\n\tMissed keys: {different_keys}'.format(
-                order_name=order_name, order_keys=set(key_order),
-                obj_name=obj_name, obj_keys=set(obj.keys()),
+                order_name=order_name,
+                order_keys=set(key_order),
+                obj_name=obj_name,
+                obj_keys=set(obj.keys()),
                 different_keys=different_keys))
 
       return [_convert_tensor(obj[key]) for key in key_order]
@@ -153,11 +138,13 @@ def _convert_estimator_io_to_keras(keras_model, features, labels):
   if isinstance(features, dict):
     input_names = (
         keras_model.input_names if keras_model._is_graph_network else
-        ['input_%d' % i for i in range(1, len(features) + 1)])
+        ['input_%d' % i for i in range(1,
+                                       len(features) + 1)])
   if isinstance(labels, dict):
     output_names = (
         keras_model.output_names if keras_model._is_graph_network else
-        ['output_%d' % i for i in range(1, len(labels) + 1)])
+        ['output_%d' % i for i in range(1,
+                                        len(labels) + 1)])
 
   if isinstance(keras_model.inputs, dict):
     # convert input tensors into dict if keras_model is built with dict input.
@@ -169,15 +156,15 @@ def _convert_estimator_io_to_keras(keras_model, features, labels):
     # converting input tensors into sorted list.
     input_tensors = _to_ordered_tensor_list(features, input_names, 'features',
                                             'inputs')
-  target_tensors = _to_ordered_tensor_list(
-      labels, output_names, 'labels', 'outputs')
+  target_tensors = _to_ordered_tensor_list(labels, output_names, 'labels',
+                                           'outputs')
 
   return input_tensors, target_tensors, sample_weight_tensors
 
 
 def _extract_sample_weight_tensors(features):
-  if isinstance(features, dict) and set(features.keys()) == {
-      'features', 'sample_weights'}:
+  if isinstance(features, dict) and set(
+      features.keys()) == {'features', 'sample_weights'}:
     feature_tensor = features['features']
     sample_weight_tensors = features['sample_weights']
   else:
@@ -201,10 +188,10 @@ def _clone_and_build_model(mode,
     features: Dict of tensors.
     labels: Dict of tensors, or single tensor instance.
     optimizer_config: Optimizer config dictionary, returned by
-      `optimizer.get_config()`. This is used when cloning a model with
-      an optimizer. Since `_clone_and_build_model` is called in a different
-      graph and session from the model, `optimizer.get_config()` may raise an
-      error during the attempt to serialize the optimizer hyperparameter values.
+      `optimizer.get_config()`. This is used when cloning a model with an
+      optimizer. Since `_clone_and_build_model` is called in a different graph
+      and session from the model, `optimizer.get_config()` may raise an error
+      during the attempt to serialize the optimizer hyperparameter values.
 
   Returns:
     The newly built model.
@@ -224,7 +211,10 @@ def _clone_and_build_model(mode,
     K.track_variable(global_step)
 
   clone = models.clone_and_build_model(
-      keras_model, input_tensors, target_tensors, custom_objects,
+      keras_model,
+      input_tensors,
+      target_tensors,
+      custom_objects,
       compile_clone=compile_clone,
       in_place_reset=(not keras_model._is_graph_network),
       optimizer_iterations=global_step,
@@ -256,7 +246,8 @@ def _convert_keras_metrics_to_estimator(model):
   return {m.name: m for m in model._compile_metric_functions}
 
 
-def _create_keras_model_fn(keras_model, custom_objects=None,
+def _create_keras_model_fn(keras_model,
+                           custom_objects=None,
                            save_object_ckpt=False):
   """Creates model_fn for keras Estimator.
 
@@ -346,11 +337,9 @@ def _create_keras_model_fn(keras_model, custom_objects=None,
         train_op=train_op,
         eval_metric_ops=eval_metric_ops,
         export_outputs={
-            _DEFAULT_SERVING_KEY:
-            export_lib.PredictOutput(predictions)
+            _DEFAULT_SERVING_KEY: export_lib.PredictOutput(predictions)
         },
-        scaffold=scaffold
-    )
+        scaffold=scaffold)
 
   return model_fn
 
@@ -398,7 +387,7 @@ def _save_first_checkpoint(keras_model, custom_objects, config,
           model.set_weights(keras_weights)
         # model._make_train_function() will potentially create the optimizer
         # variable, which will require another variable initialization.
-        K._initialize_variables(sess)   # pylint: disable=protected-access
+        K._initialize_variables(sess)  # pylint: disable=protected-access
 
         if save_object_ckpt:
           model._track_trackable(  # pylint: disable=protected-access
@@ -558,10 +547,9 @@ def model_to_estimator(keras_model=None,
         .format(checkpoint_format))
 
   if not hasattr(keras_model, 'optimizer') or not keras_model.optimizer:
-    raise ValueError(
-        'The given keras model has not been compiled yet. '
-        'Please compile the model with `model.compile()` '
-        'before calling `model_to_estimator()`.')
+    raise ValueError('The given keras model has not been compiled yet. '
+                     'Please compile the model with `model.compile()` '
+                     'before calling `model_to_estimator()`.')
 
   keras_model_fn = _create_keras_model_fn(keras_model, custom_objects,
                                           save_object_ckpt)
@@ -583,15 +571,16 @@ def model_to_estimator(keras_model=None,
     warm_start_path = _save_first_checkpoint(keras_model, custom_objects,
                                              config, save_object_ckpt)
   elif keras_model.built:
-    tf.compat.v1.logging.warn('You are creating an Estimator from a Keras model manually '
-                    'subclassed from `Model`, that was already called on some '
-                    'inputs (and thus already had weights). We are currently '
-                    'unable to preserve the model\'s state (its weights) as '
-                    'part of the estimator in this case. Be warned that the '
-                    'estimator has been created using a freshly initialized '
-                    'version of your model.\n'
-                    'Note that this doesn\'t affect the state of the model '
-                    'instance you passed as `keras_model` argument.')
+    tf.compat.v1.logging.warn(
+        'You are creating an Estimator from a Keras model manually '
+        'subclassed from `Model`, that was already called on some '
+        'inputs (and thus already had weights). We are currently '
+        'unable to preserve the model\'s state (its weights) as '
+        'part of the estimator in this case. Be warned that the '
+        'estimator has been created using a freshly initialized '
+        'version of your model.\n'
+        'Note that this doesn\'t affect the state of the model '
+        'instance you passed as `keras_model` argument.')
   if use_v2_estimator:
     estimator_cls = estimator_lib.EstimatorV2
   else:

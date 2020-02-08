@@ -18,19 +18,13 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
-
 import abc
 import os
-
+import tensorflow as tf
+from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator import gc
 from tensorflow_estimator.python.estimator import util
 from tensorflow_estimator.python.estimator.canned import metric_keys
-from tensorflow.python.framework import errors_impl
-from tensorflow.python.platform import gfile
-from tensorflow.python.platform import tf_logging
-from tensorflow.python.summary import summary_iterator
-from tensorflow.python.util.tf_export import estimator_export
 
 
 @estimator_export('estimator.Exporter')
@@ -57,9 +51,8 @@ class Exporter(object):
       checkpoint_path: The checkpoint path to export.
       eval_result: The output of `Estimator.evaluate` on this checkpoint.
       is_the_final_export: This boolean is True when this is an export in the
-        end of training.  It is False for the intermediate exports during
-        the training.
-        When passing `Exporter` to `tf.estimator.train_and_evaluate`
+        end of training.  It is False for the intermediate exports during the
+        training. When passing `Exporter` to `tf.estimator.train_and_evaluate`
         `is_the_final_export` is always False if `TrainSpec.max_steps` is
         `None`.
 
@@ -156,8 +149,8 @@ def _verify_compare_fn_args(compare_fn):
   """Verifies compare_fn arguments."""
   args = set(util.fn_args(compare_fn))
   if 'best_eval_result' not in args:
-    raise ValueError(
-        'compare_fn (%s) must include best_eval_result argument.' % compare_fn)
+    raise ValueError('compare_fn (%s) must include best_eval_result argument.' %
+                     compare_fn)
   if 'current_eval_result' not in args:
     raise ValueError(
         'compare_fn (%s) must include current_eval_result argument.' %
@@ -240,16 +233,16 @@ class BestExporter(Exporter):
         * Args:
           * `best_eval_result`: This is the evaluation result of the best model.
           * `current_eval_result`: This is the evaluation result of current
-                 candidate model.
-        * Returns:
-          True if current evaluation result is better; otherwise, False.
+            candidate model.
+        * Returns: True if current evaluation result is better; otherwise,
+          False.
       assets_extra: An optional dict specifying how to populate the assets.extra
         directory within the exported SavedModel.  Each key should give the
         destination path (including the filename) relative to the assets.extra
         directory.  The corresponding value gives the full path of the source
         file to be copied.  For example, the simple case of copying a single
         file without renaming it is specified as `{'my_asset_file.txt':
-        '/path/to/my_asset_file.txt'}`.
+          '/path/to/my_asset_file.txt'}`.
       as_text: whether to write the SavedModel proto in text format. Defaults to
         `False`.
       exports_to_keep: Number of exports to keep.  Older exports will be
@@ -264,8 +257,9 @@ class BestExporter(Exporter):
       raise ValueError('`compare_fn` must not be None.')
     _verify_compare_fn_args(self._compare_fn)
 
-    self._saved_model_exporter = _SavedModelExporter(
-        name, serving_input_receiver_fn, assets_extra, as_text)
+    self._saved_model_exporter = _SavedModelExporter(name,
+                                                     serving_input_receiver_fn,
+                                                     assets_extra, as_text)
 
     self._event_file_pattern = event_file_pattern
     self._model_dir = None
@@ -275,8 +269,8 @@ class BestExporter(Exporter):
     self._exports_to_keep = exports_to_keep
     if exports_to_keep is not None and exports_to_keep <= 0:
       raise ValueError(
-          '`exports_to_keep`, if provided, must be a positive number. Got %s'
-          % exports_to_keep)
+          '`exports_to_keep`, if provided, must be a positive number. Got %s' %
+          exports_to_keep)
 
   @property
   def name(self):
@@ -303,9 +297,10 @@ class BestExporter(Exporter):
             current_eval_result=eval_result)):
       tf.compat.v1.logging.info('Performing best model export.')
       self._best_eval_result = eval_result
-      export_result = self._saved_model_exporter.export(
-          estimator, export_path, checkpoint_path, eval_result,
-          is_the_final_export)
+      export_result = self._saved_model_exporter.export(estimator, export_path,
+                                                        checkpoint_path,
+                                                        eval_result,
+                                                        is_the_final_export)
       self._garbage_collect_exports(export_path)
       self._has_exported = True
 
@@ -339,7 +334,8 @@ class BestExporter(Exporter):
       try:
         tf.compat.v1.gfile.DeleteRecursively(p.path)
       except tf.errors.NotFoundError as e:
-        tf.compat.v1.logging.warn('Can not delete %s recursively: %s', p.path, e)
+        tf.compat.v1.logging.warn('Can not delete %s recursively: %s', p.path,
+                                  e)
     # pylint: enable=protected-access
 
   def _get_best_eval_result(self, event_files):
@@ -401,8 +397,9 @@ class FinalExporter(Exporter):
     Raises:
       ValueError: if any arguments is invalid.
     """
-    self._saved_model_exporter = _SavedModelExporter(
-        name, serving_input_receiver_fn, assets_extra, as_text)
+    self._saved_model_exporter = _SavedModelExporter(name,
+                                                     serving_input_receiver_fn,
+                                                     assets_extra, as_text)
 
   @property
   def name(self):
@@ -413,7 +410,8 @@ class FinalExporter(Exporter):
     if not is_the_final_export:
       return None
 
-    tf.compat.v1.logging.info('Performing the final export in the end of training.')
+    tf.compat.v1.logging.info(
+        'Performing the final export in the end of training.')
 
     return self._saved_model_exporter.export(estimator, export_path,
                                              checkpoint_path, eval_result,
@@ -456,8 +454,9 @@ class LatestExporter(Exporter):
     Raises:
       ValueError: if any arguments is invalid.
     """
-    self._saved_model_exporter = _SavedModelExporter(
-        name, serving_input_receiver_fn, assets_extra, as_text)
+    self._saved_model_exporter = _SavedModelExporter(name,
+                                                     serving_input_receiver_fn,
+                                                     assets_extra, as_text)
     self._exports_to_keep = exports_to_keep
     if exports_to_keep is not None and exports_to_keep <= 0:
       raise ValueError(
@@ -469,9 +468,10 @@ class LatestExporter(Exporter):
 
   def export(self, estimator, export_path, checkpoint_path, eval_result,
              is_the_final_export):
-    export_result = self._saved_model_exporter.export(
-        estimator, export_path, checkpoint_path, eval_result,
-        is_the_final_export)
+    export_result = self._saved_model_exporter.export(estimator, export_path,
+                                                      checkpoint_path,
+                                                      eval_result,
+                                                      is_the_final_export)
 
     self._garbage_collect_exports(export_path)
     return export_result
@@ -504,5 +504,6 @@ class LatestExporter(Exporter):
       try:
         tf.compat.v1.gfile.DeleteRecursively(p.path)
       except tf.errors.NotFoundError as e:
-        tf.compat.v1.logging.warn('Can not delete %s recursively: %s', p.path, e)
+        tf.compat.v1.logging.warn('Can not delete %s recursively: %s', p.path,
+                                  e)
     # pylint: enable=protected-access

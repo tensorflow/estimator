@@ -82,8 +82,7 @@ def filter_on_submodules(all_modules, submodule):
   """
 
   filtered_modules = [
-      mod for mod in all_modules
-      if PACKAGE + submodule in mod.__name__
+      mod for mod in all_modules if PACKAGE + submodule in mod.__name__
   ]
   return filtered_modules
 
@@ -180,10 +179,9 @@ def load_tests(unused_loader, tests, unused_ignore):
             setUp=testcase.set_up,
             tearDown=testcase.tear_down,
             checker=CustomOutputChecker(),
-            optionflags=(doctest.ELLIPSIS |
-                         doctest.NORMALIZE_WHITESPACE |
-                         doctest.IGNORE_EXCEPTION_DETAIL |
-                         doctest.DONT_ACCEPT_BLANKLINE),
+            optionflags=(doctest.ELLIPSIS | doctest.NORMALIZE_WHITESPACE
+                         | doctest.IGNORE_EXCEPTION_DETAIL
+                         | doctest.DONT_ACCEPT_BLANKLINE),
         ))
   return tests
 

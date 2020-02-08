@@ -21,21 +21,10 @@ from __future__ import print_function
 import tensorflow as tf
 
 import os
-
-from tensorflow.python.data.ops import dataset_ops
-from tensorflow.python.eager import backprop
-from tensorflow.python.framework import constant_op
-from tensorflow.python.framework import dtypes
-from tensorflow.python.framework import ops
 from tensorflow.python.keras import backend
 from tensorflow.python.keras.engine import training
 from tensorflow.python.keras.layers import core
 from tensorflow.python.keras.optimizer_v2 import adam
-from tensorflow.python.ops import array_ops
-from tensorflow.python.ops import control_flow_ops
-from tensorflow.python.ops import math_ops
-from tensorflow.python.ops import variables as variables_lib
-from tensorflow.python.platform import test
 from tensorflow.python.saved_model import saved_model
 # pylint: disable=g-import-not-at-top
 try:
@@ -43,9 +32,6 @@ try:
 except ImportError:
   # TODO(allenl): Remove this after cl/229814711 syncs
   from tensorflow.python.training.checkpointable import util
-from tensorflow.python.training import checkpoint_management
-from tensorflow.python.training import monitored_session
-from tensorflow.python.training import training_util
 
 from tensorflow_estimator.python.estimator import estimator as estimator_lib
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
@@ -98,14 +84,11 @@ class ObjectCheckpointingTest(tf.test.TestCase):
           train_op=train_op,
           predictions=dict(
               output=output,
-              bias=tf.tile(
-                  model.dense_two.bias[None, :],
-                  [tf.compat.v1.shape(output)[0], 1]),
-              step=tf.tile(
-                  checkpoint.step[None],
-                  [tf.compat.v1.shape(output)[0]])),
-          scaffold=tf.compat.v1.train.Scaffold(saver=checkpoint)
-      )
+              bias=tf.tile(model.dense_two.bias[None, :],
+                           [tf.compat.v1.shape(output)[0], 1]),
+              step=tf.tile(checkpoint.step[None],
+                           [tf.compat.v1.shape(output)[0]])),
+          scaffold=tf.compat.v1.train.Scaffold(saver=checkpoint))
 
     est = estimator_lib.EstimatorV2(model_fn=_model_fn, model_dir=model_dir)
 
@@ -131,8 +114,7 @@ class ObjectCheckpointingTest(tf.test.TestCase):
         step=tf.Variable(0, dtype=tf.dtypes.int64),
         optimizer=optimizer,
         model=model)
-    status = checkpoint.restore(
-        tf.train.latest_checkpoint(save_model_dir))
+    status = checkpoint.restore(tf.train.latest_checkpoint(save_model_dir))
     self.assertEqual(3, self.evaluate(checkpoint.step))
     with tf.GradientTape() as tape:
       output = model(tf.constant([[1.]]))

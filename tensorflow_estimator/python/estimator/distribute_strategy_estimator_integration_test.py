@@ -20,17 +20,11 @@ from __future__ import print_function
 
 import shutil
 import tempfile
-import tensorflow as tf
 from absl.testing import parameterized
 import numpy as np
-from tensorflow.python.data.ops import dataset_ops
+import tensorflow as tf
 from tensorflow.python.distribute import combinations
 from tensorflow.python.distribute import strategy_combinations
-from tensorflow.python.feature_column import feature_column_lib as feature_column
-from tensorflow.python.framework import ops
-from tensorflow.python.platform import gfile
-from tensorflow.python.platform import test
-from tensorflow.python.summary.writer import writer_cache
 from tensorflow_estimator.python.estimator import run_config
 from tensorflow_estimator.python.estimator import training
 from tensorflow_estimator.python.estimator.canned import dnn_linear_combined
@@ -106,8 +100,7 @@ class DNNLinearCombinedClassifierIntegrationTest(tf.test.TestCase,
     num_steps = 10
     if use_train_and_evaluate:
       scores, _ = training.train_and_evaluate(
-          estimator,
-          training.TrainSpec(train_input_fn, max_steps=num_steps),
+          estimator, training.TrainSpec(train_input_fn, max_steps=num_steps),
           training.EvalSpec(eval_input_fn))
     else:
       estimator.train(train_input_fn, steps=num_steps)
@@ -122,7 +115,8 @@ class DNNLinearCombinedClassifierIntegrationTest(tf.test.TestCase,
     ])
     self.assertAllEqual((batch_size, label_dimension), predictions.shape)
 
-    feature_spec = tf.compat.v1.feature_column.make_parse_example_spec(feature_columns)
+    feature_spec = tf.compat.v1.feature_column.make_parse_example_spec(
+        feature_columns)
     serving_input_receiver_fn = export.build_parsing_serving_input_receiver_fn(
         feature_spec)
     export_dir = estimator.export_saved_model(tempfile.mkdtemp(),

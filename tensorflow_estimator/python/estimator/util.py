@@ -12,20 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-
 """Utilities for Estimators."""
 
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
-
 import time
-
+import tensorflow as tf
 from tensorflow.python.data.ops import dataset_ops
-from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.training import training
 from tensorflow.python.util import function_utils
 
 fn_args = function_utils.fn_args
@@ -43,14 +38,13 @@ def parse_input_fn_result(result):
 
   Args:
     result: output of an input_fn to an estimator, which should be one of:
-
-      * A 'tf.data.Dataset' object: Outputs of `Dataset` object must be a
-          tuple (features, labels) with same constraints as below.
+      * A 'tf.data.Dataset' object: Outputs of `Dataset` object must be a tuple
+        (features, labels) with same constraints as below.
       * A tuple (features, labels): Where `features` is a `Tensor` or a
-        dictionary of string feature name to `Tensor` and `labels` is a
-        `Tensor` or a dictionary of string label name to `Tensor`. Both
-        `features` and `labels` are consumed by `model_fn`. They should
-        satisfy the expectation of `model_fn` from inputs.
+        dictionary of string feature name to `Tensor` and `labels` is a `Tensor`
+        or a dictionary of string label name to `Tensor`. Both `features` and
+        `labels` are consumed by `model_fn`. They should satisfy the expectation
+        of `model_fn` from inputs.
 
   Returns:
     Tuple of features, labels, and input_hooks, where features are as described
@@ -117,4 +111,4 @@ class MultiHostDatasetInitializerHook(tf.compat.v1.train.SessionRunHook):
     start = time.time()
     session.run(self._initializers)
     tf.compat.v1.logging.info('Initialized dataset iterators in %d seconds',
-                 time.time() - start)
+                              time.time() - start)

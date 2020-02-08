@@ -24,61 +24,26 @@ import json
 import os
 import tempfile
 
-import tensorflow as tf
 import numpy as np
 import six
-
+import tensorflow as tf
 from google.protobuf import text_format
 
 from tensorflow.core.protobuf import rewriter_config_pb2
-from tensorflow.python.client import session
-from tensorflow.python.data.ops import dataset_ops
-from tensorflow.python.distribute import collective_all_reduce_strategy
-from tensorflow.python.distribute import distribute_coordinator as dc
-from tensorflow.python.eager import context
-from tensorflow.python.framework import constant_op
-from tensorflow.python.framework import dtypes
-from tensorflow.python.framework import errors
 from tensorflow.python.framework import ops
-from tensorflow.python.framework import tensor_util
 from tensorflow.python.framework import test_util
 from tensorflow.python.keras import losses as losses_module
 from tensorflow.python.keras import metrics as metrics_module
-from tensorflow.python.layers import layers
 from tensorflow.python.lib.io import file_io
-from tensorflow.python.ops import array_ops
-from tensorflow.python.ops import check_ops
 from tensorflow.python.ops import control_flow_ops
-from tensorflow.python.ops import init_ops
-from tensorflow.python.ops import lookup_ops
-from tensorflow.python.ops import math_ops
-from tensorflow.python.ops import metrics as metrics_lib
-from tensorflow.python.ops import parsing_ops
-from tensorflow.python.ops import state_ops
-from tensorflow.python.ops import string_ops
-from tensorflow.python.ops import variable_scope
-from tensorflow.python.ops import variables
-from tensorflow.python.ops.losses import losses
 from tensorflow.python.ops.random_ops import random_uniform
-from tensorflow.python.platform import gfile
-from tensorflow.python.platform import test
 from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.saved_model import loader
 from tensorflow.python.saved_model import loader_impl
-from tensorflow.python.saved_model import signature_constants
 from tensorflow.python.saved_model import tag_constants
 from tensorflow.python.saved_model import utils_impl as saved_model_utils
-from tensorflow.python.summary import summary
-from tensorflow.python.summary import summary_iterator
-from tensorflow.python.summary.writer import writer_cache
-from tensorflow.python.training import basic_session_run_hooks
-from tensorflow.python.training import checkpoint_management
 from tensorflow.python.training import checkpoint_state_pb2
-from tensorflow.python.training import saver
 from tensorflow.python.training import saver_test_utils
-from tensorflow.python.training import session_run_hook
 from tensorflow.python.training import training
-from tensorflow.python.util import compat
 from tensorflow.python.util import function_utils
 from tensorflow_estimator.python.estimator import estimator
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
@@ -86,7 +51,6 @@ from tensorflow_estimator.python.estimator import run_config
 from tensorflow_estimator.python.estimator.export import export_lib
 from tensorflow_estimator.python.estimator.inputs import numpy_io
 from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
-
 
 _TMP_DIR = '/tmp'
 _ANOTHER_TMP_DIR = '/another_tmp'
@@ -116,7 +80,8 @@ def check_eventfile_for_keyword(keyword, dir_):
 
 def get_mock_saver():
   real_saver = tf.compat.v1.train.Saver()
-  return tf.compat.v1.test.mock.Mock(wraps=real_saver, saver_def=real_saver.saver_def)
+  return tf.compat.v1.test.mock.Mock(
+      wraps=real_saver, saver_def=real_saver.saver_def)
 
 
 class EstimatorInheritanceConstraintTest(tf.test.TestCase):
@@ -128,6 +93,7 @@ class EstimatorInheritanceConstraintTest(tf.test.TestCase):
     return estimator.EstimatorV2 if switch > 0.5 else estimator.EstimatorV2
 
   def test_override_a_method(self):
+
     class _Estimator(self.random_estimator):
 
       def __init__(self):
@@ -141,6 +107,7 @@ class EstimatorInheritanceConstraintTest(tf.test.TestCase):
       _Estimator()
 
   def test_extension_of_api_is_ok(self):
+
     class _Estimator(self.random_estimator):
 
       def __init__(self):
@@ -152,6 +119,7 @@ class EstimatorInheritanceConstraintTest(tf.test.TestCase):
     _Estimator()
 
   def test_override_allowed_method(self):
+
     class _Estimator(self.random_estimator):
 
       def __init__(self):
@@ -205,7 +173,8 @@ class EstimatorConstructorTest(tf.test.TestCase):
     def model_fn(features, labels):
       _, _ = features, labels
 
-    with tf.compat.v1.test.mock.patch.object(tempfile, 'mkdtemp', return_value=_TMP_DIR):
+    with tf.compat.v1.test.mock.patch.object(
+        tempfile, 'mkdtemp', return_value=_TMP_DIR):
       est = estimator.EstimatorV2(model_fn=model_fn)
       self.assertEqual(_TMP_DIR, est.config.model_dir)
       self.assertEqual(_TMP_DIR, est.model_dir)
@@ -220,10 +189,12 @@ class EstimatorConstructorTest(tf.test.TestCase):
     self.assertEqual(_TMP_DIR, est.model_dir)
 
   def test_empty_model_dir(self):
+
     def model_fn(features, labels):
       _, _ = features, labels
 
-    with tf.compat.v1.test.mock.patch.object(tempfile, 'mkdtemp', return_value=_TMP_DIR):
+    with tf.compat.v1.test.mock.patch.object(
+        tempfile, 'mkdtemp', return_value=_TMP_DIR):
       est = estimator.EstimatorV2(model_fn=model_fn, model_dir='')
       self.assertEqual(_TMP_DIR, est.config.model_dir)
       self.assertEqual(_TMP_DIR, est.model_dir)
@@ -321,6 +292,7 @@ class EstimatorConstructorTest(tf.test.TestCase):
       estimator.EstimatorV2(model_fn=model_fn)
 
   def test_not_known_model_fn_args_handled_by_lambda(self):
+
     def model_fn(features, labels, something):
       _, _, _ = features, labels, something
 
@@ -362,8 +334,7 @@ class EstimatorConstructorTest(tf.test.TestCase):
 
 
 def dummy_input_fn():
-  return ({'x': tf.constant([[1], [1]])},
-          tf.constant([[1], [1]]))
+  return ({'x': tf.constant([[1], [1]])}, tf.constant([[1], [1]]))
 
 
 def model_fn_global_step_incrementer(features, labels, mode):
@@ -383,8 +354,8 @@ def assert_features_op(expected_features, actual_features):
   ]
 
 
-def _estimator_spec(
-    expected_features, expected_labels, actual_features, actual_labels, mode):
+def _estimator_spec(expected_features, expected_labels, actual_features,
+                    actual_labels, mode):
   assert_ops = tuple(
       assert_features_op(expected_features, actual_features) + [
           tf.compat.v1.debugging.assert_equal(
@@ -400,11 +371,11 @@ def _estimator_spec(
 
 
 def _make_input_fn(features, labels):
+
   def _input_fn():
-    return {
-        k: tf.constant(v)
-        for k, v in six.iteritems(features)
-    }, tf.constant(labels)
+    return {k: tf.constant(v) for k, v in six.iteritems(features)
+           }, tf.constant(labels)
+
   return _input_fn
 
 
@@ -423,9 +394,8 @@ class EstimatorTrainTest(tf.test.TestCase):
       def __call__(self, features, labels):
         model_fn_call_count[0] += 1
         test_self.assertItemsEqual(expected_features.keys(), features.keys())
-        return _estimator_spec(
-            expected_features, expected_labels, features, labels,
-            ModeKeys.TRAIN)
+        return _estimator_spec(expected_features, expected_labels, features,
+                               labels, ModeKeys.TRAIN)
 
     with self.assertRaisesRegexp(ValueError, 'does not include params'):
       estimator.EstimatorV2(model_fn=ModelFn(), params={'a': 'b'})
@@ -472,7 +442,8 @@ class EstimatorTrainTest(tf.test.TestCase):
            random_uniform([4, 100], maxval=100, dtype=tf.dtypes.int32)))
       dataset_labels = tf.compat.v1.data.Dataset.from_tensor_slices(
           random_uniform([4, 10]))
-      dataset = tf.compat.v1.data.Dataset.zip((dataset_features, dataset_labels))
+      dataset = tf.compat.v1.data.Dataset.zip(
+          (dataset_features, dataset_labels))
       dataset = dataset.repeat(-1)
       iterator = tf.compat.v1.data.make_initializable_iterator(dataset)
       return iterator.get_next()
@@ -516,6 +487,7 @@ class EstimatorTrainTest(tf.test.TestCase):
       return expected_features
 
     model_fn_call_count = [0]
+
     def _model_fn(features):
       model_fn_call_count[0] += 1
       self.assertItemsEqual(expected_features.keys(), features.keys())
@@ -525,7 +497,8 @@ class EstimatorTrainTest(tf.test.TestCase):
             mode=None,
             predictions=tf.constant(0.),
             loss=tf.constant(0.),
-            train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1))
+            train_op=tf.compat.v1.assign_add(
+                tf.compat.v1.train.get_global_step(), 1))
 
     est = estimator.EstimatorV2(model_fn=_model_fn)
     self.assertEqual(0, model_fn_call_count[0])
@@ -543,7 +516,8 @@ class EstimatorTrainTest(tf.test.TestCase):
           mode=None,
           predictions=tf.constant(0.),
           loss=tf.constant(0.),
-          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1))
+          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(),
+                                           1))
 
     est = estimator.EstimatorV2(model_fn=_model_fn)
     with self.assertRaisesRegexp(ValueError, 'model_fn does not take labels'):
@@ -579,8 +553,8 @@ class EstimatorTrainTest(tf.test.TestCase):
       self.assertEqual(ModeKeys.TRAIN, mode)
       self.assertEqual(expected_params, params)
       self.assertTrue(config.i_am_test)
-      return _estimator_spec(
-          expected_features, expected_labels, features, labels, mode)
+      return _estimator_spec(expected_features, expected_labels, features,
+                             labels, mode)
 
     est = estimator.EstimatorV2(
         model_fn=_model_fn, params=expected_params, config=expected_config)
@@ -610,8 +584,9 @@ class EstimatorTrainTest(tf.test.TestCase):
       self.assertEqual(ModeKeys.TRAIN, mode)
       self.assertEqual(expected_params, params)
       self.assertTrue(config.i_am_test)
-      return _estimator_spec(
-          expected_features, expected_labels, features, labels, mode)
+      return _estimator_spec(expected_features, expected_labels, features,
+                             labels, mode)
+
     partial_model_fn = functools.partial(
         _model_fn, foo=expected_foo, bar=expected_bar)
 
@@ -670,7 +645,9 @@ class EstimatorTrainTest(tf.test.TestCase):
         10, estimator._load_global_step_from_checkpoint_dir(est.model_dir))
 
   def test_warm_starts(self):
+
     def _make_model_fn(x):
+
       def _variable_creating_model_fn(features, labels, mode):
         _, _ = features, labels
         tf.compat.v1.get_variable('x', initializer=x)
@@ -679,6 +656,7 @@ class EstimatorTrainTest(tf.test.TestCase):
             mode,
             loss=tf.constant(1.),
             train_op=tf.compat.v1.assign_add(global_step, 1))
+
       return _variable_creating_model_fn
 
     est = estimator.EstimatorV2(model_fn=_make_model_fn(42.))
@@ -692,12 +670,15 @@ class EstimatorTrainTest(tf.test.TestCase):
     self.assertEqual(42., warm_started_est.get_variable_value('x'))
     # global_step should not be warm-started.
     self.assertEqual(
-        5, estimator._load_global_step_from_checkpoint_dir(
+        5,
+        estimator._load_global_step_from_checkpoint_dir(
             warm_started_est.model_dir))
 
   @test_util.run_v1_only('b/119219961')
   def test_warm_starts_from_savedmodel(self):
+
     def _make_model_fn(x):
+
       def _variable_creating_and_export_model_fn(features, labels, mode):
         _, _ = features, labels
         tf.compat.v1.get_variable('x', initializer=x)
@@ -707,21 +688,27 @@ class EstimatorTrainTest(tf.test.TestCase):
             predictions={'y': tf.constant(1.0)},
             loss=tf.constant(1.),
             train_op=tf.compat.v1.assign_add(global_step, 1),
-            export_outputs={'test': export_lib.ClassificationOutput(
-                tf.constant([4.2]), tf.constant(['label']))})
+            export_outputs={
+                'test':
+                    export_lib.ClassificationOutput(
+                        tf.constant([4.2]), tf.constant(['label']))
+            })
+
       return _variable_creating_and_export_model_fn
 
     est = estimator.EstimatorV2(model_fn=_make_model_fn(42.))
     est.train(dummy_input_fn, steps=10)
-    feature_spec = {'x': tf.io.VarLenFeature(dtype=tf.dtypes.int64),
-                    'y': tf.io.VarLenFeature(dtype=tf.dtypes.int64)}
+    feature_spec = {
+        'x': tf.io.VarLenFeature(dtype=tf.dtypes.int64),
+        'y': tf.io.VarLenFeature(dtype=tf.dtypes.int64)
+    }
     serving_input_receiver_fn = (
         export_lib.build_parsing_serving_input_receiver_fn(feature_spec))
     tmpdir = tempfile.mkdtemp()
     export_dir_base = os.path.join(
         tf.compat.as_bytes(tmpdir), tf.compat.as_bytes('export'))
-    export_dir = est.export_saved_model(
-        export_dir_base, serving_input_receiver_fn)
+    export_dir = est.export_saved_model(export_dir_base,
+                                        serving_input_receiver_fn)
 
     warm_started_est = estimator.EstimatorV2(
         model_fn=_make_model_fn(36.), warm_start_from=export_dir)
@@ -752,8 +739,8 @@ class EstimatorTrainTest(tf.test.TestCase):
     self.assertEqual(ckpt.model_checkpoint_path, 'model.ckpt-5')
     # TODO(b/78461127): Please modify tests to not directly rely on names of
     # checkpoints.
-    self.assertAllEqual(
-        ['model.ckpt-0', 'model.ckpt-5'], ckpt.all_model_checkpoint_paths)
+    self.assertAllEqual(['model.ckpt-0', 'model.ckpt-5'],
+                        ckpt.all_model_checkpoint_paths)
 
   def test_train_save_copy_reload(self):
     tmpdir = tempfile.mkdtemp()
@@ -808,7 +795,8 @@ class EstimatorTrainTest(tf.test.TestCase):
       return model_fn_lib.EstimatorSpec(
           mode=mode,
           loss=tf.constant(0.),
-          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1),
+          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(),
+                                           1),
           scaffold=tf.compat.v1.train.Scaffold(init_fn=_init_fn))
 
     est = estimator.EstimatorV2(model_fn=_model_fn_scaffold)
@@ -822,16 +810,19 @@ class EstimatorTrainTest(tf.test.TestCase):
 
   def test_training_hooks_are_used(self):
     chief_hook = tf.compat.v1.test.mock.MagicMock(
-        wraps=tf.compat.v1.train.SessionRunHook(), spec=tf.compat.v1.train.SessionRunHook)
+        wraps=tf.compat.v1.train.SessionRunHook(),
+        spec=tf.compat.v1.train.SessionRunHook)
     hook = tf.compat.v1.test.mock.MagicMock(
-        wraps=tf.compat.v1.train.SessionRunHook(), spec=tf.compat.v1.train.SessionRunHook)
+        wraps=tf.compat.v1.train.SessionRunHook(),
+        spec=tf.compat.v1.train.SessionRunHook)
 
     def _model_fn_hooks(features, labels, mode):
       _, _ = features, labels
       return model_fn_lib.EstimatorSpec(
           mode=mode,
           loss=tf.constant(0.),
-          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1),
+          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(),
+                                           1),
           training_chief_hooks=[chief_hook],
           training_hooks=[hook])
 
@@ -843,7 +834,8 @@ class EstimatorTrainTest(tf.test.TestCase):
     self.assertTrue(hook.begin.called)
 
   def test_saving_listeners_are_used(self):
-    listener = tf.compat.v1.test.mock.Mock(spec=tf.compat.v1.train.CheckpointSaverListener)
+    listener = tf.compat.v1.test.mock.Mock(
+        spec=tf.compat.v1.train.CheckpointSaverListener)
     listener.after_save.return_value = None
     est = estimator.EstimatorV2(
         model_fn=model_fn_global_step_incrementer,
@@ -853,37 +845,42 @@ class EstimatorTrainTest(tf.test.TestCase):
     self.assertEqual(4, listener.after_save.call_count)
 
   def test_saver_hook_should_exist_to_use_saving_listeners(self):
-    listener = tf.compat.v1.test.mock.Mock(spec=tf.compat.v1.train.CheckpointSaverListener)
+    listener = tf.compat.v1.test.mock.Mock(
+        spec=tf.compat.v1.train.CheckpointSaverListener)
     est = estimator.EstimatorV2(
         model_fn=model_fn_global_step_incrementer,
         config=run_config.RunConfig(
             save_checkpoints_steps=None, save_checkpoints_secs=None))
-    with self.assertRaisesRegexp(
-        ValueError, 'CheckpointSaverHook to use saving_listeners'):
+    with self.assertRaisesRegexp(ValueError,
+                                 'CheckpointSaverHook to use saving_listeners'):
       est.train(dummy_input_fn, steps=1, saving_listeners=[listener])
 
   def test_listeners_should_be_listeners(self):
     est = estimator.EstimatorV2(model_fn=model_fn_global_step_incrementer)
-    with self.assertRaisesRegexp(
-        TypeError, 'must be a list of CheckpointSaverListener'):
+    with self.assertRaisesRegexp(TypeError,
+                                 'must be a list of CheckpointSaverListener'):
       est.train(dummy_input_fn, steps=1, saving_listeners=['not-a-listener'])
 
   def test_chief_only_hook_should_not_be_called_on_non_chief(self):
     chief_hook = tf.compat.v1.test.mock.MagicMock(
-        wraps=tf.compat.v1.train.SessionRunHook(), spec=tf.compat.v1.train.SessionRunHook)
+        wraps=tf.compat.v1.train.SessionRunHook(),
+        spec=tf.compat.v1.train.SessionRunHook)
     hook = tf.compat.v1.test.mock.MagicMock(
-        wraps=tf.compat.v1.train.SessionRunHook(), spec=tf.compat.v1.train.SessionRunHook)
+        wraps=tf.compat.v1.train.SessionRunHook(),
+        spec=tf.compat.v1.train.SessionRunHook)
 
     def _model_fn_hooks(features, labels, mode):
       _, _ = features, labels
       return model_fn_lib.EstimatorSpec(
           mode=mode,
           loss=tf.constant(0.),
-          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1),
+          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(),
+                                           1),
           training_chief_hooks=[chief_hook],
           training_hooks=[hook])
 
     class NonChiefRunConfig(run_config.RunConfig):
+
       @property
       def is_chief(self):  # pylint: disable=g-wrong-blank-lines
         return False
@@ -922,7 +919,8 @@ class EstimatorTrainTest(tf.test.TestCase):
       return model_fn_lib.EstimatorSpec(
           mode=mode,
           loss=tf.constant(0.),
-          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1),
+          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(),
+                                           1),
           predictions=tf.constant([[0.]]))
 
     est = estimator.EstimatorV2(model_fn=_model_fn)
@@ -933,14 +931,17 @@ class EstimatorTrainTest(tf.test.TestCase):
 
   def test_graph_initialization_global_step_and_random_seed(self):
     expected_random_seed = run_config.RunConfig().tf_random_seed
+
     def _model_fn(features, labels, mode):
       _, _, _ = features, labels, mode
       self.assertIsNotNone(tf.compat.v1.train.get_global_step())
-      self.assertEqual(expected_random_seed, tf.compat.v1.get_default_graph().seed)
+      self.assertEqual(expected_random_seed,
+                       tf.compat.v1.get_default_graph().seed)
       return model_fn_lib.EstimatorSpec(
           mode=mode,
           loss=tf.constant(0.),
-          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1),
+          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(),
+                                           1),
           predictions=tf.constant([[0.]]))
 
     est = estimator.EstimatorV2(model_fn=_model_fn)
@@ -971,13 +972,14 @@ class EstimatorTrainTest(tf.test.TestCase):
             'index': 0
         }
     })
-    with tf.compat.v1.test.mock.patch.dict('os.environ', {'TF_CONFIG': tf_config}):
+    with tf.compat.v1.test.mock.patch.dict('os.environ',
+                                           {'TF_CONFIG': tf_config}):
       est = estimator.EstimatorV2(
           model_fn=model_fn_global_step_incrementer,
           config=run_config.RunConfig())
 
-    with tf.compat.v1.test.mock.patch.object(training,
-                                'MonitoredTrainingSession') as mock_sess:
+    with tf.compat.v1.test.mock.patch.object(
+        training, 'MonitoredTrainingSession') as mock_sess:
       est.train(dummy_input_fn, steps=1)
       self.assertFalse(
           any(
@@ -1002,13 +1004,14 @@ class EstimatorTrainTest(tf.test.TestCase):
             'index': 0
         }
     })
-    with tf.compat.v1.test.mock.patch.dict('os.environ', {'TF_CONFIG': tf_config}):
+    with tf.compat.v1.test.mock.patch.dict('os.environ',
+                                           {'TF_CONFIG': tf_config}):
       est = estimator.EstimatorV2(
           model_fn=model_fn_global_step_incrementer,
           config=run_config.RunConfig())
 
-    with tf.compat.v1.test.mock.patch.object(training,
-                                'MonitoredTrainingSession') as mock_sess:
+    with tf.compat.v1.test.mock.patch.object(
+        training, 'MonitoredTrainingSession') as mock_sess:
       est.train(dummy_input_fn, steps=1)
       self.assertTrue(
           any(
@@ -1033,13 +1036,14 @@ class EstimatorTrainTest(tf.test.TestCase):
             'index': 1
         }
     })
-    with tf.compat.v1.test.mock.patch.dict('os.environ', {'TF_CONFIG': tf_config}):
+    with tf.compat.v1.test.mock.patch.dict('os.environ',
+                                           {'TF_CONFIG': tf_config}):
       est = estimator.EstimatorV2(
           model_fn=model_fn_global_step_incrementer,
           config=run_config.RunConfig())
 
-    with tf.compat.v1.test.mock.patch.object(training,
-                                'MonitoredTrainingSession') as mock_sess:
+    with tf.compat.v1.test.mock.patch.object(
+        training, 'MonitoredTrainingSession') as mock_sess:
       est.train(dummy_input_fn, steps=1)
       self.assertFalse(
           any(
@@ -1062,14 +1066,15 @@ class EstimatorTrainTest(tf.test.TestCase):
             'index': 0
         }
     })
-    with tf.compat.v1.test.mock.patch.dict('os.environ', {'TF_CONFIG': tf_config}):
+    with tf.compat.v1.test.mock.patch.dict('os.environ',
+                                           {'TF_CONFIG': tf_config}):
       est = estimator.EstimatorV2(
           model_fn=model_fn_global_step_incrementer,
           config=run_config.RunConfig(
               save_summary_steps=100, log_step_count_steps=200))
 
-    with tf.compat.v1.test.mock.patch.object(training,
-                                'MonitoredTrainingSession') as mock_sess:
+    with tf.compat.v1.test.mock.patch.object(
+        training, 'MonitoredTrainingSession') as mock_sess:
       est.train(dummy_input_fn, steps=1)
       self.assertFalse(
           any(
@@ -1093,14 +1098,15 @@ class EstimatorTrainTest(tf.test.TestCase):
             'index': 0
         }
     })
-    with tf.compat.v1.test.mock.patch.dict('os.environ', {'TF_CONFIG': tf_config}):
+    with tf.compat.v1.test.mock.patch.dict('os.environ',
+                                           {'TF_CONFIG': tf_config}):
       est = estimator.EstimatorV2(
           model_fn=model_fn_global_step_incrementer,
           config=run_config.RunConfig(
               save_summary_steps=100, log_step_count_steps=200))
 
-    with tf.compat.v1.test.mock.patch.object(training,
-                                'MonitoredTrainingSession') as mock_sess:
+    with tf.compat.v1.test.mock.patch.object(
+        training, 'MonitoredTrainingSession') as mock_sess:
       est.train(dummy_input_fn, steps=1)
       self.assertFalse(
           any(
@@ -1132,7 +1138,8 @@ class EstimatorTrainTest(tf.test.TestCase):
         },
         task_type=run_config.TaskType.WORKER,
         task_id=0)
-    with tf.compat.v1.test.mock.patch.dict('os.environ', {'TF_CONFIG': tf_config}):
+    with tf.compat.v1.test.mock.patch.dict('os.environ',
+                                           {'TF_CONFIG': tf_config}):
       config = run_config.RunConfig(
           train_distribute=strategy,
           save_summary_steps=1000,
@@ -1146,8 +1153,8 @@ class EstimatorTrainTest(tf.test.TestCase):
           'x': tf.constant([[1], [1]])
       }, tf.constant([[1], [1]])))
 
-    with tf.compat.v1.test.mock.patch.object(training,
-                                'MonitoredTrainingSession') as mock_sess:
+    with tf.compat.v1.test.mock.patch.object(
+        training, 'MonitoredTrainingSession') as mock_sess:
       est.train(input_fn, steps=1)
       self.assertFalse(
           any(
@@ -1217,7 +1224,8 @@ class EstimatorGetVariablesTest(tf.test.TestCase):
       return model_fn_lib.EstimatorSpec(
           mode=mode,
           loss=tf.constant(0.),
-          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1))
+          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(),
+                                           1))
 
     est = estimator.EstimatorV2(model_fn=_model_fn)
     with self.assertRaisesRegexp(ValueError, 'not find trained model'):
@@ -1234,7 +1242,8 @@ class EstimatorGetVariablesTest(tf.test.TestCase):
       return model_fn_lib.EstimatorSpec(
           mode=mode,
           loss=tf.constant(0.),
-          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1))
+          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(),
+                                           1))
 
     est = estimator.EstimatorV2(model_fn=_model_fn)
     est.train(input_fn=dummy_input_fn, steps=1)
@@ -1256,7 +1265,8 @@ class EstimatorDatasetIntegrationTest(tf.test.TestCase):
       return model_fn_lib.EstimatorSpec(
           mode,
           loss=features + labels,  # 1 + 2
-          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1))
+          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(),
+                                           1))
 
     est = estimator.EstimatorV2(model_fn=_model_fn)
     est.train(_input_fn, steps=1)
@@ -1273,7 +1283,8 @@ class EstimatorDatasetIntegrationTest(tf.test.TestCase):
       return model_fn_lib.EstimatorSpec(
           mode,
           loss=features,  # 7
-          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1))
+          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(),
+                                           1))
 
     est = estimator.EstimatorV2(model_fn=_model_fn)
     est.train(_input_fn, steps=1)
@@ -1291,7 +1302,8 @@ class EstimatorDatasetIntegrationTest(tf.test.TestCase):
           mode,
           predictions=features,  # 10
           loss=features,  # 10
-          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1))
+          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(),
+                                           1))
 
     est = estimator.EstimatorV2(model_fn=_model_fn)
     est.train(_input_fn, steps=1)
@@ -1300,15 +1312,16 @@ class EstimatorDatasetIntegrationTest(tf.test.TestCase):
   def test_batching(self):
 
     def _input_fn():
-      return tf.compat.v1.data.Dataset.from_tensor_slices(([[1.], [2.]],
-                                                     [[10.], [20.]])).batch(1)
+      return tf.compat.v1.data.Dataset.from_tensor_slices(
+          ([[1.], [2.]], [[10.], [20.]])).batch(1)
 
     def _model_fn(features, labels, mode):
       return model_fn_lib.EstimatorSpec(
           mode,
           predictions=features,
           loss=features + (0 if labels is None else labels),  # 11, 22
-          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1))
+          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(),
+                                           1))
 
     est = estimator.EstimatorV2(model_fn=_model_fn)
     est.train(_input_fn)
@@ -1353,6 +1366,7 @@ class EstimatorEvaluateTest(tf.test.TestCase):
     self.assertEqual(1, input_fn_call_count[0])
 
   def test_model_fn_must_return_estimator_spec(self):
+
     def _model_fn(features, labels, mode):
       _, _ = features, labels
       if mode == ModeKeys.EVAL:
@@ -1360,15 +1374,17 @@ class EstimatorEvaluateTest(tf.test.TestCase):
       return model_fn_lib.EstimatorSpec(
           mode,
           loss=tf.constant(1.),
-          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1))
+          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(),
+                                           1))
 
     est = estimator.EstimatorV2(model_fn=_model_fn)
     est.train(dummy_input_fn, steps=1)
-    with self.assertRaisesRegexp(
-        ValueError, 'model_fn should return an EstimatorSpec'):
+    with self.assertRaisesRegexp(ValueError,
+                                 'model_fn should return an EstimatorSpec'):
       est.evaluate(dummy_input_fn, steps=1)
 
   def test_no_checkpoint_uses_init(self):
+
     def _model_fn(features, labels, mode, params):
       del features, labels, params
       mean = metrics_module.Mean()
@@ -1390,7 +1406,9 @@ class EstimatorEvaluateTest(tf.test.TestCase):
 
   @test_util.run_v1_only('b/119219961')
   def test_no_checkpoint_uses_init_with_warm_starting(self):
+
     def _make_model_fn(x):
+
       def _variable_creating_and_export_model_fn(features, labels, mode):
         _, _ = features, labels
         x_var = tf.compat.v1.get_variable('x', initializer=x)
@@ -1409,16 +1427,17 @@ class EstimatorEvaluateTest(tf.test.TestCase):
             export_outputs={
                 'test':
                     export_lib.ClassificationOutput(
-                        tf.constant([4.2]),
-                        tf.constant(['label']))
+                        tf.constant([4.2]), tf.constant(['label']))
             })
 
       return _variable_creating_and_export_model_fn
 
     first_est = estimator.EstimatorV2(model_fn=_make_model_fn(42.))
     first_est.train(dummy_input_fn, steps=10)
-    feature_spec = {'x': tf.io.VarLenFeature(dtype=tf.dtypes.int64),
-                    'y': tf.io.VarLenFeature(dtype=tf.dtypes.int64)}
+    feature_spec = {
+        'x': tf.io.VarLenFeature(dtype=tf.dtypes.int64),
+        'y': tf.io.VarLenFeature(dtype=tf.dtypes.int64)
+    }
     serving_input_receiver_fn = (
         export_lib.build_parsing_serving_input_receiver_fn(feature_spec))
     tmpdir = tempfile.mkdtemp()
@@ -1464,18 +1483,20 @@ class EstimatorEvaluateTest(tf.test.TestCase):
     self.assertAlmostEqual(3., scores['metric2'])
 
   def test_tuple_metrics(self):
+
     def _model_fn(features, labels, mode):
       del features  # unused
       del labels
       return model_fn_lib.EstimatorSpec(
           mode,
-          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1),
+          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(),
+                                           1),
           loss=tf.constant(1.),
           eval_metric_ops={
               'nested_metric': (
                   ((tf.constant(2.), tf.constant(1)),
-                   tf.constant(3., dtype=tf.dtypes.float64)),
-                  tf.no_op())})
+                   tf.constant(3., dtype=tf.dtypes.float64)), tf.no_op())
+          })
 
     est = estimator.EstimatorV2(model_fn=_model_fn)
     est.train(dummy_input_fn, steps=1)
@@ -1528,13 +1549,16 @@ class EstimatorEvaluateTest(tf.test.TestCase):
     def _model_fn_with_incremental_loss(features, labels, mode):
       _, _ = features, labels
       local_weight = tf.compat.v1.Variable(
-          0., name='local_weight', collections=[tf.compat.v1.GraphKeys.LOCAL_VARIABLES])
+          0.,
+          name='local_weight',
+          collections=[tf.compat.v1.GraphKeys.LOCAL_VARIABLES])
       # Loss will be 2, 4, 6, ...
       loss = 2 * tf.compat.v1.assign_add(local_weight, 1.)
       return model_fn_lib.EstimatorSpec(
           mode,
           loss=loss,
-          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1))
+          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(),
+                                           1))
 
     est = estimator.EstimatorV2(model_fn=_model_fn_with_incremental_loss)
     est.train(dummy_input_fn, steps=1)
@@ -1576,7 +1600,9 @@ class EstimatorEvaluateTest(tf.test.TestCase):
   @test_util.run_v1_only('VariableV1 is only exported in v1')
   def test_wrong_shape_throws_reasonable_error(self):
     """Make sure we are helpful when model_fns change. See b/110263146."""
+
     def _get_model_fn(val=1):
+
       def _model_fn(features, labels, mode):
         del features, labels  # unused
         tf.compat.v1.Variable(val, name='weight')
@@ -1584,7 +1610,9 @@ class EstimatorEvaluateTest(tf.test.TestCase):
             mode=mode,
             predictions=tf.constant([[1.]]),
             loss=tf.constant(0.),
-            train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1))
+            train_op=tf.compat.v1.assign_add(
+                tf.compat.v1.train.get_global_step(), 1))
+
       return _model_fn
 
     model_fn_1 = _get_model_fn()
@@ -1596,7 +1624,10 @@ class EstimatorEvaluateTest(tf.test.TestCase):
 
     expected_msg = 'Restoring from checkpoint failed.*a mismatch between'
     with self.assertRaisesRegexp(tf.errors.InvalidArgumentError, expected_msg):
-      est2.train(dummy_input_fn, steps=1,)
+      est2.train(
+          dummy_input_fn,
+          steps=1,
+      )
 
   def test_scaffold_is_used(self):
 
@@ -1608,7 +1639,8 @@ class EstimatorEvaluateTest(tf.test.TestCase):
           mode=mode,
           predictions=tf.constant([[1.]]),
           loss=tf.constant(0.),
-          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1),
+          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(),
+                                           1),
           scaffold=tf.compat.v1.train.Scaffold(saver=self.mock_saver))
 
     est = estimator.EstimatorV2(model_fn=_model_fn_scaffold)
@@ -1628,7 +1660,8 @@ class EstimatorEvaluateTest(tf.test.TestCase):
       return model_fn_lib.EstimatorSpec(
           mode=mode,
           loss=tf.constant(0.),
-          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1),
+          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(),
+                                           1),
           predictions=tf.constant([[0.]]))
 
     est = estimator.EstimatorV2(model_fn=_model_fn)
@@ -1640,14 +1673,17 @@ class EstimatorEvaluateTest(tf.test.TestCase):
 
   def test_graph_initialization_global_step_and_random_seed(self):
     expected_random_seed = run_config.RunConfig().tf_random_seed
+
     def _model_fn(features, labels, mode):
       _, _, _ = features, labels, mode
       self.assertIsNotNone(tf.compat.v1.train.get_global_step())
-      self.assertEqual(expected_random_seed, tf.compat.v1.get_default_graph().seed)
+      self.assertEqual(expected_random_seed,
+                       tf.compat.v1.get_default_graph().seed)
       return model_fn_lib.EstimatorSpec(
           mode=mode,
           loss=tf.constant(0.),
-          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1),
+          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(),
+                                           1),
           predictions=tf.constant([[0.]]))
 
     est = estimator.EstimatorV2(model_fn=_model_fn)
@@ -1656,14 +1692,16 @@ class EstimatorEvaluateTest(tf.test.TestCase):
 
   def test_evaluation_hooks_are_used(self):
     hook = tf.compat.v1.test.mock.MagicMock(
-        wraps=tf.compat.v1.train.SessionRunHook(), spec=tf.compat.v1.train.SessionRunHook)
+        wraps=tf.compat.v1.train.SessionRunHook(),
+        spec=tf.compat.v1.train.SessionRunHook)
 
     def _model_fn_hooks(features, labels, mode):
       _, _ = features, labels
       return model_fn_lib.EstimatorSpec(
           mode=mode,
           loss=tf.constant(0.),
-          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1),
+          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(),
+                                           1),
           evaluation_hooks=[hook])
 
     est = estimator.EstimatorV2(model_fn=_model_fn_hooks)
@@ -1680,8 +1718,8 @@ class EstimatorEvaluateTest(tf.test.TestCase):
 
       image = tf.zeros([5, 3, 3, 1])
       eval_metric_ops = {
-          'foo': (tf.compat.v1.summary.image('image', image, max_outputs=3),
-                  tf.constant(1))
+          'foo': (tf.compat.v1.summary.image('image', image,
+                                             max_outputs=3), tf.constant(1))
       }
       return model_fn_lib.EstimatorSpec(
           mode,
@@ -1729,7 +1767,9 @@ class EstimatorEvaluateTest(tf.test.TestCase):
 
       metric_name = params.get('metric_name') or 'metric'
       predictions = tf.constant([1., .5, 0.])
-      eval_metric_ops = {metric_name: tf.compat.v1.metrics.mean_tensor(predictions)}
+      eval_metric_ops = {
+          metric_name: tf.compat.v1.metrics.mean_tensor(predictions)
+      }
       return model_fn_lib.EstimatorSpec(
           mode,
           loss=tf.constant(1.),
@@ -1776,7 +1816,8 @@ class EstimatorPredictTest(tf.test.TestCase):
       return model_fn_lib.EstimatorSpec(
           mode,
           loss=tf.constant(0.),
-          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1),
+          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(),
+                                           1),
           predictions=tf.constant([[10.]]))
 
     def _input_fn(mode, params, config):
@@ -1794,6 +1835,7 @@ class EstimatorPredictTest(tf.test.TestCase):
     self.assertEqual(1, input_fn_call_count[0])
 
   def test_no_checkpoint_uses_init(self):
+
     def _model_fn(features, labels, mode, params, config):
       del features, labels, params, config
       x = tf.compat.v1.Variable([[3.]], name='x')
@@ -1806,7 +1848,9 @@ class EstimatorPredictTest(tf.test.TestCase):
 
   @test_util.run_v1_only('b/119219961')
   def test_no_checkpoint_uses_init_with_warm_starting(self):
+
     def _make_model_fn(x):
+
       def _variable_creating_and_export_model_fn(features, labels, mode):
         _, _ = features, labels
         x_var = tf.compat.v1.Variable([[x]], name='x')
@@ -1814,16 +1858,22 @@ class EstimatorPredictTest(tf.test.TestCase):
             mode,
             predictions=tf.math.add(x_var, 1.),
             loss=tf.constant(1.),
-            train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1),
-            export_outputs={'test': export_lib.ClassificationOutput(
-                tf.constant([4.2]),
-                tf.constant(['label']))})
+            train_op=tf.compat.v1.assign_add(
+                tf.compat.v1.train.get_global_step(), 1),
+            export_outputs={
+                'test':
+                    export_lib.ClassificationOutput(
+                        tf.constant([4.2]), tf.constant(['label']))
+            })
+
       return _variable_creating_and_export_model_fn
 
     first_est = estimator.EstimatorV2(model_fn=_make_model_fn(3.))
     first_est.train(dummy_input_fn, steps=10)
-    feature_spec = {'x': tf.io.VarLenFeature(dtype=tf.dtypes.int64),
-                    'y': tf.io.VarLenFeature(dtype=tf.dtypes.int64)}
+    feature_spec = {
+        'x': tf.io.VarLenFeature(dtype=tf.dtypes.int64),
+        'y': tf.io.VarLenFeature(dtype=tf.dtypes.int64)
+    }
     serving_input_receiver_fn = (
         export_lib.build_parsing_serving_input_receiver_fn(feature_spec))
     tmpdir = tempfile.mkdtemp()
@@ -1854,8 +1904,7 @@ class EstimatorPredictTest(tf.test.TestCase):
       next(
           est.predict(
               dummy_input_fn,
-              checkpoint_path=
-              tf.train.latest_checkpoint('fakedir')))
+              checkpoint_path=tf.train.latest_checkpoint('fakedir')))
 
   def test_tensor_predictions(self):
 
@@ -1864,7 +1913,8 @@ class EstimatorPredictTest(tf.test.TestCase):
       return model_fn_lib.EstimatorSpec(
           mode,
           loss=tf.constant(0.),
-          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1),
+          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(),
+                                           1),
           predictions=tf.constant([[10.]]))
 
     est = estimator.EstimatorV2(model_fn=_model_fn)
@@ -1873,14 +1923,16 @@ class EstimatorPredictTest(tf.test.TestCase):
 
   def test_predictionhooks_are_used(self):
     hook = tf.compat.v1.test.mock.MagicMock(
-        wraps=tf.compat.v1.train.SessionRunHook(), spec=tf.compat.v1.train.SessionRunHook)
+        wraps=tf.compat.v1.train.SessionRunHook(),
+        spec=tf.compat.v1.train.SessionRunHook)
 
     def _model_fn_hooks(features, labels, mode):
       _, _ = features, labels
       return model_fn_lib.EstimatorSpec(
           mode=mode,
           loss=tf.constant(0.),
-          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1),
+          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(),
+                                           1),
           predictions=tf.constant([[10.]]),
           prediction_hooks=[hook])
 
@@ -1897,7 +1949,8 @@ class EstimatorPredictTest(tf.test.TestCase):
       return model_fn_lib.EstimatorSpec(
           mode,
           loss=tf.constant(0.),
-          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1),
+          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(),
+                                           1),
           predictions=tf.constant([[10.]]))
 
     est = estimator.EstimatorV2(model_fn=_model_fn)
@@ -1915,7 +1968,8 @@ class EstimatorPredictTest(tf.test.TestCase):
       return model_fn_lib.EstimatorSpec(
           mode,
           loss=tf.constant(0.),
-          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1),
+          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(),
+                                           1),
           predictions=tf.constant([[10.]]))
 
     def _input_fn():
@@ -1937,7 +1991,8 @@ class EstimatorPredictTest(tf.test.TestCase):
       return model_fn_lib.EstimatorSpec(
           mode,
           loss=tf.constant(0.),
-          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1),
+          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(),
+                                           1),
           predictions=tf.constant([[10.]]))
 
     def _input_fn():
@@ -1960,7 +2015,8 @@ class EstimatorPredictTest(tf.test.TestCase):
       return model_fn_lib.EstimatorSpec(
           mode,
           loss=tf.constant(0.),
-          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1),
+          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(),
+                                           1),
           predictions=tf.constant([[10.]]))
 
     est = estimator.EstimatorV2(model_fn=_model_fn)
@@ -1978,7 +2034,8 @@ class EstimatorPredictTest(tf.test.TestCase):
       return model_fn_lib.EstimatorSpec(
           mode,
           loss=tf.constant(0.),
-          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1),
+          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(),
+                                           1),
           predictions={
               'y1': tf.constant([[10.]]),
               'y2': tf.constant([[12.], [13]])
@@ -1997,7 +2054,8 @@ class EstimatorPredictTest(tf.test.TestCase):
       return model_fn_lib.EstimatorSpec(
           mode,
           loss=tf.constant(0.),
-          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1),
+          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(),
+                                           1),
           predictions={
               # First dim is different but the prediction should still work
               'y1': tf.zeros(shape=[3]),
@@ -2018,7 +2076,8 @@ class EstimatorPredictTest(tf.test.TestCase):
       return model_fn_lib.EstimatorSpec(
           mode,
           loss=tf.constant(0.),
-          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1),
+          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(),
+                                           1),
           predictions=tf.constant([[10.]]))
 
     est = estimator.EstimatorV2(model_fn=_model_fn)
@@ -2035,7 +2094,8 @@ class EstimatorPredictTest(tf.test.TestCase):
       return model_fn_lib.EstimatorSpec(
           mode,
           loss=tf.constant(0.),
-          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1),
+          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(),
+                                           1),
           predictions={
               'y1': tf.constant([[10.]]),
               'y2': tf.constant([[12.]])
@@ -2054,7 +2114,8 @@ class EstimatorPredictTest(tf.test.TestCase):
       return model_fn_lib.EstimatorSpec(
           mode,
           loss=tf.constant(0.),
-          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1),
+          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(),
+                                           1),
           predictions={
               'y1': tf.constant([[10.]]),
               'y2': tf.constant([[12.]])
@@ -2073,7 +2134,8 @@ class EstimatorPredictTest(tf.test.TestCase):
       return model_fn_lib.EstimatorSpec(
           mode,
           loss=tf.constant(0.),
-          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1),
+          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(),
+                                           1),
           predictions=tf.constant([[10.], [12.]]))
 
     est = estimator.EstimatorV2(model_fn=_model_fn)
@@ -2089,7 +2151,8 @@ class EstimatorPredictTest(tf.test.TestCase):
       return model_fn_lib.EstimatorSpec(
           mode,
           loss=tf.constant(0.),
-          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1),
+          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(),
+                                           1),
           predictions={
               'y1': tf.constant([[10.], [12]]),
               'y2': tf.constant([[0.], [2.]])
@@ -2114,7 +2177,8 @@ class EstimatorPredictTest(tf.test.TestCase):
       return model_fn_lib.EstimatorSpec(
           mode,
           loss=tf.constant(0.),
-          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1),
+          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(),
+                                           1),
           predictions=tf.constant([[10.], [12.]]))
 
     step_counter_hook = _StepCounterHook()
@@ -2138,7 +2202,8 @@ class EstimatorPredictTest(tf.test.TestCase):
       return model_fn_lib.EstimatorSpec(
           mode,
           loss=tf.constant(0.),
-          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1),
+          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(),
+                                           1),
           predictions=prediction)
 
     est1 = estimator.EstimatorV2(model_fn=_model_fn)
@@ -2155,7 +2220,8 @@ class EstimatorPredictTest(tf.test.TestCase):
       return model_fn_lib.EstimatorSpec(
           mode,
           loss=tf.constant(0.),
-          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1),
+          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(),
+                                           1),
           predictions=prediction)
 
     est1 = estimator.EstimatorV2(model_fn=_model_fn)
@@ -2177,7 +2243,8 @@ class EstimatorPredictTest(tf.test.TestCase):
           mode=mode,
           predictions=tf.constant([[1.]]),
           loss=tf.constant(0.),
-          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1),
+          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(),
+                                           1),
           scaffold=tf.compat.v1.train.Scaffold(saver=self.mock_saver))
 
     est = estimator.EstimatorV2(model_fn=_model_fn_scaffold)
@@ -2197,7 +2264,8 @@ class EstimatorPredictTest(tf.test.TestCase):
       return model_fn_lib.EstimatorSpec(
           mode=mode,
           loss=tf.constant(0.),
-          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1),
+          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(),
+                                           1),
           predictions=tf.constant([[0.]]))
 
     est = estimator.EstimatorV2(model_fn=_model_fn)
@@ -2209,14 +2277,17 @@ class EstimatorPredictTest(tf.test.TestCase):
 
   def test_graph_initialization_global_step_and_random_seed(self):
     expected_random_seed = run_config.RunConfig().tf_random_seed
+
     def _model_fn(features, labels, mode):
       _, _, _ = features, labels, mode
       self.assertIsNotNone(tf.compat.v1.train.get_global_step())
-      self.assertEqual(expected_random_seed, tf.compat.v1.get_default_graph().seed)
+      self.assertEqual(expected_random_seed,
+                       tf.compat.v1.get_default_graph().seed)
       return model_fn_lib.EstimatorSpec(
           mode=mode,
           loss=tf.constant(0.),
-          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1),
+          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(),
+                                           1),
           predictions=tf.constant([[0.]]))
 
     est = estimator.EstimatorV2(model_fn=_model_fn)
@@ -2229,7 +2300,8 @@ def _model_fn_for_export_tests(features, labels, mode):
   tf.compat.v1.Variable(1., name='weight')
   scores = tf.constant([3.])
   classes = tf.constant(['wumpus'])
-  update_global_step = tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1)
+  update_global_step = tf.compat.v1.assign_add(
+      tf.compat.v1.train.get_global_step(), 1)
   with tf.control_dependencies([update_global_step]):
     train_op = tf.constant(2.)
   return model_fn_lib.EstimatorSpec(
@@ -2237,14 +2309,14 @@ def _model_fn_for_export_tests(features, labels, mode):
       predictions=tf.constant(10.),
       loss=tf.constant(1.),
       train_op=train_op,
-      export_outputs={
-          'test': export_lib.ClassificationOutput(scores, classes)})
+      export_outputs={'test': export_lib.ClassificationOutput(scores, classes)})
 
 
 def _x_y_input_fn():
-  return ({'x': tf.constant([[1], [1]], name='feature_x'),
-           'y': tf.constant([[2], [2]], name='feature_y')},
-          tf.constant([[1], [1]], name='truth'))
+  return ({
+      'x': tf.constant([[1], [1]], name='feature_x'),
+      'y': tf.constant([[2], [2]], name='feature_y')
+  }, tf.constant([[1], [1]], name='truth'))
 
 
 def _model_fn_with_x_y(features, labels, mode):
@@ -2258,7 +2330,8 @@ def _model_fn_with_x_y(features, labels, mode):
         mode,
         predictions=tf.constant(10.),
         export_outputs={
-            'test': export_lib.ClassificationOutput(scores, classes)})
+            'test': export_lib.ClassificationOutput(scores, classes)
+        })
   else:
     prefix = 'eval_' if mode == ModeKeys.EVAL else ''
 
@@ -2279,14 +2352,16 @@ def _model_fn_with_x_y(features, labels, mode):
         mode,
         predictions=multiplied,
         loss=tf.constant(1.),
-        train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1),
+        train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(),
+                                         1),
         eval_metric_ops=eval_metrics)
 
 
 def _model_fn_with_saveables_for_export_tests(features, labels, mode):
   _, _ = features, labels
   table = saver_test_utils.CheckpointedOp(name='v2')
-  update_global_step = tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1)
+  update_global_step = tf.compat.v1.assign_add(
+      tf.compat.v1.train.get_global_step(), 1)
   with tf.control_dependencies([update_global_step]):
     train_op = table.insert('k1', 30.0)
   prediction = table.lookup('k1', 0.0)
@@ -2296,12 +2371,15 @@ def _model_fn_with_saveables_for_export_tests(features, labels, mode):
       loss=tf.constant(1.),
       train_op=train_op,
       export_outputs={
-          'test': export_lib.PredictOutput({'prediction': prediction})})
+          'test': export_lib.PredictOutput({'prediction': prediction})
+      })
 
 
 def _get_serving_input_receiver_fn():
-  feature_spec = {'x': tf.io.VarLenFeature(dtype=tf.dtypes.int64),
-                  'y': tf.io.VarLenFeature(dtype=tf.dtypes.int64)}
+  feature_spec = {
+      'x': tf.io.VarLenFeature(dtype=tf.dtypes.int64),
+      'y': tf.io.VarLenFeature(dtype=tf.dtypes.int64)
+  }
   return export_lib.build_parsing_serving_input_receiver_fn(feature_spec)
 
 
@@ -2326,8 +2404,8 @@ class EstimatorExportTest(tf.test.TestCase):
     export_dir_base = os.path.join(
         tf.compat.as_bytes(tmpdir), tf.compat.as_bytes('export'))
     serving_input_receiver_fn = _get_serving_input_receiver_fn()
-    export_dir = est.export_saved_model(
-        export_dir_base, serving_input_receiver_fn)
+    export_dir = est.export_saved_model(export_dir_base,
+                                        serving_input_receiver_fn)
 
     # Check that all the files are in the right places.
     self.assertTrue(tf.compat.v1.gfile.Exists(export_dir_base))
@@ -2336,23 +2414,24 @@ class EstimatorExportTest(tf.test.TestCase):
     # Restore, to validate that the export was well-formed.
     with tf.Graph().as_default() as graph:
       with tf.compat.v1.Session(graph=graph) as sess:
-        tf.compat.v1.saved_model.load(sess, [tf.saved_model.SERVING], export_dir)
+        tf.compat.v1.saved_model.load(sess, [tf.saved_model.SERVING],
+                                      export_dir)
         graph_ops = [x.name for x in graph.get_operations()]
         self.assertTrue('input_example_tensor' in graph_ops)
         self.assertTrue('ParseExample/ParseExampleV2' in graph_ops)
         self.assertTrue('weight' in graph_ops)
 
   def test_export_saved_model_train(self):
-    self._test_export_saved_model_for_mode(
-        _get_supervised_input_receiver_fn(), ModeKeys.TRAIN)
+    self._test_export_saved_model_for_mode(_get_supervised_input_receiver_fn(),
+                                           ModeKeys.TRAIN)
 
   def test_export_saved_model_eval(self):
-    self._test_export_saved_model_for_mode(
-        _get_supervised_input_receiver_fn(), ModeKeys.EVAL)
+    self._test_export_saved_model_for_mode(_get_supervised_input_receiver_fn(),
+                                           ModeKeys.EVAL)
 
   def test_export_saved_model_predict(self):
-    self._test_export_saved_model_for_mode(
-        _get_serving_input_receiver_fn(), ModeKeys.PREDICT)
+    self._test_export_saved_model_for_mode(_get_serving_input_receiver_fn(),
+                                           ModeKeys.PREDICT)
 
   def _test_export_saved_model_for_mode(self, input_receiver_fn, mode):
     tmpdir = tempfile.mkdtemp()
@@ -2382,15 +2461,14 @@ class EstimatorExportTest(tf.test.TestCase):
     tf.compat.v1.gfile.DeleteRecursively(tmpdir)
 
   def test_export_all_saved_models_proto_roundtrip_receiver_map(self):
-    input_receiver_fn_map = {
-        ModeKeys.PREDICT: _get_serving_input_receiver_fn()
-    }
+    input_receiver_fn_map = {ModeKeys.PREDICT: _get_serving_input_receiver_fn()}
     export_dir, tmpdir = self._test_export_all_saved_models(
         input_receiver_fn_map)
 
     with tf.Graph().as_default() as graph:
       with tf.compat.v1.Session(graph=graph) as sess:
-        tf.compat.v1.saved_model.load(sess, [tf.saved_model.SERVING], export_dir)
+        tf.compat.v1.saved_model.load(sess, [tf.saved_model.SERVING],
+                                      export_dir)
         graph_ops = [x.name for x in graph.get_operations()]
         self.assertTrue('input_example_tensor' in graph_ops)
         self.assertTrue('ParseExample/ParseExampleV2' in graph_ops)
@@ -2409,7 +2487,8 @@ class EstimatorExportTest(tf.test.TestCase):
 
     with tf.Graph().as_default() as graph:
       with tf.compat.v1.Session(graph=graph) as sess:
-        tf.compat.v1.saved_model.load(sess, [tf.saved_model.TRAINING], export_dir)
+        tf.compat.v1.saved_model.load(sess, [tf.saved_model.TRAINING],
+                                      export_dir)
         graph_ops = [x.name for x in graph.get_operations()]
         self.assertTrue('multiplied' in graph_ops)
         self.assertTrue('mean/update_op' in graph_ops)
@@ -2421,9 +2500,7 @@ class EstimatorExportTest(tf.test.TestCase):
     tf.compat.v1.gfile.DeleteRecursively(tmpdir)
 
   def test_export_all_saved_models_proto_roundtrip_eval_only(self):
-    input_receiver_fn_map = {
-        ModeKeys.EVAL: _get_supervised_input_receiver_fn()
-    }
+    input_receiver_fn_map = {ModeKeys.EVAL: _get_supervised_input_receiver_fn()}
     export_dir, tmpdir = self._test_export_all_saved_models(
         input_receiver_fn_map)
 
@@ -2450,7 +2527,8 @@ class EstimatorExportTest(tf.test.TestCase):
 
     with tf.Graph().as_default() as graph:
       with tf.compat.v1.Session(graph=graph) as sess:
-        tf.compat.v1.saved_model.load(sess, [tf.saved_model.TRAINING], export_dir)
+        tf.compat.v1.saved_model.load(sess, [tf.saved_model.TRAINING],
+                                      export_dir)
         graph_ops = [x.name for x in graph.get_operations()]
         self.assertTrue('multiplied' in graph_ops)
         self.assertFalse('eval_multiplied' in graph_ops)
@@ -2502,14 +2580,16 @@ class EstimatorExportTest(tf.test.TestCase):
 
     with tf.Graph().as_default() as graph:
       with tf.compat.v1.Session(graph=graph) as sess:
-        tf.compat.v1.saved_model.load(sess, [tf.saved_model.TRAINING], export_dir)
+        tf.compat.v1.saved_model.load(sess, [tf.saved_model.TRAINING],
+                                      export_dir)
         graph_ops = [x.name for x in graph.get_operations()]
         self.assertTrue('later_var' in graph_ops)
         self.assertTrue('weight' in graph_ops)
 
     with tf.Graph().as_default() as graph:
       with tf.compat.v1.Session(graph=graph) as sess:
-        tf.compat.v1.saved_model.load(sess, [tf.saved_model.SERVING], export_dir)
+        tf.compat.v1.saved_model.load(sess, [tf.saved_model.SERVING],
+                                      export_dir)
         graph_ops = [x.name for x in graph.get_operations()]
         self.assertFalse('later_var' in graph_ops)
         self.assertTrue('weight' in graph_ops)
@@ -2527,20 +2607,24 @@ class EstimatorExportTest(tf.test.TestCase):
 
     with tf.Graph().as_default() as graph:
       with tf.compat.v1.Session(graph=graph) as sess:
-        tf.compat.v1.saved_model.load(sess, [tf.saved_model.TRAINING], export_dir)
+        tf.compat.v1.saved_model.load(sess, [tf.saved_model.TRAINING],
+                                      export_dir)
         graph_ops = [x.name for x in graph.get_operations()]
         self.assertTrue('name_collision' in graph_ops)
         self.assertFalse('name_collision_1' in graph_ops)
-        collection_vars = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.GLOBAL_VARIABLES)
+        collection_vars = tf.compat.v1.get_collection(
+            tf.compat.v1.GraphKeys.GLOBAL_VARIABLES)
         self.assertEqual(3, collection_vars[-1].eval())
 
     with tf.Graph().as_default() as graph:
       with tf.compat.v1.Session(graph=graph) as sess:
-        tf.compat.v1.saved_model.load(sess, [tf.saved_model.SERVING], export_dir)
+        tf.compat.v1.saved_model.load(sess, [tf.saved_model.SERVING],
+                                      export_dir)
         graph_ops = [x.name for x in graph.get_operations()]
         self.assertTrue('name_collision' in graph_ops)
         self.assertFalse('name_collision_1' in graph_ops)
-        collection_vars = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.GLOBAL_VARIABLES)
+        collection_vars = tf.compat.v1.get_collection(
+            tf.compat.v1.GraphKeys.GLOBAL_VARIABLES)
         # This is a non-obvious detail: when we load the estimator spec
         # for predict, name_collision gets set to 36. However, we then restore
         # from checkpoint, which should overwrite that var and make it the 3
@@ -2573,18 +2657,26 @@ class EstimatorExportTest(tf.test.TestCase):
 
   def _validate_exported_files(self, export_dir):
     self.assertTrue(tf.compat.v1.gfile.Exists(export_dir))
-    self.assertTrue(tf.compat.v1.gfile.Exists(os.path.join(
-        tf.compat.as_bytes(export_dir),
-        tf.compat.as_bytes('saved_model.pb'))))
-    self.assertTrue(tf.compat.v1.gfile.Exists(os.path.join(
-        tf.compat.as_bytes(export_dir),
-        tf.compat.as_bytes('variables'))))
-    self.assertTrue(tf.compat.v1.gfile.Exists(os.path.join(
-        tf.compat.as_bytes(export_dir),
-        tf.compat.as_bytes('variables/variables.index'))))
-    self.assertTrue(tf.compat.v1.gfile.Exists(os.path.join(
-        tf.compat.as_bytes(export_dir),
-        tf.compat.as_bytes('variables/variables.data-00000-of-00001'))))
+    self.assertTrue(
+        tf.compat.v1.gfile.Exists(
+            os.path.join(
+                tf.compat.as_bytes(export_dir),
+                tf.compat.as_bytes('saved_model.pb'))))
+    self.assertTrue(
+        tf.compat.v1.gfile.Exists(
+            os.path.join(
+                tf.compat.as_bytes(export_dir),
+                tf.compat.as_bytes('variables'))))
+    self.assertTrue(
+        tf.compat.v1.gfile.Exists(
+            os.path.join(
+                tf.compat.as_bytes(export_dir),
+                tf.compat.as_bytes('variables/variables.index'))))
+    self.assertTrue(
+        tf.compat.v1.gfile.Exists(
+            os.path.join(
+                tf.compat.as_bytes(export_dir),
+                tf.compat.as_bytes('variables/variables.data-00000-of-00001'))))
 
   def test_export_all_saved_models_var_not_found(self):
     input_receiver_fn_map = {
@@ -2605,7 +2697,8 @@ class EstimatorExportTest(tf.test.TestCase):
           mode,
           predictions=prediction,
           loss=tf.constant(1.),
-          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1),
+          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(),
+                                           1),
           export_outputs={
               'test': export_lib.PredictOutput({'prediction': prediction})
           })
@@ -2638,7 +2731,8 @@ class EstimatorExportTest(tf.test.TestCase):
           mode,
           predictions=tf.constant(10.),
           loss=tf.constant(1.),
-          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1),
+          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(),
+                                           1),
           eval_metric_ops=eval_metrics)
 
     tmpdir = tempfile.mkdtemp()
@@ -2647,10 +2741,10 @@ class EstimatorExportTest(tf.test.TestCase):
 
     # Perform the export.
     export_dir_base = os.path.join(
-        tf.compat.as_bytes(tmpdir), tf.compat.as_bytes('metric_operation_export'))
+        tf.compat.as_bytes(tmpdir),
+        tf.compat.as_bytes('metric_operation_export'))
 
-    input_receiver_fn_map = {
-        ModeKeys.EVAL: _get_supervised_input_receiver_fn()}
+    input_receiver_fn_map = {ModeKeys.EVAL: _get_supervised_input_receiver_fn()}
 
     export_dir = est.experimental_export_all_saved_models(
         export_dir_base, input_receiver_fn_map)
@@ -2658,9 +2752,9 @@ class EstimatorExportTest(tf.test.TestCase):
     # Restore, to validate that the export was well-formed.
     with tf.Graph().as_default() as graph:
       with tf.compat.v1.Session(graph=graph) as sess:
-        meta_graph = tf.compat.v1.saved_model.load(sess, [tag_constants.EVAL], export_dir)
-        sig_outputs = meta_graph.signature_def[
-            ModeKeys.EVAL].outputs
+        meta_graph = tf.compat.v1.saved_model.load(sess, [tag_constants.EVAL],
+                                                   export_dir)
+        sig_outputs = meta_graph.signature_def[ModeKeys.EVAL].outputs
         self.assertTrue(sig_outputs['metrics1/update_op'].name.startswith(
             'metric_op_wrapper'))
         self.assertTrue(sig_outputs['metrics2/update_op'].name.startswith(
@@ -2671,37 +2765,48 @@ class EstimatorExportTest(tf.test.TestCase):
     est = estimator.EstimatorV2(
         model_fn=_model_fn_with_saveables_for_export_tests)
     est.train(input_fn=dummy_input_fn, steps=1)
-    feature_spec = {'x': tf.io.VarLenFeature(dtype=tf.dtypes.int64),
-                    'y': tf.io.VarLenFeature(dtype=tf.dtypes.int64)}
+    feature_spec = {
+        'x': tf.io.VarLenFeature(dtype=tf.dtypes.int64),
+        'y': tf.io.VarLenFeature(dtype=tf.dtypes.int64)
+    }
     serving_input_receiver_fn = (
         export_lib.build_parsing_serving_input_receiver_fn(feature_spec))
 
     # Perform the export.
     export_dir_base = os.path.join(
         tf.compat.as_bytes(tmpdir), tf.compat.as_bytes('export'))
-    export_dir = est.export_saved_model(
-        export_dir_base, serving_input_receiver_fn)
+    export_dir = est.export_saved_model(export_dir_base,
+                                        serving_input_receiver_fn)
 
     # Check that all the files are in the right places.
     self.assertTrue(tf.compat.v1.gfile.Exists(export_dir_base))
     self.assertTrue(tf.compat.v1.gfile.Exists(export_dir))
-    self.assertTrue(tf.compat.v1.gfile.Exists(os.path.join(
-        tf.compat.as_bytes(export_dir),
-        tf.compat.as_bytes('saved_model.pb'))))
-    self.assertTrue(tf.compat.v1.gfile.Exists(os.path.join(
-        tf.compat.as_bytes(export_dir),
-        tf.compat.as_bytes('variables'))))
-    self.assertTrue(tf.compat.v1.gfile.Exists(os.path.join(
-        tf.compat.as_bytes(export_dir),
-        tf.compat.as_bytes('variables/variables.index'))))
-    self.assertTrue(tf.compat.v1.gfile.Exists(os.path.join(
-        tf.compat.as_bytes(export_dir),
-        tf.compat.as_bytes('variables/variables.data-00000-of-00001'))))
+    self.assertTrue(
+        tf.compat.v1.gfile.Exists(
+            os.path.join(
+                tf.compat.as_bytes(export_dir),
+                tf.compat.as_bytes('saved_model.pb'))))
+    self.assertTrue(
+        tf.compat.v1.gfile.Exists(
+            os.path.join(
+                tf.compat.as_bytes(export_dir),
+                tf.compat.as_bytes('variables'))))
+    self.assertTrue(
+        tf.compat.v1.gfile.Exists(
+            os.path.join(
+                tf.compat.as_bytes(export_dir),
+                tf.compat.as_bytes('variables/variables.index'))))
+    self.assertTrue(
+        tf.compat.v1.gfile.Exists(
+            os.path.join(
+                tf.compat.as_bytes(export_dir),
+                tf.compat.as_bytes('variables/variables.data-00000-of-00001'))))
 
     # Restore, to validate that the export was well-formed.
     with tf.Graph().as_default() as graph:
       with tf.compat.v1.Session(graph=graph) as sess:
-        tf.compat.v1.saved_model.load(sess, [tf.saved_model.SERVING], export_dir)
+        tf.compat.v1.saved_model.load(sess, [tf.saved_model.SERVING],
+                                      export_dir)
         graph_ops = [x.name for x in graph.get_operations()]
         self.assertTrue('input_example_tensor' in graph_ops)
         self.assertTrue('ParseExample/ParseExampleV2' in graph_ops)
@@ -2715,8 +2820,10 @@ class EstimatorExportTest(tf.test.TestCase):
     tmpdir = tempfile.mkdtemp()
     est = estimator.EstimatorV2(model_fn=_model_fn_for_export_tests)
     est.train(input_fn=dummy_input_fn, steps=1)
-    feature_spec = {'x': tf.io.VarLenFeature(dtype=tf.dtypes.int64),
-                    'y': tf.io.VarLenFeature(dtype=tf.dtypes.int64)}
+    feature_spec = {
+        'x': tf.io.VarLenFeature(dtype=tf.dtypes.int64),
+        'y': tf.io.VarLenFeature(dtype=tf.dtypes.int64)
+    }
     serving_input_receiver_fn = (
         export_lib.build_parsing_serving_input_receiver_fn(feature_spec))
 
@@ -2731,10 +2838,10 @@ class EstimatorExportTest(tf.test.TestCase):
     # this is not actually valid, of course.
     def serving_input_receiver_with_asset_fn():
       features, receiver_tensor, _ = serving_input_receiver_fn()
-      filename = ops.convert_to_tensor(vocab_file_name,
-                                       tf.dtypes.string,
-                                       name='asset_filepath')
-      tf.compat.v1.add_to_collection(tf.compat.v1.GraphKeys.ASSET_FILEPATHS, filename)
+      filename = ops.convert_to_tensor(
+          vocab_file_name, tf.dtypes.string, name='asset_filepath')
+      tf.compat.v1.add_to_collection(tf.compat.v1.GraphKeys.ASSET_FILEPATHS,
+                                     filename)
       features['bogus_filename'] = filename
 
       return export_lib.ServingInputReceiver(features, receiver_tensor)
@@ -2742,14 +2849,17 @@ class EstimatorExportTest(tf.test.TestCase):
     # Perform the export.
     export_dir_base = os.path.join(
         tf.compat.as_bytes(tmpdir), tf.compat.as_bytes('export'))
-    export_dir = est.export_saved_model(
-        export_dir_base, serving_input_receiver_with_asset_fn)
+    export_dir = est.export_saved_model(export_dir_base,
+                                        serving_input_receiver_with_asset_fn)
 
     # Check that the asset files are in the right places.
     expected_vocab_file_name = os.path.join(
-        tf.compat.as_bytes(export_dir), tf.compat.as_bytes('assets/my_vocab_file'))
-    self.assertTrue(tf.compat.v1.gfile.Exists(os.path.join(
-        tf.compat.as_bytes(export_dir), tf.compat.as_bytes('assets'))))
+        tf.compat.as_bytes(export_dir),
+        tf.compat.as_bytes('assets/my_vocab_file'))
+    self.assertTrue(
+        tf.compat.v1.gfile.Exists(
+            os.path.join(
+                tf.compat.as_bytes(export_dir), tf.compat.as_bytes('assets'))))
     self.assertTrue(tf.compat.v1.gfile.Exists(expected_vocab_file_name))
     self.assertEqual(
         tf.compat.as_bytes(_VOCAB_FILE_CONTENT),
@@ -2758,10 +2868,11 @@ class EstimatorExportTest(tf.test.TestCase):
     # Restore, to validate that the export was well-formed.
     with tf.Graph().as_default() as graph:
       with tf.compat.v1.Session(graph=graph) as sess:
-        tf.compat.v1.saved_model.load(sess, [tf.saved_model.SERVING], export_dir)
+        tf.compat.v1.saved_model.load(sess, [tf.saved_model.SERVING],
+                                      export_dir)
         assets = [
-            x.eval()
-            for x in graph.get_collection(tf.compat.v1.GraphKeys.ASSET_FILEPATHS)
+            x.eval() for x in graph.get_collection(
+                tf.compat.v1.GraphKeys.ASSET_FILEPATHS)
         ]
         self.assertItemsEqual([vocab_file_name], assets)
         graph_ops = [x.name for x in graph.get_operations()]
@@ -2777,8 +2888,10 @@ class EstimatorExportTest(tf.test.TestCase):
     tmpdir = tempfile.mkdtemp()
     est = estimator.EstimatorV2(model_fn=_model_fn_for_export_tests)
     est.train(input_fn=dummy_input_fn, steps=1)
-    feature_spec = {'x': tf.io.VarLenFeature(dtype=tf.dtypes.int64),
-                    'y': tf.io.VarLenFeature(dtype=tf.dtypes.int64)}
+    feature_spec = {
+        'x': tf.io.VarLenFeature(dtype=tf.dtypes.int64),
+        'y': tf.io.VarLenFeature(dtype=tf.dtypes.int64)
+    }
     serving_input_receiver_fn = (
         export_lib.build_parsing_serving_input_receiver_fn(feature_spec))
 
@@ -2793,16 +2906,18 @@ class EstimatorExportTest(tf.test.TestCase):
     assets_extra = {'some/sub/directory/my_extra_file': extra_file_name}
     export_dir_base = os.path.join(
         tf.compat.as_bytes(tmpdir), tf.compat.as_bytes('export'))
-    export_dir = est.export_saved_model(export_dir_base,
-                                       serving_input_receiver_fn,
-                                       assets_extra=assets_extra)
+    export_dir = est.export_saved_model(
+        export_dir_base, serving_input_receiver_fn, assets_extra=assets_extra)
 
     # Check that the asset files are in the right places.
     expected_extra_path = os.path.join(
         tf.compat.as_bytes(export_dir),
         tf.compat.as_bytes('assets.extra/some/sub/directory/my_extra_file'))
-    self.assertTrue(tf.compat.v1.gfile.Exists(os.path.join(
-        tf.compat.as_bytes(export_dir), tf.compat.as_bytes('assets.extra'))))
+    self.assertTrue(
+        tf.compat.v1.gfile.Exists(
+            os.path.join(
+                tf.compat.as_bytes(export_dir),
+                tf.compat.as_bytes('assets.extra'))))
     self.assertTrue(tf.compat.v1.gfile.Exists(expected_extra_path))
     self.assertEqual(
         tf.compat.as_bytes(_EXTRA_FILE_CONTENT),
@@ -2835,7 +2950,8 @@ class EstimatorExportTest(tf.test.TestCase):
           mode,
           predictions=prediction,
           loss=tf.constant(1.),
-          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1),
+          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(),
+                                           1),
           export_outputs={
               'test': export_lib.PredictOutput({'prediction': prediction})
           })
@@ -2851,13 +2967,14 @@ class EstimatorExportTest(tf.test.TestCase):
     # Perform the export.
     export_dir_base = os.path.join(
         tf.compat.as_bytes(tmpdir), tf.compat.as_bytes('export'))
-    export_dir = est.export_saved_model(
-        export_dir_base, _serving_input_receiver_fn)
+    export_dir = est.export_saved_model(export_dir_base,
+                                        _serving_input_receiver_fn)
 
     # Restore, to validate that the export was well-formed.
     with tf.Graph().as_default() as graph:
       with tf.compat.v1.Session(graph=graph) as sess:
-        tf.compat.v1.saved_model.load(sess, [tf.saved_model.SERVING], export_dir)
+        tf.compat.v1.saved_model.load(sess, [tf.saved_model.SERVING],
+                                      export_dir)
         graph_ops = [x.name.lower() for x in graph.get_operations()]
         self.assertTrue('const' in graph_ops)
         self.assertTrue('matmul' in graph_ops)
@@ -2884,7 +3001,8 @@ class EstimatorExportTest(tf.test.TestCase):
           mode,
           predictions=prediction,
           loss=tf.constant(1.),
-          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1),
+          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(),
+                                           1),
           export_outputs={
               'test': export_lib.PredictOutput({'prediction': prediction})
           })
@@ -2917,7 +3035,9 @@ class EstimatorExportTest(tf.test.TestCase):
     # Restore, to validate that the export was well-formed.
     with tf.Graph().as_default() as graph:
       with tf.compat.v1.Session(graph=graph) as sess:
-        meta_graph_def = tf.compat.v1.saved_model.load(sess, [tf.saved_model.SERVING], export_dir)
+        meta_graph_def = tf.compat.v1.saved_model.load(sess,
+                                                       [tf.saved_model.SERVING],
+                                                       export_dir)
         graph_ops = [x.name.lower() for x in graph.get_operations()]
         self.assertTrue('maximum' in graph_ops)
         self.assertTrue('42_placeholder' in graph_ops)
@@ -2939,14 +3059,17 @@ class EstimatorExportTest(tf.test.TestCase):
           mode=mode,
           predictions=tf.constant([[1.]]),
           loss=tf.constant(0.),
-          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1),
+          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(),
+                                           1),
           scaffold=tf.compat.v1.train.Scaffold(saver=self.mock_saver),
           export_outputs={'test': export_lib.ClassificationOutput(scores)})
 
     est = estimator.EstimatorV2(model_fn=_model_fn_scaffold)
     est.train(dummy_input_fn, steps=1)
-    feature_spec = {'x': tf.io.VarLenFeature(dtype=tf.dtypes.int64),
-                    'y': tf.io.VarLenFeature(dtype=tf.dtypes.int64)}
+    feature_spec = {
+        'x': tf.io.VarLenFeature(dtype=tf.dtypes.int64),
+        'y': tf.io.VarLenFeature(dtype=tf.dtypes.int64)
+    }
     serving_input_receiver_fn = (
         export_lib.build_parsing_serving_input_receiver_fn(feature_spec))
 
@@ -2980,7 +3103,8 @@ class EstimatorExportTest(tf.test.TestCase):
           mode=mode,
           predictions=tf.constant([[1.]]),
           loss=tf.constant(0.),
-          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1),
+          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(),
+                                           1),
           scaffold=scaffold,
           export_outputs={'test': export_lib.ClassificationOutput(scores)})
 
@@ -3011,8 +3135,10 @@ class EstimatorExportTest(tf.test.TestCase):
 
     def _model_fn_scaffold(features, labels, mode):
       _, _ = features, labels
-      my_int = tf.compat.v1.Variable(1, name='my_int',
-                                    collections=[tf.compat.v1.GraphKeys.LOCAL_VARIABLES])
+      my_int = tf.compat.v1.Variable(
+          1,
+          name='my_int',
+          collections=[tf.compat.v1.GraphKeys.LOCAL_VARIABLES])
       _ = training.get_or_create_steps_per_run_variable()
       scores = tf.constant([3.])
       with tf.control_dependencies([
@@ -3027,14 +3153,18 @@ class EstimatorExportTest(tf.test.TestCase):
           mode=mode,
           predictions=tf.constant([[1.]]),
           loss=tf.constant(0.),
-          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1),
-          scaffold=tf.compat.v1.train.Scaffold(local_init_op=custom_local_init_op),
+          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(),
+                                           1),
+          scaffold=tf.compat.v1.train.Scaffold(
+              local_init_op=custom_local_init_op),
           export_outputs={'test': export_lib.ClassificationOutput(scores)})
 
     est = estimator.EstimatorV2(model_fn=_model_fn_scaffold)
     est.train(dummy_input_fn, steps=1)
-    feature_spec = {'x': tf.io.VarLenFeature(dtype=tf.dtypes.int64),
-                    'y': tf.io.VarLenFeature(dtype=tf.dtypes.int64)}
+    feature_spec = {
+        'x': tf.io.VarLenFeature(dtype=tf.dtypes.int64),
+        'y': tf.io.VarLenFeature(dtype=tf.dtypes.int64)
+    }
     serving_input_receiver_fn = (
         export_lib.build_parsing_serving_input_receiver_fn(feature_spec))
 
@@ -3042,12 +3172,13 @@ class EstimatorExportTest(tf.test.TestCase):
     export_dir_base = os.path.join(
         tf.compat.as_bytes(tmpdir), tf.compat.as_bytes('export'))
     export_dir = est.export_saved_model(export_dir_base,
-                                       serving_input_receiver_fn)
+                                        serving_input_receiver_fn)
 
     # Restore, to validate that the custom local_init_op runs.
     with tf.Graph().as_default() as graph:
       with tf.compat.v1.Session(graph=graph) as sess:
-        tf.compat.v1.saved_model.load(sess, [tf.saved_model.SERVING], export_dir)
+        tf.compat.v1.saved_model.load(sess, [tf.saved_model.SERVING],
+                                      export_dir)
         my_int = graph.get_tensor_by_name('my_int:0')
         my_int_value = sess.run(my_int)
         self.assertEqual(12345, my_int_value)
@@ -3057,8 +3188,10 @@ class EstimatorExportTest(tf.test.TestCase):
 
     def _model_fn_scaffold(features, labels, mode):
       _, _ = features, labels
-      my_int = tf.compat.v1.Variable(1, name='my_int',
-                                    collections=[tf.compat.v1.GraphKeys.LOCAL_VARIABLES])
+      my_int = tf.compat.v1.Variable(
+          1,
+          name='my_int',
+          collections=[tf.compat.v1.GraphKeys.LOCAL_VARIABLES])
       scores = tf.constant([3.])
       with tf.control_dependencies([
           tf.compat.v1.initializers.local_variables(),
@@ -3075,8 +3208,10 @@ class EstimatorExportTest(tf.test.TestCase):
           mode=mode,
           predictions=tf.constant([[1.]]),
           loss=tf.constant(0.),
-          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1),
-          scaffold=tf.compat.v1.train.Scaffold(local_init_op=custom_local_init_op),
+          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(),
+                                           1),
+          scaffold=tf.compat.v1.train.Scaffold(
+              local_init_op=custom_local_init_op),
           export_outputs={'test': export_lib.ClassificationOutput(scores)})
 
     est = estimator.EstimatorV2(model_fn=_model_fn_scaffold)
@@ -3096,13 +3231,15 @@ class EstimatorExportTest(tf.test.TestCase):
     # Restore, to validate that the custom local_init_op runs.
     with tf.Graph().as_default() as graph:
       with tf.compat.v1.Session(graph=graph) as sess:
-        tf.compat.v1.saved_model.load(sess, [tf.saved_model.SERVING], export_dir)
+        tf.compat.v1.saved_model.load(sess, [tf.saved_model.SERVING],
+                                      export_dir)
         my_int = graph.get_tensor_by_name('my_int:0')
         my_int_value = sess.run(my_int)
         self.assertEqual(12345, my_int_value)
     with tf.Graph().as_default() as graph:
       with tf.compat.v1.Session(graph=graph) as sess:
-        tf.compat.v1.saved_model.load(sess, [tf.saved_model.TRAINING], export_dir)
+        tf.compat.v1.saved_model.load(sess, [tf.saved_model.TRAINING],
+                                      export_dir)
         my_int = graph.get_tensor_by_name('my_int:0')
         my_int_value = sess.run(my_int)
         self.assertEqual(1, my_int_value)
@@ -3119,11 +3256,11 @@ class EstimatorExportTest(tf.test.TestCase):
       return model_fn_lib.EstimatorSpec(
           mode=mode,
           loss=tf.constant(0.),
-          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1),
+          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(),
+                                           1),
           predictions=tf.constant([[0.]]),
           export_outputs={
-              'test': export_lib.ClassificationOutput(
-                  tf.constant([[0.]]))
+              'test': export_lib.ClassificationOutput(tf.constant([[0.]]))
           })
 
     est = estimator.EstimatorV2(model_fn=_model_fn)
@@ -3135,18 +3272,20 @@ class EstimatorExportTest(tf.test.TestCase):
 
   def test_graph_initialization_global_step_and_random_seed(self):
     expected_random_seed = run_config.RunConfig().tf_random_seed
+
     def _model_fn(features, labels, mode):
       _, _, _ = features, labels, mode
       self.assertIsNotNone(tf.compat.v1.train.get_global_step())
-      self.assertEqual(expected_random_seed, tf.compat.v1.get_default_graph().seed)
+      self.assertEqual(expected_random_seed,
+                       tf.compat.v1.get_default_graph().seed)
       return model_fn_lib.EstimatorSpec(
           mode=mode,
           loss=tf.constant(0.),
-          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1),
+          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(),
+                                           1),
           predictions=tf.constant([[0.]]),
           export_outputs={
-              'test': export_lib.ClassificationOutput(
-                  tf.constant([[0.]]))
+              'test': export_lib.ClassificationOutput(tf.constant([[0.]]))
           })
 
     def serving_input_receiver_fn():
@@ -3159,11 +3298,13 @@ class EstimatorExportTest(tf.test.TestCase):
     est.export_saved_model(tempfile.mkdtemp(), serving_input_receiver_fn)
 
   def test_export_saved_model_respects_soft_placement(self):
+
     def model_fn_with_a_gpu_op_but_no_kernel(features, labels, mode):
       _, _ = features, labels
       table = saver_test_utils.CheckpointedOp(name='v2')
 
-      update_global_step = tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1)
+      update_global_step = tf.compat.v1.assign_add(
+          tf.compat.v1.train.get_global_step(), 1)
       with tf.control_dependencies([update_global_step]):
         train_op = table.insert('k1', 30.0)
 
@@ -3181,23 +3322,23 @@ class EstimatorExportTest(tf.test.TestCase):
           loss=tf.constant(1.),
           train_op=train_op,
           export_outputs={
-              'test': export_lib.PredictOutput({
-                  'prediction': prediction
-              })
+              'test': export_lib.PredictOutput({'prediction': prediction})
           })
 
     tmpdir = tempfile.mkdtemp()
     est = estimator.EstimatorV2(model_fn=model_fn_with_a_gpu_op_but_no_kernel)
     est.train(input_fn=dummy_input_fn, steps=1)
-    feature_spec = {'x': tf.io.VarLenFeature(dtype=tf.dtypes.int64),
-                    'y': tf.io.VarLenFeature(dtype=tf.dtypes.int64)}
+    feature_spec = {
+        'x': tf.io.VarLenFeature(dtype=tf.dtypes.int64),
+        'y': tf.io.VarLenFeature(dtype=tf.dtypes.int64)
+    }
     serving_input_receiver_fn = (
         export_lib.build_parsing_serving_input_receiver_fn(feature_spec))
     export_dir_base = os.path.join(
         tf.compat.as_bytes(tmpdir), tf.compat.as_bytes('export'))
 
-    export_dir = est.export_saved_model(
-        export_dir_base, serving_input_receiver_fn)
+    export_dir = est.export_saved_model(export_dir_base,
+                                        serving_input_receiver_fn)
 
     # At this point, if export_saved_model executed with
     # allow_soft_placement=True, then the GPU-assigned operation was silently
@@ -3207,23 +3348,31 @@ class EstimatorExportTest(tf.test.TestCase):
     # Expectations below assume that export_saved_model has completed normally.
     self.assertTrue(tf.compat.v1.gfile.Exists(export_dir_base))
     self.assertTrue(tf.compat.v1.gfile.Exists(export_dir))
-    self.assertTrue(tf.compat.v1.gfile.Exists(os.path.join(
-        tf.compat.as_bytes(export_dir),
-        tf.compat.as_bytes('saved_model.pb'))))
-    self.assertTrue(tf.compat.v1.gfile.Exists(os.path.join(
-        tf.compat.as_bytes(export_dir),
-        tf.compat.as_bytes('variables'))))
-    self.assertTrue(tf.compat.v1.gfile.Exists(os.path.join(
-        tf.compat.as_bytes(export_dir),
-        tf.compat.as_bytes('variables/variables.index'))))
-    self.assertTrue(tf.compat.v1.gfile.Exists(os.path.join(
-        tf.compat.as_bytes(export_dir),
-        tf.compat.as_bytes('variables/variables.data-00000-of-00001'))))
+    self.assertTrue(
+        tf.compat.v1.gfile.Exists(
+            os.path.join(
+                tf.compat.as_bytes(export_dir),
+                tf.compat.as_bytes('saved_model.pb'))))
+    self.assertTrue(
+        tf.compat.v1.gfile.Exists(
+            os.path.join(
+                tf.compat.as_bytes(export_dir),
+                tf.compat.as_bytes('variables'))))
+    self.assertTrue(
+        tf.compat.v1.gfile.Exists(
+            os.path.join(
+                tf.compat.as_bytes(export_dir),
+                tf.compat.as_bytes('variables/variables.index'))))
+    self.assertTrue(
+        tf.compat.v1.gfile.Exists(
+            os.path.join(
+                tf.compat.as_bytes(export_dir),
+                tf.compat.as_bytes('variables/variables.data-00000-of-00001'))))
 
     tf.compat.v1.gfile.DeleteRecursively(tmpdir)
 
-  def _validate_strip_default_attrs(
-      self, estimator_cls, export_fn, attributes_stripped):
+  def _validate_strip_default_attrs(self, estimator_cls, export_fn,
+                                    attributes_stripped):
     """Validate estimator export correctly strips/leaves default attributes.
 
     Args:
@@ -3235,8 +3384,10 @@ class EstimatorExportTest(tf.test.TestCase):
     """
     est = estimator_cls(model_fn=_model_fn_for_export_tests)
     est.train(input_fn=dummy_input_fn, steps=1)
-    feature_spec = {'x': tf.io.VarLenFeature(dtype=tf.dtypes.int64),
-                    'y': tf.io.VarLenFeature(dtype=tf.dtypes.int64)}
+    feature_spec = {
+        'x': tf.io.VarLenFeature(dtype=tf.dtypes.int64),
+        'y': tf.io.VarLenFeature(dtype=tf.dtypes.int64)
+    }
     serving_input_receiver_fn = (
         export_lib.build_parsing_serving_input_receiver_fn(feature_spec))
 
@@ -3250,7 +3401,8 @@ class EstimatorExportTest(tf.test.TestCase):
     self.assertIsNotNone(saved_model_pb)
     meta_graph_def = [
         x for x in saved_model_pb.meta_graphs
-        if x.meta_info_def.tags == [tf.saved_model.SERVING]][0]
+        if x.meta_info_def.tags == [tf.saved_model.SERVING]
+    ][0]
 
     # "weight" node in graph is a "Variable" Op with 2 default valued attrs.
     #   o "container"    : "".
@@ -3259,8 +3411,8 @@ class EstimatorExportTest(tf.test.TestCase):
     # When default attributes are not stripped, the "weight" node should have
     # attributes "container" and "shared_name". When default attributes are
     # stripped, the node should not have these attributes.
-    node_def = test_util.get_node_def_from_graph(
-        'weight', meta_graph_def.graph_def)
+    node_def = test_util.get_node_def_from_graph('weight',
+                                                 meta_graph_def.graph_def)
     self.assertEqual(attributes_stripped, 'container' not in node_def.attr)
     self.assertEqual(attributes_stripped, 'shared_name' not in node_def.attr)
 
@@ -3280,12 +3432,9 @@ class EstimatorExportTest(tf.test.TestCase):
 
     # Make sure that export_saved_model strips the default attributes.
     self._validate_strip_default_attrs(
-        estimator.Estimator,
-        lambda e, *args: e.export_saved_model(*args),
-        True)
+        estimator.Estimator, lambda e, *args: e.export_saved_model(*args), True)
     self._validate_strip_default_attrs(
-        estimator.EstimatorV2,
-        lambda e, *args: e.export_saved_model(*args),
+        estimator.EstimatorV2, lambda e, *args: e.export_saved_model(*args),
         True)
 
   def test_export_saved_model_no_export_outputs(self):
@@ -3298,7 +3447,8 @@ class EstimatorExportTest(tf.test.TestCase):
           mode,
           predictions=tf.constant(10.),
           loss=tf.constant(1.),
-          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1))
+          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(),
+                                           1))
 
     tmpdir = tempfile.mkdtemp()
     est = estimator.EstimatorV2(model_fn=_model_fn)
@@ -3307,8 +3457,8 @@ class EstimatorExportTest(tf.test.TestCase):
     # Perform the export.
     export_dir_base = os.path.join(
         tf.compat.as_bytes(tmpdir), tf.compat.as_bytes('no_export_outputs'))
-    export_dir = est.export_saved_model(
-        export_dir_base, _get_serving_input_receiver_fn())
+    export_dir = est.export_saved_model(export_dir_base,
+                                        _get_serving_input_receiver_fn())
 
     # Check that all the files are in the right places.
     self.assertTrue(tf.compat.v1.gfile.Exists(export_dir_base))
@@ -3317,7 +3467,9 @@ class EstimatorExportTest(tf.test.TestCase):
     # Restore, to validate that the export was well-formed.
     with tf.Graph().as_default() as graph:
       with tf.compat.v1.Session(graph=graph) as sess:
-        meta_graph = tf.compat.v1.saved_model.load(sess, [tf.saved_model.SERVING], export_dir)
+        meta_graph = tf.compat.v1.saved_model.load(sess,
+                                                   [tf.saved_model.SERVING],
+                                                   export_dir)
         graph_ops = [x.name for x in graph.get_operations()]
         self.assertTrue('weight' in graph_ops)
 
@@ -3328,7 +3480,9 @@ class EstimatorExportTest(tf.test.TestCase):
         self.assertEqual(sig_outputs['output'].name, 'Const:0')
 
   def test_export_from_warm_start(self):
+
     def _make_model_fn(x):
+
       def _variable_creating_model_fn(features, labels, mode):
         _, _ = features, labels
         tf.compat.v1.get_variable('x', initializer=x)
@@ -3338,6 +3492,7 @@ class EstimatorExportTest(tf.test.TestCase):
             predictions=tf.constant(1.),
             loss=tf.constant(1.),
             train_op=tf.compat.v1.assign_add(global_step, 1))
+
       return _variable_creating_model_fn
 
     est = estimator.EstimatorV2(model_fn=_make_model_fn(42.))
@@ -3369,8 +3524,8 @@ class EstimatorHookOrderingTest(tf.test.TestCase):
           0, dtype=tf.dtypes.int64, name='global_step')
       inc_global_step = tf.compat.v1.assign_add(global_step, 1)
       nan_const = tf.constant(np.nan, dtype=tf.dtypes.float32)
-      loss = tf.compat.v1.cond(
-          inc_global_step > 1, lambda: nan_const, lambda: 1.0)
+      loss = tf.compat.v1.cond(inc_global_step > 1, lambda: nan_const,
+                               lambda: 1.0)
 
       return model_fn_lib.EstimatorSpec(
           mode=mode,
@@ -3404,18 +3559,19 @@ class EstimatorIntegrationTest(tf.test.TestCase):
 
     def _model_fn(features, labels, mode):
       predictions = tf.compat.v1.layers.dense(
-          features['x'], 1, kernel_initializer=tf.compat.v1.initializers.zeros())
-      export_outputs = {
-          'predictions': export_lib.RegressionOutput(predictions)
-      }
+          features['x'],
+          1,
+          kernel_initializer=tf.compat.v1.initializers.zeros())
+      export_outputs = {'predictions': export_lib.RegressionOutput(predictions)}
 
       if mode == ModeKeys.PREDICT:
         return model_fn_lib.EstimatorSpec(
             mode, predictions=predictions, export_outputs=export_outputs)
 
       loss = losses_module.MeanSquaredError()(labels, predictions)
-      train_op = tf.compat.v1.train.GradientDescentOptimizer(learning_rate=0.5).minimize(
-          loss, tf.compat.v1.train.get_global_step())
+      train_op = tf.compat.v1.train.GradientDescentOptimizer(
+          learning_rate=0.5).minimize(loss,
+                                      tf.compat.v1.train.get_global_step())
       mean = metrics_module.Mean()
       mean.update_state(loss)
       eval_metric_ops = {
@@ -3461,8 +3617,9 @@ class EstimatorIntegrationTest(tf.test.TestCase):
     serving_input_receiver_fn = (
         export_lib.build_parsing_serving_input_receiver_fn(feature_spec))
     export_dir = est.export_saved_model(tempfile.mkdtemp(),
-                                       serving_input_receiver_fn)
+                                        serving_input_receiver_fn)
     self.assertTrue(tf.compat.v1.gfile.Exists(export_dir))
+
 
 class EstimatorInputContextTest(tf.test.TestCase):
 
@@ -3480,8 +3637,9 @@ class EstimatorInputContextTest(tf.test.TestCase):
       return tf.compat.v1.data.Dataset.from_tensors(([1.], [2.]))
 
     class DummyInputContext(object):
+
       def __init__(self, n_shards, total_bs):
-        self._name = "DummyInputContext"
+        self._name = 'DummyInputContext'
         self._num_shards = n_shards
         self._total_batch_size = total_bs
 
@@ -3509,6 +3667,7 @@ class EstimatorInputContextTest(tf.test.TestCase):
     # We only test the `input_fn` instead of calling `Estimator.train`
     est._get_iterator_from_input_fn(_input_with_context, None, distribution)  # pylint: disable=protected-access
     est._get_iterator_from_input_fn(_input_without_context, None, distribution)  # pylint: disable=protected-access
+
 
 if __name__ == '__main__':
   tf.test.main()

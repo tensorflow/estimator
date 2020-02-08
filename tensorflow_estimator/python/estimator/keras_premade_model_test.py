@@ -19,22 +19,14 @@ from __future__ import print_function
 
 import os
 
-import tensorflow as tf
 import numpy as np
-
+import tensorflow as tf
 from tensorflow.python import keras
-from tensorflow.python.data.ops import dataset_ops
 from tensorflow.python.feature_column import dense_features
-from tensorflow.python.feature_column import feature_column_v2 as feature_column
-from tensorflow.python.framework import dtypes
-from tensorflow.python.framework import test_util
 from tensorflow.python.keras.optimizer_v2 import adam
 from tensorflow.python.keras.optimizer_v2 import gradient_descent
 from tensorflow.python.keras.premade import linear
 from tensorflow.python.keras.premade import wide_deep
-from tensorflow.python.platform import gfile
-from tensorflow.python.platform import test
-from tensorflow.python.summary.writer import writer_cache
 from tensorflow_estimator.python.estimator import keras as keras_lib
 from tensorflow_estimator.python.estimator import run_config as run_config_lib
 from tensorflow_estimator.python.estimator.inputs import numpy_io
@@ -45,7 +37,8 @@ _RANDOM_SEED = 1337
 def gen_input_fn(x, y=None, batch_size=32, num_epochs=10, shuffle=False):
 
   def input_fn():
-    ds = tf.compat.v1.data.Dataset.from_tensor_slices((x, y) if y is not None else x)
+    ds = tf.compat.v1.data.Dataset.from_tensor_slices((
+        x, y) if y is not None else x)
     if shuffle:
       ds = ds.shuffle(1000)
     return ds.repeat(num_epochs).batch(batch_size)

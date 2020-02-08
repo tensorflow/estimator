@@ -22,18 +22,14 @@ import copy
 import json
 import os
 
-import tensorflow as tf
 import six
-
+import tensorflow as tf
 from tensorflow.core.protobuf import config_pb2
 from tensorflow.core.protobuf import rewriter_config_pb2
 from tensorflow.python.distribute import estimator_training as distribute_coordinator_training
-from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.training import server_lib
 from tensorflow.python.util import compat_internal
 from tensorflow.python.util import function_utils
 from tensorflow.python.util.tf_export import estimator_export
-
 
 _USE_DEFAULT = object()
 _VALID_DEVICE_FN_ARGS = set(['op'])
@@ -59,8 +55,7 @@ _DEFAULT_REPLACEABLE_LIST = [
 ]
 
 _SAVE_CKPT_ERR = (
-    '`save_checkpoints_steps` and `save_checkpoints_secs` cannot be both set.'
-)
+    '`save_checkpoints_steps` and `save_checkpoints_secs` cannot be both set.')
 
 _TF_CONFIG_ENV = 'TF_CONFIG'
 _TASK_ENV_KEY = 'task'
@@ -169,8 +164,7 @@ def _validate_task_type_and_task_id(cluster_spec, task_env, chief_task_type):
   task_id = task_env.get(_TASK_ID_KEY, None)
 
   if not task_type:
-    raise ValueError(
-        'If "cluster" is set in TF_CONFIG, task type must be set.')
+    raise ValueError('If "cluster" is set in TF_CONFIG, task type must be set.')
   if task_id is None:
     raise ValueError(
         'If "cluster" is set in TF_CONFIG, task index must be set.')
@@ -205,8 +199,8 @@ def _validate_task_type_and_task_id(cluster_spec, task_env, chief_task_type):
   return task_type, task_id
 
 
-def _get_global_id_in_cluster(
-    cluster_spec, task_type, task_id, chief_task_type):
+def _get_global_id_in_cluster(cluster_spec, task_type, task_id,
+                              chief_task_type):
   """Returns the global id in cluster."""
   # Note: This is implementation details, which user should not rely on.
   # The first id is 0, which is always for the `chief` node. All other nodes,
@@ -256,14 +250,14 @@ def _validate_save_ckpt_with_replaced_keys(new_copy, replaced_keys):
 
 def _validate_properties(run_config):
   """Validates the properties."""
+
   def _validate(property_name, cond, message):
     property_value = getattr(run_config, property_name)
     if property_value is not None and not cond(property_value):
       raise ValueError(message)
 
   def _validate_delay(delay):
-    """
-    Check that delay is an integer value.
+    """Check that delay is an integer value.
 
     Since this has to work for both Python2 and Python3 and PEP237 defines long
     to be basically int, we cannot just use a lambda function.
@@ -274,47 +268,67 @@ def _validate_properties(run_config):
       # PEP237 redefines long to int for Python3
       return isinstance(delay, int)
 
-  _validate('model_dir', lambda dir: dir,
-            message='model_dir should be non-empty')
+  _validate(
+      'model_dir', lambda dir: dir, message='model_dir should be non-empty')
 
-  _validate('save_summary_steps', lambda steps: steps >= 0,
-            message='save_summary_steps should be >= 0')
+  _validate(
+      'save_summary_steps',
+      lambda steps: steps >= 0,
+      message='save_summary_steps should be >= 0')
 
-  _validate('save_checkpoints_steps', lambda steps: steps >= 0,
-            message='save_checkpoints_steps should be >= 0')
-  _validate('save_checkpoints_secs', lambda secs: secs >= 0,
-            message='save_checkpoints_secs should be >= 0')
+  _validate(
+      'save_checkpoints_steps',
+      lambda steps: steps >= 0,
+      message='save_checkpoints_steps should be >= 0')
+  _validate(
+      'save_checkpoints_secs',
+      lambda secs: secs >= 0,
+      message='save_checkpoints_secs should be >= 0')
 
-  _validate('session_config',
-            lambda sc: isinstance(sc, config_pb2.ConfigProto),
-            message='session_config must be instance of ConfigProto')
+  _validate(
+      'session_config',
+      lambda sc: isinstance(sc, config_pb2.ConfigProto),
+      message='session_config must be instance of ConfigProto')
 
-  _validate('keep_checkpoint_max', lambda keep_max: keep_max >= 0,
-            message='keep_checkpoint_max should be >= 0')
-  _validate('keep_checkpoint_every_n_hours', lambda keep_hours: keep_hours > 0,
-            message='keep_checkpoint_every_n_hours should be > 0')
-  _validate('log_step_count_steps', lambda num_steps: num_steps > 0,
-            message='log_step_count_steps should be > 0')
+  _validate(
+      'keep_checkpoint_max',
+      lambda keep_max: keep_max >= 0,
+      message='keep_checkpoint_max should be >= 0')
+  _validate(
+      'keep_checkpoint_every_n_hours',
+      lambda keep_hours: keep_hours > 0,
+      message='keep_checkpoint_every_n_hours should be > 0')
+  _validate(
+      'log_step_count_steps',
+      lambda num_steps: num_steps > 0,
+      message='log_step_count_steps should be > 0')
 
-  _validate('tf_random_seed', lambda seed: isinstance(seed, six.integer_types),
-            message='tf_random_seed must be integer.')
+  _validate(
+      'tf_random_seed',
+      lambda seed: isinstance(seed, six.integer_types),
+      message='tf_random_seed must be integer.')
 
-  _validate('experimental_max_worker_delay_secs', _validate_delay,
-            message='experimental_max_worker_delay_secs must be an integer if'
-            ' set.')
+  _validate(
+      'experimental_max_worker_delay_secs',
+      _validate_delay,
+      message='experimental_max_worker_delay_secs must be an integer if'
+      ' set.')
   _validate(
       'session_creation_timeout_secs',
       lambda timeout_secs: timeout_secs > 0,
       message='session_creation_timeout_secs should be > 0')
 
-  _validate('device_fn', lambda device_fn: six.callable(device_fn) and
-            set(function_utils.fn_args(device_fn)) == _VALID_DEVICE_FN_ARGS,
-            message='device_fn must be callable with exactly'
-                    ' one argument "op".')
+  _validate(
+      'device_fn',
+      lambda device_fn: six.callable(device_fn) and set(
+          function_utils.fn_args(device_fn)) == _VALID_DEVICE_FN_ARGS,
+      message='device_fn must be callable with exactly'
+      ' one argument "op".')
 
-  _validate('protocol',
-            lambda protocol: protocol in (None, "grpc", "grpc+verbs"),
-            message='protocol should be grpc or grpc+verbs')
+  _validate(
+      'protocol',
+      lambda protocol: protocol in (None, 'grpc', 'grpc+verbs'),
+      message='protocol should be grpc or grpc+verbs')
 
 
 def get_default_session_config():
@@ -324,8 +338,8 @@ def get_default_session_config():
       meta_optimizer_iterations=rewriter_config_pb2.RewriterConfig.ONE)
   graph_opts = config_pb2.GraphOptions(rewrite_options=rewrite_opts)
 
-  return config_pb2.ConfigProto(allow_soft_placement=True,
-                                graph_options=graph_opts)
+  return config_pb2.ConfigProto(
+      allow_soft_placement=True, graph_options=graph_opts)
 
 
 class TaskType(object):
@@ -460,55 +474,55 @@ class RunConfig(object):
       model_dir: directory where model parameters, graph, etc are saved. If
         `PathLike` object, the path will be resolved. If `None`, will use a
         default value set by the Estimator.
-      tf_random_seed: Random seed for TensorFlow initializers.
-        Setting this value allows consistency between reruns.
+      tf_random_seed: Random seed for TensorFlow initializers. Setting this
+        value allows consistency between reruns.
       save_summary_steps: Save summaries every this many steps.
       save_checkpoints_steps: Save checkpoints every this many steps. Can not be
-          specified with `save_checkpoints_secs`.
+        specified with `save_checkpoints_secs`.
       save_checkpoints_secs: Save checkpoints every this many seconds. Can not
-          be specified with `save_checkpoints_steps`. Defaults to 600 seconds if
-          both `save_checkpoints_steps` and `save_checkpoints_secs` are not set
-          in constructor.  If both `save_checkpoints_steps` and
-          `save_checkpoints_secs` are `None`, then checkpoints are disabled.
+        be specified with `save_checkpoints_steps`. Defaults to 600 seconds if
+        both `save_checkpoints_steps` and `save_checkpoints_secs` are not set in
+        constructor.  If both `save_checkpoints_steps` and
+        `save_checkpoints_secs` are `None`, then checkpoints are disabled.
       session_config: a ConfigProto used to set session parameters, or `None`.
       keep_checkpoint_max: The maximum number of recent checkpoint files to
         keep. As new files are created, older files are deleted. If `None` or 0,
         all checkpoint files are kept. Defaults to 5 (that is, the 5 most recent
         checkpoint files are kept.)
-      keep_checkpoint_every_n_hours: Number of hours between each checkpoint
-        to be saved. The default value of 10,000 hours effectively disables
-        the feature.
+      keep_checkpoint_every_n_hours: Number of hours between each checkpoint to
+        be saved. The default value of 10,000 hours effectively disables the
+        feature.
       log_step_count_steps: The frequency, in number of global steps, that the
         global step and the loss will be logged during training.  Also controls
         the frequency that the global steps / s will be logged (and written to
         summary) during training.
-      train_distribute: An optional instance of `tf.distribute.Strategy`.
-        If specified, then Estimator will distribute the user's model during
+      train_distribute: An optional instance of `tf.distribute.Strategy`. If
+        specified, then Estimator will distribute the user's model during
         training, according to the policy specified by that strategy. Setting
         `experimental_distribute.train_distribute` is preferred.
       device_fn: A callable invoked for every `Operation` that takes the
-        `Operation` and returns the device string. If `None`, defaults to
-        the device function returned by `tf.train.replica_device_setter`
-        with round-robin strategy.
+        `Operation` and returns the device string. If `None`, defaults to the
+        device function returned by `tf.train.replica_device_setter` with
+        round-robin strategy.
       protocol: An optional argument which specifies the protocol used when
         starting server. `None` means default to grpc.
-      eval_distribute: An optional instance of `tf.distribute.Strategy`.
-        If specified, then Estimator will distribute the user's model during
-        evaluation, according to the policy specified by that strategy.
-        Setting `experimental_distribute.eval_distribute` is preferred.
+      eval_distribute: An optional instance of `tf.distribute.Strategy`. If
+        specified, then Estimator will distribute the user's model during
+        evaluation, according to the policy specified by that strategy. Setting
+        `experimental_distribute.eval_distribute` is preferred.
       experimental_distribute: An optional
         `tf.contrib.distribute.DistributeConfig` object specifying
         DistributionStrategy-related configuration. The `train_distribute` and
         `eval_distribute` can be passed as parameters to `RunConfig` or set in
         `experimental_distribute` but not both.
-      experimental_max_worker_delay_secs: An optional integer
-        specifying the maximum time a worker should wait before starting.
-        By default, workers are started at staggered times, with each worker
-        being delayed by up to 60 seconds. This is intended to reduce the risk
-        of divergence, which can occur when many workers simultaneously update
-        the weights of a randomly initialized model. Users who warm-start their
-        models and train them for short durations (a few minutes or less) should
-        consider reducing this default to improve training times.
+      experimental_max_worker_delay_secs: An optional integer specifying the
+        maximum time a worker should wait before starting. By default, workers
+        are started at staggered times, with each worker being delayed by up to
+        60 seconds. This is intended to reduce the risk of divergence, which can
+        occur when many workers simultaneously update the weights of a randomly
+        initialized model. Users who warm-start their models and train them for
+        short durations (a few minutes or less) should consider reducing this
+        default to improve training times.
       session_creation_timeout_secs: Max time workers should wait for a session
         to become available (on initialization or when recovering a session)
         with MonitoredTrainingSession. Defaults to 7200 seconds, but users may
@@ -564,7 +578,8 @@ class RunConfig(object):
         (eval_distribute and
          not eval_distribute.__class__.__name__.startswith('TPUStrategy')) or
         experimental_distribute):
-      tf.compat.v1.logging.info('Initializing RunConfig with distribution strategies.')
+      tf.compat.v1.logging.info(
+          'Initializing RunConfig with distribution strategies.')
       distribute_coordinator_training.init_run_config(self, tf_config)
     else:
       self._init_distributed_setting_from_environment_var(tf_config)
@@ -673,8 +688,8 @@ class RunConfig(object):
       self._num_ps_replicas = 0
       self._num_worker_replicas = 1
 
-  def _init_distributed_setting_from_environment_var_with_master(self,
-                                                                 tf_config):
+  def _init_distributed_setting_from_environment_var_with_master(
+      self, tf_config):
     """Initialize distributed properties for legacy cluster with `master`."""
     # There is no tech reason, why user cannot have chief and master in the same
     # cluster, but it is super confusing (which is really the chief?). So, block
@@ -841,14 +856,12 @@ class RunConfig(object):
 
   @property
   def train_distribute(self):
-    """Optional `tf.distribute.Strategy` for training.
-    """
+    """Optional `tf.distribute.Strategy` for training."""
     return self._train_distribute
 
   @property
   def eval_distribute(self):
-    """Optional `tf.distribute.Strategy` for evaluation.
-    """
+    """Optional `tf.distribute.Strategy` for evaluation."""
     return self._eval_distribute
 
   @property
@@ -956,6 +969,7 @@ def _get_model_dir(tf_config, model_dir):
           'model_dir: {}\nTF_CONFIG["model_dir"]: {}.\n'.format(
               model_dir, model_dir_in_tf_config))
 
-    tf.compat.v1.logging.info('Using model_dir in TF_CONFIG: %s', model_dir_in_tf_config)
+    tf.compat.v1.logging.info('Using model_dir in TF_CONFIG: %s',
+                              model_dir_in_tf_config)
 
   return model_dir or model_dir_in_tf_config

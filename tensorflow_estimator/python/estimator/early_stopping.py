@@ -12,29 +12,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-
-import tensorflow as tf
 """Utilities for early stopping."""
 
 import collections
 import operator
 import os
 
+import tensorflow as tf
 from tensorflow.python.distribute import distribution_strategy_context
-from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import init_ops
-from tensorflow.python.ops import state_ops
 from tensorflow.python.ops import variable_scope
-from tensorflow.python.platform import gfile
 from tensorflow.python.platform import tf_logging
-from tensorflow.python.summary import summary_iterator
 from tensorflow.python.training import basic_session_run_hooks
 from tensorflow.python.training import session_run_hook
 from tensorflow.python.training import training_util
 from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator import estimator as estimator_lib
+
 
 _EVENT_FILE_GLOB_PATTERN = 'events.out.tfevents.*'
 
@@ -164,14 +160,15 @@ def stop_if_higher_hook(estimator,
       run_every_secs=run_every_secs,
       run_every_steps=run_every_steps)
 
+
 @estimator_export('estimator.experimental.stop_if_lower_hook')
 def stop_if_lower_hook(estimator,
-    metric_name,
-    threshold,
-    eval_dir=None,
-    min_steps=0,
-    run_every_secs=60,
-    run_every_steps=None):
+                       metric_name,
+                       threshold,
+                       eval_dir=None,
+                       min_steps=0,
+                       run_every_secs=60,
+                       run_every_steps=None):
   """Creates hook to stop if the given metric is lower than the threshold.
 
   Usage example:
@@ -223,12 +220,12 @@ def stop_if_lower_hook(estimator,
 
 @estimator_export('estimator.experimental.stop_if_no_increase_hook')
 def stop_if_no_increase_hook(estimator,
-    metric_name,
-    max_steps_without_increase,
-    eval_dir=None,
-    min_steps=0,
-    run_every_secs=60,
-    run_every_steps=None):
+                             metric_name,
+                             max_steps_without_increase,
+                             eval_dir=None,
+                             min_steps=0,
+                             run_every_secs=60,
+                             run_every_steps=None):
   """Creates hook to stop if metric does not increase within given max steps.
 
   Usage example:
@@ -281,12 +278,12 @@ def stop_if_no_increase_hook(estimator,
 
 @estimator_export('estimator.experimental.stop_if_no_decrease_hook')
 def stop_if_no_decrease_hook(estimator,
-    metric_name,
-    max_steps_without_decrease,
-    eval_dir=None,
-    min_steps=0,
-    run_every_secs=60,
-    run_every_steps=None):
+                             metric_name,
+                             max_steps_without_decrease,
+                             eval_dir=None,
+                             min_steps=0,
+                             run_every_secs=60,
+                             run_every_steps=None):
   """Creates hook to stop if metric does not decrease within given max steps.
 
   Usage example:
@@ -395,9 +392,10 @@ def _stop_if_threshold_crossed_hook(estimator, metric_name, threshold,
       run_every_steps=run_every_steps)
 
 
-def _stop_if_no_metric_improvement_hook(
-    estimator, metric_name, max_steps_without_improvement, higher_is_better,
-    eval_dir, min_steps, run_every_secs, run_every_steps):
+def _stop_if_no_metric_improvement_hook(estimator, metric_name,
+                                        max_steps_without_improvement,
+                                        higher_is_better, eval_dir, min_steps,
+                                        run_every_secs, run_every_steps):
   """Returns hook to stop training if given metric shows no improvement."""
 
   if eval_dir is None:
@@ -495,7 +493,7 @@ class _StopOnPredicateHook(tf.compat.v1.train.SessionRunHook):
       self._timer.update_last_triggered_step(global_step)
       if self._should_stop_fn():
         tf.compat.v1.logging.info('Requesting early stopping at global step %d',
-                        global_step)
+                                  global_step)
         run_context.session.run(self._stop_op)
         run_context.request_stop()
 
@@ -505,6 +503,7 @@ class _CheckForStoppingHook(tf.compat.v1.train.SessionRunHook):
 
   def __init__(self):
     self._stop_var = None
+
   def begin(self):
     self._stop_var = _get_or_create_stop_var()
 
@@ -530,7 +529,7 @@ class _MultiWorkerEarlyStoppingHook(session_run_hook.SessionRunHook):
       return variable_scope.get_variable(
           name='STOP',
           shape=[],
-          dtype=dtypes.int32,
+          dtype=tf.dtypes.int32,
           initializer=init_ops.constant_initializer(0),
           collections=[ops.GraphKeys.GLOBAL_VARIABLES],
           synchronization=variable_scope.VariableSynchronization.ON_WRITE,

@@ -18,22 +18,17 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
-
 import json
-
+import tensorflow as tf
 from tensorflow.core.protobuf import config_pb2
 from tensorflow.core.protobuf import rewriter_config_pb2
-from tensorflow.python.framework import test_util
-from tensorflow.python.platform import test
 from tensorflow_estimator.python.estimator import run_config as run_config_lib
 
 _TEST_DIR = 'test_dir'
 _MASTER = 'master_'
 _NOT_SUPPORTED_REPLACE_PROPERTY_MSG = 'Replacing .*is not supported'
 _SAVE_CKPT_ERR = (
-    '`save_checkpoints_steps` and `save_checkpoints_secs` cannot be both set.'
-)
+    '`save_checkpoints_steps` and `save_checkpoints_secs` cannot be both set.')
 _MODEL_DIR_ERR = 'model_dir should be non-empty'
 _MODEL_DIR_TF_CONFIG_ERR = 'model_dir in TF_CONFIG should be non-empty'
 _MODEL_DIR_MISMATCH_ERR = (
@@ -73,7 +68,8 @@ _SESSION_CREATION_TIMEOUT_SECS_ERR = ('session_creation_timeout_secs should be '
 
 
 def _create_run_config_with_cluster_spec(tf_config, **kwargs):
-  with tf.compat.v1.test.mock.patch.dict('os.environ', {'TF_CONFIG': json.dumps(tf_config)}):
+  with tf.compat.v1.test.mock.patch.dict('os.environ',
+                                         {'TF_CONFIG': json.dumps(tf_config)}):
     return run_config_lib.RunConfig(**kwargs)
 
 
@@ -123,7 +119,6 @@ class RunConfigTest(tf.test.TestCase):
     self.assertEqual(device_fn, config.device_fn)
     self.assertEqual(18, config.session_creation_timeout_secs)
 
-
   def test_replace_none_value(self):
     config = run_config_lib.RunConfig().replace(
         tf_random_seed=None,
@@ -156,13 +151,13 @@ class RunConfigTest(tf.test.TestCase):
   def test_replace(self):
     config = run_config_lib.RunConfig()
 
-    with self.assertRaisesRegexp(
-        ValueError, _NOT_SUPPORTED_REPLACE_PROPERTY_MSG):
+    with self.assertRaisesRegexp(ValueError,
+                                 _NOT_SUPPORTED_REPLACE_PROPERTY_MSG):
       # master is not allowed to be replaced.
       config.replace(master=_MASTER)
 
-    with self.assertRaisesRegexp(
-        ValueError, _NOT_SUPPORTED_REPLACE_PROPERTY_MSG):
+    with self.assertRaisesRegexp(ValueError,
+                                 _NOT_SUPPORTED_REPLACE_PROPERTY_MSG):
       config.replace(some_undefined_property=_MASTER)
 
   def test_replace_invalid_values(self):
@@ -195,7 +190,7 @@ class RunConfigTest(tf.test.TestCase):
 
   def test_init_with_allowed_properties(self):
     session_config = config_pb2.ConfigProto(allow_soft_placement=True)
-    device_fn = lambda op: "/cpu:0"
+    device_fn = lambda op: '/cpu:0'
 
     config = run_config_lib.RunConfig(
         tf_random_seed=11,
@@ -262,15 +257,11 @@ class RunConfigTest(tf.test.TestCase):
 
 class RunConfigDistributedSettingTest(tf.test.TestCase):
 
-  def _assert_distributed_properties(self, run_config,
-                                     expected_cluster_spec,
-                                     expected_task_type,
-                                     expected_task_id,
-                                     expected_master,
-                                     expected_evaluation_master,
-                                     expected_is_chief,
-                                     expected_num_worker_replicas,
-                                     expected_num_ps_replicas):
+  def _assert_distributed_properties(
+      self, run_config, expected_cluster_spec, expected_task_type,
+      expected_task_id, expected_master, expected_evaluation_master,
+      expected_is_chief, expected_num_worker_replicas,
+      expected_num_ps_replicas):
     self.assertEqual(expected_cluster_spec, run_config.cluster_spec.as_dict())
     self.assertEqual(expected_task_type, run_config.task_type)
     self.assertEqual(expected_task_id, run_config.task_id)
@@ -294,12 +285,7 @@ class RunConfigDistributedSettingTest(tf.test.TestCase):
         expected_num_ps_replicas=0)
 
   def test_tf_config_for_local(self):
-    tf_config = {
-        'task': {
-            'type': run_config_lib.TaskType.WORKER,
-            'index': 0
-        }
-    }
+    tf_config = {'task': {'type': run_config_lib.TaskType.WORKER, 'index': 0}}
     run_config = _create_run_config_with_cluster_spec(tf_config)
     self._assert_distributed_properties(
         run_config=run_config,
@@ -341,22 +327,12 @@ class RunConfigDistributedSettingTest(tf.test.TestCase):
         expected_num_ps_replicas=0)
 
   def test_invalid_task_type_for_local(self):
-    tf_config = {
-        'task': {
-            'type': run_config_lib.TaskType.CHIEF,
-            'index': 0
-        }
-    }
+    tf_config = {'task': {'type': run_config_lib.TaskType.CHIEF, 'index': 0}}
     with self.assertRaisesRegexp(ValueError, _INVALID_TASK_TYPE_FOR_LOCAL_ERR):
       _create_run_config_with_cluster_spec(tf_config)
 
   def test_invalid_task_index_for_local(self):
-    tf_config = {
-        'task': {
-            'type': run_config_lib.TaskType.WORKER,
-            'index': 1
-        }
-    }
+    tf_config = {'task': {'type': run_config_lib.TaskType.WORKER, 'index': 1}}
     with self.assertRaisesRegexp(ValueError, _INVALID_TASK_INDEX_FOR_LOCAL_ERR):
       _create_run_config_with_cluster_spec(tf_config)
 
@@ -680,15 +656,11 @@ class RunConfigDistributedSettingTest(tf.test.TestCase):
 
 class RunConfigDistributedSettingWithMasterTest(tf.test.TestCase):
 
-  def _assert_distributed_properties(self, run_config,
-                                     expected_cluster_spec,
-                                     expected_task_type,
-                                     expected_task_id,
-                                     expected_master,
-                                     expected_evaluation_master,
-                                     expected_is_chief,
-                                     expected_num_worker_replicas,
-                                     expected_num_ps_replicas):
+  def _assert_distributed_properties(
+      self, run_config, expected_cluster_spec, expected_task_type,
+      expected_task_id, expected_master, expected_evaluation_master,
+      expected_is_chief, expected_num_worker_replicas,
+      expected_num_ps_replicas):
     self.assertEqual(expected_cluster_spec, run_config.cluster_spec.as_dict())
     self.assertEqual(expected_task_type, run_config.task_type)
     self.assertEqual(expected_task_id, run_config.task_id)
@@ -700,12 +672,7 @@ class RunConfigDistributedSettingWithMasterTest(tf.test.TestCase):
     self.assertEqual(expected_num_ps_replicas, run_config.num_ps_replicas)
 
   def test_invalid_task_type_for_local(self):
-    tf_config = {
-        'task': {
-            'type': run_config_lib.TaskType.MASTER,
-            'index': 0
-        }
-    }
+    tf_config = {'task': {'type': run_config_lib.TaskType.MASTER, 'index': 0}}
     with self.assertRaisesRegexp(ValueError, _INVALID_TASK_TYPE_FOR_LOCAL_ERR):
       _create_run_config_with_cluster_spec(tf_config)
 
@@ -1016,12 +983,12 @@ class RunConfigSaveCheckpointsTest(tf.test.TestCase):
   def test_save_checkpoint_both_steps_and_secs_are_not_none(self):
     empty_config = run_config_lib.RunConfig()
     with self.assertRaisesRegexp(ValueError, _SAVE_CKPT_ERR):
-      empty_config.replace(save_checkpoints_steps=100,
-                           save_checkpoints_secs=200)
+      empty_config.replace(
+          save_checkpoints_steps=100, save_checkpoints_secs=200)
 
     with self.assertRaisesRegexp(ValueError, _SAVE_CKPT_ERR):
-      run_config_lib.RunConfig(save_checkpoints_steps=100,
-                               save_checkpoints_secs=200)
+      run_config_lib.RunConfig(
+          save_checkpoints_steps=100, save_checkpoints_secs=200)
 
   def test_save_checkpoint_both_steps_and_secs_are_none(self):
     config_with_secs = run_config_lib.RunConfig()
@@ -1050,7 +1017,10 @@ class RunConfigServiceKeyTest(tf.test.TestCase):
     tf_config = {
         'service': {
             'key1': [1, 2],
-            'key2': {'a': 3, 'b': 4},
+            'key2': {
+                'a': 3,
+                'b': 4
+            },
             'key3': 789,
         },
     }

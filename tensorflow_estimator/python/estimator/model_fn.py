@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-
 """Classes and methods related to model_fn."""
 
 from __future__ import absolute_import
@@ -21,21 +20,12 @@ from __future__ import print_function
 
 import collections
 
-import tensorflow as tf
 import six
-
-from tensorflow.python.eager import context
+import tensorflow as tf
 from tensorflow.python.framework import ops
-from tensorflow.python.framework import tensor_shape
 from tensorflow.python.keras.metrics import Metric
-from tensorflow.python.ops import array_ops
-from tensorflow.python.ops import variables
-from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.saved_model import model_utils as export_utils
-from tensorflow.python.training import monitored_session
-from tensorflow.python.training import session_run_hook
 from tensorflow.python.util import function_utils
-from tensorflow.python.util import nest
 from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 
@@ -124,35 +114,33 @@ class EstimatorSpec(
       loss: Training loss `Tensor`. Must be either scalar, or with shape `[1]`.
       train_op: Op for the training step.
       eval_metric_ops: Dict of metric results keyed by name.
-        The values of the dict can be one of the following:
-        (1) instance of `Metric` class.
-        (2) Results of calling a metric function, namely a
-        `(metric_tensor, update_op)` tuple. `metric_tensor` should be
-        evaluated without any impact on state (typically is a pure computation
-        results based on variables.). For example, it should not trigger the
-        `update_op` or requires any input fetching.
+        The values of the dict can be one of the following: (1) instance of
+          `Metric` class. (2) Results of calling a metric function, namely a
+          `(metric_tensor, update_op)` tuple. `metric_tensor` should be
+          evaluated without any impact on state (typically is a pure computation
+          results based on variables.). For example, it should not trigger the
+          `update_op` or requires any input fetching.
       export_outputs: Describes the output signatures to be exported to
         `SavedModel` and used during serving.
         A dict `{name: output}` where:
         * name: An arbitrary name for this output.
         * output: an `ExportOutput` object such as `ClassificationOutput`,
-            `RegressionOutput`, or `PredictOutput`.
-        Single-headed models only need to specify one entry in this dictionary.
-        Multi-headed models should specify one entry for each head, one of
-        which must be named using
-        `tf.saved_model.signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY`.
-        If no entry is provided, a default `PredictOutput` mapping to
-        `predictions` will be created.
-      training_chief_hooks: Iterable of `tf.train.SessionRunHook` objects to
-        run on the chief worker during training.
-      training_hooks: Iterable of `tf.train.SessionRunHook` objects to run
-        on all workers during training.
+          `RegressionOutput`, or `PredictOutput`. Single-headed models only need
+          to specify one entry in this dictionary. Multi-headed models should
+          specify one entry for each head, one of which must be named using
+          `tf.saved_model.signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY`.
+          If no entry is provided, a default `PredictOutput` mapping to
+          `predictions` will be created.
+      training_chief_hooks: Iterable of `tf.train.SessionRunHook` objects to run
+        on the chief worker during training.
+      training_hooks: Iterable of `tf.train.SessionRunHook` objects to run on
+        all workers during training.
       scaffold: A `tf.train.Scaffold` object that can be used to set
         initialization, saver, and more to be used in training.
-      evaluation_hooks: Iterable of `tf.train.SessionRunHook` objects to
-        run during evaluation.
-      prediction_hooks: Iterable of `tf.train.SessionRunHook` objects to
-        run during predictions.
+      evaluation_hooks: Iterable of `tf.train.SessionRunHook` objects to run
+        during evaluation.
+      prediction_hooks: Iterable of `tf.train.SessionRunHook` objects to run
+        during predictions.
 
     Returns:
       A validated `EstimatorSpec` object.
@@ -262,6 +250,7 @@ class _TPUEstimatorSpec(
         evaluation_hooks=self.evaluation_hooks,
         prediction_hooks=self.prediction_hooks)
 
+
 # Used to generate possible error causes if the user provides a `Tensor` to an
 # EstimatorSpec that is not in the default graph.
 _default_graph_error_message_template = (
@@ -299,8 +288,7 @@ def _validate_estimator_spec_train_op(train_op, mode):
     _check_is_tensor_or_operation(train_op, 'train_op')
     if isinstance(train_op, tf.Variable):
       train_op = train_op.op
-    if not (tf.executing_eagerly() or
-            train_op.graph is default_graph):
+    if not (tf.executing_eagerly() or train_op.graph is default_graph):
       raise ValueError(
           _default_graph_error_message_template.format('train_op',
                                                        train_op.name))
@@ -382,11 +370,10 @@ def _validate_estimator_spec_predictions(predictions, mode):
     else:
       # Predictions should be a tensor.
       predictions = _check_is_tensor(predictions, 'predictions')
-      if not (tf.executing_eagerly() or
-              predictions.graph is default_graph):
+      if not (tf.executing_eagerly() or predictions.graph is default_graph):
         raise ValueError(
-            _default_graph_error_message_template.format('prediction values',
-                                                         predictions.name))
+            _default_graph_error_message_template.format(
+                'prediction values', predictions.name))
   return predictions
 
 
@@ -405,9 +392,8 @@ def _validate_estimator_spec_export_outputs(export_outputs, predictions, mode):
         `tf.saved_model.signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY`.
         If no entry is provided, a default `PredictOutput` mapping to
         predictions will be created.
-
     predictions: Predictions `Tensor` or dict of `Tensor`. Used in generation of
-     default outputs.
+      default outputs.
     mode: A `ModeKeys`. Used to determine whether to validate at all; if the
       EstimatorSpec is not for making predictions we can skip validation.
 
@@ -449,14 +435,12 @@ def _validate_eval_metric_ops(eval_metric_ops):
 
   Args:
     eval_metric_ops: Dict of metric results keyed by name.
-      The values of the dict can be one of the following:
-      (1) instance of `Metric` class.
-      (2) Results of calling a metric_function, namely a
-      `(metric_tensor, update_op)` tuple. `metric_tensor` should
-      be evaluated without any impact on state (typically it is a
-      pure computation based on variables.). For example, it
-      should not trigger the `update_op` or require any input
-      fetching.
+      The values of the dict can be one of the following: (1) instance of
+        `Metric` class. (2) Results of calling a metric_function, namely a
+        `(metric_tensor, update_op)` tuple. `metric_tensor` should be evaluated
+        without any impact on state (typically it is a pure computation based on
+        variables.). For example, it should not trigger the `update_op` or
+        require any input fetching.
 
   Returns:
     eval_metric_ops: Dict of metric results keyed by name.
@@ -515,8 +499,10 @@ def _validate_eval_metric_ops(eval_metric_ops):
       vars_to_add.update(value.variables)
       # Convert Metric instances to (value_tensor, update_op) tuple.
       eval_metric_ops[key] = (value.result(), value.updates[0])
-  _update_variable_collection(tf.compat.v1.GraphKeys.LOCAL_VARIABLES, vars_to_add)
-  _update_variable_collection(tf.compat.v1.GraphKeys.METRIC_VARIABLES, vars_to_add)
+  _update_variable_collection(tf.compat.v1.GraphKeys.LOCAL_VARIABLES,
+                              vars_to_add)
+  _update_variable_collection(tf.compat.v1.GraphKeys.METRIC_VARIABLES,
+                              vars_to_add)
 
   return eval_metric_ops
 
@@ -623,12 +609,12 @@ def verify_model_fn_args(model_fn, params):
     raise ValueError('model_fn (%s) must include features argument.' % model_fn)
   if params is not None and 'params' not in args:
     raise ValueError('model_fn (%s) does not include params argument, '
-                     'but params (%s) is passed to Estimator.' % (
-                         model_fn, params))
+                     'but params (%s) is passed to Estimator.' %
+                     (model_fn, params))
   if params is None and 'params' in args:
-    tf.compat.v1.logging.warn('Estimator\'s model_fn (%s) includes params '
-                    'argument, but params are not passed to Estimator.',
-                    model_fn)
+    tf.compat.v1.logging.warn(
+        'Estimator\'s model_fn (%s) includes params '
+        'argument, but params are not passed to Estimator.', model_fn)
   non_valid_args = list(args - _VALID_MODEL_FN_ARGS)
   if non_valid_args:
     raise ValueError('model_fn (%s) has following not expected args: %s' %

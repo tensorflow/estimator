@@ -23,21 +23,17 @@ import json
 import os
 import time
 
-import tensorflow as tf
 import six
-
+import tensorflow as tf
 from tensorflow.core.protobuf import config_pb2
 from tensorflow.python.distribute import estimator_training as distribute_coordinator_training
-from tensorflow_estimator.python.estimator import estimator as estimator_lib
-from tensorflow_estimator.python.estimator import exporter as exporter_lib
-from tensorflow_estimator.python.estimator import run_config as run_config_lib
-from tensorflow.python.framework import ops
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.training import basic_session_run_hooks
 from tensorflow.python.training import server_lib
-from tensorflow.python.training import session_run_hook
-from tensorflow.python.util import compat
 from tensorflow.python.util.tf_export import estimator_export
+from tensorflow_estimator.python.estimator import estimator as estimator_lib
+from tensorflow_estimator.python.estimator import exporter as exporter_lib
+from tensorflow_estimator.python.estimator import run_config as run_config_lib
 
 _MAX_DELAY_SECS = 60
 _DELAY_SECS_PER_WORKER = 5
@@ -113,7 +109,8 @@ def _is_google_env():
   """Detects whether current environment is google."""
   tf_config = json.loads(os.environ.get(_TF_CONFIG_ENV) or '{}')
   if not tf_config:
-    tf.compat.v1.logging.warn('TF_CONFIG should not be empty in distributed environment.')
+    tf.compat.v1.logging.warn(
+        'TF_CONFIG should not be empty in distributed environment.')
   return tf_config.get(_ENVIRONMENT_KEY) == _ENVIRONMENT_GOOGLE_VALUE
 
 
@@ -133,20 +130,19 @@ class TrainSpec(
       input_fn: A function that provides input data for training as minibatches.
         See [Premade Estimators](
         https://tensorflow.org/guide/premade_estimators#create_input_functions)
-        for more information. The function should construct and return one of
+          for more information. The function should construct and return one of
         the following:
           * A 'tf.data.Dataset' object: Outputs of `Dataset` object must be a
             tuple (features, labels) with same constraints as below.
           * A tuple (features, labels): Where features is a `Tensor` or a
             dictionary of string feature name to `Tensor` and labels is a
             `Tensor` or a dictionary of string label name to `Tensor`.
-
       max_steps: Int. Positive number of total steps for which to train model.
         If `None`, train forever. The training `input_fn` is not expected to
         generate `OutOfRangeError` or `StopIteration` exceptions. See the
         `train_and_evaluate` stop condition section for details.
-      hooks: Iterable of `tf.train.SessionRunHook` objects to run
-        on all workers (including chief) during training.
+      hooks: Iterable of `tf.train.SessionRunHook` objects to run on all workers
+        (including chief) during training.
 
     Returns:
       A validated `TrainSpec` object.
@@ -195,25 +191,24 @@ class EvalSpec(
     """Creates a validated `EvalSpec` instance.
 
     Args:
-      input_fn: A function that constructs the input data for evaluation.
-        See [Premade Estimators](
+      input_fn: A function that constructs the input data for evaluation. See
+        [Premade Estimators](
         https://tensorflow.org/guide/premade_estimators#create_input_functions)
-        for more information. The function should construct and return one of
+          for more information. The function should construct and return one of
         the following:
           * A 'tf.data.Dataset' object: Outputs of `Dataset` object must be a
             tuple (features, labels) with same constraints as below.
           * A tuple (features, labels): Where features is a `Tensor` or a
             dictionary of string feature name to `Tensor` and labels is a
             `Tensor` or a dictionary of string label name to `Tensor`.
-
       steps: Int. Positive number of steps for which to evaluate model. If
-        `None`, evaluates until `input_fn` raises an end-of-input exception.
-        See `Estimator.evaluate` for details.
+        `None`, evaluates until `input_fn` raises an end-of-input exception. See
+        `Estimator.evaluate` for details.
       name: String. Name of the evaluation if user needs to run multiple
         evaluations on different data sets. Metrics for different evaluations
         are saved in separate folders, and appear separately in tensorboard.
-      hooks: Iterable of `tf.train.SessionRunHook` objects to run
-        during evaluation.
+      hooks: Iterable of `tf.train.SessionRunHook` objects to run during
+        evaluation.
       exporters: Iterable of `Exporter`s, or a single one, or `None`.
         `exporters` will be invoked after each evaluation.
       start_delay_secs: Int. Start evaluating after waiting for this many
@@ -461,9 +456,11 @@ def train_and_evaluate(estimator, train_spec, eval_spec):
   # If `distribute_coordinator_mode` is set and running in distributed
   # environment, we run `train_and_evaluate` via distribute coordinator.
   if distribute_coordinator_training.should_run_distribute_coordinator(config):
-    tf.compat.v1.logging.info('Running `train_and_evaluate` with Distribute Coordinator.')
-    distribute_coordinator_training.train_and_evaluate(
-        estimator, train_spec, eval_spec, _TrainingExecutor)
+    tf.compat.v1.logging.info(
+        'Running `train_and_evaluate` with Distribute Coordinator.')
+    distribute_coordinator_training.train_and_evaluate(estimator, train_spec,
+                                                       eval_spec,
+                                                       _TrainingExecutor)
     return
 
   if (config.task_type == run_config_lib.TaskType.EVALUATOR and
@@ -514,19 +511,21 @@ class _NewCheckpointListenerForEvaluate(
       return
 
     if not self._continuous_eval_listener.before_eval():
-      tf.compat.v1.logging.info('Exiting training and evaluation loop, as requested by '
-                   '_ContinuousEvalListener.before_eval.')
+      tf.compat.v1.logging.info(
+          'Exiting training and evaluation loop, as requested by '
+          '_ContinuousEvalListener.before_eval.')
       return True
     if self._timer.should_trigger_for_step(global_step_value):
       self._evaluate(global_step_value)  # updates self.eval_result
       if not self._continuous_eval_listener.after_eval(self.eval_result):
         tf.compat.v1.logging.info('Exiting evaluation, as requested by '
-                     '_ContinuousEvalListener.after_eval.')
+                                  '_ContinuousEvalListener.after_eval.')
         return True
     else:
       # TODO(ispir): add remaining time in the log.
-      tf.compat.v1.logging.info('Skip the current checkpoint eval due to throttle secs '
-                   '({} secs).'.format(self._eval_throttle_secs))
+      tf.compat.v1.logging.info(
+          'Skip the current checkpoint eval due to throttle secs '
+          '({} secs).'.format(self._eval_throttle_secs))
 
   def end(self, session, global_step_value):
     # Evaluate if the last step has not been evaluated, yet.
@@ -561,15 +560,13 @@ class _TrainingExecutor(object):
                continuous_eval_listener=None):
     if not isinstance(estimator,
                       (estimator_lib.Estimator, estimator_lib.EstimatorV2)):
-      raise TypeError(
-          '`estimator` must have type `tf.estimator.Estimator`. '
-          'Got: {}'.format(type(estimator)))
+      raise TypeError('`estimator` must have type `tf.estimator.Estimator`. '
+                      'Got: {}'.format(type(estimator)))
     self._estimator = estimator
 
     if not isinstance(train_spec, TrainSpec):
-      raise TypeError(
-          '`train_spec` must have type `tf.estimator.TrainSpec`. '
-          'Got: {}'.format(type(train_spec)))
+      raise TypeError('`train_spec` must have type `tf.estimator.TrainSpec`. '
+                      'Got: {}'.format(type(train_spec)))
     self._train_spec = train_spec
 
     if eval_spec and not isinstance(eval_spec, EvalSpec):
@@ -611,7 +608,8 @@ class _TrainingExecutor(object):
 
     if (not config.cluster_spec and
         config.task_type != run_config_lib.TaskType.EVALUATOR):
-      tf.compat.v1.logging.info('Running training and evaluation locally (non-distributed).')
+      tf.compat.v1.logging.info(
+          'Running training and evaluation locally (non-distributed).')
       return self.run_local()
 
     # Distributed case.
@@ -630,8 +628,7 @@ class _TrainingExecutor(object):
 
     # For task type foo, call executor.run_foo.
     available_tasks = [
-        x for x in dir(self)
-        if x.startswith('run_') and x != 'run_local' and
+        x for x in dir(self) if x.startswith('run_') and x != 'run_local' and
         callable(getattr(self, x))
     ]
     task_to_run = 'run_' + config.task_type
@@ -694,12 +691,13 @@ class _TrainingExecutor(object):
     _assert_eval_spec(self._eval_spec)
 
     train_hooks = list(self._train_spec.hooks) + list(self._train_hooks)
-    tf.compat.v1.logging.info('Start train and evaluate loop. The evaluate will happen '
-                 'after every checkpoint. Checkpoint frequency is determined '
-                 'based on RunConfig arguments: save_checkpoints_steps {} or '
-                 'save_checkpoints_secs {}.'.format(
-                     self._estimator.config.save_checkpoints_steps,
-                     self._estimator.config.save_checkpoints_secs))
+    tf.compat.v1.logging.info(
+        'Start train and evaluate loop. The evaluate will happen '
+        'after every checkpoint. Checkpoint frequency is determined '
+        'based on RunConfig arguments: save_checkpoints_steps {} or '
+        'save_checkpoints_secs {}.'.format(
+            self._estimator.config.save_checkpoints_steps,
+            self._estimator.config.save_checkpoints_secs))
 
     evaluator = _TrainingExecutor._Evaluator(self._estimator, self._eval_spec,
                                              self._train_spec.max_steps)
@@ -735,8 +733,9 @@ class _TrainingExecutor(object):
         # For distributed training, config.master is empty if and only if it has
         # a single node in the cluster spec. In this case, we should not start
         # the server.
-        tf.compat.v1.logging.info('Skip starting Tensorflow server as there is only one '
-                     'node in the cluster.')
+        tf.compat.v1.logging.info(
+            'Skip starting Tensorflow server as there is only one '
+            'node in the cluster.')
         return
       else:
         raise RuntimeError(
@@ -788,7 +787,7 @@ class _TrainingExecutor(object):
                              (config.task_id + 1) * _DELAY_SECS_PER_WORKER)
     if start_delay_secs > 0:
       tf.compat.v1.logging.info('Waiting %d secs before starting training.',
-                   start_delay_secs)
+                                start_delay_secs)
       time.sleep(start_delay_secs)
 
     self._estimator.train(
@@ -804,7 +803,8 @@ class _TrainingExecutor(object):
 
     start_delay_secs = self._eval_spec.start_delay_secs
     if start_delay_secs:
-      tf.compat.v1.logging.info('Waiting %f secs before starting eval.', start_delay_secs)
+      tf.compat.v1.logging.info('Waiting %f secs before starting eval.',
+                                start_delay_secs)
       time.sleep(start_delay_secs)
 
     latest_eval_result = None
@@ -815,7 +815,8 @@ class _TrainingExecutor(object):
     while not should_early_stop:
       if (latest_eval_result and
           latest_eval_result.status == _EvalStatus.EVALUATED):
-        global_step = latest_eval_result.metrics.get(tf.compat.v1.GraphKeys.GLOBAL_STEP)
+        global_step = latest_eval_result.metrics.get(
+            tf.compat.v1.GraphKeys.GLOBAL_STEP)
         if (global_step and self._train_spec.max_steps and
             global_step >= self._train_spec.max_steps):
           logging.info(
@@ -840,7 +841,7 @@ class _TrainingExecutor(object):
 
     if not continuous_eval_listener.before_eval():
       tf.compat.v1.logging.info('Exiting evaluation, as requested by '
-                   '_ContinuousEvalListener.before_eval.')
+                                '_ContinuousEvalListener.before_eval.')
       should_early_stop = True
       return (eval_result, should_early_stop)
 
@@ -853,7 +854,7 @@ class _TrainingExecutor(object):
 
     if not self._continuous_eval_listener.after_eval(eval_result):
       tf.compat.v1.logging.info('Exiting evaluation, as requested by '
-                   '_ContinuousEvalListener.after_eval.')
+                                '_ContinuousEvalListener.after_eval.')
       should_early_stop = True
       return (eval_result, should_early_stop)
 
@@ -863,8 +864,7 @@ class _TrainingExecutor(object):
     if difference > 0:
       logging.info('Waiting %f secs before starting next eval run.', difference)
       time.sleep(difference)
-    elif (throttle_secs == 0 and
-          eval_result.status != _EvalStatus.EVALUATED):
+    elif (throttle_secs == 0 and eval_result.status != _EvalStatus.EVALUATED):
       # Prints a user-actionable warning to avoid unnecessary load on evaluator.
       logging.warning(
           'EvalSpec.throttle_secs is set as 0. This might overload the job '
@@ -934,7 +934,8 @@ class _TrainingExecutor(object):
                                                 is_the_final_export)
 
       if is_the_final_export:
-        tf.compat.v1.logging.debug('Calling exporter with the `is_the_final_export=True`.')
+        tf.compat.v1.logging.debug(
+            'Calling exporter with the `is_the_final_export=True`.')
         self._is_final_export_triggered = True
 
       self._last_warning_time = 0
@@ -1001,9 +1002,10 @@ class _EvalResult(
     Args:
       status: See `_EvalStatus`.
       metrics: The evaluation results returned by `Estimator.evaluate`. Only set
-          if status is `EVALUATED`.
+        if status is `EVALUATED`.
       checkpoint_path: The corresponding checkpoint path for the `metrics`. Only
-          set if status is `EVALUATED`.
+        set if status is `EVALUATED`.
+
     Returns:
       A validated `_EvalResult` object.
 

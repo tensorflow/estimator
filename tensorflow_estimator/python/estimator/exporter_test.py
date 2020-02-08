@@ -17,19 +17,13 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
-
 import os
 import tempfile
 import time
-
+import tensorflow as tf
 from tensorflow.python.eager import context
 from tensorflow.python.framework import test_util
-from tensorflow.python.ops import array_ops
 from tensorflow.python.platform import gfile
-from tensorflow.python.platform import test
-from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.util import compat
 from tensorflow_estimator.python.estimator import estimator as estimator_lib
 from tensorflow_estimator.python.estimator import exporter as exporter_lib
 
@@ -261,6 +255,7 @@ class BestExporterTest(tf.test.TestCase):
 class LatestExporterTest(tf.test.TestCase):
 
   def test_error_out_if_exports_to_keep_is_zero(self):
+
     def _serving_input_receiver_fn():
       pass
 
@@ -385,13 +380,14 @@ class LatestExporterTest(tf.test.TestCase):
     estimator = tf.compat.v1.test.mock.Mock(spec=estimator_lib.Estimator)
     # Garbage collect all but the most recent 2 exports,
     # where recency is determined based on the timestamp directory names.
-    with tf.compat.v1.test.mock.patch.object(gfile, "ListDirectory") as mock_list_directory:
+    with tf.compat.v1.test.mock.patch.object(
+        gfile, "ListDirectory") as mock_list_directory:
       mock_list_directory.return_value = [
           os.path.basename(export_dir_1) + b"/",
           os.path.basename(export_dir_2) + b"/",
           os.path.basename(export_dir_3) + b"/",
           os.path.basename(export_dir_4) + b"/",
-          ]
+      ]
       exporter.export(estimator, export_dir_base, None, None, False)
 
     self.assertFalse(tf.compat.v1.gfile.Exists(export_dir_1))
@@ -419,8 +415,8 @@ def _get_timestamped_export_dir(export_dir_base):
     export_timestamp = int(time.time())
 
     export_dir = os.path.join(
-        tf.compat.as_bytes(export_dir_base), tf.compat.as_bytes(
-            str(export_timestamp)))
+        tf.compat.as_bytes(export_dir_base),
+        tf.compat.as_bytes(str(export_timestamp)))
     if not tf.compat.v1.gfile.Exists(export_dir):
       # Collisions are still possible (though extremely unlikely): this
       # directory is not actually created yet, but it will be almost

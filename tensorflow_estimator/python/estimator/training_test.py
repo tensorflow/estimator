@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-
 """Tests for training.py."""
 
 from __future__ import absolute_import
@@ -27,28 +26,11 @@ import shutil
 import tempfile
 import time
 
-import tensorflow as tf
 import numpy as np
-
-from tensorflow.python.data.ops import dataset_ops
-from tensorflow.python.feature_column import feature_column_lib as feature_column
-from tensorflow.python.framework import constant_op
-from tensorflow.python.framework import ops
-from tensorflow.python.framework import test_util
-from tensorflow.python.ops import control_flow_ops
-from tensorflow.python.ops import metrics as metrics_lib
-from tensorflow.python.ops import state_ops
-from tensorflow.python.platform import gfile
-from tensorflow.python.platform import test
+import tensorflow as tf
 from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.summary import summary_iterator
-from tensorflow.python.summary.writer import writer_cache
 from tensorflow.python.training import basic_session_run_hooks
-from tensorflow.python.training import monitored_session
 from tensorflow.python.training import server_lib
-from tensorflow.python.training import session_run_hook
-from tensorflow.python.training import training_util
-from tensorflow.python.util import compat
 from tensorflow_estimator.python.estimator import estimator as estimator_lib
 from tensorflow_estimator.python.estimator import exporter as exporter_lib
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
@@ -173,6 +155,7 @@ class _InvalidHook(object):
 
 
 def _create_exporter(name):
+
   class FakeExporter(exporter_lib.Exporter):
 
     def __init__(self, name):
@@ -189,7 +172,8 @@ def _create_exporter(name):
 
 
 def _create_run_config_with_cluster_spec(tf_config):
-  with tf.compat.v1.test.mock.patch.dict('os.environ', {'TF_CONFIG': json.dumps(tf_config)}):
+  with tf.compat.v1.test.mock.patch.dict('os.environ',
+                                         {'TF_CONFIG': json.dumps(tf_config)}):
     return run_config_lib.RunConfig()
 
 
@@ -303,14 +287,15 @@ class EvalSpecTest(tf.test.TestCase):
 
   def testInvalidTypeOfExporterName(self):
     with self.assertRaisesRegexp(ValueError, _INVALID_EXPORTER_NAME_TYPE_MSG):
-      training.EvalSpec(input_fn=lambda: 1,
-                        exporters=_create_exporter(name=123))
+      training.EvalSpec(
+          input_fn=lambda: 1, exporters=_create_exporter(name=123))
 
   def testMultipleExportersWithTheSameName(self):
     with self.assertRaisesRegexp(ValueError, _DUPLICATE_EXPORTER_NAMES_MSG):
       training.EvalSpec(
           input_fn=lambda: 1,
-          exporters=[_create_exporter('a'), _create_exporter('a')])
+          exporters=[_create_exporter('a'),
+                     _create_exporter('a')])
 
   def testMultipleExportersAndOneWithoutAName(self):
     with self.assertRaisesRegexp(ValueError, _NONE_EXPORTER_NAME_MSG):
@@ -331,13 +316,15 @@ class TrainAndEvaluateTest(tf.test.TestCase):
     mock_train_spec = tf.compat.v1.test.mock.Mock(spec=training.TrainSpec)
     mock_eval_spec = tf.compat.v1.test.mock.Mock(spec=training.EvalSpec)
 
-    with tf.compat.v1.test.mock.patch.object(training, '_TrainingExecutor') as mock_executor:
+    with tf.compat.v1.test.mock.patch.object(
+        training, '_TrainingExecutor') as mock_executor:
       mock_executor_instance = tf.compat.v1.test.mock.Mock()
       mock_executor.return_value = mock_executor_instance
       training.train_and_evaluate(mock_est, mock_train_spec, mock_eval_spec)
-      mock_executor.assert_called_with(estimator=mock_est,
-                                       train_spec=mock_train_spec,
-                                       eval_spec=mock_eval_spec)
+      mock_executor.assert_called_with(
+          estimator=mock_est,
+          train_spec=mock_train_spec,
+          eval_spec=mock_eval_spec)
       self.assertTrue(mock_executor_instance.run.called)
 
   def test_error_out_if_evaluator_task_id_is_non_zero(self):
@@ -373,7 +360,8 @@ class TrainAndEvaluateTest(tf.test.TestCase):
     mock_train_spec = tf.compat.v1.test.mock.Mock(spec=training.TrainSpec)
     invalid_eval_spec = object()
 
-    with tf.compat.v1.test.mock.patch.object(training, '_TrainingExecutor') as mock_executor:
+    with tf.compat.v1.test.mock.patch.object(
+        training, '_TrainingExecutor') as mock_executor:
       with self.assertRaisesRegexp(TypeError, _INVALID_EVAL_SPEC_MSG):
         training.train_and_evaluate(mock_est, mock_train_spec,
                                     invalid_eval_spec)
@@ -546,7 +534,8 @@ class _TrainingExecutorTrainingTest(object):
   def test_no_server_startup_in_google(self, mock_server, unused_mock_sleep):
     mock_est = tf.compat.v1.test.mock.Mock(spec=estimator_lib.Estimator)
     mock_est.config = self._run_config
-    mock_train_spec = tf.compat.v1.test.mock.Mock(spec=training.TrainSpec, hooks=[])
+    mock_train_spec = tf.compat.v1.test.mock.Mock(
+        spec=training.TrainSpec, hooks=[])
     mock_eval_spec = tf.compat.v1.test.mock.Mock(spec=training.EvalSpec)
 
     executor = training._TrainingExecutor(mock_est, mock_train_spec,
@@ -561,7 +550,8 @@ class _TrainingExecutorTrainingTest(object):
     mock_train_spec = tf.compat.v1.test.mock.Mock(spec=training.TrainSpec)
     mock_eval_spec = tf.compat.v1.test.mock.Mock(spec=training.EvalSpec)
 
-    mock_est.config = tf.compat.v1.test.mock.PropertyMock(spec=run_config_lib.RunConfig)
+    mock_est.config = tf.compat.v1.test.mock.PropertyMock(
+        spec=run_config_lib.RunConfig)
     mock_est.config.cluster_spec = None
     mock_est.config.master = 'grpc://...'
     mock_est.config.task_type = 'worker'
@@ -569,15 +559,16 @@ class _TrainingExecutorTrainingTest(object):
 
     with self.assertRaisesRegexp(RuntimeError,
                                  _INVALID_CONFIG_FOR_STD_SERVER_MSG):
-      self._run_task(training._TrainingExecutor(mock_est, mock_train_spec,
-                                                mock_eval_spec))
+      self._run_task(
+          training._TrainingExecutor(mock_est, mock_train_spec, mock_eval_spec))
 
   def test_fail_with_empty_master(self):
     mock_est = tf.compat.v1.test.mock.Mock(spec=estimator_lib.Estimator)
     mock_train_spec = tf.compat.v1.test.mock.Mock(spec=training.TrainSpec)
     mock_eval_spec = tf.compat.v1.test.mock.Mock(spec=training.EvalSpec)
 
-    mock_est.config = tf.compat.v1.test.mock.PropertyMock(spec=run_config_lib.RunConfig)
+    mock_est.config = tf.compat.v1.test.mock.PropertyMock(
+        spec=run_config_lib.RunConfig)
     mock_est.config.cluster_spec = tf.train.ClusterSpec(
         {'worker': ['dummy', 'dummy1']})
     mock_est.config.master = ''
@@ -586,26 +577,28 @@ class _TrainingExecutorTrainingTest(object):
 
     with self.assertRaisesRegexp(RuntimeError,
                                  _INVALID_CONFIG_FOR_STD_SERVER_MSG):
-      self._run_task(training._TrainingExecutor(mock_est, mock_train_spec,
-                                                mock_eval_spec))
+      self._run_task(
+          training._TrainingExecutor(mock_est, mock_train_spec, mock_eval_spec))
 
   @tf.compat.v1.test.mock.patch.object(time, 'sleep')
   @tf.compat.v1.test.mock.patch.object(server_lib, 'Server')
-  def test_single_worker_node_with_empty_tf_master(
-      self, mock_server, unused_mock_sleep):
+  def test_single_worker_node_with_empty_tf_master(self, mock_server,
+                                                   unused_mock_sleep):
     mock_est = tf.compat.v1.test.mock.Mock(spec=estimator_lib.Estimator)
-    mock_train_spec = tf.compat.v1.test.mock.Mock(spec=training.TrainSpec, hooks=[])
+    mock_train_spec = tf.compat.v1.test.mock.Mock(
+        spec=training.TrainSpec, hooks=[])
     mock_eval_spec = tf.compat.v1.test.mock.Mock(spec=training.EvalSpec)
 
-    mock_est.config = tf.compat.v1.test.mock.PropertyMock(spec=run_config_lib.RunConfig)
+    mock_est.config = tf.compat.v1.test.mock.PropertyMock(
+        spec=run_config_lib.RunConfig)
     # Single node cluster.
     mock_est.config.cluster_spec = tf.train.ClusterSpec({'worker': ['dummy']})
     mock_est.config.master = ''
     mock_est.config.task_type = 'worker'
     mock_est.config.task_id = 2
 
-    self._run_task(training._TrainingExecutor(mock_est, mock_train_spec,
-                                              mock_eval_spec))
+    self._run_task(
+        training._TrainingExecutor(mock_est, mock_train_spec, mock_eval_spec))
     self.assertTrue(mock_est.train.called)
     mock_server.assert_not_called()
 
@@ -614,7 +607,8 @@ class _TrainingExecutorTrainingTest(object):
     mock_train_spec = tf.compat.v1.test.mock.Mock(spec=training.TrainSpec)
     mock_eval_spec = tf.compat.v1.test.mock.Mock(spec=training.EvalSpec)
 
-    mock_est.config = tf.compat.v1.test.mock.PropertyMock(spec=run_config_lib.RunConfig)
+    mock_est.config = tf.compat.v1.test.mock.PropertyMock(
+        spec=run_config_lib.RunConfig)
     mock_est.config.cluster_spec = tf.train.ClusterSpec({'worker': ['dummy']})
     mock_est.config.master = 'grpc://...'
     mock_est.config.task_type = ''
@@ -622,15 +616,16 @@ class _TrainingExecutorTrainingTest(object):
 
     with self.assertRaisesRegexp(RuntimeError,
                                  _INVALID_CONFIG_FOR_STD_SERVER_MSG):
-      self._run_task(training._TrainingExecutor(mock_est, mock_train_spec,
-                                                mock_eval_spec))
+      self._run_task(
+          training._TrainingExecutor(mock_est, mock_train_spec, mock_eval_spec))
 
   def test_fail_with_none_task_id(self):
     mock_est = tf.compat.v1.test.mock.Mock(spec=estimator_lib.Estimator)
     mock_train_spec = tf.compat.v1.test.mock.Mock(spec=training.TrainSpec)
     mock_eval_spec = tf.compat.v1.test.mock.Mock(spec=training.EvalSpec)
 
-    mock_est.config = tf.compat.v1.test.mock.PropertyMock(spec=run_config_lib.RunConfig)
+    mock_est.config = tf.compat.v1.test.mock.PropertyMock(
+        spec=run_config_lib.RunConfig)
     mock_est.config.cluster_spec = tf.train.ClusterSpec({'worker': ['dummy']})
     mock_est.config.master = 'grpc://...'
     mock_est.config.task_type = 'worker'
@@ -638,8 +633,8 @@ class _TrainingExecutorTrainingTest(object):
 
     with self.assertRaisesRegexp(RuntimeError,
                                  _INVALID_CONFIG_FOR_STD_SERVER_MSG):
-      self._run_task(training._TrainingExecutor(mock_est, mock_train_spec,
-                                                mock_eval_spec))
+      self._run_task(
+          training._TrainingExecutor(mock_est, mock_train_spec, mock_eval_spec))
 
 
 class TrainingExecutorRunWorkerTest(_TrainingExecutorTrainingTest,
@@ -656,7 +651,8 @@ class TrainingExecutorRunWorkerTest(_TrainingExecutorTrainingTest,
   def test_delay_for_worker(self, _):
     mock_est = tf.compat.v1.test.mock.Mock(spec=estimator_lib.Estimator)
     mock_est.config = self._run_config
-    mock_train_spec = tf.compat.v1.test.mock.Mock(spec=training.TrainSpec, hooks=[])
+    mock_train_spec = tf.compat.v1.test.mock.Mock(
+        spec=training.TrainSpec, hooks=[])
     mock_eval_spec = tf.compat.v1.test.mock.Mock(spec=training.EvalSpec)
 
     executor = training._TrainingExecutor(mock_est, mock_train_spec,
@@ -673,7 +669,8 @@ class TrainingExecutorRunWorkerTest(_TrainingExecutorTrainingTest,
     mock_est = tf.compat.v1.test.mock.Mock(spec=estimator_lib.Estimator)
     mock_est.config = self._run_config.replace(
         experimental_max_worker_delay_secs=0)
-    mock_train_spec = tf.compat.v1.test.mock.Mock(spec=training.TrainSpec, hooks=[])
+    mock_train_spec = tf.compat.v1.test.mock.Mock(
+        spec=training.TrainSpec, hooks=[])
     mock_eval_spec = tf.compat.v1.test.mock.Mock(spec=training.EvalSpec)
 
     executor = training._TrainingExecutor(mock_est, mock_train_spec,
@@ -698,7 +695,8 @@ class TrainingExecutorRunChiefTest(_TrainingExecutorTrainingTest,
   def test_no_delay_for_chief(self, _):
     mock_est = tf.compat.v1.test.mock.Mock(spec=estimator_lib.Estimator)
     mock_est.config = self._run_config
-    mock_train_spec = tf.compat.v1.test.mock.Mock(spec=training.TrainSpec, hooks=[])
+    mock_train_spec = tf.compat.v1.test.mock.Mock(
+        spec=training.TrainSpec, hooks=[])
     mock_eval_spec = tf.compat.v1.test.mock.Mock(spec=training.EvalSpec)
 
     executor = training._TrainingExecutor(mock_est, mock_train_spec,
@@ -719,11 +717,14 @@ class TrainingExecutorRunMasterTest(tf.test.TestCase):
   @tf.compat.v1.test.mock.patch.object(server_lib, 'Server')
   def test_no_delay_for_master(self, _):
     mock_est = tf.compat.v1.test.mock.Mock(spec=estimator_lib.Estimator)
-    mock_est.evaluate = lambda *args, **kw: {tf.compat.v1.GraphKeys.GLOBAL_STEP: 123}
+    mock_est.evaluate = lambda *args, **kw: {
+        tf.compat.v1.GraphKeys.GLOBAL_STEP: 123
+    }
     mock_est.config = self._run_config
     mock_train_spec = tf.compat.v1.test.mock.Mock(
         spec=training.TrainSpec, max_steps=123, hooks=[])
-    mock_eval_spec = tf.compat.v1.test.mock.Mock(spec=training.EvalSpec, exporters=[])
+    mock_eval_spec = tf.compat.v1.test.mock.Mock(
+        spec=training.EvalSpec, exporters=[])
 
     executor = training._TrainingExecutor(mock_est, mock_train_spec,
                                           mock_eval_spec)
@@ -736,11 +737,14 @@ class TrainingExecutorRunMasterTest(tf.test.TestCase):
   @tf.compat.v1.test.mock.patch.object(server_lib, 'Server')
   def test_train_with_train_spec(self, mock_server, unused_mock_sleep):
     mock_est = tf.compat.v1.test.mock.Mock(spec=estimator_lib.Estimator)
-    mock_est.evaluate = lambda *args, **kw: {tf.compat.v1.GraphKeys.GLOBAL_STEP: 123}
+    mock_est.evaluate = lambda *args, **kw: {
+        tf.compat.v1.GraphKeys.GLOBAL_STEP: 123
+    }
     mock_est.config = self._run_config
     train_spec = training.TrainSpec(
         input_fn=lambda: 1, max_steps=2, hooks=[_FakeHook()])
-    mock_eval_spec = tf.compat.v1.test.mock.Mock(spec=training.EvalSpec, exporters=[])
+    mock_eval_spec = tf.compat.v1.test.mock.Mock(
+        spec=training.EvalSpec, exporters=[])
     mock_server_instance = mock_server.return_value
 
     executor = training._TrainingExecutor(mock_est, train_spec, mock_eval_spec)
@@ -767,7 +771,9 @@ class TrainingExecutorRunMasterTest(tf.test.TestCase):
   @tf.compat.v1.test.mock.patch.object(server_lib, 'Server')
   def test_train_with_no_eval_spec_fails(self, mock_server, unused_mock_sleep):
     mock_est = tf.compat.v1.test.mock.Mock(spec=estimator_lib.Estimator)
-    mock_est.evaluate = lambda *args, **kw: {tf.compat.v1.GraphKeys.GLOBAL_STEP: 123}
+    mock_est.evaluate = lambda *args, **kw: {
+        tf.compat.v1.GraphKeys.GLOBAL_STEP: 123
+    }
     mock_est.config = self._run_config
     train_spec = training.TrainSpec(
         input_fn=lambda: 1, max_steps=2, hooks=[_FakeHook()])
@@ -781,11 +787,14 @@ class TrainingExecutorRunMasterTest(tf.test.TestCase):
   @tf.compat.v1.test.mock.patch.object(server_lib, 'Server')
   def test_train_with_train_hooks(self, mock_server, unused_mock_sleep):
     mock_est = tf.compat.v1.test.mock.Mock(spec=estimator_lib.Estimator)
-    mock_est.evaluate = lambda *args, **kw: {tf.compat.v1.GraphKeys.GLOBAL_STEP: 123}
+    mock_est.evaluate = lambda *args, **kw: {
+        tf.compat.v1.GraphKeys.GLOBAL_STEP: 123
+    }
     mock_est.config = self._run_config
     train_spec = training.TrainSpec(
         input_fn=lambda: 1, max_steps=2, hooks=[_FakeHook()])
-    mock_eval_spec = tf.compat.v1.test.mock.Mock(spec=training.EvalSpec, exporters=[])
+    mock_eval_spec = tf.compat.v1.test.mock.Mock(
+        spec=training.EvalSpec, exporters=[])
     extra_hooks = [_FakeHook()]
 
     executor = training._TrainingExecutor(
@@ -802,11 +811,14 @@ class TrainingExecutorRunMasterTest(tf.test.TestCase):
   @tf.compat.v1.test.mock.patch.object(server_lib, 'Server')
   def test_no_server_startup_in_google(self, mock_server, unused_mock_sleep):
     mock_est = tf.compat.v1.test.mock.Mock(spec=estimator_lib.Estimator)
-    mock_est.evaluate = lambda *args, **kw: {tf.compat.v1.GraphKeys.GLOBAL_STEP: 123}
+    mock_est.evaluate = lambda *args, **kw: {
+        tf.compat.v1.GraphKeys.GLOBAL_STEP: 123
+    }
     mock_est.config = self._run_config
     mock_train_spec = tf.compat.v1.test.mock.Mock(
         spec=training.TrainSpec, max_steps=123, hooks=[])
-    mock_eval_spec = tf.compat.v1.test.mock.Mock(spec=training.EvalSpec, exporters=[])
+    mock_eval_spec = tf.compat.v1.test.mock.Mock(
+        spec=training.EvalSpec, exporters=[])
 
     executor = training._TrainingExecutor(mock_est, mock_train_spec,
                                           mock_eval_spec)
@@ -820,7 +832,8 @@ class TrainingExecutorRunMasterTest(tf.test.TestCase):
     mock_train_spec = tf.compat.v1.test.mock.Mock(spec=training.TrainSpec)
     mock_eval_spec = tf.compat.v1.test.mock.Mock(spec=training.EvalSpec)
 
-    mock_est.config = tf.compat.v1.test.mock.PropertyMock(spec=run_config_lib.RunConfig)
+    mock_est.config = tf.compat.v1.test.mock.PropertyMock(
+        spec=run_config_lib.RunConfig)
     mock_est.config.cluster_spec = None
     mock_est.config.master = 'grpc://...'
     mock_est.config.task_type = 'master'
@@ -828,46 +841,52 @@ class TrainingExecutorRunMasterTest(tf.test.TestCase):
 
     with self.assertRaisesRegexp(RuntimeError,
                                  _INVALID_CONFIG_FOR_STD_SERVER_MSG):
-      training._TrainingExecutor(
-          mock_est, mock_train_spec, mock_eval_spec).run_master()
+      training._TrainingExecutor(mock_est, mock_train_spec,
+                                 mock_eval_spec).run_master()
 
   def test_fail_with_empty_master(self):
     mock_est = tf.compat.v1.test.mock.Mock(spec=estimator_lib.Estimator)
     mock_train_spec = tf.compat.v1.test.mock.Mock(spec=training.TrainSpec)
     mock_eval_spec = tf.compat.v1.test.mock.Mock(spec=training.EvalSpec)
 
-    mock_est.config = tf.compat.v1.test.mock.PropertyMock(spec=run_config_lib.RunConfig)
-    mock_est.config.cluster_spec = tf.train.ClusterSpec(
-        {'master': ['dummy'], 'worker': ['dummy1']})
+    mock_est.config = tf.compat.v1.test.mock.PropertyMock(
+        spec=run_config_lib.RunConfig)
+    mock_est.config.cluster_spec = tf.train.ClusterSpec({
+        'master': ['dummy'],
+        'worker': ['dummy1']
+    })
     mock_est.config.master = ''
     mock_est.config.task_type = 'master'
     mock_est.config.task_id = 0
 
     with self.assertRaisesRegexp(RuntimeError,
                                  _INVALID_CONFIG_FOR_STD_SERVER_MSG):
-      training._TrainingExecutor(
-          mock_est, mock_train_spec, mock_eval_spec).run_master()
+      training._TrainingExecutor(mock_est, mock_train_spec,
+                                 mock_eval_spec).run_master()
 
   @tf.compat.v1.test.mock.patch.object(time, 'sleep')
   @tf.compat.v1.test.mock.patch.object(server_lib, 'Server')
-  def test_single_master_node_with_empty_tf_master(
-      self, mock_server, unused_mock_sleep):
+  def test_single_master_node_with_empty_tf_master(self, mock_server,
+                                                   unused_mock_sleep):
     mock_est = tf.compat.v1.test.mock.Mock(spec=estimator_lib.Estimator)
-    mock_est.evaluate = lambda *args, **kw: {tf.compat.v1.GraphKeys.GLOBAL_STEP: 123}
+    mock_est.evaluate = lambda *args, **kw: {
+        tf.compat.v1.GraphKeys.GLOBAL_STEP: 123
+    }
 
     mock_train_spec = tf.compat.v1.test.mock.Mock(
         spec=training.TrainSpec, max_steps=123, hooks=[])
-    mock_eval_spec = tf.compat.v1.test.mock.Mock(spec=training.EvalSpec, exporters=[])
+    mock_eval_spec = tf.compat.v1.test.mock.Mock(
+        spec=training.EvalSpec, exporters=[])
 
-    mock_est.config = tf.compat.v1.test.mock.PropertyMock(spec=run_config_lib.RunConfig)
-    mock_est.config.cluster_spec = tf.train.ClusterSpec(
-        {'master': ['dummy']})
+    mock_est.config = tf.compat.v1.test.mock.PropertyMock(
+        spec=run_config_lib.RunConfig)
+    mock_est.config.cluster_spec = tf.train.ClusterSpec({'master': ['dummy']})
     mock_est.config.master = ''
     mock_est.config.task_type = 'master'
     mock_est.config.task_id = 0
 
-    executor = training._TrainingExecutor(
-        mock_est, mock_train_spec, mock_eval_spec)
+    executor = training._TrainingExecutor(mock_est, mock_train_spec,
+                                          mock_eval_spec)
     executor.run_master()
 
     mock_server.assert_not_called()
@@ -878,7 +897,8 @@ class TrainingExecutorRunMasterTest(tf.test.TestCase):
     mock_train_spec = tf.compat.v1.test.mock.Mock(spec=training.TrainSpec)
     mock_eval_spec = tf.compat.v1.test.mock.Mock(spec=training.EvalSpec)
 
-    mock_est.config = tf.compat.v1.test.mock.PropertyMock(spec=run_config_lib.RunConfig)
+    mock_est.config = tf.compat.v1.test.mock.PropertyMock(
+        spec=run_config_lib.RunConfig)
     mock_est.config.cluster_spec = tf.train.ClusterSpec({'master': ['dummy']})
     mock_est.config.master = 'grpc://...'
     mock_est.config.task_type = ''
@@ -886,15 +906,16 @@ class TrainingExecutorRunMasterTest(tf.test.TestCase):
 
     with self.assertRaisesRegexp(RuntimeError,
                                  _INVALID_CONFIG_FOR_STD_SERVER_MSG):
-      training._TrainingExecutor(
-          mock_est, mock_train_spec, mock_eval_spec).run_master()
+      training._TrainingExecutor(mock_est, mock_train_spec,
+                                 mock_eval_spec).run_master()
 
   def test_fail_with_none_task_id(self):
     mock_est = tf.compat.v1.test.mock.Mock(spec=estimator_lib.Estimator)
     mock_train_spec = tf.compat.v1.test.mock.Mock(spec=training.TrainSpec)
     mock_eval_spec = tf.compat.v1.test.mock.Mock(spec=training.EvalSpec)
 
-    mock_est.config = tf.compat.v1.test.mock.PropertyMock(spec=run_config_lib.RunConfig)
+    mock_est.config = tf.compat.v1.test.mock.PropertyMock(
+        spec=run_config_lib.RunConfig)
     mock_est.config.cluster_spec = tf.train.ClusterSpec({'master': ['dummy']})
     mock_est.config.master = 'grpc://...'
     mock_est.config.task_type = 'master'
@@ -902,8 +923,8 @@ class TrainingExecutorRunMasterTest(tf.test.TestCase):
 
     with self.assertRaisesRegexp(RuntimeError,
                                  _INVALID_CONFIG_FOR_STD_SERVER_MSG):
-      training._TrainingExecutor(
-          mock_est, mock_train_spec, mock_eval_spec).run_master()
+      training._TrainingExecutor(mock_est, mock_train_spec,
+                                 mock_eval_spec).run_master()
 
   @tf.compat.v1.test.mock.patch.object(server_lib, 'Server')
   def test_run_master_triggers_evaluate_and_export(self, _):
@@ -947,10 +968,12 @@ class TrainingExecutorRunMasterTest(tf.test.TestCase):
         eval_result=eval_result,
         is_the_final_export=True)
 
-  @tf.compat.v1.test.mock.patch.object(basic_session_run_hooks, 'SecondOrStepTimer')
+  @tf.compat.v1.test.mock.patch.object(basic_session_run_hooks,
+                                       'SecondOrStepTimer')
   @tf.compat.v1.test.mock.patch.object(server_lib, 'Server')
   def test_run_master_throttle_eval(self, _, mock_timer_class):
-    mock_est = tf.compat.v1.test.mock.Mock(spec=estimator_lib.Estimator, model_dir='path/')
+    mock_est = tf.compat.v1.test.mock.Mock(
+        spec=estimator_lib.Estimator, model_dir='path/')
 
     mock_timer = tf.compat.v1.test.mock.Mock()
     mock_timer_class.return_value = mock_timer
@@ -983,10 +1006,11 @@ class TrainingExecutorRunMasterTest(tf.test.TestCase):
     eval_spec = training.EvalSpec(
         input_fn=lambda: 1, steps=2, exporters=exporter, throttle_secs=10)
 
-    mock_est.evaluate.side_effect = [
-        {_GLOBAL_STEP_KEY: train_spec.max_steps //2},
-        {_GLOBAL_STEP_KEY: train_spec.max_steps}
-    ]
+    mock_est.evaluate.side_effect = [{
+        _GLOBAL_STEP_KEY: train_spec.max_steps // 2
+    }, {
+        _GLOBAL_STEP_KEY: train_spec.max_steps
+    }]
 
     executor = training._TrainingExecutor(mock_est, train_spec, eval_spec)
     executor.run_master()
@@ -994,15 +1018,19 @@ class TrainingExecutorRunMasterTest(tf.test.TestCase):
     self.assertEqual(2, mock_est.evaluate.call_count)
     self.assertEqual(2, exporter.export.call_count)
 
-    is_final_export_list = [call[1]['is_the_final_export']
-                            for call in exporter.export.call_args_list]
+    is_final_export_list = [
+        call[1]['is_the_final_export']
+        for call in exporter.export.call_args_list
+    ]
     self.assertEqual([False, True], is_final_export_list)
 
-  @tf.compat.v1.test.mock.patch.object(basic_session_run_hooks, 'SecondOrStepTimer')
+  @tf.compat.v1.test.mock.patch.object(basic_session_run_hooks,
+                                       'SecondOrStepTimer')
   @tf.compat.v1.test.mock.patch.object(server_lib, 'Server')
   def test_run_master_throttle_eval_which_skips_final_ckpt(
       self, _, mock_timer_class):
-    mock_est = tf.compat.v1.test.mock.Mock(spec=estimator_lib.Estimator, model_dir='path/')
+    mock_est = tf.compat.v1.test.mock.Mock(
+        spec=estimator_lib.Estimator, model_dir='path/')
 
     mock_timer = tf.compat.v1.test.mock.Mock()
     mock_timer_class.return_value = mock_timer
@@ -1036,10 +1064,11 @@ class TrainingExecutorRunMasterTest(tf.test.TestCase):
     eval_spec = training.EvalSpec(
         input_fn=lambda: 1, steps=2, exporters=exporter, throttle_secs=10)
 
-    mock_est.evaluate.side_effect = [
-        {_GLOBAL_STEP_KEY: train_spec.max_steps //2},
-        {_GLOBAL_STEP_KEY: train_spec.max_steps}
-    ]
+    mock_est.evaluate.side_effect = [{
+        _GLOBAL_STEP_KEY: train_spec.max_steps // 2
+    }, {
+        _GLOBAL_STEP_KEY: train_spec.max_steps
+    }]
 
     executor = training._TrainingExecutor(mock_est, train_spec, eval_spec)
     executor.run_master()
@@ -1047,8 +1076,10 @@ class TrainingExecutorRunMasterTest(tf.test.TestCase):
     self.assertEqual(2, mock_est.evaluate.call_count)
     self.assertEqual(2, exporter.export.call_count)
 
-    is_final_export_list = [call[1]['is_the_final_export']
-                            for call in exporter.export.call_args_list]
+    is_final_export_list = [
+        call[1]['is_the_final_export']
+        for call in exporter.export.call_args_list
+    ]
     self.assertEqual([False, True], is_final_export_list)
 
 
@@ -1069,8 +1100,12 @@ class TrainingExecutorRunEvaluatorTest(tf.test.TestCase):
     self._set_up_mock_est_to_train_and_evaluate_once(mock_est, mock_train_spec)
 
     eval_spec = training.EvalSpec(
-        input_fn=lambda: 1, steps=2, hooks=[_FakeHook()], name='cont_eval',
-        start_delay_secs=0, throttle_secs=0)
+        input_fn=lambda: 1,
+        steps=2,
+        hooks=[_FakeHook()],
+        name='cont_eval',
+        start_delay_secs=0,
+        throttle_secs=0)
 
     executor = training._TrainingExecutor(mock_est, mock_train_spec, eval_spec)
     executor.run_evaluator()
@@ -1111,7 +1146,8 @@ class TrainingExecutorRunEvaluatorTest(tf.test.TestCase):
         throttle_secs=0)
 
     # The train_hooks will not be called during eval.
-    mock_hook = tf.compat.v1.test.mock.Mock(spec=tf.compat.v1.train.SessionRunHook)
+    mock_hook = tf.compat.v1.test.mock.Mock(
+        spec=tf.compat.v1.train.SessionRunHook)
     executor = training._TrainingExecutor(
         mock_est, mock_train_spec, eval_spec, train_hooks=[mock_hook])
     executor.run_evaluator()
@@ -1123,10 +1159,11 @@ class TrainingExecutorRunEvaluatorTest(tf.test.TestCase):
 
     mock_est = tf.compat.v1.test.mock.Mock(spec=estimator_lib.Estimator)
     mock_est.model_dir = tf.compat.as_bytes(tf.compat.v1.test.get_temp_dir())
-    mock_est.evaluate.side_effect = [
-        {_GLOBAL_STEP_KEY: training_max_step // 2},
-        {_GLOBAL_STEP_KEY: training_max_step}
-    ]
+    mock_est.evaluate.side_effect = [{
+        _GLOBAL_STEP_KEY: training_max_step // 2
+    }, {
+        _GLOBAL_STEP_KEY: training_max_step
+    }]
     mock_est.latest_checkpoint.side_effect = ['path_1', 'path_2']
 
     mock_train_spec = tf.compat.v1.test.mock.Mock(spec=training.TrainSpec)
@@ -1137,6 +1174,7 @@ class TrainingExecutorRunEvaluatorTest(tf.test.TestCase):
 
     mock_est.times_export_was_called = 0
     mock_est.times_final_export_was_called = 0
+
     def export(estimator, export_path, checkpoint_path, eval_result,
                is_the_final_export):
       del export_path, checkpoint_path, eval_result
@@ -1174,7 +1212,8 @@ class TrainingExecutorRunEvaluatorTest(tf.test.TestCase):
     }]
     mock_est.latest_checkpoint.side_effect = ['path_1', 'path_2']
 
-    mock_train_spec = tf.compat.v1.test.mock.Mock(spec=training.TrainSpec, hooks=[])
+    mock_train_spec = tf.compat.v1.test.mock.Mock(
+        spec=training.TrainSpec, hooks=[])
     mock_train_spec.max_steps = training_max_step
 
     class _Listener(training._ContinuousEvalListener):
@@ -1184,7 +1223,7 @@ class TrainingExecutorRunEvaluatorTest(tf.test.TestCase):
 
       def before_eval(self):
         self.call_count += 1
-        return  self.call_count == 1
+        return self.call_count == 1
 
     listener = _Listener()
 
@@ -1248,10 +1287,11 @@ class TrainingExecutorRunEvaluatorTest(tf.test.TestCase):
 
     mock_est = tf.compat.v1.test.mock.Mock(spec=estimator_lib.Estimator)
     mock_est.model_dir = tf.compat.as_bytes(tf.compat.v1.test.get_temp_dir())
-    mock_est.evaluate.side_effect = [
-        {_GLOBAL_STEP_KEY: training_max_step // 2},
-        {_GLOBAL_STEP_KEY: training_max_step}
-    ]
+    mock_est.evaluate.side_effect = [{
+        _GLOBAL_STEP_KEY: training_max_step // 2
+    }, {
+        _GLOBAL_STEP_KEY: training_max_step
+    }]
     mock_est.latest_checkpoint.side_effect = ['path_1', 'path_2']
 
     mock_train_spec = tf.compat.v1.test.mock.Mock(spec=training.TrainSpec)
@@ -1259,6 +1299,7 @@ class TrainingExecutorRunEvaluatorTest(tf.test.TestCase):
 
     mock_est.times_export_fn_was_called = 0
     mock_est.times_the_final_export_was_true = 0
+
     def export(estimator, export_path, checkpoint_path, eval_result,
                is_the_final_export):
       del export_path, checkpoint_path, eval_result
@@ -1286,10 +1327,11 @@ class TrainingExecutorRunEvaluatorTest(tf.test.TestCase):
   def test_skip_evaluation_due_to_ckpt(self):
     training_max_step = 200
     mock_est = tf.compat.v1.test.mock.Mock(spec=estimator_lib.Estimator)
-    mock_est.evaluate.side_effect = [
-        {_GLOBAL_STEP_KEY: training_max_step // 2},
-        {_GLOBAL_STEP_KEY: training_max_step}
-    ]
+    mock_est.evaluate.side_effect = [{
+        _GLOBAL_STEP_KEY: training_max_step // 2
+    }, {
+        _GLOBAL_STEP_KEY: training_max_step
+    }]
     mock_train_spec = tf.compat.v1.test.mock.Mock(spec=training.TrainSpec)
     mock_train_spec.max_steps = training_max_step
 
@@ -1318,9 +1360,7 @@ class TrainingExecutorRunEvaluatorTest(tf.test.TestCase):
   def test_warning_if_throttle_secs_is_zero(self):
     training_max_step = 200
     mock_est = tf.compat.v1.test.mock.Mock(spec=estimator_lib.Estimator)
-    mock_est.evaluate.side_effect = [
-        {_GLOBAL_STEP_KEY: training_max_step}
-    ]
+    mock_est.evaluate.side_effect = [{_GLOBAL_STEP_KEY: training_max_step}]
     mock_train_spec = tf.compat.v1.test.mock.Mock(spec=training.TrainSpec)
     mock_train_spec.max_steps = training_max_step
 
@@ -1418,8 +1458,12 @@ class TrainingExecutorRunEvaluatorTest(tf.test.TestCase):
     mock_train_spec.max_steps = training_max_step
 
     eval_spec = training.EvalSpec(
-        input_fn=lambda: 1, steps=2, hooks=[_FakeHook()], name='cont_eval',
-        start_delay_secs=start_delay_secs, throttle_secs=0)
+        input_fn=lambda: 1,
+        steps=2,
+        hooks=[_FakeHook()],
+        name='cont_eval',
+        start_delay_secs=start_delay_secs,
+        throttle_secs=0)
 
     executor = training._TrainingExecutor(mock_est, mock_train_spec, eval_spec)
     with tf.compat.v1.test.mock.patch.object(time, 'sleep') as mock_sleep:
@@ -1478,8 +1522,8 @@ class TrainingExecutorRunEvaluatorTest(tf.test.TestCase):
   def test_errors_out_if_evaluate_returns_empty_dict(self):
     mock_est = tf.compat.v1.test.mock.Mock(spec=estimator_lib.Estimator)
     train_spec = training.TrainSpec(input_fn=lambda: 1)
-    eval_spec = training.EvalSpec(input_fn=(lambda: 1),
-                                  start_delay_secs=0, throttle_secs=0)
+    eval_spec = training.EvalSpec(
+        input_fn=(lambda: 1), start_delay_secs=0, throttle_secs=0)
     mock_est.evaluate.return_value = {}
 
     executor = training._TrainingExecutor(mock_est, train_spec, eval_spec)
@@ -1489,8 +1533,8 @@ class TrainingExecutorRunEvaluatorTest(tf.test.TestCase):
   def test_errors_out_if_evaluate_returns_non_dict(self):
     mock_est = tf.compat.v1.test.mock.Mock(spec=estimator_lib.Estimator)
     train_spec = training.TrainSpec(input_fn=lambda: 1)
-    eval_spec = training.EvalSpec(input_fn=(lambda: 1),
-                                  start_delay_secs=0, throttle_secs=0)
+    eval_spec = training.EvalSpec(
+        input_fn=(lambda: 1), start_delay_secs=0, throttle_secs=0)
     mock_est.evaluate.return_value = 123
 
     executor = training._TrainingExecutor(mock_est, train_spec, eval_spec)
@@ -1500,8 +1544,8 @@ class TrainingExecutorRunEvaluatorTest(tf.test.TestCase):
   def test_errors_out_if_evaluate_returns_dict_without_global_step(self):
     mock_est = tf.compat.v1.test.mock.Mock(spec=estimator_lib.Estimator)
     train_spec = training.TrainSpec(input_fn=lambda: 1)
-    eval_spec = training.EvalSpec(input_fn=(lambda: 1),
-                                  start_delay_secs=0, throttle_secs=0)
+    eval_spec = training.EvalSpec(
+        input_fn=(lambda: 1), start_delay_secs=0, throttle_secs=0)
     mock_est.evaluate.return_value = {'loss': 123}
 
     executor = training._TrainingExecutor(mock_est, train_spec, eval_spec)
@@ -1543,7 +1587,8 @@ class TrainingExecutorRunPsTest(tf.test.TestCase):
     mock_train_spec = tf.compat.v1.test.mock.Mock(spec=training.TrainSpec)
     mock_eval_spec = tf.compat.v1.test.mock.Mock(spec=training.EvalSpec)
 
-    mock_est.config = tf.compat.v1.test.mock.PropertyMock(spec=run_config_lib.RunConfig)
+    mock_est.config = tf.compat.v1.test.mock.PropertyMock(
+        spec=run_config_lib.RunConfig)
     mock_est.config.cluster_spec = None
     mock_est.config.master = 'grpc://...'
     mock_est.config.task_type = 'ps'
@@ -1559,7 +1604,8 @@ class TrainingExecutorRunPsTest(tf.test.TestCase):
     mock_train_spec = tf.compat.v1.test.mock.Mock(spec=training.TrainSpec)
     mock_eval_spec = tf.compat.v1.test.mock.Mock(spec=training.EvalSpec)
 
-    mock_est.config = tf.compat.v1.test.mock.PropertyMock(spec=run_config_lib.RunConfig)
+    mock_est.config = tf.compat.v1.test.mock.PropertyMock(
+        spec=run_config_lib.RunConfig)
     mock_est.config.cluster_spec = tf.train.ClusterSpec({'ps': ['dummy']})
     mock_est.config.master = ''
     mock_est.config.task_type = 'ps'
@@ -1575,7 +1621,8 @@ class TrainingExecutorRunPsTest(tf.test.TestCase):
     mock_train_spec = tf.compat.v1.test.mock.Mock(spec=training.TrainSpec)
     mock_eval_spec = tf.compat.v1.test.mock.Mock(spec=training.EvalSpec)
 
-    mock_est.config = tf.compat.v1.test.mock.PropertyMock(spec=run_config_lib.RunConfig)
+    mock_est.config = tf.compat.v1.test.mock.PropertyMock(
+        spec=run_config_lib.RunConfig)
     mock_est.config.cluster_spec = tf.train.ClusterSpec({'ps': ['dummy']})
     mock_est.config.master = 'grpc://...'
     mock_est.config.task_type = ''
@@ -1591,7 +1638,8 @@ class TrainingExecutorRunPsTest(tf.test.TestCase):
     mock_train_spec = tf.compat.v1.test.mock.Mock(spec=training.TrainSpec)
     mock_eval_spec = tf.compat.v1.test.mock.Mock(spec=training.EvalSpec)
 
-    mock_est.config = tf.compat.v1.test.mock.PropertyMock(spec=run_config_lib.RunConfig)
+    mock_est.config = tf.compat.v1.test.mock.PropertyMock(
+        spec=run_config_lib.RunConfig)
     mock_est.config.cluster_spec = tf.train.ClusterSpec({'ps': ['dummy']})
     mock_est.config.master = 'grpc://...'
     mock_est.config.task_type = 'ps'
@@ -1635,13 +1683,16 @@ class TrainingExecutorRunLocalTest(tf.test.TestCase):
   def _model_fn(self, features, labels, mode):
     del labels
     with tf.control_dependencies([features]):
-      train_op = tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1)
+      train_op = tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(),
+                                         1)
     return model_fn_lib.EstimatorSpec(
         mode,
         loss=tf.constant(0.),
         train_op=train_op,
         predictions=tf.constant([[10.]]),
-        eval_metric_ops={'mean_of_features': tf.compat.v1.metrics.mean(features)})
+        eval_metric_ops={
+            'mean_of_features': tf.compat.v1.metrics.mean(features)
+        })
 
   def _input_fn(self, repeat=True):
     ds = tf.compat.v1.data.Dataset.from_tensors([1])
@@ -1656,10 +1707,12 @@ class TrainingExecutorRunLocalTest(tf.test.TestCase):
     est = estimator_lib.Estimator(
         model_fn=self._model_fn,
         config=run_config_lib.RunConfig(save_checkpoints_steps=10))
-    mock_est = tf.compat.v1.test.mock.Mock(spec=estimator_lib.Estimator, wraps=est)
+    mock_est = tf.compat.v1.test.mock.Mock(
+        spec=estimator_lib.Estimator, wraps=est)
 
     mock_est.times_export_was_called = 0
     mock_est.times_final_export_was_called = 0
+
     def export(estimator, export_path, checkpoint_path, eval_result,
                is_the_final_export):
       del export_path, checkpoint_path, eval_result
@@ -1691,7 +1744,8 @@ class TrainingExecutorRunLocalTest(tf.test.TestCase):
     est = estimator_lib.Estimator(
         model_fn=self._model_fn,
         config=run_config_lib.RunConfig(save_checkpoints_steps=10))
-    mock_est = tf.compat.v1.test.mock.Mock(spec=estimator_lib.Estimator, wraps=est)
+    mock_est = tf.compat.v1.test.mock.Mock(
+        spec=estimator_lib.Estimator, wraps=est)
     mock_est.latest_checkpoint = self.unique_checkpoint_every_time_fn
 
     train_spec = training.TrainSpec(input_fn=self._input_fn, max_steps=12)
@@ -1720,7 +1774,8 @@ class TrainingExecutorRunLocalTest(tf.test.TestCase):
     est = estimator_lib.Estimator(
         model_fn=self._model_fn,
         config=run_config_lib.RunConfig(save_checkpoints_steps=10))
-    mock_est = tf.compat.v1.test.mock.Mock(spec=estimator_lib.Estimator, wraps=est)
+    mock_est = tf.compat.v1.test.mock.Mock(
+        spec=estimator_lib.Estimator, wraps=est)
 
     train_spec = training.TrainSpec(input_fn=self._input_fn, max_steps=3000)
     eval_spec = training.EvalSpec(
@@ -1769,10 +1824,12 @@ class TrainingExecutorRunLocalTest(tf.test.TestCase):
     est = estimator_lib.Estimator(
         model_fn=self._model_fn,
         config=run_config_lib.RunConfig(save_checkpoints_steps=10))
-    mock_est = tf.compat.v1.test.mock.Mock(spec=estimator_lib.Estimator, wraps=est)
+    mock_est = tf.compat.v1.test.mock.Mock(
+        spec=estimator_lib.Estimator, wraps=est)
 
     mock_est.times_export_fn_was_called = 0
     mock_est.times_the_final_export_was_true = 0
+
     def export(estimator, export_path, checkpoint_path, eval_result,
                is_the_final_export):
       del export_path, checkpoint_path, eval_result
@@ -1800,7 +1857,8 @@ class TrainingExecutorRunLocalTest(tf.test.TestCase):
 
   def test_train_and_evaluate_args(self):
     est = estimator_lib.Estimator(model_fn=self._model_fn)
-    mock_est = tf.compat.v1.test.mock.Mock(spec=estimator_lib.Estimator, wraps=est)
+    mock_est = tf.compat.v1.test.mock.Mock(
+        spec=estimator_lib.Estimator, wraps=est)
     train_spec = training.TrainSpec(
         input_fn=self._input_fn, max_steps=300, hooks=[_FakeHook()])
     eval_spec = training.EvalSpec(
@@ -1836,7 +1894,8 @@ class TrainingExecutorRunLocalTest(tf.test.TestCase):
       executor.run_local()
 
   def test_train_hooks(self):
-    mock_est = tf.compat.v1.test.mock.Mock(spec=estimator_lib.Estimator, model_dir='path/')
+    mock_est = tf.compat.v1.test.mock.Mock(
+        spec=estimator_lib.Estimator, model_dir='path/')
     mock_est.latest_checkpoint.return_value = 'checkpoint_path/'
     train_spec = training.TrainSpec(
         input_fn=lambda: 1, max_steps=300, hooks=[_FakeHook()])
@@ -1857,7 +1916,8 @@ class TrainingExecutorRunLocalTest(tf.test.TestCase):
 
   def test_that_export_is_called_with_run_local(self):
     est = estimator_lib.Estimator(model_fn=self._model_fn)
-    mock_est = tf.compat.v1.test.mock.Mock(spec=estimator_lib.Estimator, wraps=est)
+    mock_est = tf.compat.v1.test.mock.Mock(
+        spec=estimator_lib.Estimator, wraps=est)
     train_spec = training.TrainSpec(input_fn=self._input_fn, max_steps=12)
     mock_est.evaluate.return_value = {_GLOBAL_STEP_KEY: train_spec.max_steps}
 
@@ -1889,7 +1949,8 @@ class TrainingExecutorRunLocalTest(tf.test.TestCase):
     est = estimator_lib.Estimator(
         model_fn=self._model_fn,
         config=run_config_lib.RunConfig(save_checkpoints_steps=2))
-    mock_est = tf.compat.v1.test.mock.Mock(spec=estimator_lib.Estimator, wraps=est)
+    mock_est = tf.compat.v1.test.mock.Mock(
+        spec=estimator_lib.Estimator, wraps=est)
     train_spec = training.TrainSpec(input_fn=self._input_fn)
     eval_spec = training.EvalSpec(
         input_fn=lambda: self._input_fn(repeat=False), throttle_secs=0)
@@ -1903,7 +1964,8 @@ class TrainingExecutorRunLocalTest(tf.test.TestCase):
     est = estimator_lib.Estimator(
         model_fn=self._model_fn,
         config=run_config_lib.RunConfig(save_checkpoints_steps=2))
-    mock_est = tf.compat.v1.test.mock.Mock(spec=estimator_lib.Estimator, wraps=est)
+    mock_est = tf.compat.v1.test.mock.Mock(
+        spec=estimator_lib.Estimator, wraps=est)
     train_spec = training.TrainSpec(input_fn=self._input_fn)
     eval_spec = training.EvalSpec(
         input_fn=lambda: self._input_fn(repeat=False), throttle_secs=0)
@@ -1916,7 +1978,8 @@ class TrainingExecutorRunLocalTest(tf.test.TestCase):
     est = estimator_lib.Estimator(
         model_fn=self._model_fn,
         config=run_config_lib.RunConfig(save_checkpoints_steps=2))
-    mock_est = tf.compat.v1.test.mock.Mock(spec=estimator_lib.Estimator, wraps=est)
+    mock_est = tf.compat.v1.test.mock.Mock(
+        spec=estimator_lib.Estimator, wraps=est)
     train_spec = training.TrainSpec(input_fn=self._input_fn)
     eval_spec = training.EvalSpec(
         input_fn=lambda: self._input_fn(repeat=False), throttle_secs=0)
@@ -1929,7 +1992,8 @@ class TrainingExecutorRunLocalTest(tf.test.TestCase):
 
   def test_train_and_evaluate_return_metrics(self):
     est = estimator_lib.Estimator(model_fn=self._model_fn)
-    mock_est = tf.compat.v1.test.mock.Mock(spec=estimator_lib.Estimator, wraps=est)
+    mock_est = tf.compat.v1.test.mock.Mock(
+        spec=estimator_lib.Estimator, wraps=est)
     train_spec = training.TrainSpec(
         input_fn=self._input_fn, max_steps=12, hooks=[_FakeHook()])
     eval_spec = training.EvalSpec(
@@ -2163,7 +2227,8 @@ class TrainAndEvaluateIntegrationTest(tf.test.TestCase):
       }).batch(batch_size)
 
     feature_columns = [
-        tf.feature_column.numeric_column('x', shape=(input_dimension,))]
+        tf.feature_column.numeric_column('x', shape=(input_dimension,))
+    ]
 
     est = dnn.DNNClassifier(
         hidden_units=(2, 2),
@@ -2172,8 +2237,8 @@ class TrainAndEvaluateIntegrationTest(tf.test.TestCase):
         config=run_config_lib.RunConfig(save_summary_steps=save_summary_steps),
         model_dir=self._model_dir)
 
-    train_spec = training.TrainSpec(input_fn=train_input_fn,
-                                    max_steps=max_steps)
+    train_spec = training.TrainSpec(
+        input_fn=train_input_fn, max_steps=max_steps)
 
     eval_spec = training.EvalSpec(
         name=eval_name,
@@ -2199,8 +2264,8 @@ class TrainAndEvaluateIntegrationTest(tf.test.TestCase):
     self.assertEqual(max_steps, eval_global_step)
 
     # Examine the export folder.
-    export_dir = os.path.join(os.path.join(est.model_dir, 'export'),
-                              exporter_name)
+    export_dir = os.path.join(
+        os.path.join(est.model_dir, 'export'), exporter_name)
     self.assertTrue(tf.compat.v1.gfile.Exists(export_dir))
 
     # Examine the ckpt for predict.
