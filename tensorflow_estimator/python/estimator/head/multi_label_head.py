@@ -18,20 +18,12 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
 import six
-
-from tensorflow.python.eager import context
-from tensorflow.python.framework import dtypes
+import tensorflow as tf
 from tensorflow.python.framework import ops
-from tensorflow.python.framework import sparse_tensor
 from tensorflow.python.keras import metrics
 from tensorflow.python.keras.utils import losses_utils
-from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import lookup_ops
-from tensorflow.python.ops import math_ops
-from tensorflow.python.ops import sparse_ops
-from tensorflow.python.ops.losses import losses
 from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator import model_fn
 from tensorflow_estimator.python.estimator.canned import metric_keys
@@ -134,15 +126,15 @@ class MultiLabelHead(base_head.Head):
     weight_column: A string or a `NumericColumn` created by
       `tf.feature_column.numeric_column` defining feature column representing
       weights. It is used to down weight or boost examples during training. It
-      will be multiplied by the loss of the example.  Per-class weighting is
-      not supported.
+      will be multiplied by the loss of the example.  Per-class weighting is not
+      supported.
     thresholds: Iterable of floats in the range `(0, 1)`. Accuracy, precision
       and recall metrics are evaluated for each threshold value. The threshold
       is applied to the predicted probabilities, i.e. above the threshold is
       `true`, below is `false`.
     label_vocabulary: A list of strings represents possible label values. If it
-      is not given, that means labels are already encoded as integer within
-      [0, n_classes) or multi-hot Tensor. If given, labels must be SparseTensor
+      is not given, that means labels are already encoded as integer within [0,
+      n_classes) or multi-hot Tensor. If given, labels must be SparseTensor
       `string` type and have any value in `label_vocabulary`. Also there will be
       errors if vocabulary is not provided and labels are string.
     loss_reduction: One of `tf.losses.Reduction` except `NONE`. Decides how to
@@ -167,9 +159,8 @@ class MultiLabelHead(base_head.Head):
                classes_for_class_based_metrics=None,
                name=None):
     if n_classes is None or n_classes < 2:
-      raise ValueError(
-          'n_classes must be > 1 for multi-label classification. '
-          'Given: {}'.format(n_classes))
+      raise ValueError('n_classes must be > 1 for multi-label classification. '
+                       'Given: {}'.format(n_classes))
     thresholds = tuple(thresholds) if thresholds else tuple()
     for threshold in thresholds:
       if (threshold <= 0.0) or (threshold >= 1.0):
@@ -177,13 +168,11 @@ class MultiLabelHead(base_head.Head):
             'thresholds must be in (0, 1) range. Given: {}'.format(threshold))
     if label_vocabulary is not None:
       if not isinstance(label_vocabulary, (list, tuple)):
-        raise ValueError(
-            'label_vocabulary must be a list or tuple. '
-            'Given type: {}'.format(type(label_vocabulary)))
+        raise ValueError('label_vocabulary must be a list or tuple. '
+                         'Given type: {}'.format(type(label_vocabulary)))
       if len(label_vocabulary) != n_classes:
-        raise ValueError(
-            'Length of label_vocabulary must be n_classes ({}). '
-            'Given: {}'.format(n_classes, len(label_vocabulary)))
+        raise ValueError('Length of label_vocabulary must be n_classes ({}). '
+                         'Given: {}'.format(n_classes, len(label_vocabulary)))
 
     if loss_fn:
       base_head.validate_loss_fn_args(loss_fn)
@@ -302,24 +291,21 @@ class MultiLabelHead(base_head.Head):
             indices=labels.indices,
             values=label_ids_values,
             dense_shape=labels.dense_shape)
-        processed_labels = tf.sparse.to_indicator(
-            label_ids, self._n_classes)
+        processed_labels = tf.sparse.to_indicator(label_ids, self._n_classes)
       else:
         if not label_values.dtype.is_integer:
-          raise ValueError('Labels dtype should be integer. Instead got {}.'.
-                           format(label_values.dtype))
-        err_msg = (
-            r'labels must be an integer SparseTensor with values in '
-            r'[0, {})'.format(self._n_classes))
+          raise ValueError(
+              'Labels dtype should be integer. Instead got {}.'.format(
+                  label_values.dtype))
+        err_msg = (r'labels must be an integer SparseTensor with values in '
+                   r'[0, {})'.format(self._n_classes))
         label_values = base_head.check_label_range(
             labels.values, self._n_classes, message=err_msg)
         if tf.executing_eagerly():
-          processed_labels = tf.sparse.to_indicator(
-              labels, self._n_classes)
+          processed_labels = tf.sparse.to_indicator(labels, self._n_classes)
         else:
           with tf.control_dependencies([label_values]):
-            processed_labels = tf.sparse.to_indicator(
-                labels, self._n_classes)
+            processed_labels = tf.sparse.to_indicator(labels, self._n_classes)
       processed_labels = tf.cast(processed_labels, dtype=tf.dtypes.int64)
     else:
       err_msg = (
@@ -327,7 +313,8 @@ class MultiLabelHead(base_head.Head):
       processed_labels = base_head.check_label_range(labels, 2, message=err_msg)
 
     return base_head.check_dense_labels_match_logits_and_reshape(
-        labels=processed_labels, logits=logits,
+        labels=processed_labels,
+        logits=logits,
         expected_labels_dimension=self.logits_dimension)
 
   def _unweighted_loss_and_weights(self, logits, processed_labels, features):
@@ -348,17 +335,19 @@ class MultiLabelHead(base_head.Head):
       unweighted_loss = tf.math.reduce_mean(
           unweighted_loss, axis=-1, keepdims=True)
     weights = base_head.get_weights_and_check_match_logits(
-        features=features,
-        weight_column=self._weight_column,
-        logits=logits)
+        features=features, weight_column=self._weight_column, logits=logits)
     return unweighted_loss, weights
 
-  def loss(self, labels, logits, features=None, mode=None,
+  def loss(self,
+           labels,
+           logits,
+           features=None,
+           mode=None,
            regularization_losses=None):
     """Returns regularized training loss. See `base_head.Head` for details."""
     del mode  # Unused for this head.
-    with ops.name_scope('losses', values=(logits, labels, regularization_losses,
-                                          features)):
+    with ops.name_scope(
+        'losses', values=(logits, labels, regularization_losses, features)):
       logits = base_head.check_logits_final_dim(logits, self.logits_dimension)
       processed_labels = self._processed_labels(logits, labels)
       unweighted_loss, weights = self._unweighted_loss_and_weights(
@@ -370,19 +359,21 @@ class MultiLabelHead(base_head.Head):
       regularization_loss = tf.math.add_n(
           regularization_losses) if regularization_losses is not None else None
       regularized_training_loss = (
-          training_loss + regularization_loss if regularization_loss is not None
-          else training_loss)
+          training_loss + regularization_loss
+          if regularization_loss is not None else training_loss)
     return regularized_training_loss
 
   def predictions(self, logits, keys=None):
-    """Return predictions based on keys.  See `base_head.Head` for details.
+    """Return predictions based on keys.
+
+    See `base_head.Head` for details.
 
     Args:
       logits: logits `Tensor` with shape `[D0, D1, ... DN, logits_dimension]`.
         For many applications, the shape is `[batch_size, logits_dimension]`.
       keys: a list of prediction keys. Key can be either the class variable
         of prediction_keys.PredictionKeys or its string value, such as:
-        prediction_keys.PredictionKeys.LOGITS or 'logits'.
+          prediction_keys.PredictionKeys.LOGITS or 'logits'.
 
     Returns:
       A dict of predictions.
@@ -424,8 +415,8 @@ class MultiLabelHead(base_head.Head):
         eval_metrics[self._accuracy_keys[i]] = metrics.BinaryAccuracy(
             name=self._accuracy_keys[i], threshold=threshold)
         eval_metrics[self._precision_keys[i]] = (
-            metrics.Precision(name=self._precision_keys[i],
-                              thresholds=threshold))
+            metrics.Precision(
+                name=self._precision_keys[i], thresholds=threshold))
         eval_metrics[self._recall_keys[i]] = metrics.Recall(
             name=self._recall_keys[i], thresholds=threshold)
       for i in range(len(self._classes_for_class_based_metrics)):
@@ -435,7 +426,11 @@ class MultiLabelHead(base_head.Head):
             curve='PR', name=self._auc_pr_keys[i])
     return eval_metrics
 
-  def update_metrics(self, eval_metrics, features, logits, labels,
+  def update_metrics(self,
+                     eval_metrics,
+                     features,
+                     logits,
+                     labels,
                      regularization_losses=None):
     """Updates eval metrics. See `base_head.Head` for details."""
     logits = base_head.check_logits_final_dim(logits, self.logits_dimension)
@@ -467,44 +462,48 @@ class MultiLabelHead(base_head.Head):
     for i, class_id in enumerate(self._classes_for_class_based_metrics):
       batch_rank = tf.rank(probabilities) - 1
       begin = tf.concat(
-          [tf.zeros([batch_rank], dtype=tf.dtypes.int32), [class_id]],
-          axis=0)
-      size = tf.concat(
-          [-1 * tf.ones([batch_rank], dtype=tf.dtypes.int32), [1]],
-          axis=0)
-      class_probabilities = tf.slice(
-          probabilities, begin=begin, size=size)
+          [tf.zeros([batch_rank], dtype=tf.dtypes.int32), [class_id]], axis=0)
+      size = tf.concat([-1 * tf.ones([batch_rank], dtype=tf.dtypes.int32), [1]],
+                       axis=0)
+      class_probabilities = tf.slice(probabilities, begin=begin, size=size)
       class_labels = tf.slice(processed_labels, begin=begin, size=size)
       base_head.update_metric_with_broadcast_weights(
           eval_metrics[self._prob_keys[i]], class_probabilities, weights)
       eval_metrics[self._auc_keys[i]].update_state(
-          y_true=class_labels, y_pred=class_probabilities,
+          y_true=class_labels,
+          y_pred=class_probabilities,
           sample_weight=weights)
       eval_metrics[self._auc_pr_keys[i]].update_state(
-          y_true=class_labels, y_pred=class_probabilities,
+          y_true=class_labels,
+          y_pred=class_probabilities,
           sample_weight=weights)
     return eval_metrics
 
-  def _create_tpu_estimator_spec(
-      self, features, mode, logits, labels=None, optimizer=None,
-      trainable_variables=None, train_op_fn=None, update_ops=None,
-      regularization_losses=None):
+  def _create_tpu_estimator_spec(self,
+                                 features,
+                                 mode,
+                                 logits,
+                                 labels=None,
+                                 optimizer=None,
+                                 trainable_variables=None,
+                                 train_op_fn=None,
+                                 update_ops=None,
+                                 regularization_losses=None):
     """Returns an `model_fn._TPUEstimatorSpec`.
 
     Args:
       features: Input `dict` of `Tensor` or `SparseTensor` objects.
       mode: Estimator's `ModeKeys`.
-      logits: logits `Tensor` with shape `[D0, D1, ... DN, n_classes]`.
-        For many applications, the shape is `[batch_size, n_classes]`.
+      logits: logits `Tensor` with shape `[D0, D1, ... DN, n_classes]`. For many
+        applications, the shape is `[batch_size, n_classes]`.
       labels: Labels with shape matching `logits`. Can be multi-hot `Tensor`
         with shape `[D0, D1, ... DN, n_classes]` or `SparseTensor` with
         `dense_shape` `[D0, D1, ... DN, ?]`. `labels` is required argument when
         `mode` equals `TRAIN` or `EVAL`.
       optimizer: An `tf.keras.optimizers.Optimizer` instance to optimize the
-         loss in TRAIN mode. Namely, sets
-        `train_op = optimizer.get_updates(loss, trainable_variables)`,
-        which updates variables to minimize `loss`.able_variables)`,
-        which updates variables to minimize `loss`.
+        loss in TRAIN mode. Namely, sets `train_op = optimizer.get_updates(loss,
+        trainable_variables)`, which updates variables to minimize
+        `loss`.able_variables)`, which updates variables to minimize `loss`.
       trainable_variables: A list or tuple of `Variable` objects to update to
         minimize `loss`. In Tensorflow 1.x, by default these are the list of
         variables collected in the graph under the key
@@ -521,8 +520,9 @@ class MultiLabelHead(base_head.Head):
       regularization_losses: A list of additional scalar losses to be added to
         the training loss, such as regularization losses. These losses are
         usually expressed as a batch average, so for best results users need to
-        set `loss_reduction=SUM_OVER_BATCH_SIZE` when creating the head to
-        avoid scaling errors.
+        set `loss_reduction=SUM_OVER_BATCH_SIZE` when creating the head to avoid
+        scaling errors.
+
     Returns:
       `model_fn._TPUEstimatorSpec`.
     Raises:
@@ -536,7 +536,8 @@ class MultiLabelHead(base_head.Head):
       if mode == ModeKeys.PREDICT:
         probabilities = predictions[pred_keys.PROBABILITIES]
         classifier_output = base_head.classification_output(
-            scores=probabilities, n_classes=self._n_classes,
+            scores=probabilities,
+            n_classes=self._n_classes,
             label_vocabulary=self._label_vocabulary)
         return model_fn._TPUEstimatorSpec(  # pylint:disable=protected-access
             mode=ModeKeys.PREDICT,
@@ -549,7 +550,10 @@ class MultiLabelHead(base_head.Head):
             })
 
       regularized_training_loss = self.loss(
-          logits=logits, labels=labels, features=features, mode=mode,
+          logits=logits,
+          labels=labels,
+          features=features,
+          mode=mode,
           regularization_losses=regularization_losses)
       # Eval.
       if mode == ModeKeys.EVAL:

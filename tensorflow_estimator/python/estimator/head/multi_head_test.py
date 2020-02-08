@@ -18,20 +18,12 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
 import numpy as np
 import six
-
-from tensorflow.python.eager import context
-from tensorflow.python.framework import constant_op
-from tensorflow.python.framework import dtypes
+import tensorflow as tf
 from tensorflow.python.framework import test_util
 from tensorflow.python.keras.optimizer_v2 import optimizer_v2
 from tensorflow.python.keras.utils import losses_utils
-from tensorflow.python.ops import nn
-from tensorflow.python.ops import string_ops
-from tensorflow.python.ops import variables
-from tensorflow.python.platform import test
 from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.canned import prediction_keys
 from tensorflow_estimator.python.estimator.head import head_utils as test_lib
@@ -45,23 +37,22 @@ from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 class MultiHeadTest(tf.test.TestCase):
 
   def test_no_heads(self):
-    with self.assertRaisesRegexp(
-        ValueError, r'Must specify heads\. Given: \[\]'):
+    with self.assertRaisesRegexp(ValueError,
+                                 r'Must specify heads\. Given: \[\]'):
       multi_head_lib.MultiHead(heads=[])
 
   def test_head_name_missing(self):
     head1 = multi_label_head.MultiLabelHead(n_classes=2, name='head1')
     head2 = multi_label_head.MultiLabelHead(n_classes=3)
-    with self.assertRaisesRegexp(
-        ValueError, r'All given heads must have name specified\.'):
+    with self.assertRaisesRegexp(ValueError,
+                                 r'All given heads must have name specified\.'):
       multi_head_lib.MultiHead([head1, head2])
 
   def test_head_weights_wrong_size(self):
     head1 = multi_label_head.MultiLabelHead(n_classes=2, name='head1')
     head2 = multi_label_head.MultiLabelHead(n_classes=3, name='head2')
     with self.assertRaisesRegexp(
-        ValueError,
-        r'heads and head_weights must have the same size\. '
+        ValueError, r'heads and head_weights must have the same size\. '
         r'Given len\(heads\): 2. Given len\(head_weights\): 1\.'):
       multi_head_lib.MultiHead([head1, head2], head_weights=[1.])
 
@@ -88,12 +79,10 @@ class MultiHeadTest(tf.test.TestCase):
     pred_keys = prediction_keys.PredictionKeys
 
     predictions = multi_head.predictions(logits)
-    self.assertAllClose(
-        logits['head1'],
-        self.evaluate(predictions[('head1', pred_keys.LOGITS)]))
-    self.assertAllClose(
-        logits['head2'],
-        self.evaluate(predictions[('head2', pred_keys.LOGITS)]))
+    self.assertAllClose(logits['head1'],
+                        self.evaluate(predictions[('head1', pred_keys.LOGITS)]))
+    self.assertAllClose(logits['head2'],
+                        self.evaluate(predictions[('head2', pred_keys.LOGITS)]))
     self.assertAllClose(
         expected_probabilities['head1'],
         self.evaluate(predictions[('head1', pred_keys.PROBABILITIES)]))
@@ -107,37 +96,31 @@ class MultiHeadTest(tf.test.TestCase):
         features={'x': np.array(((42,),), dtype=np.int32)},
         mode=ModeKeys.PREDICT,
         logits=logits)
-    self.assertItemsEqual(
-        (test_lib._DEFAULT_SERVING_KEY, 'predict', 'head1',
-         'head1/classification', 'head1/predict', 'head2',
-         'head2/classification', 'head2/predict'), spec.export_outputs.keys())
+    self.assertItemsEqual((test_lib._DEFAULT_SERVING_KEY, 'predict', 'head1',
+                           'head1/classification', 'head1/predict', 'head2',
+                           'head2/classification', 'head2/predict'),
+                          spec.export_outputs.keys())
     # Assert predictions and export_outputs.
     with self.cached_session() as sess:
       test_lib._initialize_variables(self, spec.scaffold)
       self.assertIsNone(spec.scaffold.summary_op)
       predictions = sess.run(spec.predictions)
-      self.assertAllClose(
-          logits['head1'],
-          predictions[('head1', pred_keys.LOGITS)])
-      self.assertAllClose(
-          logits['head2'],
-          predictions[('head2', pred_keys.LOGITS)])
-      self.assertAllClose(
-          expected_probabilities['head1'],
-          predictions[('head1', pred_keys.PROBABILITIES)])
-      self.assertAllClose(
-          expected_probabilities['head2'],
-          predictions[('head2', pred_keys.PROBABILITIES)])
+      self.assertAllClose(logits['head1'],
+                          predictions[('head1', pred_keys.LOGITS)])
+      self.assertAllClose(logits['head2'],
+                          predictions[('head2', pred_keys.LOGITS)])
+      self.assertAllClose(expected_probabilities['head1'],
+                          predictions[('head1', pred_keys.PROBABILITIES)])
+      self.assertAllClose(expected_probabilities['head2'],
+                          predictions[('head2', pred_keys.PROBABILITIES)])
 
       self.assertAllClose(
           expected_probabilities['head1'],
           sess.run(spec.export_outputs[test_lib._DEFAULT_SERVING_KEY].scores))
-      self.assertAllClose(
-          expected_probabilities['head1'],
-          sess.run(spec.export_outputs['head1'].scores))
-      self.assertAllClose(
-          expected_probabilities['head2'],
-          sess.run(spec.export_outputs['head2'].scores))
+      self.assertAllClose(expected_probabilities['head1'],
+                          sess.run(spec.export_outputs['head1'].scores))
+      self.assertAllClose(expected_probabilities['head2'],
+                          sess.run(spec.export_outputs['head2'].scores))
       self.assertAllClose(
           expected_probabilities['head1'],
           sess.run(
@@ -161,8 +144,8 @@ class MultiHeadTest(tf.test.TestCase):
     head2 = multi_label_head.MultiLabelHead(n_classes=3, name='head2')
     multi_head = multi_head_lib.MultiHead([head1, head2])
 
-    logits = np.array(
-        [[-1., 1., 2., -2., 2.], [-1.5, 1., -3., 2., -2.]], dtype=np.float32)
+    logits = np.array([[-1., 1., 2., -2., 2.], [-1.5, 1., -3., 2., -2.]],
+                      dtype=np.float32)
     expected_logits1 = np.array([[-1., 1.], [-1.5, 1.]], dtype=np.float32)
     expected_logits2 = np.array([[2., -2., 2.], [-3., 2., -2.]],
                                 dtype=np.float32)
@@ -173,12 +156,10 @@ class MultiHeadTest(tf.test.TestCase):
     pred_keys = prediction_keys.PredictionKeys
 
     predictions = multi_head.predictions(logits)
-    self.assertAllClose(
-        expected_logits1,
-        self.evaluate(predictions[('head1', pred_keys.LOGITS)]))
-    self.assertAllClose(
-        expected_logits2,
-        self.evaluate(predictions[('head2', pred_keys.LOGITS)]))
+    self.assertAllClose(expected_logits1,
+                        self.evaluate(predictions[('head1', pred_keys.LOGITS)]))
+    self.assertAllClose(expected_logits2,
+                        self.evaluate(predictions[('head2', pred_keys.LOGITS)]))
     self.assertAllClose(
         expected_probabilities['head1'],
         self.evaluate(predictions[('head1', pred_keys.PROBABILITIES)]))
@@ -192,37 +173,31 @@ class MultiHeadTest(tf.test.TestCase):
         features={'x': np.array(((42,),), dtype=np.int32)},
         mode=ModeKeys.PREDICT,
         logits=logits)
-    self.assertItemsEqual(
-        (test_lib._DEFAULT_SERVING_KEY, 'predict', 'head1',
-         'head1/classification', 'head1/predict', 'head2',
-         'head2/classification', 'head2/predict'), spec.export_outputs.keys())
+    self.assertItemsEqual((test_lib._DEFAULT_SERVING_KEY, 'predict', 'head1',
+                           'head1/classification', 'head1/predict', 'head2',
+                           'head2/classification', 'head2/predict'),
+                          spec.export_outputs.keys())
     # Assert predictions and export_outputs.
     with self.cached_session() as sess:
       test_lib._initialize_variables(self, spec.scaffold)
       self.assertIsNone(spec.scaffold.summary_op)
       predictions = sess.run(spec.predictions)
-      self.assertAllClose(
-          expected_logits1,
-          predictions[('head1', pred_keys.LOGITS)])
-      self.assertAllClose(
-          expected_logits2,
-          predictions[('head2', pred_keys.LOGITS)])
-      self.assertAllClose(
-          expected_probabilities['head1'],
-          predictions[('head1', pred_keys.PROBABILITIES)])
-      self.assertAllClose(
-          expected_probabilities['head2'],
-          predictions[('head2', pred_keys.PROBABILITIES)])
+      self.assertAllClose(expected_logits1,
+                          predictions[('head1', pred_keys.LOGITS)])
+      self.assertAllClose(expected_logits2,
+                          predictions[('head2', pred_keys.LOGITS)])
+      self.assertAllClose(expected_probabilities['head1'],
+                          predictions[('head1', pred_keys.PROBABILITIES)])
+      self.assertAllClose(expected_probabilities['head2'],
+                          predictions[('head2', pred_keys.PROBABILITIES)])
 
       self.assertAllClose(
           expected_probabilities['head1'],
           sess.run(spec.export_outputs[test_lib._DEFAULT_SERVING_KEY].scores))
-      self.assertAllClose(
-          expected_probabilities['head1'],
-          sess.run(spec.export_outputs['head1'].scores))
-      self.assertAllClose(
-          expected_probabilities['head2'],
-          sess.run(spec.export_outputs['head2'].scores))
+      self.assertAllClose(expected_probabilities['head1'],
+                          sess.run(spec.export_outputs['head1'].scores))
+      self.assertAllClose(expected_probabilities['head2'],
+                          sess.run(spec.export_outputs['head2'].scores))
 
   def test_predict_two_heads_logits_tensor_multi_dim(self):
     """Tests predict with multi-dimensional logits of shape [2, 2, 5]."""
@@ -230,17 +205,13 @@ class MultiHeadTest(tf.test.TestCase):
     head2 = regression_head.RegressionHead(label_dimension=3, name='head2')
     multi_head = multi_head_lib.MultiHead([head1, head2])
 
-    logits = np.array(
-        [[[-1., 1., 2., -2., 2.], [-1., 1., 2., -2., 2.]],
-         [[-1.5, 1., -3., 2., -2.], [-1.5, 1., -3., 2., -2.]]],
-        dtype=np.float32)
+    logits = np.array([[[-1., 1., 2., -2., 2.], [-1., 1., 2., -2., 2.]],
+                       [[-1.5, 1., -3., 2., -2.], [-1.5, 1., -3., 2., -2.]]],
+                      dtype=np.float32)
     expected_logits1 = np.array(
-        [[[-1., 1.], [-1., 1.]],
-         [[-1.5, 1.], [-1.5, 1.]]],
-        dtype=np.float32)
+        [[[-1., 1.], [-1., 1.]], [[-1.5, 1.], [-1.5, 1.]]], dtype=np.float32)
     expected_logits2 = np.array(
-        [[[2., -2., 2.], [2., -2., 2.]],
-         [[-3., 2., -2.], [-3., 2., -2.]]],
+        [[[2., -2., 2.], [2., -2., 2.]], [[-3., 2., -2.], [-3., 2., -2.]]],
         dtype=np.float32)
     pred_keys = prediction_keys.PredictionKeys
 
@@ -267,33 +238,29 @@ class MultiHeadTest(tf.test.TestCase):
       test_lib._initialize_variables(self, spec.scaffold)
       self.assertIsNone(spec.scaffold.summary_op)
       predictions = sess.run(spec.predictions)
-      self.assertAllClose(
-          expected_logits1,
-          predictions[('head1', pred_keys.PREDICTIONS)])
-      self.assertAllClose(
-          expected_logits2,
-          predictions[('head2', pred_keys.PREDICTIONS)])
+      self.assertAllClose(expected_logits1,
+                          predictions[('head1', pred_keys.PREDICTIONS)])
+      self.assertAllClose(expected_logits2,
+                          predictions[('head2', pred_keys.PREDICTIONS)])
 
       self.assertAllClose(
           expected_logits1,
           sess.run(spec.export_outputs[test_lib._DEFAULT_SERVING_KEY].value))
-      self.assertAllClose(
-          expected_logits1,
-          sess.run(spec.export_outputs['head1'].value))
-      self.assertAllClose(
-          expected_logits2,
-          sess.run(spec.export_outputs['head2'].value))
+      self.assertAllClose(expected_logits1,
+                          sess.run(spec.export_outputs['head1'].value))
+      self.assertAllClose(expected_logits2,
+                          sess.run(spec.export_outputs['head2'].value))
 
   def test_eval_two_heads_with_weights(self):
     head1 = multi_label_head.MultiLabelHead(n_classes=2, name='head1')
     head2 = multi_label_head.MultiLabelHead(n_classes=3, name='head2')
-    multi_head = multi_head_lib.MultiHead(
-        [head1, head2], head_weights=[1., 2.])
+    multi_head = multi_head_lib.MultiHead([head1, head2], head_weights=[1., 2.])
 
     logits = {
-        'head1': np.array([[-10., 10.], [-15., 10.]], dtype=np.float32),
-        'head2': np.array([[20., -20., 20.], [-30., 20., -20.]],
-                          dtype=np.float32),
+        'head1':
+            np.array([[-10., 10.], [-15., 10.]], dtype=np.float32),
+        'head2':
+            np.array([[20., -20., 20.], [-30., 20., -20.]], dtype=np.float32),
     }
     labels = {
         'head1': np.array([[1, 0], [1, 1]], dtype=np.int64),
@@ -333,8 +300,8 @@ class MultiHeadTest(tf.test.TestCase):
       self.assertAllClose(expected_loss, loss, rtol=tol, atol=tol)
 
       eval_metrics = multi_head.metrics()
-      updated_metrics = multi_head.update_metrics(
-          eval_metrics, features, logits, labels)
+      updated_metrics = multi_head.update_metrics(eval_metrics, features,
+                                                  logits, labels)
       self.assertItemsEqual(expected_metrics.keys(), updated_metrics.keys())
       self.assertAllClose(
           expected_metrics,
@@ -344,10 +311,7 @@ class MultiHeadTest(tf.test.TestCase):
       return
 
     spec = multi_head.create_estimator_spec(
-        features=features,
-        mode=ModeKeys.EVAL,
-        logits=logits,
-        labels=labels)
+        features=features, mode=ModeKeys.EVAL, logits=logits, labels=labels)
     # Assert spec contains expected tensors.
     self.assertIsNotNone(spec.loss)
     self.assertItemsEqual(expected_metrics.keys(), spec.eval_metric_ops.keys())
@@ -393,13 +357,13 @@ class MultiHeadTest(tf.test.TestCase):
         n_classes=2, name='head1', weight_column='weights1')
     head2 = multi_label_head.MultiLabelHead(
         n_classes=3, name='head2', weight_column='weights2')
-    multi_head = multi_head_lib.MultiHead(
-        [head1, head2], head_weights=[1., 2.])
+    multi_head = multi_head_lib.MultiHead([head1, head2], head_weights=[1., 2.])
 
     logits = {
-        'head1': np.array([[-10., 10.], [-15., 10.]], dtype=np.float32),
-        'head2': np.array([[20., -20., 20.], [-30., 20., -20.]],
-                          dtype=np.float32),
+        'head1':
+            np.array([[-10., 10.], [-15., 10.]], dtype=np.float32),
+        'head2':
+            np.array([[20., -20., 20.], [-30., 20., -20.]], dtype=np.float32),
     }
     labels = {
         'head1': np.array([[1, 0], [1, 1]], dtype=np.int64),
@@ -434,11 +398,11 @@ class MultiHeadTest(tf.test.TestCase):
         n_classes=2, name='head1', weight_column='weights1')
     head2 = multi_label_head.MultiLabelHead(
         n_classes=3, name='head2', weight_column='weights2')
-    multi_head = multi_head_lib.MultiHead(
-        [head1, head2], head_weights=[1., 2.])
+    multi_head = multi_head_lib.MultiHead([head1, head2], head_weights=[1., 2.])
 
-    logits = np.array([[-10., 10., 20., -20., 20.],
-                       [-15., 10., -30., 20., -20.]], dtype=np.float32)
+    logits = np.array(
+        [[-10., 10., 20., -20., 20.], [-15., 10., -30., 20., -20.]],
+        dtype=np.float32)
     labels = {
         'head1': np.array([[1, 0], [1, 1]], dtype=np.int64),
         'head2': np.array([[0, 1, 0], [1, 1, 0]], dtype=np.int64),
@@ -499,15 +463,17 @@ class MultiHeadTest(tf.test.TestCase):
     head2 = regression_head.RegressionHead(label_dimension=3, name='head2')
     multi_head = multi_head_lib.MultiHead([head1, head2])
 
-    logits = np.array(
-        [[[-1., 1., 2., -2., 2.], [-1., 1., 2., -2., 2.]],
-         [[-1.5, 1.5, -2., 2., -2.], [-1.5, 1.5, -2., 2., -2.]]],
-        dtype=np.float32)
+    logits = np.array([[[-1., 1., 2., -2., 2.], [-1., 1., 2., -2., 2.]],
+                       [[-1.5, 1.5, -2., 2., -2.], [-1.5, 1.5, -2., 2., -2.]]],
+                      dtype=np.float32)
     labels = {
-        'head1': np.array([[[1., 0.], [1., 0.]],
-                           [[1.5, 1.5], [1.5, 1.5]]], dtype=np.float32),
-        'head2': np.array([[[0., 1., 0.], [0., 1., 0.]],
-                           [[2., 2., 0.], [2., 2., 0.]]], dtype=np.float32),
+        'head1':
+            np.array([[[1., 0.], [1., 0.]], [[1.5, 1.5], [1.5, 1.5]]],
+                     dtype=np.float32),
+        'head2':
+            np.array(
+                [[[0., 1., 0.], [0., 1., 0.]], [[2., 2., 0.], [2., 2., 0.]]],
+                dtype=np.float32),
     }
     # Loss for the first head:
     # loss1 = ((1+1)^2 + (0-1)^2 + (1+1)^2 + (0-1)^2 +
@@ -520,14 +486,13 @@ class MultiHeadTest(tf.test.TestCase):
     expected_training_loss = 3.5 + 6.167
 
     training_loss = multi_head.loss(
-        logits=logits,
-        labels=labels,
-        features={},
-        mode=ModeKeys.TRAIN)
+        logits=logits, labels=labels, features={}, mode=ModeKeys.TRAIN)
     tol = 1e-3
     self.assertAllClose(
-        expected_training_loss, self.evaluate(training_loss),
-        rtol=tol, atol=tol)
+        expected_training_loss,
+        self.evaluate(training_loss),
+        rtol=tol,
+        atol=tol)
 
   def test_train_loss_logits_tensor_multi_dim_wrong_shape(self):
     """Tests loss with a multi-dimensional logits tensor of the wrong shape."""
@@ -570,19 +535,19 @@ class MultiHeadTest(tf.test.TestCase):
     expected_loss = 8.75
     tol = 1e-3
     loss = multi_head.loss(
-        logits=logits,
-        labels=labels,
-        features=features,
-        mode=ModeKeys.TRAIN)
+        logits=logits, labels=labels, features=features, mode=ModeKeys.TRAIN)
     self.assertAllClose(expected_loss, self.evaluate(loss), rtol=tol, atol=tol)
     if tf.executing_eagerly():
       return
 
     expected_train_result = 'my_train_op'
+
     def _train_op_fn(loss):
-      return tf.strings.join(
-          [tf.constant(expected_train_result),
-           tf.strings.as_string(loss, precision=3)])
+      return tf.strings.join([
+          tf.constant(expected_train_result),
+          tf.strings.as_string(loss, precision=3)
+      ])
+
     spec = multi_head.create_estimator_spec(
         features=features,
         mode=ModeKeys.TRAIN,
@@ -602,8 +567,8 @@ class MultiHeadTest(tf.test.TestCase):
           (spec.loss, spec.train_op, spec.scaffold.summary_op,
            spec.predictions))
       self.assertAllClose(
-          logits['head1'], predictions[('head1',
-                                        prediction_keys.PredictionKeys.LOGITS)])
+          logits['head1'],
+          predictions[('head1', prediction_keys.PredictionKeys.LOGITS)])
       self.assertAllClose(
           expected_probabilities['head1'],
           predictions[('head1', prediction_keys.PredictionKeys.PROBABILITIES)])
@@ -611,10 +576,11 @@ class MultiHeadTest(tf.test.TestCase):
       self.assertEqual(
           six.b('{0:s}{1:.3f}'.format(expected_train_result, expected_loss)),
           train_result)
-      test_lib._assert_simple_summaries(self, {
-          metric_keys.MetricKeys.LOSS: expected_loss,
-          metric_keys.MetricKeys.LOSS + '/head1': expected_loss,
-      }, summary_str, tol)
+      test_lib._assert_simple_summaries(
+          self, {
+              metric_keys.MetricKeys.LOSS: expected_loss,
+              metric_keys.MetricKeys.LOSS + '/head1': expected_loss,
+          }, summary_str, tol)
 
   def test_train_one_head_with_optimizer(self):
     head1 = multi_label_head.MultiLabelHead(n_classes=2, name='head1')
@@ -631,10 +597,7 @@ class MultiHeadTest(tf.test.TestCase):
     expected_loss = 8.75
     tol = 1e-3
     loss = multi_head.loss(
-        logits=logits,
-        labels=labels,
-        features=features,
-        mode=ModeKeys.TRAIN)
+        logits=logits, labels=labels, features=features, mode=ModeKeys.TRAIN)
     self.assertAllClose(expected_loss, self.evaluate(loss), rtol=tol, atol=tol)
     if tf.executing_eagerly():
       return
@@ -645,10 +608,12 @@ class MultiHeadTest(tf.test.TestCase):
 
       def get_updates(self, loss, params):
         del params
-        return [tf.strings.join([
-            tf.constant(expected_train_result),
-            tf.strings.as_string(loss, precision=3)
-        ])]
+        return [
+            tf.strings.join([
+                tf.constant(expected_train_result),
+                tf.strings.as_string(loss, precision=3)
+            ])
+        ]
 
       def get_config(self):
         config = super(_Optimizer, self).get_config()
@@ -660,8 +625,7 @@ class MultiHeadTest(tf.test.TestCase):
         logits=logits,
         labels=labels,
         optimizer=_Optimizer('my_optimizer'),
-        trainable_variables=[
-            tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
+        trainable_variables=[tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
 
     with self.cached_session() as sess:
       test_lib._initialize_variables(self, spec.scaffold)
@@ -674,13 +638,13 @@ class MultiHeadTest(tf.test.TestCase):
   def test_train_two_heads_with_weights(self):
     head1 = multi_label_head.MultiLabelHead(n_classes=2, name='head1')
     head2 = multi_label_head.MultiLabelHead(n_classes=3, name='head2')
-    multi_head = multi_head_lib.MultiHead(
-        [head1, head2], head_weights=[1., 2.])
+    multi_head = multi_head_lib.MultiHead([head1, head2], head_weights=[1., 2.])
 
     logits = {
-        'head1': np.array([[-10., 10.], [-15., 10.]], dtype=np.float32),
-        'head2': np.array([[20., -20., 20.], [-30., 20., -20.]],
-                          dtype=np.float32),
+        'head1':
+            np.array([[-10., 10.], [-15., 10.]], dtype=np.float32),
+        'head2':
+            np.array([[20., -20., 20.], [-30., 20., -20.]], dtype=np.float32),
     }
     expected_probabilities = {
         'head1': tf.math.sigmoid(logits['head1']),
@@ -704,19 +668,18 @@ class MultiHeadTest(tf.test.TestCase):
     expected_loss = 1. * expected_loss_head1 + 2. * expected_loss_head2
     tol = 1e-3
     loss = multi_head.loss(
-        logits=logits,
-        labels=labels,
-        features=features,
-        mode=ModeKeys.TRAIN)
+        logits=logits, labels=labels, features=features, mode=ModeKeys.TRAIN)
     self.assertAllClose(expected_loss, self.evaluate(loss), rtol=tol, atol=tol)
     if tf.executing_eagerly():
       return
 
     expected_train_result = 'my_train_op'
+
     def _train_op_fn(loss):
-      return tf.strings.join(
-          [tf.constant(expected_train_result),
-           tf.strings.as_string(loss, precision=3)])
+      return tf.strings.join([
+          tf.constant(expected_train_result),
+          tf.strings.as_string(loss, precision=3)
+      ])
 
     spec = multi_head.create_estimator_spec(
         features=features,
@@ -737,14 +700,14 @@ class MultiHeadTest(tf.test.TestCase):
           (spec.loss, spec.train_op, spec.scaffold.summary_op,
            spec.predictions))
       self.assertAllClose(
-          logits['head1'], predictions[('head1',
-                                        prediction_keys.PredictionKeys.LOGITS)])
+          logits['head1'],
+          predictions[('head1', prediction_keys.PredictionKeys.LOGITS)])
       self.assertAllClose(
           expected_probabilities['head1'],
           predictions[('head1', prediction_keys.PredictionKeys.PROBABILITIES)])
       self.assertAllClose(
-          logits['head2'], predictions[('head2',
-                                        prediction_keys.PredictionKeys.LOGITS)])
+          logits['head2'],
+          predictions[('head2', prediction_keys.PredictionKeys.LOGITS)])
       self.assertAllClose(
           expected_probabilities['head2'],
           predictions[('head2', prediction_keys.PredictionKeys.PROBABILITIES)])
@@ -752,22 +715,23 @@ class MultiHeadTest(tf.test.TestCase):
       self.assertEqual(
           six.b('{0:s}{1:.3f}'.format(expected_train_result, expected_loss)),
           train_result)
-      test_lib._assert_simple_summaries(self, {
-          metric_keys.MetricKeys.LOSS: expected_loss,
-          metric_keys.MetricKeys.LOSS + '/head1': expected_loss_head1,
-          metric_keys.MetricKeys.LOSS + '/head2': expected_loss_head2,
-      }, summary_str, tol)
+      test_lib._assert_simple_summaries(
+          self, {
+              metric_keys.MetricKeys.LOSS: expected_loss,
+              metric_keys.MetricKeys.LOSS + '/head1': expected_loss_head1,
+              metric_keys.MetricKeys.LOSS + '/head2': expected_loss_head2,
+          }, summary_str, tol)
 
   def test_train_with_regularization_losses(self):
     head1 = multi_label_head.MultiLabelHead(n_classes=2, name='head1')
     head2 = multi_label_head.MultiLabelHead(n_classes=3, name='head2')
-    multi_head = multi_head_lib.MultiHead(
-        [head1, head2], head_weights=[1., 2.])
+    multi_head = multi_head_lib.MultiHead([head1, head2], head_weights=[1., 2.])
 
     logits = {
-        'head1': np.array([[-10., 10.], [-15., 10.]], dtype=np.float32),
-        'head2': np.array([[20., -20., 20.], [-30., 20., -20.]],
-                          dtype=np.float32),
+        'head1':
+            np.array([[-10., 10.], [-15., 10.]], dtype=np.float32),
+        'head2':
+            np.array([[20., -20., 20.], [-30., 20., -20.]], dtype=np.float32),
     }
     expected_probabilities = {
         'head1': tf.math.sigmoid(logits['head1']),
@@ -796,8 +760,8 @@ class MultiHeadTest(tf.test.TestCase):
     expected_loss_head2 = 15.0
     expected_regularization_loss = 2.
     # training loss.
-    expected_loss = (1. * expected_loss_head1 + 2. * expected_loss_head2
-                     + expected_regularization_loss)
+    expected_loss = (1. * expected_loss_head1 + 2. * expected_loss_head2 +
+                     expected_regularization_loss)
     tol = 1e-3
     loss = multi_head.loss(
         logits=logits,
@@ -811,10 +775,12 @@ class MultiHeadTest(tf.test.TestCase):
 
     keys = metric_keys.MetricKeys
     expected_train_result = 'my_train_op'
+
     def _train_op_fn(loss):
-      return tf.strings.join(
-          [tf.constant(expected_train_result),
-           tf.strings.as_string(loss, precision=3)])
+      return tf.strings.join([
+          tf.constant(expected_train_result),
+          tf.strings.as_string(loss, precision=3)
+      ])
 
     spec = multi_head.create_estimator_spec(
         features=features,
@@ -836,14 +802,14 @@ class MultiHeadTest(tf.test.TestCase):
           (spec.loss, spec.train_op, spec.scaffold.summary_op,
            spec.predictions))
       self.assertAllClose(
-          logits['head1'], predictions[('head1',
-                                        prediction_keys.PredictionKeys.LOGITS)])
+          logits['head1'],
+          predictions[('head1', prediction_keys.PredictionKeys.LOGITS)])
       self.assertAllClose(
           expected_probabilities['head1'],
           predictions[('head1', prediction_keys.PredictionKeys.PROBABILITIES)])
       self.assertAllClose(
-          logits['head2'], predictions[('head2',
-                                        prediction_keys.PredictionKeys.LOGITS)])
+          logits['head2'],
+          predictions[('head2', prediction_keys.PredictionKeys.LOGITS)])
       self.assertAllClose(
           expected_probabilities['head2'],
           predictions[('head2', prediction_keys.PredictionKeys.PROBABILITIES)])
@@ -851,12 +817,13 @@ class MultiHeadTest(tf.test.TestCase):
       self.assertEqual(
           six.b('{0:s}{1:.3f}'.format(expected_train_result, expected_loss)),
           train_result)
-      test_lib._assert_simple_summaries(self, {
-          keys.LOSS_REGULARIZATION: expected_regularization_loss,
-          keys.LOSS: expected_loss,
-          keys.LOSS + '/head1': expected_loss_head1,
-          keys.LOSS + '/head2': expected_loss_head2,
-      }, summary_str, tol)
+      test_lib._assert_simple_summaries(
+          self, {
+              keys.LOSS_REGULARIZATION: expected_regularization_loss,
+              keys.LOSS: expected_loss,
+              keys.LOSS + '/head1': expected_loss_head1,
+              keys.LOSS + '/head2': expected_loss_head2,
+          }, summary_str, tol)
 
 
 @test_util.deprecated_graph_mode_only

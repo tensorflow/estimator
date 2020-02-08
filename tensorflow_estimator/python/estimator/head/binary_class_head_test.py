@@ -18,28 +18,12 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
 import numpy as np
 import six
-
-from tensorflow.python.eager import context
-from tensorflow.python.feature_column import feature_column_lib as feature_column
-from tensorflow.python.framework import constant_op
-from tensorflow.python.framework import dtypes
-from tensorflow.python.framework import errors
-from tensorflow.python.framework import ops
+import tensorflow as tf
 from tensorflow.python.framework import test_util
 from tensorflow.python.keras.optimizer_v2 import optimizer_v2
 from tensorflow.python.keras.utils import losses_utils
-from tensorflow.python.ops import array_ops
-from tensorflow.python.ops import check_ops
-from tensorflow.python.ops import control_flow_ops
-from tensorflow.python.ops import math_ops
-from tensorflow.python.ops import nn
-from tensorflow.python.ops import string_ops
-from tensorflow.python.ops import variables
-from tensorflow.python.platform import test
-from tensorflow.python.training import monitored_session
 from tensorflow_estimator.python.estimator.canned import dnn
 from tensorflow_estimator.python.estimator.canned import dnn_testing_utils
 from tensorflow_estimator.python.estimator.canned import metric_keys
@@ -64,39 +48,42 @@ class BinaryClassHeadTest(tf.test.TestCase):
     with self.assertRaisesRegexp(
         ValueError, r'Invalid loss_reduction: invalid_loss_reduction'):
       head_lib.BinaryClassHead(loss_reduction='invalid_loss_reduction')
-    with self.assertRaisesRegexp(
-        ValueError, r'Invalid loss_reduction: none'):
+    with self.assertRaisesRegexp(ValueError, r'Invalid loss_reduction: none'):
       head_lib.BinaryClassHead(loss_reduction=losses_utils.ReductionV2.NONE)
 
   def test_loss_fn_arg_labels_missing(self):
+
     def _loss_fn(logits):
       del logits  # Unused
+
     with self.assertRaisesRegexp(
-        ValueError,
-        r'loss_fn must contain argument: labels\. '
+        ValueError, r'loss_fn must contain argument: labels\. '
         r'Given arguments: \(\'logits\',\)'):
       head_lib.BinaryClassHead(loss_fn=_loss_fn)
 
   def test_loss_fn_arg_logits_missing(self):
+
     def _loss_fn(labels):
       del labels  # unused
+
     with self.assertRaisesRegexp(
-        ValueError,
-        r'loss_fn must contain argument: logits\. '
+        ValueError, r'loss_fn must contain argument: logits\. '
         r'Given arguments: \(\'labels\',\)'):
       head_lib.BinaryClassHead(loss_fn=_loss_fn)
 
   def test_loss_fn_arg_features_ok(self):
+
     def _loss_fn(labels, logits, features):
       del labels, logits, features  # Unused
       head_lib.BinaryClassHead(loss_fn=_loss_fn)
 
   def test_loss_fn_arg_invalid(self):
+
     def _loss_fn(labels, logits, name=None):
       del labels, logits, name  # Unused
-    with self.assertRaisesRegexp(
-        ValueError,
-        r'loss_fn has unexpected args: \[\'name\'\]'):
+
+    with self.assertRaisesRegexp(ValueError,
+                                 r'loss_fn has unexpected args: \[\'name\'\]'):
       head_lib.BinaryClassHead(loss_fn=_loss_fn)
 
   def test_invalid_logits_shape(self):
@@ -120,13 +107,10 @@ class BinaryClassHeadTest(tf.test.TestCase):
         features={'x': np.array(((42.,),))},
         mode=ModeKeys.PREDICT,
         logits=logits_placeholder,
-        trainable_variables=[
-            tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
+        trainable_variables=[tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
     with self.cached_session():
       with self.assertRaisesRegexp(tf.errors.OpError, 'logits shape'):
-        spec.predictions[pred_key].eval({
-            logits_placeholder: logits_2x2
-        })
+        spec.predictions[pred_key].eval({logits_placeholder: logits_2x2})
 
   def test_invalid_labels_shape(self):
     head = head_lib.BinaryClassHead()
@@ -176,15 +160,13 @@ class BinaryClassHeadTest(tf.test.TestCase):
 
     # Static shape for eager mode.
     if tf.executing_eagerly():
-      with self.assertRaisesRegexp(
-          ValueError, 'labels shape'):
+      with self.assertRaisesRegexp(ValueError, 'labels shape'):
         head.loss(
             logits=values_2x1,
             labels=values_3x1,
             features=features,
             mode=ModeKeys.EVAL)
-      with self.assertRaisesRegexp(
-          ValueError, 'labels shape'):
+      with self.assertRaisesRegexp(ValueError, 'labels shape'):
         head.loss(
             logits=values_3x1,
             labels=values_2x1,
@@ -193,15 +175,15 @@ class BinaryClassHeadTest(tf.test.TestCase):
       return
 
     # Static shape for Graph mode.
-    with self.assertRaisesRegexp(
-        ValueError, 'logits and labels must have the same shape'):
+    with self.assertRaisesRegexp(ValueError,
+                                 'logits and labels must have the same shape'):
       head.loss(
           logits=values_2x1,
           labels=values_3x1,
           features=features,
           mode=ModeKeys.EVAL)
-    with self.assertRaisesRegexp(
-        ValueError, 'logits and labels must have the same shape'):
+    with self.assertRaisesRegexp(ValueError,
+                                 'logits and labels must have the same shape'):
       head.loss(
           logits=values_3x1,
           labels=values_2x1,
@@ -246,12 +228,12 @@ class BinaryClassHeadTest(tf.test.TestCase):
     expected_export_classes = [[b'0', b'1']] * 2
 
     keys = prediction_keys.PredictionKeys
-    preds = head.predictions(
-        logits, [keys.LOGITS, keys.LOGISTIC, keys.PROBABILITIES, keys.CLASS_IDS,
-                 keys.CLASSES, keys.ALL_CLASS_IDS, keys.ALL_CLASSES])
+    preds = head.predictions(logits, [
+        keys.LOGITS, keys.LOGISTIC, keys.PROBABILITIES, keys.CLASS_IDS,
+        keys.CLASSES, keys.ALL_CLASS_IDS, keys.ALL_CLASSES
+    ])
     self.assertAllClose(logits, self.evaluate(preds[keys.LOGITS]))
-    self.assertAllClose(expected_logistics,
-                        self.evaluate(preds[keys.LOGISTIC]))
+    self.assertAllClose(expected_logistics, self.evaluate(preds[keys.LOGISTIC]))
     self.assertAllClose(expected_probabilities,
                         self.evaluate(preds[keys.PROBABILITIES]))
     self.assertAllClose(expected_class_ids,
@@ -269,16 +251,15 @@ class BinaryClassHeadTest(tf.test.TestCase):
         features={'x': np.array(((42,),), dtype=np.int32)},
         mode=ModeKeys.PREDICT,
         logits=logits,
-        trainable_variables=[
-            tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
+        trainable_variables=[tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
 
     # Assert spec contains expected tensors.
     self.assertIsNone(spec.loss)
     self.assertEqual({}, spec.eval_metric_ops)
     self.assertIsNone(spec.train_op)
-    self.assertItemsEqual(
-        ('classification', 'regression', 'predict',
-         test_lib._DEFAULT_SERVING_KEY), spec.export_outputs.keys())
+    self.assertItemsEqual(('classification', 'regression', 'predict',
+                           test_lib._DEFAULT_SERVING_KEY),
+                          spec.export_outputs.keys())
     test_lib._assert_no_hooks(self, spec)
 
     # Assert predictions.
@@ -326,8 +307,7 @@ class BinaryClassHeadTest(tf.test.TestCase):
     preds = head.predictions(logits, [pred_key])
     with self.cached_session():
       test_lib._initialize_variables(self, tf.compat.v1.train.Scaffold())
-      self.assertAllEqual(
-          expected_classes, preds[pred_key].eval())
+      self.assertAllEqual(expected_classes, preds[pred_key].eval())
 
   def test_eval_create_loss(self):
     head = head_lib.BinaryClassHead()
@@ -340,27 +320,27 @@ class BinaryClassHeadTest(tf.test.TestCase):
     expected_training_loss = 20.5
     # Create loss.
     training_loss = head.loss(
-        logits=logits,
-        labels=labels,
-        features=features,
-        mode=ModeKeys.EVAL)
-    self.assertAllClose(expected_training_loss, self.evaluate(training_loss),
-                        rtol=1e-2, atol=1e-2)
+        logits=logits, labels=labels, features=features, mode=ModeKeys.EVAL)
+    self.assertAllClose(
+        expected_training_loss,
+        self.evaluate(training_loss),
+        rtol=1e-2,
+        atol=1e-2)
 
   def test_eval_create_loss_loss_fn(self):
     """Tests head.create_loss for eval mode and custom loss_fn."""
     loss = np.array([[1.], [2.]], dtype=np.float32)
     logits_input = np.array([[-10.], [10.]], dtype=np.float32)
     labels_input = np.array([[1], [0]], dtype=np.int64)
+
     def _loss_fn(labels, logits):
       check_labels = tf.debugging.Assert(
-          tf.reduce_all(tf.math.equal(labels, labels_input)),
-          data=[labels])
+          tf.reduce_all(tf.math.equal(labels, labels_input)), data=[labels])
       check_logits = tf.debugging.Assert(
-          tf.reduce_all(tf.math.equal(logits, logits_input)),
-          data=[logits])
+          tf.reduce_all(tf.math.equal(logits, logits_input)), data=[logits])
       with tf.control_dependencies([check_labels, check_logits]):
         return tf.constant(loss)
+
     head = head_lib.BinaryClassHead(loss_fn=_loss_fn)
 
     actual_training_loss = head.loss(
@@ -373,9 +353,11 @@ class BinaryClassHeadTest(tf.test.TestCase):
   def test_eval_create_loss_loss_fn_wrong_shape(self):
     """Tests custom loss_fn that returns Tensor of unexpected shape."""
     loss = np.array([1., 2.], dtype=np.float32)
+
     def _loss_fn(labels, logits):
       del labels, logits  # Unused
       return tf.constant(loss)
+
     head = head_lib.BinaryClassHead(loss_fn=_loss_fn)
 
     logits = np.array([[-10.], [10.]], dtype=np.float32)
@@ -384,12 +366,11 @@ class BinaryClassHeadTest(tf.test.TestCase):
 
     if tf.executing_eagerly():
       with self.assertRaisesRegexp(ValueError, 'loss_shape'):
-        head.loss(logits=logits, labels=labels, features=features,
-                  mode=ModeKeys.EVAL)
+        head.loss(
+            logits=logits, labels=labels, features=features, mode=ModeKeys.EVAL)
     else:
       actual_training_loss = head.loss(
-          logits=logits, labels=labels, features=features,
-          mode=ModeKeys.EVAL)
+          logits=logits, labels=labels, features=features, mode=ModeKeys.EVAL)
       with self.assertRaisesRegexp(
           tf.errors.InvalidArgumentError,
           r'\[loss_fn must return Tensor of shape \[D0, D1, ... DN, 1\]\. \] '
@@ -422,12 +403,12 @@ class BinaryClassHeadTest(tf.test.TestCase):
     keys = metric_keys.MetricKeys
     expected_metrics = {
         keys.LOSS_MEAN: expected_loss,
-        keys.ACCURACY: 1./2,
+        keys.ACCURACY: 1. / 2,
         keys.PRECISION: 1.,
-        keys.RECALL: 1./2,
-        keys.PREDICTION_MEAN: 1./2,
-        keys.LABEL_MEAN: 2./2,
-        keys.ACCURACY_BASELINE: 2./2,
+        keys.RECALL: 1. / 2,
+        keys.PREDICTION_MEAN: 1. / 2,
+        keys.LABEL_MEAN: 2. / 2,
+        keys.ACCURACY_BASELINE: 2. / 2,
         keys.AUC: 0.,
         keys.AUC_PR: 1.,
     }
@@ -439,8 +420,7 @@ class BinaryClassHeadTest(tf.test.TestCase):
       self.assertAllClose(
           expected_metrics,
           {k: updated_metrics[k].result() for k in updated_metrics})
-      loss = head.loss(
-          labels, logits, features=features, mode=ModeKeys.EVAL)
+      loss = head.loss(labels, logits, features=features, mode=ModeKeys.EVAL)
       self.assertIsNotNone(loss)
       self.assertAllClose(expected_loss, loss)
       return
@@ -451,8 +431,7 @@ class BinaryClassHeadTest(tf.test.TestCase):
         mode=ModeKeys.EVAL,
         logits=logits,
         labels=labels,
-        trainable_variables=[
-            tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
+        trainable_variables=[tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
     # Assert spec contains expected tensors.
     self.assertIsNotNone(spec.loss)
     self.assertItemsEqual(expected_metrics.keys(), spec.eval_metric_ops.keys())
@@ -469,8 +448,8 @@ class BinaryClassHeadTest(tf.test.TestCase):
       loss, _ = sess.run((spec.loss, update_ops))
       self.assertAllClose(expected_loss, loss)
       # Check results of value ops (in `metrics`).
-      self.assertAllClose(
-          expected_metrics, {k: value_ops[k].eval() for k in value_ops})
+      self.assertAllClose(expected_metrics,
+                          {k: value_ops[k].eval() for k in value_ops})
 
   def test_eval_metric_ops_with_head_name(self):
     head = head_lib.BinaryClassHead(name='some_binary_head')
@@ -511,19 +490,22 @@ class BinaryClassHeadTest(tf.test.TestCase):
     expected_metrics = {
         keys.LOSS_MEAN: expected_unregularized_loss,
         keys.LOSS_REGULARIZATION: expected_regularization_loss,
-        keys.ACCURACY: 1./2,
+        keys.ACCURACY: 1. / 2,
         keys.PRECISION: 1.,
-        keys.RECALL: 1./2,
-        keys.PREDICTION_MEAN: 1./2,
-        keys.LABEL_MEAN: 2./2,
-        keys.ACCURACY_BASELINE: 2./2,
+        keys.RECALL: 1. / 2,
+        keys.PREDICTION_MEAN: 1. / 2,
+        keys.LABEL_MEAN: 2. / 2,
+        keys.ACCURACY_BASELINE: 2. / 2,
         keys.AUC: 0.,
         keys.AUC_PR: 1.,
     }
     if tf.executing_eagerly():
       eval_metrics = head.metrics(regularization_losses=regularization_losses)
       updated_metrics = head.update_metrics(
-          eval_metrics, features, logits, labels,
+          eval_metrics,
+          features,
+          logits,
+          labels,
           regularization_losses=regularization_losses)
       # Assert metrics.
       self.assertAllClose(
@@ -538,8 +520,7 @@ class BinaryClassHeadTest(tf.test.TestCase):
         logits=logits,
         labels=labels,
         regularization_losses=regularization_losses,
-        trainable_variables=[
-            tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
+        trainable_variables=[tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
     # Assert predictions, loss, and metrics.
     with self.cached_session() as sess:
       test_lib._initialize_variables(self, spec.scaffold)
@@ -549,8 +530,8 @@ class BinaryClassHeadTest(tf.test.TestCase):
       loss, _ = sess.run((spec.loss, update_ops))
       self.assertAllClose(expected_regularized_loss, loss)
       # Check results of value ops (in `metrics`).
-      self.assertAllClose(
-          expected_metrics, {k: value_ops[k].eval() for k in value_ops})
+      self.assertAllClose(expected_metrics,
+                          {k: value_ops[k].eval() for k in value_ops})
 
   def test_eval_with_vocabulary_list_create_loss(self):
     head = head_lib.BinaryClassHead(label_vocabulary=['aang', 'iroh'])
@@ -563,18 +544,12 @@ class BinaryClassHeadTest(tf.test.TestCase):
     # Create loss.
     if tf.executing_eagerly():
       training_loss = head.loss(
-          logits=logits,
-          labels=labels,
-          features=features,
-          mode=ModeKeys.EVAL)
-      self.assertAllClose(expected_training_loss, training_loss,
-                          rtol=1e-2, atol=1e-2)
+          logits=logits, labels=labels, features=features, mode=ModeKeys.EVAL)
+      self.assertAllClose(
+          expected_training_loss, training_loss, rtol=1e-2, atol=1e-2)
       return
     training_loss = head.loss(
-        logits=logits,
-        labels=labels,
-        features=features,
-        mode=ModeKeys.EVAL)
+        logits=logits, labels=labels, features=features, mode=ModeKeys.EVAL)
     with self.cached_session():
       test_lib._initialize_variables(self, tf.compat.v1.train.Scaffold())
       self.assertAllClose(expected_training_loss, training_loss.eval())
@@ -599,8 +574,7 @@ class BinaryClassHeadTest(tf.test.TestCase):
         mode=ModeKeys.EVAL,
         logits=logits,
         labels=labels,
-        trainable_variables=[
-            tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
+        trainable_variables=[tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
 
     with self.cached_session() as sess:
       test_lib._initialize_variables(self, spec.scaffold)
@@ -608,8 +582,7 @@ class BinaryClassHeadTest(tf.test.TestCase):
       value_ops = {k: spec.eval_metric_ops[k][0] for k in spec.eval_metric_ops}
       update_ops = {k: spec.eval_metric_ops[k][1] for k in spec.eval_metric_ops}
       sess.run(update_ops)
-      self.assertAllClose(1. / 2,
-                          value_ops[accuracy_key].eval())
+      self.assertAllClose(1. / 2, value_ops[accuracy_key].eval())
 
   def test_eval_with_thresholds_create_loss(self):
     thresholds = [0.25, 0.5, 0.75]
@@ -626,12 +599,12 @@ class BinaryClassHeadTest(tf.test.TestCase):
     expected_training_loss = 0.813192855
     # Create loss.
     training_loss = head.loss(
-        logits=logits,
-        labels=labels,
-        features=features,
-        mode=ModeKeys.EVAL)
-    self.assertAllClose(expected_training_loss, self.evaluate(training_loss),
-                        rtol=1e-2, atol=1e-2)
+        logits=logits, labels=labels, features=features, mode=ModeKeys.EVAL)
+    self.assertAllClose(
+        expected_training_loss,
+        self.evaluate(training_loss),
+        rtol=1e-2,
+        atol=1e-2)
 
   def test_eval_with_thresholds(self):
     thresholds = [0.25, 0.5, 0.75]
@@ -648,12 +621,12 @@ class BinaryClassHeadTest(tf.test.TestCase):
     keys = metric_keys.MetricKeys
     expected_metrics = {
         keys.LOSS_MEAN: 1.62652338 / 2.,
-        keys.ACCURACY: 1./2,
+        keys.ACCURACY: 1. / 2,
         keys.PRECISION: 1.,
         keys.RECALL: .5,
-        keys.PREDICTION_MEAN: 1./2,
-        keys.LABEL_MEAN: 2./2,
-        keys.ACCURACY_BASELINE: 2./2,
+        keys.PREDICTION_MEAN: 1. / 2,
+        keys.LABEL_MEAN: 2. / 2,
+        keys.ACCURACY_BASELINE: 2. / 2,
         keys.AUC: 0.,
         keys.AUC_PR: 1.,
         keys.ACCURACY_AT_THRESHOLD % thresholds[0]: 1.,
@@ -670,22 +643,21 @@ class BinaryClassHeadTest(tf.test.TestCase):
     if tf.executing_eagerly():
       # Create loss.
       training_loss = head.loss(
-          logits=logits,
-          labels=labels,
-          features=features,
-          mode=ModeKeys.EVAL)
+          logits=logits, labels=labels, features=features, mode=ModeKeys.EVAL)
       self.assertAllClose(1.62652338 / 2., self.evaluate(training_loss))
       # Eval metrics.
       eval_metrics = head.metrics()
-      updated_metrics = head.update_metrics(
-          eval_metrics, features, logits, labels)
+      updated_metrics = head.update_metrics(eval_metrics, features, logits,
+                                            labels)
       # Assert metrics.
       self.assertItemsEqual(expected_metrics.keys(), updated_metrics.keys())
       self.assertAllClose(
-          expected_metrics,
-          {k: self.evaluate(
-              updated_metrics[k].result()) for k in updated_metrics},
-          atol=tol, rtol=tol)
+          expected_metrics, {
+              k: self.evaluate(updated_metrics[k].result())
+              for k in updated_metrics
+          },
+          atol=tol,
+          rtol=tol)
       return
 
     # Create estimator spec.
@@ -694,8 +666,7 @@ class BinaryClassHeadTest(tf.test.TestCase):
         mode=ModeKeys.EVAL,
         logits=logits,
         labels=labels,
-        trainable_variables=[
-            tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
+        trainable_variables=[tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
     self.assertItemsEqual(expected_metrics.keys(), spec.eval_metric_ops.keys())
     with self.cached_session() as sess:
       test_lib._initialize_variables(self, spec.scaffold)
@@ -723,8 +694,7 @@ class BinaryClassHeadTest(tf.test.TestCase):
     # Create loss.
     if tf.executing_eagerly():
       training_loss = head.loss(labels, logits, features)
-      self.assertAllClose(
-          expected_training_loss, training_loss)
+      self.assertAllClose(expected_training_loss, training_loss)
       return
 
     training_loss = head.loss(labels, logits, features)
@@ -746,8 +716,7 @@ class BinaryClassHeadTest(tf.test.TestCase):
     # Create loss.
     if tf.executing_eagerly():
       training_loss = head.loss(labels, logits, features)
-      self.assertAllClose(
-          expected_training_loss, training_loss)
+      self.assertAllClose(expected_training_loss, training_loss)
       return
 
     training_loss = head.loss(labels, logits, features)
@@ -777,21 +746,20 @@ class BinaryClassHeadTest(tf.test.TestCase):
     expected_loss = 20.5
     if tf.executing_eagerly():
       loss = head.loss(
-          logits=logits,
-          labels=labels,
-          features=features,
-          mode=ModeKeys.TRAIN)
+          logits=logits, labels=labels, features=features, mode=ModeKeys.TRAIN)
       self.assertIsNotNone(loss)
       self.assertAllClose(expected_loss, loss)
       return
 
     expected_train_result = b'my_train_op'
+
     def _train_op_fn(loss):
       with tf.control_dependencies((tf.compat.v1.debugging.assert_equal(
           tf.cast(expected_loss, dtype=tf.dtypes.float32),
           tf.cast(loss, dtype=tf.dtypes.float32),
           name='assert_loss'),)):
         return tf.constant(expected_train_result)
+
     # Create estimator spec.
     spec = head.create_estimator_spec(
         features=features,
@@ -799,8 +767,7 @@ class BinaryClassHeadTest(tf.test.TestCase):
         logits=logits,
         labels=labels,
         train_op_fn=_train_op_fn,
-        trainable_variables=[
-            tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
+        trainable_variables=[tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
     # Assert spec contains expected tensors.
     self.assertIsNotNone(spec.loss)
     self.assertEqual({}, spec.eval_metric_ops)
@@ -812,8 +779,8 @@ class BinaryClassHeadTest(tf.test.TestCase):
     with self.cached_session() as sess:
       test_lib._initialize_variables(self, spec.scaffold)
       self.assertIsNotNone(spec.scaffold.summary_op)
-      loss, train_result, summary_str = sess.run((spec.loss, spec.train_op,
-                                                  spec.scaffold.summary_op))
+      loss, train_result, summary_str = sess.run(
+          (spec.loss, spec.train_op, spec.scaffold.summary_op))
       self.assertAllClose(expected_loss, loss)
       self.assertEqual(expected_train_result, train_result)
       test_lib._assert_simple_summaries(self, {
@@ -822,8 +789,7 @@ class BinaryClassHeadTest(tf.test.TestCase):
 
   def test_train_one_dim_create_loss(self):
     """Tests create_loss with 1D labels and weights (shape [batch_size])."""
-    head = head_lib.BinaryClassHead(
-        weight_column='label_weights')
+    head = head_lib.BinaryClassHead(weight_column='label_weights')
 
     # Create estimator spec.
     logits = np.array(((45,), (-41,), (44,)), dtype=np.float32)
@@ -840,18 +806,15 @@ class BinaryClassHeadTest(tf.test.TestCase):
     # Create loss.
     if tf.executing_eagerly():
       training_loss = head.loss(labels_rank_1, logits, features)
-      self.assertAllClose(
-          expected_training_loss, training_loss)
+      self.assertAllClose(expected_training_loss, training_loss)
       return
 
     training_loss = head.loss(labels_rank_1, logits, features)
-    self.assertAllClose(
-        expected_training_loss, self.evaluate(training_loss))
+    self.assertAllClose(expected_training_loss, self.evaluate(training_loss))
 
   def test_train_one_dim(self):
     """Tests train with 1D labels and weights (shape [batch_size])."""
-    head = head_lib.BinaryClassHead(
-        weight_column='label_weights')
+    head = head_lib.BinaryClassHead(weight_column='label_weights')
 
     # Create estimator spec.
     logits = np.array(((45,), (-41,), (44,)), dtype=np.float32)
@@ -878,20 +841,21 @@ class BinaryClassHeadTest(tf.test.TestCase):
       return
 
     expected_train_result = b'my_train_op'
+
     def _train_op_fn(loss):
       with tf.control_dependencies((tf.compat.v1.debugging.assert_equal(
           tf.cast(expected_loss, dtype=tf.dtypes.float32),
           tf.cast(loss, dtype=tf.dtypes.float32),
           name='assert_loss'),)):
         return tf.constant(expected_train_result)
+
     spec = head.create_estimator_spec(
         features=features,
         mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels_rank_1,
         train_op_fn=_train_op_fn,
-        trainable_variables=[
-            tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
+        trainable_variables=[tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
     # Assert spec contains expected tensors.
     self.assertIsNotNone(spec.loss)
     self.assertIsNotNone(spec.train_op)
@@ -899,8 +863,8 @@ class BinaryClassHeadTest(tf.test.TestCase):
     with self.cached_session() as sess:
       test_lib._initialize_variables(self, spec.scaffold)
       self.assertIsNotNone(spec.scaffold.summary_op)
-      loss, train_result, summary_str = sess.run((
-          spec.loss, spec.train_op, spec.scaffold.summary_op))
+      loss, train_result, summary_str = sess.run(
+          (spec.loss, spec.train_op, spec.scaffold.summary_op))
       self.assertAllClose(expected_loss, loss)
       self.assertEqual(expected_train_result, train_result)
       test_lib._assert_simple_summaries(self, {
@@ -930,12 +894,14 @@ class BinaryClassHeadTest(tf.test.TestCase):
       return
 
     expected_train_result = b'my_train_op'
+
     def _train_op_fn(loss):
       with tf.control_dependencies((tf.compat.v1.debugging.assert_equal(
           tf.cast(expected_loss, dtype=tf.dtypes.float32),
           tf.cast(loss, dtype=tf.dtypes.float32),
           name='assert_loss'),)):
         return tf.constant(expected_train_result)
+
     # Create estimator spec.
     spec = head.create_estimator_spec(
         features=features,
@@ -944,21 +910,22 @@ class BinaryClassHeadTest(tf.test.TestCase):
         labels=labels,
         train_op_fn=_train_op_fn,
         regularization_losses=regularization_losses,
-        trainable_variables=[
-            tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
+        trainable_variables=[tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
     # Assert predictions, loss, train_op, and summaries.
     with self.cached_session() as sess:
       test_lib._initialize_variables(self, spec.scaffold)
       self.assertIsNotNone(spec.scaffold.summary_op)
-      loss, train_result, summary_str = sess.run((spec.loss, spec.train_op,
-                                                  spec.scaffold.summary_op))
+      loss, train_result, summary_str = sess.run(
+          (spec.loss, spec.train_op, spec.scaffold.summary_op))
       self.assertAllClose(expected_loss, loss)
       self.assertEqual(expected_train_result, train_result)
-      test_lib._assert_simple_summaries(self, {
-          metric_keys.MetricKeys.LOSS: expected_loss,
-          metric_keys.MetricKeys.LOSS_REGULARIZATION: (
-              expected_regularization_loss),
-      }, summary_str)
+      test_lib._assert_simple_summaries(
+          self, {
+              metric_keys.MetricKeys.LOSS:
+                  expected_loss,
+              metric_keys.MetricKeys.LOSS_REGULARIZATION:
+                  (expected_regularization_loss),
+          }, summary_str)
 
   def test_float_labels_invalid_values(self):
     head = head_lib.BinaryClassHead()
@@ -967,8 +934,7 @@ class BinaryClassHeadTest(tf.test.TestCase):
     labels = np.array([[1.2], [0.4]], dtype=np.float32)
     features = {'x': np.array([[42]], dtype=np.float32)}
     if tf.executing_eagerly():
-      with self.assertRaisesRegexp(
-          ValueError, r'Labels must be <= 2 - 1'):
+      with self.assertRaisesRegexp(ValueError, r'Labels must be <= 2 - 1'):
         head.loss(
             logits=logits,
             labels=labels,
@@ -997,12 +963,8 @@ class BinaryClassHeadTest(tf.test.TestCase):
     expected_training_loss = 0.62421611432
     # Create loss.
     training_loss = head.loss(
-        logits=logits,
-        labels=labels,
-        features=features,
-        mode=ModeKeys.TRAIN)
-    self.assertAllClose(
-        expected_training_loss, self.evaluate(training_loss))
+        logits=logits, labels=labels, features=features, mode=ModeKeys.TRAIN)
+    self.assertAllClose(expected_training_loss, self.evaluate(training_loss))
 
   def test_float_labels_train(self):
     head = head_lib.BinaryClassHead()
@@ -1020,8 +982,7 @@ class BinaryClassHeadTest(tf.test.TestCase):
     expected_loss = 0.6242161
     # Create loss.
     training_loss = head.loss(
-        logits=logits, labels=labels, features=features,
-        mode=ModeKeys.TRAIN)
+        logits=logits, labels=labels, features=features, mode=ModeKeys.TRAIN)
     self.assertAlmostEqual(
         expected_loss, self.evaluate(training_loss), delta=1.e-5)
     if tf.executing_eagerly():
@@ -1032,6 +993,7 @@ class BinaryClassHeadTest(tf.test.TestCase):
           tf.cast(expected_loss, dtype=tf.dtypes.float32),
           tf.cast(loss, dtype=tf.dtypes.float32)),)):
         return tf.constant(expected_train_result)
+
     # Create estimator spec.
     spec = head.create_estimator_spec(
         features=features,
@@ -1039,8 +1001,7 @@ class BinaryClassHeadTest(tf.test.TestCase):
         logits=logits,
         labels=labels,
         train_op_fn=_train_op_fn,
-        trainable_variables=[
-            tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
+        trainable_variables=[tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
     # Assert predictions, loss, train_op, and summaries.
     with self.cached_session() as sess:
       test_lib._initialize_variables(self, spec.scaffold)
@@ -1064,10 +1025,12 @@ class BinaryClassHeadTest(tf.test.TestCase):
     expected_training_loss = 0.62421611432
     # Create loss.
     training_loss = head.loss(
-        logits=logits, labels=labels, features=features,
-        mode=ModeKeys.EVAL)
-    self.assertAllClose(expected_training_loss, self.evaluate(training_loss),
-                        rtol=1e-2, atol=1e-2)
+        logits=logits, labels=labels, features=features, mode=ModeKeys.EVAL)
+    self.assertAllClose(
+        expected_training_loss,
+        self.evaluate(training_loss),
+        rtol=1e-2,
+        atol=1e-2)
 
   def test_float_labels_eval(self):
     head = head_lib.BinaryClassHead()
@@ -1085,18 +1048,17 @@ class BinaryClassHeadTest(tf.test.TestCase):
     expected_loss = 0.6242161
     # Create loss.
     training_loss = head.loss(
-        logits=logits, labels=labels, features=features,
-        mode=ModeKeys.EVAL)
-    self.assertAlmostEqual(expected_loss, self.evaluate(training_loss),
-                           delta=1.e-5)
+        logits=logits, labels=labels, features=features, mode=ModeKeys.EVAL)
+    self.assertAlmostEqual(
+        expected_loss, self.evaluate(training_loss), delta=1.e-5)
     # Eval metrics.
     loss_mean_key = metric_keys.MetricKeys.LOSS_MEAN
     if tf.executing_eagerly():
       eval_metrics = head.metrics()
       updated_metrics = head.update_metrics(eval_metrics, features, logits,
                                             labels)
-      self.assertAlmostEqual(
-          expected_loss, updated_metrics[loss_mean_key].result().numpy())
+      self.assertAlmostEqual(expected_loss,
+                             updated_metrics[loss_mean_key].result().numpy())
       return
 
     # Create estimator spec.
@@ -1105,8 +1067,7 @@ class BinaryClassHeadTest(tf.test.TestCase):
         mode=ModeKeys.EVAL,
         logits=logits,
         labels=labels,
-        trainable_variables=[
-            tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
+        trainable_variables=[tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
     with self.cached_session() as sess:
       test_lib._initialize_variables(self, spec.scaffold)
       self.assertIsNone(spec.scaffold.summary_op)
@@ -1115,8 +1076,7 @@ class BinaryClassHeadTest(tf.test.TestCase):
       update_ops = {k: spec.eval_metric_ops[k][1] for k in spec.eval_metric_ops}
       loss, _ = sess.run((spec.loss, update_ops))
       self.assertAlmostEqual(expected_loss, loss, delta=1.e-5)
-      self.assertAlmostEqual(
-          expected_loss, value_ops[loss_mean_key].eval())
+      self.assertAlmostEqual(expected_loss, value_ops[loss_mean_key].eval())
 
   def test_weighted_multi_example_predict(self):
     """3 examples, 1 batch."""
@@ -1124,17 +1084,18 @@ class BinaryClassHeadTest(tf.test.TestCase):
     # Create estimator spec.
     logits = np.array(((45,), (-41,), (44,)), dtype=np.int32)
     pred_keys = prediction_keys.PredictionKeys
-    keys = [pred_keys.LOGITS, pred_keys.LOGISTIC, pred_keys.PROBABILITIES,
-            pred_keys.CLASS_IDS, pred_keys.CLASSES]
+    keys = [
+        pred_keys.LOGITS, pred_keys.LOGISTIC, pred_keys.PROBABILITIES,
+        pred_keys.CLASS_IDS, pred_keys.CLASSES
+    ]
     predictions = head.predictions(logits, keys)
     self.assertAllClose(
         logits.astype(np.float32), self.evaluate(predictions[pred_keys.LOGITS]))
     self.assertAllClose(
         tf.math.sigmoid(logits.astype(np.float32)),
         self.evaluate(predictions[pred_keys.LOGISTIC]))
-    self.assertAllClose(
-        [[0., 1.], [1., 0.], [0., 1.]],
-        self.evaluate(predictions[pred_keys.PROBABILITIES]))
+    self.assertAllClose([[0., 1.], [1., 0.], [0., 1.]],
+                        self.evaluate(predictions[pred_keys.PROBABILITIES]))
     self.assertAllClose([[1], [0], [1]],
                         self.evaluate(predictions[pred_keys.CLASS_IDS]))
     self.assertAllEqual([[b'1'], [b'0'], [b'1']],
@@ -1148,7 +1109,8 @@ class BinaryClassHeadTest(tf.test.TestCase):
     labels = np.array(((1,), (1,), (0,)), dtype=np.int32)
     features = {
         'x': np.array(((42,), (43,), (44,)), dtype=np.int32),
-        'label_weights': np.array(((1.,), (.1,), (1.5,)), dtype=np.float32)}
+        'label_weights': np.array(((1.,), (.1,), (1.5,)), dtype=np.float32)
+    }
     # label_mean = (1*1 + .1*1 + 1.5*0)/(1 + .1 + 1.5) = 1.1/2.6
     #            = .42307692307
     expected_label_mean = .42307692307
@@ -1163,8 +1125,8 @@ class BinaryClassHeadTest(tf.test.TestCase):
         keys.LOSS_MEAN: 26.9615384615,
         # accuracy = (1*1 + .1*0 + 1.5*0)/(1 + .1 + 1.5) = 1/2.6 = .38461538461
         keys.ACCURACY: .38461538461,
-        keys.PRECISION: 1./2.5,
-        keys.RECALL: 1./1.1,
+        keys.PRECISION: 1. / 2.5,
+        keys.RECALL: 1. / 1.1,
         # prediction_mean = (1*1 + .1*0 + 1.5*1)/(1 + .1 + 1.5) = 2.5/2.6
         #                 = .96153846153
         keys.PREDICTION_MEAN: .96153846153,
@@ -1181,8 +1143,7 @@ class BinaryClassHeadTest(tf.test.TestCase):
       self.assertAllClose(
           expected_metrics,
           {k: updated_metrics[k].result() for k in updated_metrics})
-      loss = head.loss(
-          labels, logits, features=features, mode=ModeKeys.EVAL)
+      loss = head.loss(labels, logits, features=features, mode=ModeKeys.EVAL)
       self.assertIsNotNone(loss)
       self.assertAllClose(expected_loss, loss)
       return
@@ -1193,8 +1154,7 @@ class BinaryClassHeadTest(tf.test.TestCase):
         mode=ModeKeys.EVAL,
         logits=logits,
         labels=labels,
-        trainable_variables=[
-            tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
+        trainable_variables=[tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
     # Assert spec contains expected tensors.
     self.assertIsNotNone(spec.loss)
     self.assertItemsEqual(expected_metrics.keys(), spec.eval_metric_ops.keys())
@@ -1206,13 +1166,12 @@ class BinaryClassHeadTest(tf.test.TestCase):
       loss, _ = sess.run((spec.loss, update_ops))
       self.assertAllClose(expected_loss, loss)
       # Check results of value ops (in `metrics`).
-      self.assertAllClose(
-          expected_metrics, {k: value_ops[k].eval() for k in value_ops})
+      self.assertAllClose(expected_metrics,
+                          {k: value_ops[k].eval() for k in value_ops})
 
   def test_weighted_multi_example_train(self):
     """3 examples, 1 batch."""
-    head = head_lib.BinaryClassHead(
-        weight_column='label_weights')
+    head = head_lib.BinaryClassHead(weight_column='label_weights')
 
     # Create estimator spec.
     logits = np.array(((45,), (-41,), (44,)), dtype=np.float32)
@@ -1228,10 +1187,7 @@ class BinaryClassHeadTest(tf.test.TestCase):
     expected_loss = 23.366666667
     if tf.executing_eagerly():
       loss = head.loss(
-          logits=logits,
-          labels=labels,
-          features=features,
-          mode=ModeKeys.TRAIN)
+          logits=logits, labels=labels, features=features, mode=ModeKeys.TRAIN)
       self.assertIsNotNone(loss)
       self.assertAllClose(expected_loss, loss)
       return
@@ -1242,14 +1198,14 @@ class BinaryClassHeadTest(tf.test.TestCase):
           tf.cast(loss, dtype=tf.dtypes.float32),
           name='assert_loss'),)):
         return tf.constant(expected_train_result)
+
     spec = head.create_estimator_spec(
         features=features,
         mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
         train_op_fn=_train_op_fn,
-        trainable_variables=[
-            tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
+        trainable_variables=[tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
     # Assert spec contains expected tensors.
     self.assertIsNotNone(spec.loss)
     self.assertIsNotNone(spec.train_op)
@@ -1257,18 +1213,16 @@ class BinaryClassHeadTest(tf.test.TestCase):
     with self.cached_session() as sess:
       test_lib._initialize_variables(self, spec.scaffold)
       self.assertIsNotNone(spec.scaffold.summary_op)
-      loss, train_result, summary_str = sess.run((
-          spec.loss, spec.train_op, spec.scaffold.summary_op))
+      loss, train_result, summary_str = sess.run(
+          (spec.loss, spec.train_op, spec.scaffold.summary_op))
       self.assertAllClose(expected_loss, loss)
       self.assertEqual(expected_train_result, train_result)
-      test_lib._assert_simple_summaries(self, {
-          metric_keys.MetricKeys.LOSS: expected_loss
-      }, summary_str)
+      test_lib._assert_simple_summaries(
+          self, {metric_keys.MetricKeys.LOSS: expected_loss}, summary_str)
 
   def test_multi_dim_weighted_train_create_loss(self):
     """Logits and labels of shape [2, 2, 1], weights [2, 2]."""
-    head = head_lib.BinaryClassHead(
-        weight_column='weights')
+    head = head_lib.BinaryClassHead(weight_column='weights')
 
     logits = np.array([[[10], [-10]], [[12], [-12]]], dtype=np.float32)
     labels = np.array([[[0], [0]], [[1], [1]]], dtype=np.float64)
@@ -1281,8 +1235,7 @@ class BinaryClassHeadTest(tf.test.TestCase):
     tol = 1e-2
     # Create loss.
     if tf.executing_eagerly():
-      training_loss = head.loss(labels, logits, features,
-                                mode=ModeKeys.TRAIN)
+      training_loss = head.loss(labels, logits, features, mode=ModeKeys.TRAIN)
       self.assertAllClose(
           expected_training_loss, training_loss, rtol=tol, atol=tol)
       return
@@ -1295,8 +1248,7 @@ class BinaryClassHeadTest(tf.test.TestCase):
 
   def test_multi_dim_weighted_train(self):
     """Logits and labels of shape [2, 2, 1], weights [2, 2]."""
-    head = head_lib.BinaryClassHead(
-        weight_column='weights')
+    head = head_lib.BinaryClassHead(weight_column='weights')
 
     logits = np.array([[[10], [-10]], [[12], [-12]]], dtype=np.float32)
     labels = np.array([[[0], [0]], [[1], [1]]], dtype=np.float64)
@@ -1309,17 +1261,18 @@ class BinaryClassHeadTest(tf.test.TestCase):
     tol = 1e-2
     # Create loss.
     if tf.executing_eagerly():
-      training_loss = head.loss(labels, logits, features,
-                                mode=ModeKeys.TRAIN)
-      self.assertAllClose(
-          expected_loss, training_loss, rtol=tol, atol=tol)
+      training_loss = head.loss(labels, logits, features, mode=ModeKeys.TRAIN)
+      self.assertAllClose(expected_loss, training_loss, rtol=tol, atol=tol)
       return
 
     expected_train_result = 'my_train_op'
+
     def _train_op_fn(loss):
-      return tf.strings.join(
-          [tf.constant(expected_train_result),
-           tf.strings.as_string(loss, precision=2)])
+      return tf.strings.join([
+          tf.constant(expected_train_result),
+          tf.strings.as_string(loss, precision=2)
+      ])
+
     # Create estimator spec.
     spec = head.create_estimator_spec(
         features=features,
@@ -1327,8 +1280,7 @@ class BinaryClassHeadTest(tf.test.TestCase):
         logits=logits,
         labels=labels,
         train_op_fn=_train_op_fn,
-        trainable_variables=[
-            tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
+        trainable_variables=[tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
     # Assert predictions, loss, train_op, and summaries.
     with self.cached_session() as sess:
       test_lib._initialize_variables(self, spec.scaffold)
@@ -1340,8 +1292,7 @@ class BinaryClassHeadTest(tf.test.TestCase):
 
   def test_multi_dim_train_weights_wrong_inner_dim(self):
     """Logits and labels of shape [2, 2, 1], weights [2, 1]."""
-    head = head_lib.BinaryClassHead(
-        weight_column='weights')
+    head = head_lib.BinaryClassHead(weight_column='weights')
 
     logits = np.array([[[10], [-10]], [[12], [-12]]], dtype=np.float32)
     labels = np.array([[[0], [0]], [[1], [1]]], dtype=np.float64)
@@ -1358,14 +1309,14 @@ class BinaryClassHeadTest(tf.test.TestCase):
     def _no_op_train_fn(loss):
       del loss
       return tf.no_op()
+
     spec = head.create_estimator_spec(
         features={'weights': weights},
         mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
         train_op_fn=_no_op_train_fn,
-        trainable_variables=[
-            tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
+        trainable_variables=[tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
     with self.cached_session():
       test_lib._initialize_variables(self, tf.compat.v1.train.Scaffold())
       with self.assertRaisesRegexp(
@@ -1388,17 +1339,18 @@ class BinaryClassHeadTest(tf.test.TestCase):
             mode=ModeKeys.TRAIN)
       return
     weights_placeholder = tf.compat.v1.placeholder(dtype=tf.dtypes.float32)
+
     def _no_op_train_fn(loss):
       del loss
       return tf.no_op()
+
     spec = head.create_estimator_spec(
         features={'weights': weights_placeholder},
         mode=ModeKeys.TRAIN,
         logits=logits,
         labels=labels,
         train_op_fn=_no_op_train_fn,
-        trainable_variables=[
-            tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
+        trainable_variables=[tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
     with self.cached_session():
       test_lib._initialize_variables(self, tf.compat.v1.train.Scaffold())
       with self.assertRaisesRegexp(
@@ -1421,13 +1373,15 @@ class BinaryClassHeadTest(tf.test.TestCase):
     keys = metric_keys.MetricKeys
     expected_metrics = {
         keys.LOSS_MEAN: weighted_sum_loss / np.sum(weights),
-        keys.ACCURACY: (1.*0. + 1.5*1. + 2.*1. + 2.5*0.) / np.sum(weights),
-        keys.PRECISION: 2.0/3.0,
-        keys.RECALL: 2.0/4.5,
-        keys.PREDICTION_MEAN: (1.*1 + 1.5*0 + 2.*1 + 2.5*0) / np.sum(weights),
-        keys.LABEL_MEAN: (1.*0 + 1.5*0 + 2.*1 + 2.5*1) / np.sum(weights),
+        keys.ACCURACY: (1. * 0. + 1.5 * 1. + 2. * 1. + 2.5 * 0.) / np.sum(weights),
+        keys.PRECISION: 2.0 / 3.0,
+        keys.RECALL: 2.0 / 4.5,
+        keys.PREDICTION_MEAN:
+            (1. * 1 + 1.5 * 0 + 2. * 1 + 2.5 * 0) / np.sum(weights),
+        keys.LABEL_MEAN:
+            (1. * 0 + 1.5 * 0 + 2. * 1 + 2.5 * 1) / np.sum(weights),
         keys.ACCURACY_BASELINE:
-            (1.*0 + 1.5*0 + 2.*1 + 2.5*1) / np.sum(weights),
+            (1. * 0 + 1.5 * 0 + 2. * 1 + 2.5 * 1) / np.sum(weights),
         keys.AUC: 0.5222,
         keys.AUC_PR: 0.6582,
     }
@@ -1449,7 +1403,8 @@ class BinaryClassHeadTest(tf.test.TestCase):
       self.assertAllClose(
           expected_metrics,
           {k: updated_metrics[k].result() for k in updated_metrics},
-          rtol=tol, atol=tol)
+          rtol=tol,
+          atol=tol)
       return
 
     # Create estimator spec.
@@ -1458,8 +1413,7 @@ class BinaryClassHeadTest(tf.test.TestCase):
         mode=ModeKeys.EVAL,
         logits=logits,
         labels=labels,
-        trainable_variables=[
-            tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
+        trainable_variables=[tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
     with self.cached_session() as sess:
       test_lib._initialize_variables(self, spec.scaffold)
       value_ops = {k: spec.eval_metric_ops[k][0] for k in spec.eval_metric_ops}
@@ -1469,7 +1423,8 @@ class BinaryClassHeadTest(tf.test.TestCase):
       # Check results of value ops (in `metrics`).
       self.assertAllClose(
           expected_metrics, {k: value_ops[k].eval() for k in value_ops},
-          rtol=tol, atol=tol)
+          rtol=tol,
+          atol=tol)
 
 
 @test_util.deprecated_graph_mode_only
@@ -1483,17 +1438,19 @@ class BinaryClassHeadForEstimator(tf.test.TestCase):
 
       def get_updates(self, loss, params):
         del params
-        return [tf.strings.join([
-            tf.constant('my_train_op'),
-            tf.strings.as_string(loss, precision=2)
-        ])]
+        return [
+            tf.strings.join([
+                tf.constant('my_train_op'),
+                tf.strings.as_string(loss, precision=2)
+            ])
+        ]
 
       def get_config(self):
         config = super(_Optimizer, self).get_config()
         return config
 
-    with self.assertRaisesRegexp(
-        ValueError, r'trainable_variables cannot be None'):
+    with self.assertRaisesRegexp(ValueError,
+                                 r'trainable_variables cannot be None'):
       head.create_estimator_spec(
           features={'x': np.array(((42,),), dtype=np.int32)},
           mode=ModeKeys.TRAIN,
@@ -1509,8 +1466,9 @@ class BinaryClassHeadForEstimator(tf.test.TestCase):
           logits=np.array(((45,), (-41,),), dtype=np.float32),
           labels=np.array(((1,), (1,),), dtype=np.float64),
           optimizer=_Optimizer('my_optimizer'),
-          trainable_variables={'var_list': [
-              tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)]})
+          trainable_variables={
+              'var_list': [tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)]
+          })
 
   def test_train_with_optimizer(self):
     head = head_lib.BinaryClassHead()
@@ -1544,8 +1502,7 @@ class BinaryClassHeadForEstimator(tf.test.TestCase):
         logits=logits,
         labels=labels,
         optimizer=_Optimizer('my_optimizer'),
-        trainable_variables=[
-            tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
+        trainable_variables=[tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
 
     with self.cached_session() as sess:
       test_lib._initialize_variables(self, spec.scaffold)
@@ -1560,6 +1517,7 @@ class BinaryClassHeadForEstimator(tf.test.TestCase):
 
       t = tf.Variable('')
       expected_train_result = b'my_train_op'
+
       def _train_op_fn(loss):
         del loss
         return t.assign(expected_train_result)
@@ -1568,14 +1526,8 @@ class BinaryClassHeadForEstimator(tf.test.TestCase):
       spec = head.create_estimator_spec(
           features={'x': np.array(((42,),), dtype=np.int32)},
           mode=ModeKeys.TRAIN,
-          logits=np.array((
-              (45,),
-              (-41,),
-          ), dtype=np.float32),
-          labels=np.array((
-              (1,),
-              (1,),
-          ), dtype=np.float64),
+          logits=np.array(((45,), (-41,),), dtype=np.float32),
+          labels=np.array(((1,), (1,),), dtype=np.float64),
           train_op_fn=_train_op_fn,
           update_ops=[update_op],
           trainable_variables=[
@@ -1590,8 +1542,7 @@ class BinaryClassHeadForEstimator(tf.test.TestCase):
         self.assertEqual(expected_train_result, t_value)
 
   def test_train_summaries_with_head_name(self):
-    head = head_lib.BinaryClassHead(
-        name='some_binary_head')
+    head = head_lib.BinaryClassHead(name='some_binary_head')
 
     logits = np.array(((45,), (-41,),), dtype=np.float32)
     labels = np.array(((1,), (1,),), dtype=np.float64)
@@ -1611,22 +1562,19 @@ class BinaryClassHeadForEstimator(tf.test.TestCase):
         logits=logits,
         labels=labels,
         train_op_fn=_train_op_fn,
-        trainable_variables=[
-            tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
+        trainable_variables=[tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
     # Assert summaries.
     with self.cached_session() as sess:
       test_lib._initialize_variables(self, spec.scaffold)
       self.assertIsNotNone(spec.scaffold.summary_op)
       summary_str = sess.run(spec.scaffold.summary_op)
-      test_lib._assert_simple_summaries(
-          self,
-          {'{}/some_binary_head'.format(metric_keys.MetricKeys.LOSS):
-               expected_loss,
-          }, summary_str)
+      test_lib._assert_simple_summaries(self, {
+          '{}/some_binary_head'.format(metric_keys.MetricKeys.LOSS):
+              expected_loss,
+      }, summary_str)
 
   def test_lookup_tables_in_graph(self):
-    head = head_lib.BinaryClassHead(
-        label_vocabulary=['aang', 'iroh'])
+    head = head_lib.BinaryClassHead(label_vocabulary=['aang', 'iroh'])
 
     feature_columns = [tf.feature_column.numeric_column('x')]
     est = dnn.DNNEstimatorV2(
@@ -1634,18 +1582,20 @@ class BinaryClassHeadForEstimator(tf.test.TestCase):
         hidden_units=(2, 2),
         feature_columns=feature_columns,
         batch_norm=True)
+
     def input_fn():
-      return (
-          {'x': np.array(((42,), (43,),), dtype=np.int32)},
-          [[b'iroh'], [b'iroh']])
+      return ({
+          'x': np.array(((42,), (43,),), dtype=np.int32)
+      }, [[b'iroh'], [b'iroh']])
+
     # Train.
     num_steps = 1
     est.train(input_fn, steps=num_steps)
     # Eval.
     eval_results = est.evaluate(input_fn, steps=num_steps)
-    self.assertEqual(num_steps, eval_results[tf.compat.v1.GraphKeys.GLOBAL_STEP])
-    self.assertIn(
-        metric_keys.MetricKeys.LOSS_MEAN, six.iterkeys(eval_results))
+    self.assertEqual(num_steps,
+                     eval_results[tf.compat.v1.GraphKeys.GLOBAL_STEP])
+    self.assertIn(metric_keys.MetricKeys.LOSS_MEAN, six.iterkeys(eval_results))
     # Predict.
     est.predict(input_fn)
 

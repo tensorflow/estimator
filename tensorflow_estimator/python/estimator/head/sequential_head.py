@@ -21,17 +21,9 @@ from __future__ import print_function
 import abc
 import collections
 
-import tensorflow as tf
 import six
-
-from tensorflow.python.eager import context
-from tensorflow.python.framework import dtypes
+import tensorflow as tf
 from tensorflow.python.framework import ops
-from tensorflow.python.framework import sparse_tensor
-from tensorflow.python.ops import array_ops
-from tensorflow.python.ops import check_ops
-from tensorflow.python.ops import math_ops
-from tensorflow.python.ops import sparse_ops
 from tensorflow_estimator.python.estimator.head import base_head
 from tensorflow_estimator.python.estimator.head import multi_head
 from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
@@ -91,7 +83,9 @@ class SequentialHeadWrapper(_SequentialHead):
       dictionary.
   """
 
-  def __init__(self, static_head, sequence_length_mask='sequence_length_mask',
+  def __init__(self,
+               static_head,
+               sequence_length_mask='sequence_length_mask',
                feature_columns=None):
     """Initializes a `SequentialHeadWrapper` instance.
 
@@ -134,8 +128,8 @@ class SequentialHeadWrapper(_SequentialHead):
     Args:
       static_head: `Head` object, static head to wrap.
       sequence_length_mask: `str`, name of sequence length mask tensor in
-        features dictionary. Tensor must be a dense tensor of shape
-        [batch_size, seq_length].
+        features dictionary. Tensor must be a dense tensor of shape [batch_size,
+        seq_length].
       feature_columns: `str` or list of the former. Specifies the features of
         the features dictionary to which the sequence length mask must be
         applied, and which are passed to the static head's methods when calling
@@ -167,8 +161,8 @@ class SequentialHeadWrapper(_SequentialHead):
     for column in self._feature_columns:
       # TODO(aarg): Add support for `NumericColumn` and `SequenceNumericColumn`.
       if not isinstance(column, six.string_types):
-        raise TypeError(
-            'Column must a string. Given type: {}.'.format(type(column)))
+        raise TypeError('Column must a string. Given type: {}.'.format(
+            type(column)))
 
     # Set other variables.
     if isinstance(static_head, multi_head.MultiHead):
@@ -228,12 +222,16 @@ class SequentialHeadWrapper(_SequentialHead):
         if column not in features:
           raise ValueError('`{}` column expected in features '
                            'dictionary.'.format(column))
-        flat_features[column] = _flatten_tensor(
-            features[column], sequence_mask, expected_length)
+        flat_features[column] = _flatten_tensor(features[column], sequence_mask,
+                                                expected_length)
 
       return flat_labels, flat_logits, flat_features
 
-  def loss(self, logits, labels, features=None, mode=None,
+  def loss(self,
+           logits,
+           labels,
+           features=None,
+           mode=None,
            regularization_losses=None):
     """Flattens input and returns regularized training loss.
 
@@ -241,8 +239,8 @@ class SequentialHeadWrapper(_SequentialHead):
     the head's `feature_columns` before calling the static head's `loss` method.
 
     Args:
-      logits: Logits `Tensor` of rank >= 2 and shape
-        [batch_size, seq_length, D2, ... DN].
+      logits: Logits `Tensor` of rank >= 2 and shape [batch_size, seq_length,
+        D2, ... DN].
       labels: Labels `Tensor` or `SparseTensor` or rank >= 2 and shape
         [batch_size, seq_length, D2, ... DN].
       features: Input `dict` mapping string feature names to `Tensor` or
@@ -262,13 +260,22 @@ class SequentialHeadWrapper(_SequentialHead):
     flat_labels, flat_logits, flat_features = self._flatten(
         labels, logits, features)
     return self._static_head.loss(
-        logits=flat_logits, labels=flat_labels, features=flat_features,
-        mode=mode, regularization_losses=regularization_losses)
+        logits=flat_logits,
+        labels=flat_labels,
+        features=flat_features,
+        mode=mode,
+        regularization_losses=regularization_losses)
 
-  def create_estimator_spec(
-      self, features, mode, logits, labels=None, optimizer=None,
-      trainable_variables=None, train_op_fn=None, update_ops=None,
-      regularization_losses=None):
+  def create_estimator_spec(self,
+                            features,
+                            mode,
+                            logits,
+                            labels=None,
+                            optimizer=None,
+                            trainable_variables=None,
+                            train_op_fn=None,
+                            update_ops=None,
+                            regularization_losses=None):
     """Returns `EstimatorSpec` that a model_fn can return.
 
     If in TRAIN or EVAL mode, `logits`, `labels`, and `features` tensors
@@ -284,14 +291,14 @@ class SequentialHeadWrapper(_SequentialHead):
         minibatch. If in TRAIN or EVAL mode, only specified features are
         flattened and passed to the static head's method.
       mode: Estimator's `ModeKeys`.
-      logits: Logits `Tensor` of rank >= 2 and shape
-        [batch_size, seq_length, D2, ... DN].
+      logits: Logits `Tensor` of rank >= 2 and shape [batch_size, seq_length,
+        D2, ... DN].
       labels: Labels `Tensor` or `SparseTensor` or rank >= 2 and shape
         [batch_size, seq_length, D2, ... DN].
       optimizer: An `tf.keras.optimizers.Optimizer` instance to optimize the
         loss in TRAIN mode. Namely, sets
-        `train_op = optimizer.get_updates(loss, trainable_variables)`,
-        which updates variables to minimize `loss`.
+        `train_op = optimizer.get_updates(loss, trainable_variables)`, which
+        updates variables to minimize `loss`.
       trainable_variables: A list or tuple of `Variable` objects to update to
         minimize `loss`. In Tensorflow 1.x, by default these are the list of
         variables collected in the graph under the key
@@ -303,7 +310,7 @@ class SequentialHeadWrapper(_SequentialHead):
         is `None`. Exactly one of `train_op_fn` and `optimizer` must be set in
         TRAIN mode. By default, it is `None` in other modes. If you want to
         optimize loss yourself, you can pass `lambda _: tf.no_op()` and then use
-        `EstimatorSpec.loss` to compute and apply gradients.
+          `EstimatorSpec.loss` to compute and apply gradients.
       update_ops: A list or tuple of update ops to be run at training time. For
         example, layers such as BatchNormalization create mean and variance
         update ops that need to be run at training time. In Tensorflow 1.x,
@@ -311,6 +318,7 @@ class SequentialHeadWrapper(_SequentialHead):
         doesn't have collections, update_ops need to be passed explicitly here.
       regularization_losses: A list of additional scalar losses to be added to
         the training loss, such as regularization losses.
+
     Returns:
       `EstimatorSpec`.
     """
@@ -325,12 +333,21 @@ class SequentialHeadWrapper(_SequentialHead):
         labels, logits, features)
 
     return self._static_head.create_estimator_spec(
-        features=flat_features, mode=mode, logits=flat_logits,
-        trainable_variables=trainable_variables, labels=flat_labels,
-        optimizer=optimizer, train_op_fn=train_op_fn,
-        regularization_losses=regularization_losses, update_ops=update_ops)
+        features=flat_features,
+        mode=mode,
+        logits=flat_logits,
+        trainable_variables=trainable_variables,
+        labels=flat_labels,
+        optimizer=optimizer,
+        train_op_fn=train_op_fn,
+        regularization_losses=regularization_losses,
+        update_ops=update_ops)
 
-  def update_metrics(self, eval_metrics, features, logits, labels,
+  def update_metrics(self,
+                     eval_metrics,
+                     features,
+                     logits,
+                     labels,
                      regularization_losses=None):
     """Updates metric objects and returns a `dict` of the updated metrics.
 
@@ -344,8 +361,8 @@ class SequentialHeadWrapper(_SequentialHead):
         `SparseTensor` objects containing the values for that feature in a
         minibatch. Only specified features are flattened and passed to the
         static head's method.
-      logits: Logits `Tensor` of rank >= 2 and shape
-        [batch_size, seq_length, D2, ... DN].
+      logits: Logits `Tensor` of rank >= 2 and shape [batch_size, seq_length,
+        D2, ... DN].
       labels: Labels `Tensor` or `SparseTensor` or rank >= 2 and shape
         [batch_size, seq_length, D2, ... DN].
       regularization_losses: A list of additional scalar losses to be added to
@@ -364,10 +381,16 @@ class SequentialHeadWrapper(_SequentialHead):
         labels=flat_labels,
         regularization_losses=regularization_losses)
 
-  def _create_tpu_estimator_spec(
-      self, features, mode, logits, labels=None, optimizer=None,
-      trainable_variables=None, train_op_fn=None, update_ops=None,
-      regularization_losses=None):
+  def _create_tpu_estimator_spec(self,
+                                 features,
+                                 mode,
+                                 logits,
+                                 labels=None,
+                                 optimizer=None,
+                                 trainable_variables=None,
+                                 train_op_fn=None,
+                                 update_ops=None,
+                                 regularization_losses=None):
     raise NotImplementedError
 
   def predictions(self, logits, keys=None):
@@ -461,6 +484,6 @@ def _flatten_tensor(tensor, sequence_mask, expected_length):
     return flat_tensor
   with tf.control_dependencies([
       tf.compat.v1.debugging.assert_equal(
-          tf.compat.v1.shape(flat_tensor), expected_shape,
-          message=err_message)]):
+          tf.compat.v1.shape(flat_tensor), expected_shape, message=err_message)
+  ]):
     return tf.identity(flat_tensor)
