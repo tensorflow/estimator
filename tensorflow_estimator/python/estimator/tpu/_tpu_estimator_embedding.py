@@ -20,18 +20,12 @@ from __future__ import print_function
 
 import collections
 import tensorflow as tf
-import six
 
 from tensorflow.python.feature_column import feature_column as core_fc
 from tensorflow.python.feature_column import feature_column_lib as core_fc_lib
 from tensorflow.python.feature_column import utils as fc_utils
-from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
-from tensorflow.python.framework import sparse_tensor
-from tensorflow.python.ops import array_ops
-from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import sparse_ops
-from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.tpu import feature_column as tpu_fc
 from tensorflow.python.tpu import feature_column_v2 as tpu_fc_v2
 from tensorflow.python.tpu import tpu_embedding
@@ -39,7 +33,6 @@ from tensorflow.python.tpu.tpu_embedding import AdagradParameters
 from tensorflow.python.tpu.tpu_embedding import AdamParameters
 from tensorflow.python.tpu.tpu_embedding import FtrlParameters
 from tensorflow.python.tpu.tpu_embedding import StochasticGradientDescentParameters
-from tensorflow.python.training import training
 from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
 
@@ -79,30 +72,33 @@ def _get_slot_variable_names(scope_name, var_name, optimization_parameters):
   """Return embedding variable names which are consistent with CPU runs."""
   if scope_name:
     scope_name = scope_name + '/'
-  if isinstance(optimization_parameters, tf.compat.v1.tpu.experimental.AdagradParameters):
-    return tpu_embedding.AdagradSlotVariableName(
-        '{}{}/Adagrad'.format(scope_name, var_name)
-    )
-  elif isinstance(optimization_parameters, tf.compat.v1.tpu.experimental.AdamParameters):
+  if isinstance(optimization_parameters,
+                tf.compat.v1.tpu.experimental.AdagradParameters):
+    return tpu_embedding.AdagradSlotVariableName('{}{}/Adagrad'.format(
+        scope_name, var_name))
+  elif isinstance(optimization_parameters,
+                  tf.compat.v1.tpu.experimental.AdamParameters):
     return tpu_embedding.AdamSlotVariableNames(
         '{}{}/Adam/m'.format(scope_name, var_name),
-        '{}{}/Adam/v'.format(scope_name, var_name)
-    )
-  elif isinstance(optimization_parameters, tf.compat.v1.tpu.experimental.FtrlParameters):
+        '{}{}/Adam/v'.format(scope_name, var_name))
+  elif isinstance(optimization_parameters,
+                  tf.compat.v1.tpu.experimental.FtrlParameters):
     return tpu_embedding.FtrlSlotVariableName(
         '{}{}/Ftrl'.format(scope_name, var_name),  # accumulator
         '{}{}/Ftrl_1'.format(scope_name, var_name))  # linear
-  elif isinstance(optimization_parameters,
-                  tf.compat.v1.tpu.experimental.StochasticGradientDescentParameters):
+  elif isinstance(
+      optimization_parameters,
+      tf.compat.v1.tpu.experimental.StochasticGradientDescentParameters):
     return None
   else:
     raise ValueError('Support to infer full variable name '
-                     'for optimization_parameter {} has not been added.'
-                     .format(optimization_parameters))
+                     'for optimization_parameter {} has not been added.'.format(
+                         optimization_parameters))
 
 
-def get_full_variable_names(
-    graph, table_to_config_dict, optimization_parameters=None):
+def get_full_variable_names(graph,
+                            table_to_config_dict,
+                            optimization_parameters=None):
   """Return embedding variable names and slot variables which are consistent with CPU runs."""
   collection = graph.get_collection_ref(tpu_fc._TPU_FC_TO_SCOPE)  # pylint: disable=protected-access
   if not collection:
@@ -138,8 +134,9 @@ def get_configs_from_feature_columns(feature_columns):
     takes global step and outputs dynamic learning rate.
   """
 
-  allowed = (tpu_fc_v2._TPUEmbeddingColumnV2,  # pylint: disable=protected-access
-             tpu_fc_v2._TPUSharedEmbeddingColumnV2)  # pylint: disable=protected-access
+  allowed = (
+      tpu_fc_v2._TPUEmbeddingColumnV2,  # pylint: disable=protected-access
+      tpu_fc_v2._TPUSharedEmbeddingColumnV2)  # pylint: disable=protected-access
   warn = (tpu_fc._TPUEmbeddingColumn, tpu_fc._TPUSharedEmbeddingColumn)  # pylint: disable=protected-access
 
   for column in feature_columns:
@@ -182,8 +179,8 @@ class EmbeddingConfigSpec(
     collections.namedtuple('EmbeddingConfigSpec', [
         'feature_columns', 'optimization_parameters', 'clipping_limit',
         'pipeline_execution_with_tensor_core',
-        'experimental_gradient_multiplier_fn',
-        'feature_to_config_dict', 'table_to_config_dict', 'partition_strategy'
+        'experimental_gradient_multiplier_fn', 'feature_to_config_dict',
+        'table_to_config_dict', 'partition_strategy'
     ])):
   """Class to keep track of the specification for TPU embeddings.
 
@@ -270,10 +267,10 @@ class EmbeddingConfigSpec(
         _EMBEDDING_COLUMN_CLASSES).
       ValueError: If `optimization_parameters` is not one of the required types.
     """
-    if (not feature_columns and not (feature_to_config_dict and
-                                     table_to_config_dict)
-        or (feature_columns and (feature_to_config_dict
-                                 and table_to_config_dict))):
+    if (not feature_columns and
+        not (feature_to_config_dict and table_to_config_dict) or
+        (feature_columns and
+         (feature_to_config_dict and table_to_config_dict))):
       raise ValueError('Exactly one of `feature_columns` and the pair '
                        '`feature_to_config_dict` and `table_to_config_dict` '
                        'must be be specified.')
@@ -287,8 +284,7 @@ class EmbeddingConfigSpec(
       # or TPU mode. So allow non-TPU embedding columns also.
       supported_classes = tuple(
           list(_SUPPORTED_FEATURE_COLUMNS) +
-          list(_TPU_EMBEDDING_COLUMN_CLASSES) +
-          list(_EMBEDDING_COLUMN_CLASSES))
+          list(_TPU_EMBEDDING_COLUMN_CLASSES) + list(_EMBEDDING_COLUMN_CLASSES))
 
       for column in feature_columns:
         if not isinstance(column, supported_classes):
@@ -308,8 +304,8 @@ class EmbeddingConfigSpec(
               .format(feature, type(config)))
         if config.table_id not in table_to_config_dict:
           raise ValueError('Feature {} refers to table {} which is not in the '
-                           'table_to_config_dict.'.format(feature,
-                                                          config.table_id))
+                           'table_to_config_dict.'.format(
+                               feature, config.table_id))
       for table, config in table_to_config_dict.items():
         if not isinstance(config, tpu_embedding.TableConfig):
           raise TypeError(
@@ -455,8 +451,7 @@ def split_inputs(ctx, features, labels, num_cores_per_batch=1):
         length_feature.set_shape(ctx.batch_size_for_input_fn)
         features[length_feature_name] = length_feature
       weight_key = tpu_embedding_.feature_to_config_dict[feature_key].weight_key
-      sparse_feature_split = _split_tensor(
-          sparse_feature, num_cores_per_batch)
+      sparse_feature_split = _split_tensor(sparse_feature, num_cores_per_batch)
       if combiner is None and not isinstance(sparse_feature,
                                              tf.sparse.SparseTensor):
         # A dense tensor with no combiner was provided so we assume that each
@@ -469,8 +464,8 @@ def split_inputs(ctx, features, labels, num_cores_per_batch=1):
               .format(weight_key, feature_key))
         enqueue_data = []
         for i in range(num_cores_per_batch):
-          enqueue_data.append(tpu_embedding.EnqueueData(
-              sparse_feature_split[i]))
+          enqueue_data.append(
+              tpu_embedding.EnqueueData(sparse_feature_split[i]))
       else:
         weights = None
         if isinstance(sparse_feature, tf.sparse.SparseTensor):
@@ -505,9 +500,7 @@ def _split_tensor(tensor, num_splits):
   elif num_splits == 1:
     return [tensor]
   elif isinstance(tensor, tf.sparse.SparseTensor):
-    return sparse_ops.sparse_split_v2(tensor,
-                                      num_splits,
-                                      axis=0)
+    return sparse_ops.sparse_split_v2(tensor, num_splits, axis=0)
   else:
     return tf.split(tensor, num_splits)
 

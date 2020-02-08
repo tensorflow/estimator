@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ===================================================================
-
 """Utilities for the functionalities."""
 
 from __future__ import absolute_import
@@ -22,12 +21,9 @@ from __future__ import print_function
 import collections
 import re
 import time
-import tensorflow as tf
 import numpy as np
 import six
-
-from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.training import training
+import tensorflow as tf
 
 _ITERATIONS_PER_LOOP_VALUE_REGEX = re.compile(
     r'^(?P<value>[1-9]\d*)((?P<suffix>[s|m|h])$|$)')
@@ -97,4 +93,4 @@ class MultiHostDatasetInitializerHook(tf.compat.v1.train.SessionRunHook):
     start = time.time()
     session.run(self._initializers)
     tf.compat.v1.logging.info('Initialized dataset iterators in %d seconds',
-                 time.time() - start)
+                              time.time() - start)

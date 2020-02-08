@@ -19,9 +19,6 @@ from __future__ import division
 from __future__ import print_function
 
 import tensorflow as tf
-
-from tensorflow.python.framework import errors
-from tensorflow.python.platform import test
 from tensorflow_estimator.python.estimator.tpu import error_handling
 
 
@@ -40,6 +37,7 @@ class ErrorHandlingTest(tf.test.TestCase):
   def testIgnoredError(self):
     """Expect no error to be raised."""
     self.catch_and_raise(tf.errors.AbortedError('message', None, None))
+
 
 if __name__ == '__main__':
   tf.test.main()

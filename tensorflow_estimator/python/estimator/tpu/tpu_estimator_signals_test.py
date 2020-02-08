@@ -18,14 +18,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
 import numpy as np
-
-from tensorflow.python.client import session
-from tensorflow.python.data.ops import dataset_ops
-from tensorflow.python.framework import errors
-from tensorflow.python.framework import ops
-from tensorflow.python.platform import test
+import tensorflow as tf
 from tensorflow_estimator.python.estimator.tpu import tpu_estimator
 
 
@@ -42,6 +36,7 @@ def make_input_fn(num_samples):
     dataset = dataset.map(lambda fa, fb: {'a': fa, 'b': fb})
     dataset = dataset.batch(batch_size)
     return dataset
+
   return input_fn, (a, b)
 
 
@@ -58,6 +53,7 @@ def make_input_fn_with_labels(num_samples):
     dataset = dataset.map(lambda fa, fb: ({'a': fa}, fb))
     dataset = dataset.batch(batch_size)
     return dataset
+
   return input_fn, (a, b)
 
 
@@ -141,8 +137,8 @@ class TPUEstimatorStoppingSignalsWithPaddingTest(tf.test.TestCase):
 
     with tf.Graph().as_default():
       dataset = input_fn(params)
-      inputs = tpu_estimator._InputsWithStoppingSignals(dataset, batch_size,
-                                                        add_padding=True)
+      inputs = tpu_estimator._InputsWithStoppingSignals(
+          dataset, batch_size, add_padding=True)
       dataset_initializer = inputs.dataset_initializer()
       features, _ = inputs.features_and_labels()
       signals = inputs.signals()
@@ -184,8 +180,8 @@ class TPUEstimatorStoppingSignalsWithPaddingTest(tf.test.TestCase):
 
     with tf.Graph().as_default():
       dataset = input_fn(params)
-      inputs = tpu_estimator._InputsWithStoppingSignals(dataset, batch_size,
-                                                        add_padding=True)
+      inputs = tpu_estimator._InputsWithStoppingSignals(
+          dataset, batch_size, add_padding=True)
       dataset_initializer = inputs.dataset_initializer()
       features, labels = inputs.features_and_labels()
       signals = inputs.signals()
@@ -207,8 +203,9 @@ class TPUEstimatorStoppingSignalsWithPaddingTest(tf.test.TestCase):
         # This run should work as num_samples / batch_size >= 2.
         evaluated_features, evaluated_labels, evaluated_signals = (
             sess.run([features, labels, signals]))
-        self.assertAllEqual(a[batch_size:2*batch_size], evaluated_features['a'])
-        self.assertAllEqual(b[batch_size:2*batch_size], evaluated_labels)
+        self.assertAllEqual(a[batch_size:2 * batch_size],
+                            evaluated_features['a'])
+        self.assertAllEqual(b[batch_size:2 * batch_size], evaluated_labels)
         self.assertAllEqual([[0.]] * batch_size, evaluated_signals['stopping'])
         self.assertAllEqual([0.] * batch_size,
                             evaluated_signals['padding_mask'])
@@ -219,9 +216,9 @@ class TPUEstimatorStoppingSignalsWithPaddingTest(tf.test.TestCase):
         real_batch_size = num_samples % batch_size
 
         # Assert the real part.
-        self.assertAllEqual(a[2*batch_size:num_samples],
+        self.assertAllEqual(a[2 * batch_size:num_samples],
                             evaluated_features['a'][:real_batch_size])
-        self.assertAllEqual(b[2*batch_size:num_samples],
+        self.assertAllEqual(b[2 * batch_size:num_samples],
                             evaluated_labels[:real_batch_size])
         # Assert the padded part.
         self.assertAllEqual([0.0] * (batch_size - real_batch_size),
@@ -231,8 +228,8 @@ class TPUEstimatorStoppingSignalsWithPaddingTest(tf.test.TestCase):
 
         self.assertAllEqual([[0.]] * batch_size, evaluated_signals['stopping'])
 
-        padding = ([.0] * real_batch_size
-                   + [1.] * (batch_size - real_batch_size))
+        padding = ([.0] * real_batch_size + [1.] *
+                   (batch_size - real_batch_size))
         self.assertAllEqual(padding, evaluated_signals['padding_mask'])
 
         # This run should work, *but* see STOP ('1') as signals
@@ -251,15 +248,14 @@ class TPUEstimatorStoppingSignalsWithPaddingTest(tf.test.TestCase):
 
     with tf.Graph().as_default():
       dataset = input_fn(params)
-      inputs = tpu_estimator._InputsWithStoppingSignals(dataset, batch_size,
-                                                        add_padding=True)
+      inputs = tpu_estimator._InputsWithStoppingSignals(
+          dataset, batch_size, add_padding=True)
       dataset_initializer = inputs.dataset_initializer()
       features, _ = inputs.features_and_labels()
       signals = inputs.signals()
 
       sliced_features = (
-          tpu_estimator._PaddingSignals.slice_tensor_or_dict(
-              features, signals))
+          tpu_estimator._PaddingSignals.slice_tensor_or_dict(features, signals))
 
       with tf.compat.v1.Session() as sess:
         sess.run(dataset_initializer)

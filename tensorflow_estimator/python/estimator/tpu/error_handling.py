@@ -23,15 +23,15 @@ import sys
 import threading
 import time
 
-import tensorflow as tf
 import six
-
-from tensorflow.python.framework import errors
-from tensorflow.python.platform import tf_logging as logging
+import tensorflow as tf
 from tensorflow_estimator.python.estimator.tools import analytics
 
 _UNINTERESTING_ERRORS = (tf.errors.CancelledError,)
-_IGNORED_ERRORS = (tf.errors.AbortedError, tf.errors.UnavailableError,)
+_IGNORED_ERRORS = (
+    tf.errors.AbortedError,
+    tf.errors.UnavailableError,
+)
 
 _CHECK_NUMERIC_OP_NAME = 'CheckNumerics'
 

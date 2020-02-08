@@ -18,13 +18,9 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
-
 import time
-
+import tensorflow as tf
 from tensorflow.python.framework import test_util
-from tensorflow.python.platform import test
-from tensorflow.python.training import training_util
 from tensorflow_estimator.python.estimator.tpu import iteration_count_estimator
 from tensorflow_estimator.python.estimator.tpu import tpu_estimator
 from tensorflow_estimator.python.estimator.tpu import util as util_lib
@@ -289,7 +285,8 @@ class TPUStopAtStepHookTest(tf.test.TestCase):
       num_steps: Number of steps to execute.
     """
     with self.test_session() as sess:
-      global_step_tensor = tf.compat.v1.train.get_or_create_global_step(sess.graph)
+      global_step_tensor = tf.compat.v1.train.get_or_create_global_step(
+          sess.graph)
       global_step_tensor.load(0, session=sess)
       self.assertEqual(sess.run(global_step_tensor), 0)
 
@@ -361,7 +358,8 @@ class TPUStopAtStepHookTest(tf.test.TestCase):
 
   def _validate_initialization(self, iterations_per_loop_counter, num_steps):
     with self.test_session() as sess:
-      global_step_tensor = tf.compat.v1.train.get_or_create_global_step(sess.graph)
+      global_step_tensor = tf.compat.v1.train.get_or_create_global_step(
+          sess.graph)
       global_step_tensor.load(0, session=sess)
       self.assertEqual(sess.run(global_step_tensor), 0)
 

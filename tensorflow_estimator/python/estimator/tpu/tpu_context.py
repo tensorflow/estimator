@@ -18,24 +18,16 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
-
 from contextlib import contextmanager
 import copy
-
-from tensorflow.python.distribute import distribute_lib
+import tensorflow as tf
 from tensorflow.python.distribute import distribution_strategy_context
-from tensorflow.python.eager import context as eager_context
-from tensorflow.python.framework import constant_op
 from tensorflow.python.ops import summary_ops_v2
-from tensorflow.python.ops import math_ops
-from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.tpu import device_assignment as tpu_device_assignment
 from tensorflow.python.tpu import tpu_system_metadata as tpu_system_metadata_lib
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
 from tensorflow_estimator.python.estimator.tpu import _tpu_estimator_embedding
 from tensorflow_estimator.python.estimator.tpu import tpu_config
-
 
 _DEFAULT_JOB_NAME = 'tpu_worker'
 _DEFAULT_COORDINATOR_JOB_NAME = 'coordinator'
@@ -100,8 +92,9 @@ class TPUContext(object):
                          ' model_fn.')
 
     if self._internal_ctx.is_input_sharded_per_core():
-      total_invocation_count = (self._internal_ctx.num_hosts
-                                * self._internal_ctx.num_of_replicas_per_host)
+      total_invocation_count = (
+          self._internal_ctx.num_hosts *
+          self._internal_ctx.num_of_replicas_per_host)
       replicas_consumed = 1
     elif self._internal_ctx.is_input_broadcast_with_iterators():
       total_invocation_count = 1
@@ -112,8 +105,8 @@ class TPUContext(object):
     else:
       total_invocation_count = self._internal_ctx.num_hosts
       replicas_consumed = self._internal_ctx.num_of_replicas_per_host
-    return (self._input_device, self._invocation_index,
-            total_invocation_count, replicas_consumed)
+    return (self._input_device, self._invocation_index, total_invocation_count,
+            replicas_consumed)
 
   @property
   def num_replicas(self):
@@ -304,14 +297,17 @@ class _InternalTPUContext(object):
         computation_shape=self._computation_shape,
         num_replicas=self.num_replicas)
 
-    tf.compat.v1.logging.info('num_cores_per_replica: %s',
-                 str(self._config.tpu_config.num_cores_per_replica))
-    tf.compat.v1.logging.info('computation_shape: %s', str(self._computation_shape))
+    tf.compat.v1.logging.info(
+        'num_cores_per_replica: %s',
+        str(self._config.tpu_config.num_cores_per_replica))
+    tf.compat.v1.logging.info('computation_shape: %s',
+                              str(self._computation_shape))
     tf.compat.v1.logging.info('num_replicas: %d', self.num_replicas)
-    tf.compat.v1.logging.info('device_assignment.topology.device_coordinates: %s',
-                 str(device_assignment.topology.device_coordinates))
+    tf.compat.v1.logging.info(
+        'device_assignment.topology.device_coordinates: %s',
+        str(device_assignment.topology.device_coordinates))
     tf.compat.v1.logging.info('device_assignment.core_assignment: %s',
-                 str(device_assignment.core_assignment))
+                              str(device_assignment.core_assignment))
 
     self._lazy_device_assignment_dict[master] = device_assignment
     return device_assignment
@@ -448,10 +444,10 @@ class _InternalTPUContext(object):
 
     Args:
       is_export_mode: Indicates whether the current mode is for exporting the
-        model, when mode == PREDICT. Only with this bool, we could
-        tell whether user is calling the Estimator.predict or
-        Estimator.export_savedmodel, which are running on TPU and CPU
-        respectively. Parent class Estimator does not distinguish these two.
+        model, when mode == PREDICT. Only with this bool, we could tell whether
+        user is calling the Estimator.predict or Estimator.export_savedmodel,
+        which are running on TPU and CPU respectively. Parent class Estimator
+        does not distinguish these two.
 
     Returns:
       bool, whether current input_fn or model_fn should be running on CPU.
@@ -543,14 +539,16 @@ class _InternalTPUContext(object):
     master = (
         run_config.evaluation_master
         if mode == model_fn_lib.ModeKeys.EVAL else run_config.master)
-    cluster_def = (run_config.session_config.cluster_def
-                   if run_config.session_config else None)
+    cluster_def = (
+        run_config.session_config.cluster_def
+        if run_config.session_config else None)
 
     try:
       master_job = tpu_system_metadata_lib.master_job(master, cluster_def)
     except ValueError as e:
-      raise ValueError(str(e) + ' Please specify a tpu_job_name as part of '
-                       'your TPUConfig.')
+      raise ValueError(
+          str(e) + ' Please specify a tpu_job_name as part of '
+          'your TPUConfig.')
     return master_job
 
   @property
@@ -692,8 +690,8 @@ class _InternalTPUContext(object):
             '1. num_hosts=1; 2. BROADCAST mode; '
             '3. PER_HOST_V2 mode with num_replicas=1. '
             'mode: {}; num_hosts: {}; num_replicas=1:{}'.format(
-                self._config.tpu_config.per_host_input_for_training,
-                num_hosts, num_replicas))
+                self._config.tpu_config.per_host_input_for_training, num_hosts,
+                num_replicas))
     else:
       assert mode == model_fn_lib.ModeKeys.PREDICT
       if self._predict_batch_size is None:
@@ -713,8 +711,8 @@ class _InternalTPUContext(object):
             '1. num_hosts=1; 2. BROADCAST mode; '
             '3. PER_HOST_V2 mode with num_replicas=1. '
             'mode: {}; num_hosts: {}; num_replicas=1:{}'.format(
-                self._config.tpu_config.per_host_input_for_training,
-                num_hosts, num_replicas))
+                self._config.tpu_config.per_host_input_for_training, num_hosts,
+                num_replicas))
 
     # Record the state "validated" into lazy dictionary.
     self._lazy_validation_dict[mode] = True
@@ -734,8 +732,8 @@ class _InternalTPUContext(object):
 
     if self.model_parallelism_enabled:
       return (self.device_assignment.host_device(
-          replica=replica_id, job=master),
-              self.device_assignment.tpu_ordinal(replica=replica_id))
+          replica=replica_id,
+          job=master), self.device_assignment.tpu_ordinal(replica=replica_id))
 
     job_device = '' if master is None else ('/job:%s' % master)
 
@@ -755,9 +753,9 @@ class _OneCoreTPUContext(_InternalTPUContext):
   def __init__(self, config, train_batch_size, eval_batch_size,
                predict_batch_size, use_tpu):
 
-    super(_OneCoreTPUContext, self).__init__(
-        config, train_batch_size, eval_batch_size,
-        predict_batch_size, use_tpu)
+    super(_OneCoreTPUContext,
+          self).__init__(config, train_batch_size, eval_batch_size,
+                         predict_batch_size, use_tpu)
 
   def _get_tpu_system_metadata(self):
     """Gets the (maybe cached) TPU system metadata."""
@@ -802,9 +800,9 @@ class _TPUEstimatorReplicaContext(tf.distribute.ReplicaContext):
     # pylint: enable=protected-access
 
   def __enter__(self):
+
     def replica_id_is_zero():
-      return tf.math.equal(self._replica_id_in_sync_group,
-                            tf.constant(0))
+      return tf.math.equal(self._replica_id_in_sync_group, tf.constant(0))
 
     if hasattr(summary_ops_v2, '_summary_state'):
       summary_state = summary_ops_v2._summary_state  # pylint: disable=protected-access

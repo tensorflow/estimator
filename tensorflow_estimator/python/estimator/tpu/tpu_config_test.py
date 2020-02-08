@@ -18,21 +18,17 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
-
 import json
-
+import tensorflow as tf
 from tensorflow.core.protobuf import config_pb2
-from tensorflow.python.platform import test
 from tensorflow_estimator.python.estimator import run_config as run_config_lib
 from tensorflow_estimator.python.estimator.tpu import tpu_config as tpu_config_lib
 from tensorflow_estimator.python.estimator.tpu import util as util_lib
 
 
 def _set_tf_config_env_variable(tf_config):
-  return tf.compat.v1.test.mock.patch.dict('os.environ', {
-      'TF_CONFIG': json.dumps(tf_config)
-  })
+  return tf.compat.v1.test.mock.patch.dict('os.environ',
+                                           {'TF_CONFIG': json.dumps(tf_config)})
 
 
 class TPURunConfigTest(tf.test.TestCase):

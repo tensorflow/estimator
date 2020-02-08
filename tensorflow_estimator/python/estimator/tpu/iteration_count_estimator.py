@@ -25,10 +25,8 @@ from __future__ import print_function
 
 import collections
 
-import tensorflow as tf
 import numpy as np
-
-from tensorflow.python.platform import tf_logging as logging
+import tensorflow as tf
 
 RuntimeCounter = collections.namedtuple(
     "RuntimeCounter", ["runtime_secs", "steps", "step_time_secs"])
