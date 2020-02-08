@@ -18,31 +18,14 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
-
 import glob
 import json
 import os
 import tempfile
 import time
-
-from tensorflow.python.client import session as tf_session
-from tensorflow.python.data.ops import dataset_ops
-from tensorflow.python.feature_column import feature_column_lib
-from tensorflow.python.framework import constant_op
-from tensorflow.python.framework import dtypes
-from tensorflow.python.framework import ops
+import tensorflow as tf
 from tensorflow.python.framework import test_util
 from tensorflow.python.keras import metrics as metrics_module
-from tensorflow.python.ops import control_flow_ops
-from tensorflow.python.ops import init_ops
-from tensorflow.python.ops import state_ops
-from tensorflow.python.ops import variable_scope
-from tensorflow.python.ops import variables
-from tensorflow.python.platform import test
-from tensorflow.python.summary import summary_iterator
-from tensorflow.python.summary.writer import writer_cache
-from tensorflow.python.training import training
 from tensorflow_estimator.python.estimator import estimator_lib
 from tensorflow_estimator.python.estimator import run_config as run_config_lib
 from tensorflow_estimator.python.estimator.hooks import hooks as hooks_lib
@@ -88,7 +71,8 @@ class InMemoryEvaluatorHookTest(tf.test.TestCase):
       _ = labels
       if estimator_lib.ModeKeys.TRAIN == mode:
         with tf.control_dependencies([features]):
-          train_op = tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1)
+          train_op = tf.compat.v1.assign_add(
+              tf.compat.v1.train.get_global_step(), 1)
         return estimator_lib.EstimatorSpec(
             mode, loss=tf.constant(3.), train_op=train_op)
       if estimator_lib.ModeKeys.EVAL == mode:
@@ -137,13 +121,12 @@ class InMemoryEvaluatorHookTest(tf.test.TestCase):
       if estimator_lib.ModeKeys.TRAIN == mode:
         # to consume features, we have control dependency
         with tf.control_dependencies([features]):
-          step_inc = tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1)
+          step_inc = tf.compat.v1.assign_add(
+              tf.compat.v1.train.get_global_step(), 1)
         with tf.control_dependencies([step_inc]):
           assign_w_to_step_plus_2 = w.assign(step + 2)
         return estimator_lib.EstimatorSpec(
-            mode,
-            loss=tf.constant(3.),
-            train_op=assign_w_to_step_plus_2)
+            mode, loss=tf.constant(3.), train_op=assign_w_to_step_plus_2)
       if estimator_lib.ModeKeys.EVAL == mode:
         # to consume features, we have control dependency
         with tf.control_dependencies([features]):
@@ -217,8 +200,8 @@ class InMemoryEvaluatorHookTest(tf.test.TestCase):
             'index': 0
         }
     }
-    with tf.compat.v1.test.mock.patch.dict('os.environ',
-                              {'TF_CONFIG': json.dumps(tf_config)}):
+    with tf.compat.v1.test.mock.patch.dict(
+        'os.environ', {'TF_CONFIG': json.dumps(tf_config)}):
       dnn = estimator_lib.DNNClassifier(
           feature_columns=[tf.feature_column.numeric_column('x')],
           hidden_units=[3, 1])
@@ -240,8 +223,8 @@ class InMemoryEvaluatorHookTest(tf.test.TestCase):
             'index': 0
         }
     }
-    with tf.compat.v1.test.mock.patch.dict('os.environ',
-                              {'TF_CONFIG': json.dumps(tf_config)}):
+    with tf.compat.v1.test.mock.patch.dict(
+        'os.environ', {'TF_CONFIG': json.dumps(tf_config)}):
       dnn = estimator_lib.DNNClassifier(
           feature_columns=[tf.feature_column.numeric_column('x')],
           hidden_units=[3, 1])
@@ -261,7 +244,8 @@ class InMemoryEvaluatorHookTest(tf.test.TestCase):
       return estimator_lib.EstimatorSpec(
           mode,
           loss=tf.constant(3.),
-          scaffold=tf.compat.v1.train.Scaffold(saver=tf.compat.v1.train.Saver()),
+          scaffold=tf.compat.v1.train.Scaffold(
+              saver=tf.compat.v1.train.Saver()),
           train_op=tf.constant(5.),
           eval_metric_ops={
               'mean_of_features': mean,
@@ -313,7 +297,8 @@ class InMemoryEvaluatorHookTest(tf.test.TestCase):
           trainable=False,
           collections=[tf.compat.v1.GraphKeys.SAVEABLE_OBJECTS])
       init_op = tf.group(
-          [w.initializer, tf.compat.v1.train.get_global_step().initializer])
+          [w.initializer,
+           tf.compat.v1.train.get_global_step().initializer])
 
       mean = metrics_module.Mean()
       mean.update_state(tf.constant(2.))
@@ -346,7 +331,8 @@ class StopAtCheckpointStepHookTest(tf.test.TestCase):
       no_op = tf.no_op()
       hook = hooks_lib._StopAtCheckpointStepHook(
           model_dir=tempfile.mkdtemp(), last_step=10)
-      with tf.compat.v1.train.SingularMonitoredSession(hooks=[hook]) as mon_sess:
+      with tf.compat.v1.train.SingularMonitoredSession(
+          hooks=[hook]) as mon_sess:
         mon_sess.raw_session().run(assign_ten)
         with tf.compat.v1.test.mock.patch.object(time, 'sleep') as mock_sleep:
           mon_sess.run(no_op)
@@ -364,8 +350,10 @@ class StopAtCheckpointStepHookTest(tf.test.TestCase):
           model_dir=model_dir, last_step=10)
       with tf.compat.v1.Session() as sess:
         sess.run(assign_nine)
-        tf.compat.v1.train.Saver().save(sess, os.path.join(model_dir, 'model.ckpt'))
-      with tf.compat.v1.train.SingularMonitoredSession(hooks=[hook]) as mon_sess:
+        tf.compat.v1.train.Saver().save(sess,
+                                        os.path.join(model_dir, 'model.ckpt'))
+      with tf.compat.v1.train.SingularMonitoredSession(
+          hooks=[hook]) as mon_sess:
         mon_sess.raw_session().run(assign_ten)
         with tf.compat.v1.test.mock.patch.object(time, 'sleep') as mock_sleep:
           mon_sess.run(no_op)
@@ -382,8 +370,10 @@ class StopAtCheckpointStepHookTest(tf.test.TestCase):
           model_dir=model_dir, last_step=10)
       with tf.compat.v1.Session() as sess:
         sess.run(assign_ten)
-        tf.compat.v1.train.Saver().save(sess, os.path.join(model_dir, 'model.ckpt'))
-      with tf.compat.v1.train.SingularMonitoredSession(hooks=[hook]) as mon_sess:
+        tf.compat.v1.train.Saver().save(sess,
+                                        os.path.join(model_dir, 'model.ckpt'))
+      with tf.compat.v1.train.SingularMonitoredSession(
+          hooks=[hook]) as mon_sess:
         mon_sess.raw_session().run(assign_ten)
         with tf.compat.v1.test.mock.patch.object(time, 'sleep') as mock_sleep:
           mon_sess.run(no_op)

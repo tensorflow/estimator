@@ -19,34 +19,15 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
-
 import os.path
 import shutil
 import tempfile
 import time
-
-from tensorflow.python.training import checkpoint_utils
-from tensorflow.python.client import session as session_lib
-from tensorflow.python.data.ops import dataset_ops
-from tensorflow.python.framework import constant_op
-from tensorflow.python.framework import dtypes
-from tensorflow.python.framework import errors
+import tensorflow as tf
 from tensorflow.python.framework import meta_graph
-from tensorflow.python.framework import ops
 from tensorflow.python.framework import test_util
-from tensorflow.python.ops import array_ops
-from tensorflow.python.ops import control_flow_ops
-from tensorflow.python.ops import state_ops
-from tensorflow.python.ops import variable_scope
-from tensorflow.python.ops import variables as variables_lib
-from tensorflow.python.platform import gfile
-from tensorflow.python.platform import test
 from tensorflow.python.platform import tf_logging
-from tensorflow.python.summary import summary as summary_lib
-from tensorflow.python.summary.writer import writer_cache
 from tensorflow.python.training import monitored_session
-from tensorflow.python.training import session_run_hook
 from tensorflow.python.training import training_util
 from tensorflow_estimator.python.estimator.hooks import basic_session_run_hooks
 from tensorflow_estimator.python.estimator.hooks import fake_summary_writer
@@ -375,7 +356,8 @@ class LoggingTensorHookTest(tf.test.TestCase):
       t = tf.constant(42.0, name='foo')
       train_op = tf.constant(3)
       hook = basic_session_run_hooks.LoggingTensorHook(
-          tensors=[t.name], every_n_iter=10,
+          tensors=[t.name],
+          every_n_iter=10,
           formatter=lambda items: 'qqq=%s' % items[t.name])
       hook.begin()
       mon_sess = monitored_session._HookedSession(sess, [hook])
@@ -408,9 +390,8 @@ class CheckpointSaverHookTest(tf.test.TestCase):
         sess.run(self.scaffold.init_op)
         mon_sess = monitored_session._HookedSession(sess, [hook])
         mon_sess.run(self.train_op)
-        self.assertEqual(1,
-                         tf.train.load_variable(self.model_dir,
-                                                        self.global_step.name))
+        self.assertEqual(
+            1, tf.train.load_variable(self.model_dir, self.global_step.name))
 
   def test_raise_when_saver_and_scaffold_both_present(self):
     with self.assertRaises(ValueError):
@@ -436,9 +417,8 @@ class CheckpointSaverHookTest(tf.test.TestCase):
         sess.run(self.scaffold.init_op)
         mon_sess = monitored_session._HookedSession(sess, [hook])
         mon_sess.run(self.train_op)
-        self.assertEqual(1,
-                         tf.train.load_variable(self.model_dir,
-                                                        self.global_step.name))
+        self.assertEqual(
+            1, tf.train.load_variable(self.model_dir, self.global_step.name))
 
   def test_save_secs_calls_listeners_at_begin_and_end(self):
     with self.graph.as_default():
@@ -470,13 +450,9 @@ class CheckpointSaverHookTest(tf.test.TestCase):
       train_op = training_util._increment_global_step(1)
       listener = MockCheckpointSaverListener()
       hook = basic_session_run_hooks.CheckpointSaverHook(
-          self.model_dir,
-          save_steps=1,
-          scaffold=scaffold,
-          listeners=[listener])
+          self.model_dir, save_steps=1, scaffold=scaffold, listeners=[listener])
       with tf.compat.v1.train.SingularMonitoredSession(
-          hooks=[hook],
-          scaffold=scaffold,
+          hooks=[hook], scaffold=scaffold,
           checkpoint_dir=self.model_dir) as sess:
         sess.run(train_op)
         sess.run(train_op)
@@ -515,12 +491,9 @@ class CheckpointSaverHookTest(tf.test.TestCase):
       train_op = training_util._increment_global_step(1)
       listener = MockCheckpointSaverListener()
       hook = basic_session_run_hooks.CheckpointSaverHook(
-          self.model_dir,
-          save_steps=1,
-          listeners=[listener])
+          self.model_dir, save_steps=1, listeners=[listener])
       with tf.compat.v1.train.SingularMonitoredSession(
-          hooks=[hook],
-          checkpoint_dir=self.model_dir) as sess:
+          hooks=[hook], checkpoint_dir=self.model_dir) as sess:
         sess.run(train_op)
         sess.run(train_op)
         global_step_val = sess.raw_session().run(global_step)
@@ -547,12 +520,9 @@ class CheckpointSaverHookTest(tf.test.TestCase):
       listener1 = MockCheckpointSaverListener()
       listener2 = MockCheckpointSaverListener()
       hook = basic_session_run_hooks.CheckpointSaverHook(
-          self.model_dir,
-          save_steps=1,
-          listeners=[listener1, listener2])
+          self.model_dir, save_steps=1, listeners=[listener1, listener2])
       with tf.compat.v1.train.SingularMonitoredSession(
-          hooks=[hook],
-          checkpoint_dir=self.model_dir) as sess:
+          hooks=[hook], checkpoint_dir=self.model_dir) as sess:
         sess.run(train_op)
         sess.run(train_op)
         global_step_val = sess.raw_session().run(global_step)
@@ -593,9 +563,8 @@ class CheckpointSaverHookTest(tf.test.TestCase):
         mock_time.return_value = MOCK_START_TIME + 0.5
         mon_sess.run(self.train_op)  # Not saved.
 
-        self.assertEqual(1,
-                         tf.train.load_variable(self.model_dir,
-                                                        self.global_step.name))
+        self.assertEqual(
+            1, tf.train.load_variable(self.model_dir, self.global_step.name))
 
         # Simulate 2.5 seconds of sleep.
         mock_time.return_value = MOCK_START_TIME + 2.5
@@ -607,16 +576,14 @@ class CheckpointSaverHookTest(tf.test.TestCase):
         mock_time.return_value = MOCK_START_TIME + 2.7
         mon_sess.run(self.train_op)  # Not saved.
 
-        self.assertEqual(3,
-                         tf.train.load_variable(self.model_dir,
-                                                        self.global_step.name))
+        self.assertEqual(
+            3, tf.train.load_variable(self.model_dir, self.global_step.name))
 
         # Simulate 7.5 more seconds of sleep (10 seconds from start.
         mock_time.return_value = MOCK_START_TIME + 10
         mon_sess.run(self.train_op)  # Saved.
-        self.assertEqual(6,
-                         tf.train.load_variable(self.model_dir,
-                                                        self.global_step.name))
+        self.assertEqual(
+            6, tf.train.load_variable(self.model_dir, self.global_step.name))
 
   @tf.compat.v1.test.mock.patch.object(time, 'time')
   def test_save_secs_calls_listeners_periodically(self, mock_time):
@@ -674,9 +641,8 @@ class CheckpointSaverHookTest(tf.test.TestCase):
         sess.run(self.scaffold.init_op)
         mon_sess = monitored_session._HookedSession(sess, [hook])
         mon_sess.run(self.train_op)
-        self.assertEqual(1,
-                         tf.train.load_variable(self.model_dir,
-                                                        self.global_step.name))
+        self.assertEqual(
+            1, tf.train.load_variable(self.model_dir, self.global_step.name))
 
   def test_save_steps_saves_periodically(self):
     with self.graph.as_default():
@@ -690,24 +656,20 @@ class CheckpointSaverHookTest(tf.test.TestCase):
         mon_sess.run(self.train_op)
         mon_sess.run(self.train_op)
         # Not saved
-        self.assertEqual(1,
-                         tf.train.load_variable(self.model_dir,
-                                                        self.global_step.name))
+        self.assertEqual(
+            1, tf.train.load_variable(self.model_dir, self.global_step.name))
         mon_sess.run(self.train_op)
         # saved
-        self.assertEqual(3,
-                         tf.train.load_variable(self.model_dir,
-                                                        self.global_step.name))
+        self.assertEqual(
+            3, tf.train.load_variable(self.model_dir, self.global_step.name))
         mon_sess.run(self.train_op)
         # Not saved
-        self.assertEqual(3,
-                         tf.train.load_variable(self.model_dir,
-                                                        self.global_step.name))
+        self.assertEqual(
+            3, tf.train.load_variable(self.model_dir, self.global_step.name))
         mon_sess.run(self.train_op)
         # saved
-        self.assertEqual(5,
-                         tf.train.load_variable(self.model_dir,
-                                                        self.global_step.name))
+        self.assertEqual(
+            5, tf.train.load_variable(self.model_dir, self.global_step.name))
 
   def test_save_saves_at_end(self):
     with self.graph.as_default():
@@ -721,9 +683,8 @@ class CheckpointSaverHookTest(tf.test.TestCase):
         mon_sess.run(self.train_op)
         mon_sess.run(self.train_op)
         hook.end(sess)
-        self.assertEqual(2,
-                         tf.train.load_variable(self.model_dir,
-                                                        self.global_step.name))
+        self.assertEqual(
+            2, tf.train.load_variable(self.model_dir, self.global_step.name))
 
   def test_summary_writer_defs(self):
     fake_summary_writer.FakeSummaryWriter.install()
@@ -762,19 +723,16 @@ class CheckpointSaverHookTest(tf.test.TestCase):
         sess.run(self.scaffold.init_op)
         hook.after_create_session(sess, None)
         # Verifies that checkpoint is saved at step 0.
-        self.assertEqual(0,
-                         tf.train.load_variable(self.model_dir,
-                                                        self.global_step.name))
+        self.assertEqual(
+            0, tf.train.load_variable(self.model_dir, self.global_step.name))
         # Verifies that no checkpoint is saved after one training step.
         mon_sess.run(self.train_op)
-        self.assertEqual(0,
-                         tf.train.load_variable(self.model_dir,
-                                                        self.global_step.name))
+        self.assertEqual(
+            0, tf.train.load_variable(self.model_dir, self.global_step.name))
         # Verifies that checkpoint is saved after save_steps.
         mon_sess.run(self.train_op)
-        self.assertEqual(2,
-                         tf.train.load_variable(self.model_dir,
-                                                        self.global_step.name))
+        self.assertEqual(
+            2, tf.train.load_variable(self.model_dir, self.global_step.name))
 
 
 @test_util.deprecated_graph_mode_only
@@ -796,7 +754,7 @@ class CheckpointSaverHookMultiStepTest(tf.test.TestCase):
     with self.graph.as_default():
       hook = basic_session_run_hooks.CheckpointSaverHook(
           self.model_dir,
-          save_steps=2*self.steps_per_run,
+          save_steps=2 * self.steps_per_run,
           scaffold=self.scaffold)
       hook._set_steps_per_run(self.steps_per_run)
       hook.begin()
@@ -805,15 +763,14 @@ class CheckpointSaverHookMultiStepTest(tf.test.TestCase):
         sess.run(self.scaffold.init_op)
         mon_sess = monitored_session._HookedSession(sess, [hook])
         mon_sess.run(self.train_op)
-        self.assertEqual(5,
-                         tf.train.load_variable(self.model_dir,
-                                                        self.global_step.name))
+        self.assertEqual(
+            5, tf.train.load_variable(self.model_dir, self.global_step.name))
 
   def test_save_steps_saves_periodically(self):
     with self.graph.as_default():
       hook = basic_session_run_hooks.CheckpointSaverHook(
           self.model_dir,
-          save_steps=2*self.steps_per_run,
+          save_steps=2 * self.steps_per_run,
           scaffold=self.scaffold)
       hook._set_steps_per_run(self.steps_per_run)
       hook.begin()
@@ -823,39 +780,34 @@ class CheckpointSaverHookMultiStepTest(tf.test.TestCase):
         mon_sess = monitored_session._HookedSession(sess, [hook])
         mon_sess.run(self.train_op)
         # Saved (step=5)
-        self.assertEqual(5,
-                         tf.train.load_variable(self.model_dir,
-                                                        self.global_step.name))
+        self.assertEqual(
+            5, tf.train.load_variable(self.model_dir, self.global_step.name))
 
         mon_sess.run(self.train_op)
         # Not saved (step=10)
-        self.assertEqual(5,
-                         tf.train.load_variable(self.model_dir,
-                                                        self.global_step.name))
+        self.assertEqual(
+            5, tf.train.load_variable(self.model_dir, self.global_step.name))
 
         mon_sess.run(self.train_op)
         # Saved (step=15)
-        self.assertEqual(15,
-                         tf.train.load_variable(self.model_dir,
-                                                        self.global_step.name))
+        self.assertEqual(
+            15, tf.train.load_variable(self.model_dir, self.global_step.name))
 
         mon_sess.run(self.train_op)
         # Not saved (step=20)
-        self.assertEqual(15,
-                         tf.train.load_variable(self.model_dir,
-                                                        self.global_step.name))
+        self.assertEqual(
+            15, tf.train.load_variable(self.model_dir, self.global_step.name))
 
         mon_sess.run(self.train_op)
         # Saved (step=25)
-        self.assertEqual(25,
-                         tf.train.load_variable(self.model_dir,
-                                                        self.global_step.name))
+        self.assertEqual(
+            25, tf.train.load_variable(self.model_dir, self.global_step.name))
 
   def test_save_steps_saves_at_end(self):
     with self.graph.as_default():
       hook = basic_session_run_hooks.CheckpointSaverHook(
           self.model_dir,
-          save_steps=2*self.steps_per_run,
+          save_steps=2 * self.steps_per_run,
           scaffold=self.scaffold)
       hook._set_steps_per_run(self.steps_per_run)
       hook.begin()
@@ -866,9 +818,8 @@ class CheckpointSaverHookMultiStepTest(tf.test.TestCase):
         mon_sess.run(self.train_op)
         mon_sess.run(self.train_op)
         hook.end(sess)
-        self.assertEqual(10,
-                         tf.train.load_variable(self.model_dir,
-                                                        self.global_step.name))
+        self.assertEqual(
+            10, tf.train.load_variable(self.model_dir, self.global_step.name))
 
 
 @test_util.deprecated_graph_mode_only
@@ -895,24 +846,20 @@ class ResourceCheckpointSaverHookTest(tf.test.TestCase):
         mon_sess.run(self.train_op)
         mon_sess.run(self.train_op)
         # Not saved
-        self.assertEqual(1,
-                         tf.train.load_variable(self.model_dir,
-                                                        self.global_step.name))
+        self.assertEqual(
+            1, tf.train.load_variable(self.model_dir, self.global_step.name))
         mon_sess.run(self.train_op)
         # saved
-        self.assertEqual(3,
-                         tf.train.load_variable(self.model_dir,
-                                                        self.global_step.name))
+        self.assertEqual(
+            3, tf.train.load_variable(self.model_dir, self.global_step.name))
         mon_sess.run(self.train_op)
         # Not saved
-        self.assertEqual(3,
-                         tf.train.load_variable(self.model_dir,
-                                                        self.global_step.name))
+        self.assertEqual(
+            3, tf.train.load_variable(self.model_dir, self.global_step.name))
         mon_sess.run(self.train_op)
         # saved
-        self.assertEqual(5,
-                         tf.train.load_variable(self.model_dir,
-                                                        self.global_step.name))
+        self.assertEqual(
+            5, tf.train.load_variable(self.model_dir, self.global_step.name))
 
 
 @test_util.deprecated_graph_mode_only
@@ -936,7 +883,8 @@ class StepCounterHookTest(tf.test.TestCase):
       hook.begin()
       self.evaluate(tf.compat.v1.initializers.global_variables())
       mon_sess = monitored_session._HookedSession(sess, [hook])
-      with tf.compat.v1.test.mock.patch.object(tf_logging, 'warning') as mock_log:
+      with tf.compat.v1.test.mock.patch.object(tf_logging,
+                                               'warning') as mock_log:
         for _ in range(30):
           mock_time.return_value += 0.01
           mon_sess.run(train_op)
@@ -994,7 +942,8 @@ class StepCounterHookTest(tf.test.TestCase):
             initializer=0,
             trainable=False,
             collections=[
-                tf.compat.v1.GraphKeys.GLOBAL_STEP, tf.compat.v1.GraphKeys.GLOBAL_VARIABLES
+                tf.compat.v1.GraphKeys.GLOBAL_STEP,
+                tf.compat.v1.GraphKeys.GLOBAL_VARIABLES
             ])
       train_op = training_util._increment_global_step(1)
       summary_writer = fake_summary_writer.FakeSummaryWriter(self.log_dir, g)
@@ -1028,18 +977,15 @@ class StepCounterHookTest(tf.test.TestCase):
       hook.begin()
       mon_sess = monitored_session._HookedSession(sess, [hook])
       mon_sess.run(train_op)  # Run one step to record global step.
-      with tf.compat.v1.test.mock.patch.object(tf_logging, 'log_first_n') as mock_log:
+      with tf.compat.v1.test.mock.patch.object(tf_logging,
+                                               'log_first_n') as mock_log:
         for _ in range(30):
           mon_sess.run(train_op)
         self.assertRegexpMatches(
-            str(mock_log.call_args),
-            'global step.*has not been increased')
+            str(mock_log.call_args), 'global step.*has not been increased')
       hook.end(sess)
 
-  def _setup_steps_per_run_test(self,
-                                every_n_steps,
-                                steps_per_run,
-                                graph,
+  def _setup_steps_per_run_test(self, every_n_steps, steps_per_run, graph,
                                 sess):
     tf.compat.v1.train.get_or_create_global_step()
     self.train_op = training_util._increment_global_step(steps_per_run)
@@ -1356,8 +1302,7 @@ class FinalOpsHookTest(tf.test.TestCase):
 
       with tf.compat.v1.Session() as session:
         hook.end(session)
-        self.assertEqual(expected_value,
-                         hook.final_ops_values)
+        self.assertEqual(expected_value, hook.final_ops_values)
 
   def test_final_ops_is_tensor(self):
     with tf.Graph().as_default():
@@ -1369,8 +1314,7 @@ class FinalOpsHookTest(tf.test.TestCase):
 
       with tf.compat.v1.Session() as session:
         hook.end(session)
-        self.assertListEqual(expected_values,
-                             hook.final_ops_values.tolist())
+        self.assertListEqual(expected_values, hook.final_ops_values.tolist())
 
   def test_final_ops_triggers_out_of_range_error(self):
     with tf.Graph().as_default():
@@ -1384,13 +1328,13 @@ class FinalOpsHookTest(tf.test.TestCase):
 
       with tf.compat.v1.Session() as session:
         session.run(read_ops)
-        with tf.compat.v1.test.mock.patch.object(tf_logging, 'warning') as mock_log:
+        with tf.compat.v1.test.mock.patch.object(tf_logging,
+                                                 'warning') as mock_log:
           with self.assertRaisesRegexp(tf.errors.OutOfRangeError,
                                        'End of sequence'):
             hook.end(session)
           self.assertRegexpMatches(
-              str(mock_log.call_args),
-              'dependency back to some input source')
+              str(mock_log.call_args), 'dependency back to some input source')
 
   def test_final_ops_with_dictionary(self):
     with tf.Graph().as_default():
@@ -1398,14 +1342,13 @@ class FinalOpsHookTest(tf.test.TestCase):
       final_ops = tf.compat.v1.placeholder(dtype=tf.dtypes.float32)
       final_ops_feed_dict = {final_ops: expected_values}
 
-      hook = basic_session_run_hooks.FinalOpsHook(
-          final_ops, final_ops_feed_dict)
+      hook = basic_session_run_hooks.FinalOpsHook(final_ops,
+                                                  final_ops_feed_dict)
       hook.begin()
 
       with tf.compat.v1.Session() as session:
         hook.end(session)
-        self.assertListEqual(expected_values,
-                             hook.final_ops_values.tolist())
+        self.assertListEqual(expected_values, hook.final_ops_values.tolist())
 
 
 @test_util.deprecated_graph_mode_only
@@ -1465,8 +1408,7 @@ class FeedFnHookTest(tf.test.TestCase):
     with tf.Graph().as_default(), tf.compat.v1.Session() as sess:
       x = tf.compat.v1.placeholder(dtype=tf.dtypes.float32)
       y = x + 1
-      hook = basic_session_run_hooks.FeedFnHook(
-          feed_fn=lambda: {x: 1.0})
+      hook = basic_session_run_hooks.FeedFnHook(feed_fn=lambda: {x: 1.0})
       hook.begin()
       mon_sess = monitored_session._HookedSession(sess, [hook])
       self.assertEqual(mon_sess.run(y), 2)
