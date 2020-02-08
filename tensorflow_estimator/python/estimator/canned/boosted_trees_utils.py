@@ -37,8 +37,9 @@ def _parse_debug_proto_string(example_proto_serialized):
   return feature_ids, logits_path
 
 
-def _compute_directional_feature_contributions(
-    example_feature_ids, example_logits_paths, activation, feature_col_names):
+def _compute_directional_feature_contributions(example_feature_ids,
+                                               example_logits_paths, activation,
+                                               feature_col_names):
   """Directional feature contributions and bias, per example."""
   # Initialize contributions to 0.
   num_features = len(feature_col_names)

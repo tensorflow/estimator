@@ -21,25 +21,15 @@ from __future__ import print_function
 import shutil
 import tempfile
 
-import tensorflow as tf
 from absl.testing import parameterized
 import numpy as np
 import six
-
+import tensorflow as tf
 from tensorflow.core.example import example_pb2
 from tensorflow.core.example import feature_pb2
 from tensorflow.python.feature_column import feature_column
 from tensorflow.python.feature_column import feature_column_v2
-from tensorflow.python.framework import dtypes
-from tensorflow.python.framework import ops
 from tensorflow.python.keras.optimizer_v2 import gradient_descent as gradient_descent_v2
-from tensorflow.python.ops import nn
-from tensorflow.python.ops import parsing_ops
-from tensorflow.python.ops import variables as variables_lib
-from tensorflow.python.platform import gfile
-from tensorflow.python.platform import test
-from tensorflow.python.summary.writer import writer_cache
-from tensorflow.python.training import input as input_lib
 from tensorflow_estimator.python.estimator import estimator
 from tensorflow_estimator.python.estimator.canned import dnn_linear_combined
 from tensorflow_estimator.python.estimator.canned import dnn_testing_utils
@@ -48,7 +38,6 @@ from tensorflow_estimator.python.estimator.canned import prediction_keys
 from tensorflow_estimator.python.estimator.export import export
 from tensorflow_estimator.python.estimator.inputs import numpy_io
 from tensorflow_estimator.python.estimator.inputs import pandas_io
-
 
 try:
   # pylint: disable=g-import-not-at-top
@@ -61,7 +50,8 @@ except ImportError:
   HAS_PANDAS = False
 
 
-class DNNOnlyModelFnTest(dnn_testing_utils.BaseDNNModelFnTest, tf.test.TestCase):
+class DNNOnlyModelFnTest(dnn_testing_utils.BaseDNNModelFnTest,
+                         tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
     tf.test.TestCase.__init__(self, methodName)
@@ -220,10 +210,11 @@ class DNNLinearCombinedRegressorIntegrationTest(tf.test.TestCase):
       tf.compat.v1.summary.FileWriterCache.clear()
       shutil.rmtree(self._model_dir)
 
-  def _test_complete_flow_helper(
-      self, linear_feature_columns, dnn_feature_columns, feature_spec,
-      train_input_fn, eval_input_fn, predict_input_fn, input_dimension,
-      label_dimension, batch_size):
+  def _test_complete_flow_helper(self, linear_feature_columns,
+                                 dnn_feature_columns, feature_spec,
+                                 train_input_fn, eval_input_fn,
+                                 predict_input_fn, input_dimension,
+                                 label_dimension, batch_size):
     est = dnn_linear_combined.DNNLinearCombinedRegressorV2(
         linear_feature_columns=linear_feature_columns,
         dnn_hidden_units=(2, 2),
@@ -281,7 +272,8 @@ class DNNLinearCombinedRegressorIntegrationTest(tf.test.TestCase):
         feature_column._numeric_column('x', shape=(input_dimension,))
     ]
     feature_columns = linear_feature_columns + dnn_feature_columns
-    feature_spec = tf.compat.v1.feature_column.make_parse_example_spec(feature_columns)
+    feature_spec = tf.compat.v1.feature_column.make_parse_example_spec(
+        feature_columns)
     self._test_complete_flow_helper(linear_feature_columns, dnn_feature_columns,
                                     feature_spec, train_input_fn, eval_input_fn,
                                     predict_input_fn, input_dimension,
@@ -298,7 +290,8 @@ class DNNLinearCombinedRegressorIntegrationTest(tf.test.TestCase):
         tf.feature_column.numeric_column('x', shape=(input_dimension,))
     ]
     feature_columns = linear_feature_columns + dnn_feature_columns
-    feature_spec = tf.compat.v1.feature_column.make_parse_example_spec(feature_columns)
+    feature_spec = tf.compat.v1.feature_column.make_parse_example_spec(
+        feature_columns)
     self._test_complete_flow_helper(linear_feature_columns, dnn_feature_columns,
                                     feature_spec, train_input_fn, eval_input_fn,
                                     predict_input_fn, input_dimension,
@@ -318,14 +311,9 @@ class DNNLinearCombinedRegressorIntegrationTest(tf.test.TestCase):
         num_epochs=None,
         shuffle=True)
     eval_input_fn = numpy_io.numpy_input_fn(
-        x={'x': data},
-        y=data,
-        batch_size=batch_size,
-        shuffle=False)
+        x={'x': data}, y=data, batch_size=batch_size, shuffle=False)
     predict_input_fn = numpy_io.numpy_input_fn(
-        x={'x': data},
-        batch_size=batch_size,
-        shuffle=False)
+        x={'x': data}, batch_size=batch_size, shuffle=False)
 
     fn_to_run(
         train_input_fn=train_input_fn,
@@ -361,20 +349,11 @@ class DNNLinearCombinedRegressorIntegrationTest(tf.test.TestCase):
     x = pd.DataFrame({'x': data})
     y = pd.Series(data)
     train_input_fn = pandas_io.pandas_input_fn(
-        x=x,
-        y=y,
-        batch_size=batch_size,
-        num_epochs=None,
-        shuffle=True)
+        x=x, y=y, batch_size=batch_size, num_epochs=None, shuffle=True)
     eval_input_fn = pandas_io.pandas_input_fn(
-        x=x,
-        y=y,
-        batch_size=batch_size,
-        shuffle=False)
+        x=x, y=y, batch_size=batch_size, shuffle=False)
     predict_input_fn = pandas_io.pandas_input_fn(
-        x=x,
-        batch_size=batch_size,
-        shuffle=False)
+        x=x, batch_size=batch_size, shuffle=False)
 
     fn_to_run(
         train_input_fn=train_input_fn,
@@ -409,24 +388,30 @@ class DNNLinearCombinedRegressorIntegrationTest(tf.test.TestCase):
 
     serialized_examples = []
     for datum in data:
-      example = example_pb2.Example(features=feature_pb2.Features(
-          feature={
-              'x': feature_pb2.Feature(
-                  float_list=feature_pb2.FloatList(value=datum)),
-              'y': feature_pb2.Feature(
-                  float_list=feature_pb2.FloatList(value=datum)),
-          }))
+      example = example_pb2.Example(
+          features=feature_pb2.Features(
+              feature={
+                  'x':
+                      feature_pb2.Feature(
+                          float_list=feature_pb2.FloatList(value=datum)),
+                  'y':
+                      feature_pb2.Feature(
+                          float_list=feature_pb2.FloatList(value=datum)),
+              }))
       serialized_examples.append(example.SerializeToString())
 
     feature_spec = {
         'x': tf.io.FixedLenFeature([label_dimension], tf.dtypes.float32),
         'y': tf.io.FixedLenFeature([label_dimension], tf.dtypes.float32),
     }
+
     def _train_input_fn():
-      feature_map = tf.compat.v1.io.parse_example(serialized_examples, feature_spec)
+      feature_map = tf.compat.v1.io.parse_example(serialized_examples,
+                                                  feature_spec)
       features = linear_testing_utils.queue_parsed_features(feature_map)
       labels = features.pop('y')
       return features, labels
+
     def _eval_input_fn():
       feature_map = tf.compat.v1.io.parse_example(
           tf.compat.v1.train.limit_epochs(serialized_examples, num_epochs=1),
@@ -434,6 +419,7 @@ class DNNLinearCombinedRegressorIntegrationTest(tf.test.TestCase):
       features = linear_testing_utils.queue_parsed_features(feature_map)
       labels = features.pop('y')
       return features, labels
+
     def _predict_input_fn():
       feature_map = tf.compat.v1.io.parse_example(
           tf.compat.v1.train.limit_epochs(serialized_examples, num_epochs=1),
@@ -631,14 +617,9 @@ class DNNLinearCombinedClassifierIntegrationTest(tf.test.TestCase):
         num_epochs=None,
         shuffle=True)
     eval_input_fn = numpy_io.numpy_input_fn(
-        x={'x': x_data},
-        y=y_data,
-        batch_size=batch_size,
-        shuffle=False)
+        x={'x': x_data}, y=y_data, batch_size=batch_size, shuffle=False)
     predict_input_fn = numpy_io.numpy_input_fn(
-        x={'x': x_data},
-        batch_size=batch_size,
-        shuffle=False)
+        x={'x': x_data}, batch_size=batch_size, shuffle=False)
 
     self._test_complete_flow(
         train_input_fn=train_input_fn,
@@ -660,20 +641,11 @@ class DNNLinearCombinedClassifierIntegrationTest(tf.test.TestCase):
     x = pd.DataFrame({'x': data})
     y = pd.Series(self._as_label(data))
     train_input_fn = pandas_io.pandas_input_fn(
-        x=x,
-        y=y,
-        batch_size=batch_size,
-        num_epochs=None,
-        shuffle=True)
+        x=x, y=y, batch_size=batch_size, num_epochs=None, shuffle=True)
     eval_input_fn = pandas_io.pandas_input_fn(
-        x=x,
-        y=y,
-        batch_size=batch_size,
-        shuffle=False)
+        x=x, y=y, batch_size=batch_size, shuffle=False)
     predict_input_fn = pandas_io.pandas_input_fn(
-        x=x,
-        batch_size=batch_size,
-        shuffle=False)
+        x=x, batch_size=batch_size, shuffle=False)
 
     self._test_complete_flow(
         train_input_fn=train_input_fn,
@@ -689,32 +661,37 @@ class DNNLinearCombinedClassifierIntegrationTest(tf.test.TestCase):
     input_dimension = 2
     n_classes = 3
     batch_size = 10
-    data = np.linspace(0., n_classes-1., batch_size * input_dimension,
-                       dtype=np.float32)
+    data = np.linspace(
+        0., n_classes - 1., batch_size * input_dimension, dtype=np.float32)
     data = data.reshape(batch_size, input_dimension)
 
     serialized_examples = []
     for datum in data:
-      example = example_pb2.Example(features=feature_pb2.Features(
-          feature={
-              'x':
-                  feature_pb2.Feature(float_list=feature_pb2.FloatList(
-                      value=datum)),
-              'y':
-                  feature_pb2.Feature(int64_list=feature_pb2.Int64List(
-                      value=self._as_label(datum[:1]))),
-          }))
+      example = example_pb2.Example(
+          features=feature_pb2.Features(
+              feature={
+                  'x':
+                      feature_pb2.Feature(
+                          float_list=feature_pb2.FloatList(value=datum)),
+                  'y':
+                      feature_pb2.Feature(
+                          int64_list=feature_pb2.Int64List(
+                              value=self._as_label(datum[:1]))),
+              }))
       serialized_examples.append(example.SerializeToString())
 
     feature_spec = {
         'x': tf.io.FixedLenFeature([input_dimension], tf.dtypes.float32),
         'y': tf.io.FixedLenFeature([1], tf.dtypes.int64),
     }
+
     def _train_input_fn():
-      feature_map = tf.compat.v1.io.parse_example(serialized_examples, feature_spec)
+      feature_map = tf.compat.v1.io.parse_example(serialized_examples,
+                                                  feature_spec)
       features = linear_testing_utils.queue_parsed_features(feature_map)
       labels = features.pop('y')
       return features, labels
+
     def _eval_input_fn():
       feature_map = tf.compat.v1.io.parse_example(
           tf.compat.v1.train.limit_epochs(serialized_examples, num_epochs=1),
@@ -722,6 +699,7 @@ class DNNLinearCombinedClassifierIntegrationTest(tf.test.TestCase):
       features = linear_testing_utils.queue_parsed_features(feature_map)
       labels = features.pop('y')
       return features, labels
+
     def _predict_input_fn():
       feature_map = tf.compat.v1.io.parse_example(
           tf.compat.v1.train.limit_epochs(serialized_examples, num_epochs=1),
@@ -771,8 +749,8 @@ class DNNLinearCombinedTests(tf.test.TestCase):
     num_steps = 1
     est.train(input_fn, steps=num_steps)
     # verifies train_op fires linear minimize op
-    self.assertEqual(num_steps, est.get_variable_value(
-        linear_opt.iterations.name))
+    self.assertEqual(num_steps,
+                     est.get_variable_value(linear_opt.iterations.name))
     # verifies train_op fires dnn optmizer
     self.assertEqual(num_steps, est.get_variable_value(dnn_opt.iterations.name))
 
@@ -798,11 +776,9 @@ class DNNLinearCombinedTests(tf.test.TestCase):
     # linear logits = 10*1 + 2 = 12
     # dnn logits = (10*3 + 4)*5 + 6 = 176
     # logits = dnn + linear = 176 + 12 = 188
-    self.assertAllClose(
-        {
-            prediction_keys.PredictionKeys.PREDICTIONS: [188.],
-        },
-        next(est.predict(input_fn=input_fn)))
+    self.assertAllClose({
+        prediction_keys.PredictionKeys.PREDICTIONS: [188.],
+    }, next(est.predict(input_fn=input_fn)))
 
 
 @parameterized.parameters((feature_column_v2,))
@@ -862,10 +838,8 @@ class DNNLinearCombinedWarmStartingTest(tf.test.TestCase):
               dnn_feature_columns=[city],
               dnn_hidden_units=[256, 128],
               n_classes=4,
-              dnn_optimizer=gradient_descent_v2.SGD(
-                  learning_rate=0.0),
-              linear_optimizer=gradient_descent_v2.SGD(
-                  learning_rate=0.0),
+              dnn_optimizer=gradient_descent_v2.SGD(learning_rate=0.0),
+              linear_optimizer=gradient_descent_v2.SGD(learning_rate=0.0),
               warm_start_from=dnn_lc_classifier.model_dir))
 
     warm_started_dnn_lc_classifier.train(input_fn=self._input_fn, max_steps=1)
@@ -912,10 +886,8 @@ class DNNLinearCombinedWarmStartingTest(tf.test.TestCase):
               linear_feature_columns=[age],
               dnn_feature_columns=[city],
               dnn_hidden_units=[256, 128],
-              dnn_optimizer=gradient_descent_v2.SGD(
-                  learning_rate=0.0),
-              linear_optimizer=gradient_descent_v2.SGD(
-                  learning_rate=0.0),
+              dnn_optimizer=gradient_descent_v2.SGD(learning_rate=0.0),
+              linear_optimizer=gradient_descent_v2.SGD(learning_rate=0.0),
               warm_start_from=dnn_lc_regressor.model_dir))
 
     warm_started_dnn_lc_regressor.train(input_fn=self._input_fn, max_steps=1)
@@ -957,10 +929,8 @@ class DNNLinearCombinedWarmStartingTest(tf.test.TestCase):
             dnn_feature_columns=[city],
             dnn_hidden_units=[256, 128],
             n_classes=4,
-            linear_optimizer=gradient_descent_v2.SGD(
-                learning_rate=0.0),
-            dnn_optimizer=gradient_descent_v2.SGD(
-                learning_rate=0.0),
+            linear_optimizer=gradient_descent_v2.SGD(learning_rate=0.0),
+            dnn_optimizer=gradient_descent_v2.SGD(learning_rate=0.0),
             # The provided regular expression will only warm-start the deep
             # portion of the model.
             warm_start_from=estimator.WarmStartSettings(

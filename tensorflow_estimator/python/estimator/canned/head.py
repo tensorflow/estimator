@@ -21,28 +21,14 @@ from __future__ import print_function
 import abc
 import collections
 
-import tensorflow as tf
 import six
-
+import tensorflow as tf
 from tensorflow.python.feature_column import feature_column
 from tensorflow.python.feature_column import feature_column_lib
-from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
-from tensorflow.python.framework import sparse_tensor
-from tensorflow.python.framework import tensor_util
-from tensorflow.python.ops import array_ops
-from tensorflow.python.ops import check_ops
-from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import lookup_ops
-from tensorflow.python.ops import math_ops
-from tensorflow.python.ops import metrics as metrics_lib
-from tensorflow.python.ops import nn
 from tensorflow.python.ops import string_ops
 from tensorflow.python.ops import weights_broadcast_ops
-from tensorflow.python.ops.losses import losses
-from tensorflow.python.saved_model import signature_constants
-from tensorflow.python.summary import summary
-from tensorflow.python.training import training_util
 from tensorflow.python.util import function_utils
 from tensorflow_estimator.python.estimator import model_fn
 from tensorflow_estimator.python.estimator.canned import metric_keys
@@ -58,15 +44,14 @@ _CLASSIFY_SERVING_KEY = 'classification'
 _REGRESS_SERVING_KEY = 'regression'
 _PREDICT_SERVING_KEY = 'predict'
 
-
 # A LossSpec contains
 # * a scalar `Tensor` representing reduced weighted training loss
 # * a `Tensor` representing the unreduced unweighted loss
 # * a `Tensor` representing the example weights
 # * possibly processed labels (e.g. vocabulary lookup, shape manipulation, etc)
 LossSpec = collections.namedtuple(
-    'LossSpec', ['training_loss', 'unreduced_loss', 'weights',
-                 'processed_labels'])
+    'LossSpec',
+    ['training_loss', 'unreduced_loss', 'weights', 'processed_labels'])
 
 
 def _summary_key(head_name, val):
@@ -82,8 +67,8 @@ def _create_eval_metrics_tuple(fn, kwargs):
   a more generic function that can take both Tensor and non-Tensor arguments.
 
   Args:
-    fn: A eval_metric_fn that takes both Tensor and non-Tensor arguments.
-        This function must return a dict of form
+    fn: A eval_metric_fn that takes both Tensor and non-Tensor arguments. This
+      function must return a dict of form
         {'metric name': (metric_tensor, eval_op)}
     kwargs: Dict of arguments for `fn`.
 
@@ -97,8 +82,10 @@ def _create_eval_metrics_tuple(fn, kwargs):
       tensor_kwargs[k] = v
     else:
       nontensor_kwargs[k] = v
+
   def _fn(**tensors):
     return fn(**dict(nontensor_kwargs, **tensors))
+
   return (_fn, tensor_kwargs)
 
 
@@ -207,9 +194,14 @@ class _Head(object):
 
   # TODO(b/65403806): By default, collect regularization_losses from
   # GraphKeys.REGULARIZATION_LOSSES collection.
-  def create_estimator_spec(
-      self, features, mode, logits, labels=None, optimizer=None,
-      train_op_fn=None, regularization_losses=None):
+  def create_estimator_spec(self,
+                            features,
+                            mode,
+                            logits,
+                            labels=None,
+                            optimizer=None,
+                            train_op_fn=None,
+                            regularization_losses=None):
     """Returns `EstimatorSpec` that a model_fn can return.
 
     Please note that,
@@ -228,7 +220,7 @@ class _Head(object):
         is `None`. Exactly one of `train_op_fn` and `optimizer` must be set in
         TRAIN mode. None is allowed in other modes. If you want to optimize loss
         yourself you can pass `lambda _: tf.no_op()` and then use
-        EstimatorSpec.loss to compute and apply gradients.
+          EstimatorSpec.loss to compute and apply gradients.
       regularization_losses: A list of additional scalar losses to be added to
         the training loss, such as regularization losses.
 
@@ -237,9 +229,9 @@ class _Head(object):
     """
     try:
       tpu_estimator_spec = (
-          self._create_tpu_estimator_spec(
-              features, mode, logits, labels, optimizer, train_op_fn,
-              regularization_losses))
+          self._create_tpu_estimator_spec(features, mode, logits, labels,
+                                          optimizer, train_op_fn,
+                                          regularization_losses))
       return tpu_estimator_spec.as_estimator_spec()
     except NotImplementedError:
       # Not all subclasses of _Head will have implemented
@@ -249,9 +241,14 @@ class _Head(object):
           'Subclasses of _Head must implement `create_estimator_spec()` or '
           '_create_tpu_estimator_spec().')
 
-  def _create_tpu_estimator_spec(
-      self, features, mode, logits, labels=None, optimizer=None,
-      train_op_fn=None, regularization_losses=None):
+  def _create_tpu_estimator_spec(self,
+                                 features,
+                                 mode,
+                                 logits,
+                                 labels=None,
+                                 optimizer=None,
+                                 train_op_fn=None,
+                                 regularization_losses=None):
     """Returns `model_fn._TPUEstimatorSpec` that a model_fn can return.
 
     Args:
@@ -267,7 +264,7 @@ class _Head(object):
         is `None`. Exactly one of `train_op_fn` and `optimizer` must be set in
         TRAIN mode. None is allowed in other modes. If you want to optimize loss
         yourself you can pass `lambda _: tf.no_op()` and then use
-        EstimatorSpec.loss to compute and apply gradients.
+          EstimatorSpec.loss to compute and apply gradients.
       regularization_losses: A list of additional scalar losses to be added to
         the training loss, such as regularization losses.
 
@@ -278,8 +275,8 @@ class _Head(object):
         'TPUEstimatorSpec not available for this model head.')
 
 
-def _check_dense_labels_match_logits_and_reshape(
-    labels, logits, expected_labels_dimension):
+def _check_dense_labels_match_logits_and_reshape(labels, logits,
+                                                 expected_labels_dimension):
   """Checks that labels shape matches logits and reshapes if needed.
 
   Consider logits of shape [D0, D1, ... DN, logits_dimension]. Then labels
@@ -291,6 +288,7 @@ def _check_dense_labels_match_logits_and_reshape(
     labels: labels Tensor.
     logits: logits Tensor.
     expected_labels_dimension: Integer.
+
   Returns:
     Validated and reshaped labels Tensor.
   Raises:
@@ -327,33 +325,39 @@ def _check_dense_labels_match_logits_and_reshape(
         'labels shape must be [D0, D1, ... DN, {}]. '
         'Suggested Fix: check your n_classes argument to the estimator '
         'and/or the shape of your label.'.format(expected_labels_dimension))
-    assert_rank = tf.compat.v1.debugging.assert_rank_at_least(labels, 2, message=err_msg)
+    assert_rank = tf.compat.v1.debugging.assert_rank_at_least(
+        labels, 2, message=err_msg)
     with tf.control_dependencies([assert_rank]):
       static_shape = labels.shape
       if static_shape.ndims is not None:
         dim1 = static_shape[-1]
         if (dim1 is not None) and (dim1 != expected_labels_dimension):
-          raise ValueError(
-              'Mismatched label shape. '
-              'Expected labels dimension=%s.  Received %s. '
-              'Suggested Fix:'
-              'If your classifier expects one-hot encoding label,'
-              'check your n_classes argument to the estimator '
-              'and/or the shape of your label. '
-              'Otherwise, check the shape of your label.' %
-              (expected_labels_dimension, dim1))
+          raise ValueError('Mismatched label shape. '
+                           'Expected labels dimension=%s.  Received %s. '
+                           'Suggested Fix:'
+                           'If your classifier expects one-hot encoding label,'
+                           'check your n_classes argument to the estimator '
+                           'and/or the shape of your label. '
+                           'Otherwise, check the shape of your label.' %
+                           (expected_labels_dimension, dim1))
       expected_labels_shape = tf.concat(
           [logits_shape[:-1], [expected_labels_dimension]], axis=0)
       assert_dimension = tf.compat.v1.debugging.assert_equal(
-          expected_labels_shape, labels_shape, message=err_msg,
-          data=['expected_labels_shape: ', expected_labels_shape,
-                'labels_shape: ', labels_shape])
+          expected_labels_shape,
+          labels_shape,
+          message=err_msg,
+          data=[
+              'expected_labels_shape: ', expected_labels_shape,
+              'labels_shape: ', labels_shape
+          ])
       with tf.control_dependencies([assert_dimension]):
         return tf.identity(labels, name=scope)
 
 
-def _get_weights_and_check_match_logits(
-    features, weight_column, logits, allow_per_logit_weights=False):
+def _get_weights_and_check_match_logits(features,
+                                        weight_column,
+                                        logits,
+                                        allow_per_logit_weights=False):
   """Fetches weights from features and checks that the shape matches logits.
 
   Consider logits of shape [D0, D1, ... DN, logits_dimension]. Weights shape
@@ -369,18 +373,17 @@ def _get_weights_and_check_match_logits(
     logits: logits Tensor.
     allow_per_logit_weights: Boolean. Whether we allow weights along the logits
       dimension, namely shape `[D0, D1, ... DN, logits_dimension]`.
+
   Returns:
     Validated and reshaped weights Tensor.
   Raises:
     ValueError: If the weights `Tensor` cannot be cast into float.
   """
   if allow_per_logit_weights:
-    err_msg = (
-        'weights shape must be [D0, D1, ... DN], [D0, D1, ... DN, 1] or '
-        '[D0, D1, ... DN, logits_dimension]')
+    err_msg = ('weights shape must be [D0, D1, ... DN], [D0, D1, ... DN, 1] or '
+               '[D0, D1, ... DN, logits_dimension]')
   else:
-    err_msg = (
-        'weights shape must be [D0, D1, ... DN] or [D0, D1, ... DN, 1]')
+    err_msg = ('weights shape must be [D0, D1, ... DN] or [D0, D1, ... DN, 1]')
   with ops.name_scope(
       None, 'weights',
       values=tuple(six.itervalues(features)) + (logits,)) as scope:
@@ -408,26 +411,34 @@ def _get_weights_and_check_match_logits(
     if (weights.shape.ndims is not None and logits.shape.ndims is not None and
         weights.shape.ndims == logits.shape.ndims - 1):
       assert_dimension = tf.compat.v1.debugging.assert_equal(
-          logits_shape[:-1], weights_shape, message=err_msg,
-          data=['logits_shape: ', logits_shape,
-                'weights_shape: ', weights_shape])
+          logits_shape[:-1],
+          weights_shape,
+          message=err_msg,
+          data=[
+              'logits_shape: ', logits_shape, 'weights_shape: ', weights_shape
+          ])
       with tf.control_dependencies([assert_dimension]):
         return tf.compat.v1.expand_dims(weights, -1, name=scope)
     supported_weights_shape = tf.concat([logits_shape[:-1], [1]], axis=0)
     if allow_per_logit_weights:
-      condition = tf.math.reduce_any(
-          [tf.reduce_all(tf.math.equal(logits_shape, weights_shape)),
-           tf.reduce_all(tf.math.equal(
-               supported_weights_shape, weights_shape))])
+      condition = tf.math.reduce_any([
+          tf.reduce_all(tf.math.equal(logits_shape, weights_shape)),
+          tf.reduce_all(tf.math.equal(supported_weights_shape, weights_shape))
+      ])
       assert_dimension = tf.debugging.Assert(
           condition=condition,
-          data=[err_msg, 'logits_shape: ', logits_shape,
-                'weights_shape: ', weights_shape])
+          data=[
+              err_msg, 'logits_shape: ', logits_shape, 'weights_shape: ',
+              weights_shape
+          ])
     else:
       assert_dimension = tf.compat.v1.debugging.assert_equal(
-          supported_weights_shape, weights_shape, message=err_msg,
-          data=['logits_shape: ', logits_shape,
-                'weights_shape: ', weights_shape])
+          supported_weights_shape,
+          weights_shape,
+          message=err_msg,
+          data=[
+              'logits_shape: ', logits_shape, 'weights_shape: ', weights_shape
+          ])
     with tf.control_dependencies([assert_dimension]):
       return tf.identity(weights, name=scope)
 
@@ -438,19 +449,23 @@ def _check_logits_final_dim(logits, expected_logits_dimension):
     logits = tf.cast(logits, dtype=tf.dtypes.float32)
     logits_shape = tf.compat.v1.shape(logits)
     assert_rank = tf.compat.v1.debugging.assert_rank_at_least(
-        logits, 2, data=[logits_shape],
+        logits,
+        2,
+        data=[logits_shape],
         message='logits shape must be [D0, D1, ... DN, logits_dimension]')
     with tf.control_dependencies([assert_rank]):
       static_shape = logits.shape
       if static_shape.ndims is not None and static_shape[-1] is not None:
-        if (isinstance(expected_logits_dimension, int)
-            and static_shape[-1] != expected_logits_dimension):
+        if (isinstance(expected_logits_dimension, int) and
+            static_shape[-1] != expected_logits_dimension):
           raise ValueError(
               'logits shape must be [D0, D1, ... DN, logits_dimension=%s], '
               'got %s.' % (expected_logits_dimension, static_shape))
         return logits
       assert_dimension = tf.compat.v1.debugging.assert_equal(
-          expected_logits_dimension, logits_shape[-1], data=[logits_shape],
+          expected_logits_dimension,
+          logits_shape[-1],
+          data=[logits_shape],
           message=('logits shape must be [D0, D1, ... DN, '
                    'logits_dimension=%s]' % (expected_logits_dimension,)))
       with tf.control_dependencies([assert_dimension]):
@@ -465,15 +480,15 @@ def _validate_loss_fn_args(loss_fn):
 
   Args:
     loss_fn: The loss function.
+
   Raises:
     ValueError: If the signature is unexpected.
   """
   loss_fn_args = function_utils.fn_args(loss_fn)
   for required_arg in ['labels', 'logits']:
     if required_arg not in loss_fn_args:
-      raise ValueError(
-          'loss_fn must contain argument: {}. '
-          'Given arguments: {}'.format(required_arg, loss_fn_args))
+      raise ValueError('loss_fn must contain argument: {}. '
+                       'Given arguments: {}'.format(required_arg, loss_fn_args))
   invalid_args = list(set(loss_fn_args) - set(['labels', 'logits', 'features']))
   if invalid_args:
     raise ValueError('loss_fn has unexpected args: {}'.format(invalid_args))
@@ -486,6 +501,7 @@ def _validate_n_classes(n_classes):
 
   Args:
     n_classes: The number of classes.
+
   Raises:
     ValueError: If n_classes is <= 2 and n_classes is a Python integer.
   Returns:
@@ -513,6 +529,7 @@ def _call_loss_fn(loss_fn, labels, logits, features, expected_loss_dim=1):
     logits: Logits Tensor of shape [D0, D1, ... DN, logits_dimension].
     features: Features dict.
     expected_loss_dim: The expected last dimension of loss Tensor.
+
   Returns:
     Loss Tensor with shape [D0, D1, ... DN, expected_loss_dim].
   """
@@ -521,20 +538,22 @@ def _call_loss_fn(loss_fn, labels, logits, features, expected_loss_dim=1):
   if 'features' in loss_fn_args:
     kwargs['features'] = features
   with ops.name_scope(
-      None, 'call_loss_fn',
+      None,
+      'call_loss_fn',
       values=[labels, logits] + list(six.itervalues(features))):
     unweighted_loss = loss_fn(labels=labels, logits=logits, **kwargs)
     logits_shape = tf.compat.v1.shape(logits, name='logits_shape')
-    expected_loss_shape = tf.concat(
-        [logits_shape[:-1], [expected_loss_dim]], axis=0,
-        name='expected_loss_shape')
+    expected_loss_shape = tf.concat([logits_shape[:-1], [expected_loss_dim]],
+                                    axis=0,
+                                    name='expected_loss_shape')
     loss_shape = tf.compat.v1.shape(unweighted_loss, name='loss_shape')
     check_loss_shape_op = tf.debugging.Assert(
         tf.reduce_all(tf.math.equal(loss_shape, expected_loss_shape)),
         data=[
             'loss_fn must return Tensor of shape '
             '[D0, D1, ... DN, {}]. '.format(expected_loss_dim),
-            'logits_shape: ', logits_shape, 'loss_shape: ', loss_shape],
+            'logits_shape: ', logits_shape, 'loss_shape: ', loss_shape
+        ],
         name='check_loss_shape')
     with tf.control_dependencies([check_loss_shape_op]):
       return tf.identity(unweighted_loss)
@@ -595,14 +614,13 @@ def _accuracy_baseline(labels_mean):
   """
   with ops.name_scope(None, 'accuracy_baseline', labels_mean):
     value, update_op = labels_mean
-    return (
-        tf.math.maximum(value, 1. - value, name='value'),
-        tf.math.maximum(update_op, 1 - update_op, name='update_op'))
+    return (tf.math.maximum(value, 1. - value, name='value'),
+            tf.math.maximum(update_op, 1 - update_op, name='update_op'))
 
 
 def _predictions_mean(predictions, weights=None, name=None):
-  with ops.name_scope(
-      name, 'predictions_mean', (predictions, weights)) as scope:
+  with ops.name_scope(name, 'predictions_mean',
+                      (predictions, weights)) as scope:
     predictions = tf.cast(
         predictions, name='predictions', dtype=tf.dtypes.float32)
     if weights is not None:
@@ -617,39 +635,49 @@ def _auc(labels, predictions, weights=None, curve='ROC', name=None):
     if weights is not None:
       weights = weights_broadcast_ops.broadcast_weights(weights, predictions)
     return tf.compat.v1.metrics.auc(
-        labels=labels, predictions=predictions, weights=weights, curve=curve,
+        labels=labels,
+        predictions=predictions,
+        weights=weights,
+        curve=curve,
         name=scope)
 
 
 def _accuracy_at_threshold(labels, predictions, weights, threshold, name=None):
-  with ops.name_scope(
-      name, 'accuracy_at_%s' % threshold,
-      (predictions, labels, weights, threshold)) as scope:
+  with ops.name_scope(name, 'accuracy_at_%s' % threshold,
+                      (predictions, labels, weights, threshold)) as scope:
     threshold_predictions = tf.compat.v1.to_float(
         tf.math.greater_equal(predictions, threshold))
     return tf.compat.v1.metrics.accuracy(
-        labels=labels, predictions=threshold_predictions, weights=weights,
+        labels=labels,
+        predictions=threshold_predictions,
+        weights=weights,
         name=scope)
 
 
 def _precision_at_threshold(labels, predictions, weights, threshold, name=None):
-  with ops.name_scope(
-      name, 'precision_at_%s' % threshold,
-      (predictions, labels, weights, threshold)) as scope:
+  with ops.name_scope(name, 'precision_at_%s' % threshold,
+                      (predictions, labels, weights, threshold)) as scope:
     precision_tensor, update_op = tf.compat.v1.metrics.precision_at_thresholds(
-        labels=labels, predictions=predictions, thresholds=(threshold,),
-        weights=weights, name=scope)
-    return tf.compat.v1.squeeze(precision_tensor), tf.compat.v1.squeeze(update_op)
+        labels=labels,
+        predictions=predictions,
+        thresholds=(threshold,),
+        weights=weights,
+        name=scope)
+    return tf.compat.v1.squeeze(precision_tensor), tf.compat.v1.squeeze(
+        update_op)
 
 
 def _recall_at_threshold(labels, predictions, weights, threshold, name=None):
-  with ops.name_scope(
-      name, 'recall_at_%s' % threshold,
-      (predictions, labels, weights, threshold)) as scope:
+  with ops.name_scope(name, 'recall_at_%s' % threshold,
+                      (predictions, labels, weights, threshold)) as scope:
     precision_tensor, update_op = tf.compat.v1.metrics.recall_at_thresholds(
-        labels=labels, predictions=predictions, thresholds=(threshold,),
-        weights=weights, name=scope)
-    return tf.compat.v1.squeeze(precision_tensor), tf.compat.v1.squeeze(update_op)
+        labels=labels,
+        predictions=predictions,
+        thresholds=(threshold,),
+        weights=weights,
+        name=scope)
+    return tf.compat.v1.squeeze(precision_tensor), tf.compat.v1.squeeze(
+        update_op)
 
 
 def _multi_class_head_with_softmax_cross_entropy_loss(
@@ -753,8 +781,8 @@ class _MultiClassHeadWithSoftmaxCrossEntropyLoss(_Head):
   def logits_dimension(self):
     return self._n_classes
 
-  def _eval_metric_ops(
-      self, labels, class_ids, weights, unreduced_loss, regularization_loss):
+  def _eval_metric_ops(self, labels, class_ids, weights, unreduced_loss,
+                       regularization_loss):
     """Returns the Eval metric ops."""
     with ops.name_scope(
         None, 'metrics',
@@ -765,9 +793,7 @@ class _MultiClassHeadWithSoftmaxCrossEntropyLoss(_Head):
           # TODO(xiejw): Any other metrics?
           _summary_key(self._name, keys.LOSS_MEAN):
               tf.compat.v1.metrics.mean(
-                  values=unreduced_loss,
-                  weights=weights,
-                  name=keys.LOSS_MEAN),
+                  values=unreduced_loss, weights=weights, name=keys.LOSS_MEAN),
           _summary_key(self._name, keys.ACCURACY):
               tf.compat.v1.metrics.accuracy(
                   labels=labels,
@@ -778,16 +804,16 @@ class _MultiClassHeadWithSoftmaxCrossEntropyLoss(_Head):
       if regularization_loss is not None:
         metric_ops[_summary_key(self._name, keys.LOSS_REGULARIZATION)] = (
             tf.compat.v1.metrics.mean(
-                values=regularization_loss,
-                name=keys.LOSS_REGULARIZATION))
+                values=regularization_loss, name=keys.LOSS_REGULARIZATION))
     return metric_ops
 
   def _label_ids(self, labels):
     """Converts labels to integer id space."""
     if self._label_vocabulary is None:
       if not labels.dtype.is_integer:
-        raise ValueError('Labels dtype should be integer. Instead got {}.'.
-                         format(labels.dtype))
+        raise ValueError(
+            'Labels dtype should be integer. Instead got {}.'.format(
+                labels.dtype))
       label_ids = labels
     else:
       if labels.dtype != tf.dtypes.string:
@@ -807,11 +833,16 @@ class _MultiClassHeadWithSoftmaxCrossEntropyLoss(_Head):
     label_ids = self._label_ids(labels)
     if self._loss_fn:
       unweighted_loss = _call_loss_fn(
-          loss_fn=self._loss_fn, labels=label_ids, logits=logits,
-          features=features, expected_loss_dim=1)
+          loss_fn=self._loss_fn,
+          labels=label_ids,
+          logits=logits,
+          features=features,
+          expected_loss_dim=1)
     else:
       unweighted_loss = tf.compat.v1.losses.sparse_softmax_cross_entropy(
-          labels=label_ids, logits=logits, reduction=tf.compat.v1.losses.Reduction.NONE)
+          labels=label_ids,
+          logits=logits,
+          reduction=tf.compat.v1.losses.Reduction.NONE)
       # Restore the squeezed dim, so unweighted_loss matches the weights shape.
       unweighted_loss = tf.compat.v1.expand_dims(unweighted_loss, axis=-1)
     weights = _get_weights_and_check_match_logits(
@@ -824,9 +855,14 @@ class _MultiClassHeadWithSoftmaxCrossEntropyLoss(_Head):
         weights=weights,
         processed_labels=label_ids)
 
-  def _create_tpu_estimator_spec(
-      self, features, mode, logits, labels=None, optimizer=None,
-      train_op_fn=None, regularization_losses=None):
+  def _create_tpu_estimator_spec(self,
+                                 features,
+                                 mode,
+                                 logits,
+                                 labels=None,
+                                 optimizer=None,
+                                 train_op_fn=None,
+                                 regularization_losses=None):
     """Returns a `model_fn._TPUEstimatorSpec`.
 
     Args:
@@ -835,8 +871,8 @@ class _MultiClassHeadWithSoftmaxCrossEntropyLoss(_Head):
       logits: logits `Tensor` with shape `[D0, D1, ... DN, logits_dimension]`.
         For many applications, the shape is `[batch_size, logits_dimension]`.
       labels: Labels integer or string `Tensor` with shape matching `logits`,
-        namely `[D0, D1, ... DN, 1]` or `[D0, D1, ... DN]`. `labels` is
-        required argument when `mode` equals `TRAIN` or `EVAL`.
+        namely `[D0, D1, ... DN, 1]` or `[D0, D1, ... DN]`. `labels` is required
+        argument when `mode` equals `TRAIN` or `EVAL`.
       optimizer: `Optimizer` instance to optimize the loss in TRAIN mode.
         Namely, sets `train_op = optimizer.minimize(loss, global_step)`, which
         updates variables and increments `global_step`.
@@ -845,8 +881,9 @@ class _MultiClassHeadWithSoftmaxCrossEntropyLoss(_Head):
       regularization_losses: A list of additional scalar losses to be added to
         the training loss, such as regularization losses. These losses are
         usually expressed as a batch average, so for best results users need to
-        set `loss_reduction=SUM_OVER_BATCH_SIZE` when creating the head to
-        avoid scaling errors.
+        set `loss_reduction=SUM_OVER_BATCH_SIZE` when creating the head to avoid
+        scaling errors.
+
     Returns:
       A `model_fn._TPUEstimatorSpec` instance.
     Raises:
@@ -860,10 +897,11 @@ class _MultiClassHeadWithSoftmaxCrossEntropyLoss(_Head):
       pred_keys = prediction_keys.PredictionKeys
       with ops.name_scope(None, 'predictions', (logits,)):
         all_class_ids = _all_class_ids(logits, self._n_classes)
-        all_classes = _all_classes(logits, self._n_classes,
-                                   label_vocabulary=self._label_vocabulary)
+        all_classes = _all_classes(
+            logits, self._n_classes, label_vocabulary=self._label_vocabulary)
         # class_ids's shape is [D0, D1, ... DN].
-        class_ids = tf.compat.v1.math.argmax(logits, axis=-1, name=pred_keys.CLASS_IDS)
+        class_ids = tf.compat.v1.math.argmax(
+            logits, axis=-1, name=pred_keys.CLASS_IDS)
         class_ids = tf.compat.v1.expand_dims(class_ids, axis=-1)
         if self._label_vocabulary:
           table = lookup_ops.index_to_string_table_from_tensor(
@@ -873,7 +911,8 @@ class _MultiClassHeadWithSoftmaxCrossEntropyLoss(_Head):
         else:
           classes = tf.strings.as_string(class_ids, name='str_classes')
 
-        probabilities = tf.compat.v1.nn.softmax(logits, name=pred_keys.PROBABILITIES)
+        probabilities = tf.compat.v1.nn.softmax(
+            logits, name=pred_keys.PROBABILITIES)
         predictions = {
             pred_keys.LOGITS: logits,
             pred_keys.PROBABILITIES: probabilities,
@@ -885,7 +924,8 @@ class _MultiClassHeadWithSoftmaxCrossEntropyLoss(_Head):
         }
       if mode == ModeKeys.PREDICT:
         classifier_output = _classification_output(
-            scores=probabilities, n_classes=self._n_classes,
+            scores=probabilities,
+            n_classes=self._n_classes,
             label_vocabulary=self._label_vocabulary)
         return model_fn._TPUEstimatorSpec(  # pylint: disable=protected-access
             mode=ModeKeys.PREDICT,
@@ -943,12 +983,10 @@ class _MultiClassHeadWithSoftmaxCrossEntropyLoss(_Head):
     with ops.name_scope(''):
       keys = metric_keys.MetricKeys
       tf.compat.v1.summary.scalar(
-          _summary_key(self._name, keys.LOSS),
-          regularized_training_loss)
+          _summary_key(self._name, keys.LOSS), regularized_training_loss)
       if mean_loss is not None:
         tf.compat.v1.summary.scalar(
-            _summary_key(self._name, keys.LOSS_MEAN),
-            mean_loss)
+            _summary_key(self._name, keys.LOSS_MEAN), mean_loss)
       if regularization_loss is not None:
         tf.compat.v1.summary.scalar(
             _summary_key(self._name, keys.LOSS_REGULARIZATION),
@@ -1082,9 +1120,7 @@ class _BinaryLogisticHeadWithSigmoidCrossEntropyLoss(_Head):
           # Estimator already adds a metric for loss.
           _summary_key(self._name, keys.LOSS_MEAN):
               tf.compat.v1.metrics.mean(
-                  values=unreduced_loss,
-                  weights=weights,
-                  name=keys.LOSS_MEAN),
+                  values=unreduced_loss, weights=weights, name=keys.LOSS_MEAN),
           _summary_key(self._name, keys.ACCURACY):
               tf.compat.v1.metrics.accuracy(
                   labels=labels,
@@ -1129,8 +1165,7 @@ class _BinaryLogisticHeadWithSigmoidCrossEntropyLoss(_Head):
       if regularization_loss is not None:
         metric_ops[_summary_key(self._name, keys.LOSS_REGULARIZATION)] = (
             tf.compat.v1.metrics.mean(
-                values=regularization_loss,
-                name=keys.LOSS_REGULARIZATION))
+                values=regularization_loss, name=keys.LOSS_REGULARIZATION))
       for threshold in self._thresholds:
         accuracy_key = keys.ACCURACY_AT_THRESHOLD % threshold
         metric_ops[_summary_key(self._name,
@@ -1151,13 +1186,12 @@ class _BinaryLogisticHeadWithSigmoidCrossEntropyLoss(_Head):
                                     name=precision_key)
         # Recall for positive examples.
         recall_key = keys.RECALL_AT_THRESHOLD % threshold
-        metric_ops[_summary_key(self._name,
-                                recall_key)] = _recall_at_threshold(
-                                    labels=labels,
-                                    predictions=logistic,
-                                    weights=weights,
-                                    threshold=threshold,
-                                    name=recall_key)
+        metric_ops[_summary_key(self._name, recall_key)] = _recall_at_threshold(
+            labels=labels,
+            predictions=logistic,
+            weights=weights,
+            threshold=threshold,
+            name=recall_key)
       return metric_ops
 
   def create_loss(self, features, mode, logits, labels):
@@ -1174,8 +1208,11 @@ class _BinaryLogisticHeadWithSigmoidCrossEntropyLoss(_Head):
     labels = _assert_range(labels, n_classes=2)
     if self._loss_fn:
       unweighted_loss = _call_loss_fn(
-          loss_fn=self._loss_fn, labels=labels, logits=logits,
-          features=features, expected_loss_dim=1)
+          loss_fn=self._loss_fn,
+          labels=labels,
+          logits=logits,
+          features=features,
+          expected_loss_dim=1)
     else:
       unweighted_loss = tf.compat.v1.nn.sigmoid_cross_entropy_with_logits(
           labels=labels, logits=logits)
@@ -1189,9 +1226,14 @@ class _BinaryLogisticHeadWithSigmoidCrossEntropyLoss(_Head):
         weights=weights,
         processed_labels=labels)
 
-  def _create_tpu_estimator_spec(
-      self, features, mode, logits, labels=None, optimizer=None,
-      train_op_fn=None, regularization_losses=None):
+  def _create_tpu_estimator_spec(self,
+                                 features,
+                                 mode,
+                                 logits,
+                                 labels=None,
+                                 optimizer=None,
+                                 train_op_fn=None,
+                                 regularization_losses=None):
     """Returns an `EstimatorSpec`.
 
     Args:
@@ -1210,8 +1252,9 @@ class _BinaryLogisticHeadWithSigmoidCrossEntropyLoss(_Head):
       regularization_losses: A list of additional scalar losses to be added to
         the training loss, such as regularization losses. These losses are
         usually expressed as a batch average, so for best results users need to
-        set `loss_reduction=SUM_OVER_BATCH_SIZE` when creating the head to
-        avoid scaling errors.
+        set `loss_reduction=SUM_OVER_BATCH_SIZE` when creating the head to avoid
+        scaling errors.
+
     Returns:
       `EstimatorSpec`.
     Raises:
@@ -1224,17 +1267,17 @@ class _BinaryLogisticHeadWithSigmoidCrossEntropyLoss(_Head):
         pred_keys = prediction_keys.PredictionKeys
         logits = _check_logits_final_dim(logits, self.logits_dimension)
         logistic = tf.math.sigmoid(logits, name=pred_keys.LOGISTIC)
-        two_class_logits = tf.concat(
-            (tf.compat.v1.zeros_like(logits), logits),
-            axis=-1, name='two_class_logits')
+        two_class_logits = tf.concat((tf.compat.v1.zeros_like(logits), logits),
+                                     axis=-1,
+                                     name='two_class_logits')
         probabilities = tf.compat.v1.nn.softmax(
             two_class_logits, name=pred_keys.PROBABILITIES)
         class_ids = tf.compat.v1.math.argmax(
             two_class_logits, axis=-1, name=pred_keys.CLASS_IDS)
         class_ids = tf.compat.v1.expand_dims(class_ids, axis=-1)
         all_class_ids = _all_class_ids(logits, n_classes=2)
-        all_classes = _all_classes(logits, n_classes=2,
-                                   label_vocabulary=self._label_vocabulary)
+        all_classes = _all_classes(
+            logits, n_classes=2, label_vocabulary=self._label_vocabulary)
 
         if self._label_vocabulary:
           table = lookup_ops.index_to_string_table_from_tensor(
@@ -1254,7 +1297,8 @@ class _BinaryLogisticHeadWithSigmoidCrossEntropyLoss(_Head):
         }
       if mode == ModeKeys.PREDICT:
         classifier_output = _classification_output(
-            scores=probabilities, n_classes=2,
+            scores=probabilities,
+            n_classes=2,
             label_vocabulary=self._label_vocabulary)
         return model_fn._TPUEstimatorSpec(  # pylint: disable=protected-access
             mode=ModeKeys.PREDICT,
@@ -1318,8 +1362,7 @@ class _BinaryLogisticHeadWithSigmoidCrossEntropyLoss(_Head):
     with ops.name_scope(''):
       keys = metric_keys.MetricKeys
       tf.compat.v1.summary.scalar(
-          _summary_key(self._name, keys.LOSS),
-          regularized_training_loss)
+          _summary_key(self._name, keys.LOSS), regularized_training_loss)
       if mean_loss is not None:
         tf.compat.v1.summary.scalar(
             _summary_key(self._name, keys.LOSS_MEAN), mean_loss)
@@ -1334,13 +1377,12 @@ class _BinaryLogisticHeadWithSigmoidCrossEntropyLoss(_Head):
         train_op=train_op)
 
 
-def _regression_head(
-    weight_column=None,
-    label_dimension=1,
-    loss_reduction=tf.compat.v1.losses.Reduction.SUM,
-    loss_fn=None,
-    inverse_link_fn=None,
-    name=None):
+def _regression_head(weight_column=None,
+                     label_dimension=1,
+                     loss_reduction=tf.compat.v1.losses.Reduction.SUM,
+                     loss_fn=None,
+                     inverse_link_fn=None,
+                     name=None):
   """Creates a `_Head` for regression using the `mean_squared_error` loss.
 
   The loss is the weighted sum over all input dimensions. Namely, if the input
@@ -1407,14 +1449,13 @@ def _regression_head(
 class _RegressionHeadWithMeanSquaredErrorLoss(_Head):
   """`Head` for regression using the mean squared loss."""
 
-  def __init__(
-      self,
-      label_dimension,
-      weight_column=None,
-      loss_reduction=tf.compat.v1.losses.Reduction.SUM,
-      loss_fn=None,
-      inverse_link_fn=None,
-      name=None):
+  def __init__(self,
+               label_dimension,
+               weight_column=None,
+               loss_reduction=tf.compat.v1.losses.Reduction.SUM,
+               loss_fn=None,
+               inverse_link_fn=None,
+               name=None):
     """`Head` for regression."""
     if label_dimension < 1:
       raise ValueError('Invalid label_dimension %s.' % label_dimension)
@@ -1438,18 +1479,26 @@ class _RegressionHeadWithMeanSquaredErrorLoss(_Head):
     del mode  # Unused for this head.
     logits = ops.convert_to_tensor(logits)
     labels = _check_dense_labels_match_logits_and_reshape(
-        labels=labels, logits=logits,
+        labels=labels,
+        logits=logits,
         expected_labels_dimension=self._logits_dimension)
     labels = tf.cast(labels, dtype=tf.dtypes.float32)
     if self._loss_fn:
       unweighted_loss = _call_loss_fn(
-          loss_fn=self._loss_fn, labels=labels, logits=logits,
-          features=features, expected_loss_dim=self._logits_dimension)
+          loss_fn=self._loss_fn,
+          labels=labels,
+          logits=logits,
+          features=features,
+          expected_loss_dim=self._logits_dimension)
     else:
       unweighted_loss = tf.compat.v1.losses.mean_squared_error(
-          labels=labels, predictions=logits, reduction=tf.compat.v1.losses.Reduction.NONE)
+          labels=labels,
+          predictions=logits,
+          reduction=tf.compat.v1.losses.Reduction.NONE)
     weights = _get_weights_and_check_match_logits(
-        features=features, weight_column=self._weight_column, logits=logits,
+        features=features,
+        weight_column=self._weight_column,
+        logits=logits,
         allow_per_logit_weights=True)
     training_loss = tf.compat.v1.losses.compute_weighted_loss(
         unweighted_loss, weights=weights, reduction=self._loss_reduction)
@@ -1476,16 +1525,20 @@ class _RegressionHeadWithMeanSquaredErrorLoss(_Head):
             tf.compat.v1.metrics.mean(values=labels, weights=weights)
     }
     if regularization_loss is not None:
-      regularization_loss_key = _summary_key(
-          self._name, keys.LOSS_REGULARIZATION)
+      regularization_loss_key = _summary_key(self._name,
+                                             keys.LOSS_REGULARIZATION)
       eval_metric_ops[regularization_loss_key] = tf.compat.v1.metrics.mean(
-          values=regularization_loss,
-          name=keys.LOSS_REGULARIZATION)
+          values=regularization_loss, name=keys.LOSS_REGULARIZATION)
     return eval_metric_ops
 
-  def _create_tpu_estimator_spec(
-      self, features, mode, logits, labels=None, optimizer=None,
-      train_op_fn=None, regularization_losses=None):
+  def _create_tpu_estimator_spec(self,
+                                 features,
+                                 mode,
+                                 logits,
+                                 labels=None,
+                                 optimizer=None,
+                                 train_op_fn=None,
+                                 regularization_losses=None):
     """Returns an `EstimatorSpec`.
 
     Args:
@@ -1493,10 +1546,10 @@ class _RegressionHeadWithMeanSquaredErrorLoss(_Head):
       mode: Estimator's `ModeKeys`.
       logits: logits `Tensor` with shape `[D0, D1, ... DN, logits_dimension]`.
         For many applications, the shape is `[batch_size, logits_dimension]`.
-      labels: Labels `Tensor` with shape matching `logits`, namely
-        `[D0, D1, ... DN, logits_dimension]`. When `logits_dimension=1`, shape
-        `[D0, D1, ... DN]` is also supported. `labels` is required argument when
-        `mode` equals `TRAIN` or `EVAL`.
+      labels: Labels `Tensor` with shape matching `logits`, namely `[D0, D1, ...
+        DN, logits_dimension]`. When `logits_dimension=1`, shape `[D0, D1, ...
+        DN]` is also supported. `labels` is required argument when `mode` equals
+        `TRAIN` or `EVAL`.
       optimizer: `Optimizer` instance to optimize the loss in TRAIN mode.
         Namely, sets `train_op = optimizer.minimize(loss, global_step)`, which
         updates variables and increments `global_step`.
@@ -1505,8 +1558,9 @@ class _RegressionHeadWithMeanSquaredErrorLoss(_Head):
       regularization_losses: A list of additional scalar losses to be added to
         the training loss, such as regularization losses. These losses are
         usually expressed as a batch average, so for best results users need to
-        set `loss_reduction=SUM_OVER_BATCH_SIZE` when creating the head to
-        avoid scaling errors.
+        set `loss_reduction=SUM_OVER_BATCH_SIZE` when creating the head to avoid
+        scaling errors.
+
     Returns:
       A `model_fn._TPUEstimatorSpec` instance.
     Raises:
@@ -1525,7 +1579,8 @@ class _RegressionHeadWithMeanSquaredErrorLoss(_Head):
       else:
         predicted_value = logits
         predictions = {
-            prediction_keys.PredictionKeys.PREDICTIONS: predicted_value}
+            prediction_keys.PredictionKeys.PREDICTIONS: predicted_value
+        }
       if mode == ModeKeys.PREDICT:
         regression_output = export_output.RegressionOutput(
             value=predicted_value)
@@ -1586,8 +1641,7 @@ class _RegressionHeadWithMeanSquaredErrorLoss(_Head):
     with ops.name_scope(''):
       keys = metric_keys.MetricKeys
       tf.compat.v1.summary.scalar(
-          _summary_key(self._name, keys.LOSS),
-          regularized_training_loss)
+          _summary_key(self._name, keys.LOSS), regularized_training_loss)
       if mean_loss is not None:
         tf.compat.v1.summary.scalar(
             _summary_key(self._name, keys.LOSS_MEAN), mean_loss)
@@ -1622,8 +1676,8 @@ def _assert_range(labels, n_classes, message=None):
       return tf.identity(labels)
 
 
-def _binary_logistic_or_multi_class_head(
-    n_classes, weight_column, label_vocabulary, loss_reduction):
+def _binary_logistic_or_multi_class_head(n_classes, weight_column,
+                                         label_vocabulary, loss_reduction):
   """Creates either binary or multi-class head.
 
   Args:
@@ -1633,17 +1687,16 @@ def _binary_logistic_or_multi_class_head(
       weights. It is used to down weight or boost examples during training. It
       will be multiplied by the loss of the example. If it is a string, it is
       used as a key to fetch weight tensor from the `features`. If it is a
-      `_NumericColumn`, raw tensor is fetched by key `weight_column.key`,
-      then weight_column.normalizer_fn is applied on it to get weight tensor.
+      `_NumericColumn`, raw tensor is fetched by key `weight_column.key`, then
+      weight_column.normalizer_fn is applied on it to get weight tensor.
     label_vocabulary: A list of strings represents possible label values. If
       given, labels must be string type and have any value in
-      `label_vocabulary`. If it is not given, that means labels are
-      already encoded as integer or float within [0, 1] for `n_classes=2` and
-      encoded as integer values in {0, 1,..., n_classes-1} for `n_classes`>2 .
-      Also there will be errors if vocabulary is not provided and labels are
-      string.
-    loss_reduction: One of `tf.losses.Reduction` except `NONE`. Describes how
-      to reduce training loss over batch. Defaults to `SUM`.
+      `label_vocabulary`. If it is not given, that means labels are already
+      encoded as integer or float within [0, 1] for `n_classes=2` and encoded as
+      integer values in {0, 1,..., n_classes-1} for `n_classes`>2 . Also there
+      will be errors if vocabulary is not provided and labels are string.
+    loss_reduction: One of `tf.losses.Reduction` except `NONE`. Describes how to
+      reduce training loss over batch. Defaults to `SUM`.
 
   Returns:
     `head._Head` instance.
@@ -1655,7 +1708,8 @@ def _binary_logistic_or_multi_class_head(
         loss_reduction=loss_reduction)
   else:
     head = _multi_class_head_with_softmax_cross_entropy_loss(
-        n_classes, weight_column=weight_column,
+        n_classes,
+        weight_column=weight_column,
         label_vocabulary=label_vocabulary,
         loss_reduction=loss_reduction)
   return head

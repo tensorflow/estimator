@@ -18,23 +18,15 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
-import six
 import inspect
-
+import six
+import tensorflow as tf
 from tensorflow.python.keras.optimizer_v2 import adagrad as adagrad_v2
 from tensorflow.python.keras.optimizer_v2 import adam as adam_v2
 from tensorflow.python.keras.optimizer_v2 import ftrl as ftrl_v2
 from tensorflow.python.keras.optimizer_v2 import gradient_descent as gradient_descent_v2
 from tensorflow.python.keras.optimizer_v2 import optimizer_v2
 from tensorflow.python.keras.optimizer_v2 import rmsprop as rmsprop_v2
-from tensorflow.python.training import adagrad
-from tensorflow.python.training import adam
-from tensorflow.python.training import ftrl
-from tensorflow.python.training import gradient_descent
-from tensorflow.python.training import optimizer as optimizer_lib
-from tensorflow.python.training import rmsprop
-
 
 _OPTIMIZER_CLS_NAMES = {
     'Adagrad': tf.compat.v1.train.AdagradOptimizer,

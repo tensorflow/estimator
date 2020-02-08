@@ -23,37 +23,18 @@ import os
 import shutil
 import tempfile
 
-import tensorflow as tf
 import numpy as np
 import six
-
+import tensorflow as tf
 from tensorflow.core.example import example_pb2
 from tensorflow.core.example import feature_pb2
-from tensorflow.python.client import session as tf_session
-from tensorflow.python.feature_column import feature_column_v2 as feature_column_lib
-from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
 from tensorflow.python.keras.optimizer_v2 import optimizer_v2
-from tensorflow.python.ops import check_ops
-from tensorflow.python.ops import control_flow_ops
-from tensorflow.python.ops import data_flow_ops
-from tensorflow.python.ops import math_ops
-from tensorflow.python.ops import parsing_ops
-from tensorflow.python.ops import state_ops
-from tensorflow.python.ops import variables
-from tensorflow.python.platform import gfile
-from tensorflow.python.platform import test
-from tensorflow.python.summary.writer import writer_cache
-from tensorflow.python.training import checkpoint_utils
-from tensorflow.python.training import input as input_lib
-from tensorflow.python.training import queue_runner
-from tensorflow.python.training import saver
 from tensorflow_estimator.python.estimator.canned import baseline
 from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.export import export
 from tensorflow_estimator.python.estimator.inputs import numpy_io
 from tensorflow_estimator.python.estimator.inputs import pandas_io
-
 
 try:
   # pylint: disable=g-import-not-at-top
@@ -103,8 +84,8 @@ def queue_parsed_features(feature_map):
   queue_dtypes = [x.dtype for x in tensors_to_enqueue]
   input_queue = tf.queue.FIFOQueue(capacity=100, dtypes=queue_dtypes)
   tf.compat.v1.train.queue_runner.add_queue_runner(
-      tf.compat.v1.train.queue_runner.QueueRunner(input_queue,
-                               [input_queue.enqueue(tensors_to_enqueue)]))
+      tf.compat.v1.train.queue_runner.QueueRunner(
+          input_queue, [input_queue.enqueue(tensors_to_enqueue)]))
   dequeued_tensors = input_queue.dequeue()
   return {keys[i]: dequeued_tensors[i] for i in range(len(dequeued_tensors))}
 
@@ -170,8 +151,8 @@ def mock_optimizer_v2(testcase, expected_loss=None):
 
 # Tests for Baseline Regressor.
 
-
 # TODO(b/36813849): Add tests with dynamic shape inputs using placeholders.
+
 
 class BaselineRegressorEvaluationTest(tf.test.TestCase):
 
@@ -192,16 +173,19 @@ class BaselineRegressorEvaluationTest(tf.test.TestCase):
 
     baseline_regressor = _baseline_regressor_fn(model_dir=self._model_dir)
     eval_metrics = baseline_regressor.evaluate(
-        input_fn=lambda: ({'age': ((1,),)}, ((10.,),)), steps=1)
+        input_fn=lambda: ({
+            'age': ((1,),)
+        }, ((10.,),)), steps=1)
 
     # Logit is bias = 13, while label is 10. Loss is 3**2 = 9.
-    self.assertDictEqual({
-        metric_keys.MetricKeys.LOSS: 9.,
-        metric_keys.MetricKeys.LOSS_MEAN: 9.,
-        metric_keys.MetricKeys.PREDICTION_MEAN: 13.,
-        metric_keys.MetricKeys.LABEL_MEAN: 10.,
-        tf.compat.v1.GraphKeys.GLOBAL_STEP: 100
-    }, eval_metrics)
+    self.assertDictEqual(
+        {
+            metric_keys.MetricKeys.LOSS: 9.,
+            metric_keys.MetricKeys.LOSS_MEAN: 9.,
+            metric_keys.MetricKeys.PREDICTION_MEAN: 13.,
+            metric_keys.MetricKeys.LABEL_MEAN: 10.,
+            tf.compat.v1.GraphKeys.GLOBAL_STEP: 100
+        }, eval_metrics)
 
   def test_evaluation_batch(self):
     """Tests evaluation for batch_size==2."""
@@ -213,19 +197,22 @@ class BaselineRegressorEvaluationTest(tf.test.TestCase):
 
     baseline_regressor = _baseline_regressor_fn(model_dir=self._model_dir)
     eval_metrics = baseline_regressor.evaluate(
-        input_fn=lambda: ({'age': ((1,), (1,))}, ((10.,), (10.,))), steps=1)
+        input_fn=lambda: ({
+            'age': ((1,), (1,))
+        }, ((10.,), (10.,))), steps=1)
 
     # Logit is bias = 13, while label is 10.
     # Loss per example is 3**2 = 9.
     # Training loss is the sum over batch size = (9 + 9) / 2 = 9
     # Average loss is the average over batch = 9
-    self.assertDictEqual({
-        metric_keys.MetricKeys.LOSS: 9.,
-        metric_keys.MetricKeys.LOSS_MEAN: 9.,
-        metric_keys.MetricKeys.PREDICTION_MEAN: 13.,
-        metric_keys.MetricKeys.LABEL_MEAN: 10.,
-        tf.compat.v1.GraphKeys.GLOBAL_STEP: 100
-    }, eval_metrics)
+    self.assertDictEqual(
+        {
+            metric_keys.MetricKeys.LOSS: 9.,
+            metric_keys.MetricKeys.LOSS_MEAN: 9.,
+            metric_keys.MetricKeys.PREDICTION_MEAN: 13.,
+            metric_keys.MetricKeys.LABEL_MEAN: 10.,
+            tf.compat.v1.GraphKeys.GLOBAL_STEP: 100
+        }, eval_metrics)
 
   def test_evaluation_weights(self):
     """Tests evaluation with weights."""
@@ -241,21 +228,21 @@ class BaselineRegressorEvaluationTest(tf.test.TestCase):
       return features, labels
 
     baseline_regressor = _baseline_regressor_fn(
-        weight_column='weights',
-        model_dir=self._model_dir)
+        weight_column='weights', model_dir=self._model_dir)
     eval_metrics = baseline_regressor.evaluate(input_fn=_input_fn, steps=1)
 
     # Logit is bias = 13, while label is 10.
     # Loss per example is 3**2 = 9.
     # Training loss is the weighted sum over batch size = (9 + 2*9) / 2 = 13.5
     # average loss is the weighted average = 9 + 2*9 / (1 + 2) = 9
-    self.assertDictEqual({
-        metric_keys.MetricKeys.LOSS: 13.5,
-        metric_keys.MetricKeys.LOSS_MEAN: 9.,
-        metric_keys.MetricKeys.PREDICTION_MEAN: 13.,
-        metric_keys.MetricKeys.LABEL_MEAN: 10.,
-        tf.compat.v1.GraphKeys.GLOBAL_STEP: 100
-    }, eval_metrics)
+    self.assertDictEqual(
+        {
+            metric_keys.MetricKeys.LOSS: 13.5,
+            metric_keys.MetricKeys.LOSS_MEAN: 9.,
+            metric_keys.MetricKeys.PREDICTION_MEAN: 13.,
+            metric_keys.MetricKeys.LABEL_MEAN: 10.,
+            tf.compat.v1.GraphKeys.GLOBAL_STEP: 100
+        }, eval_metrics)
 
   def test_evaluation_for_multi_dimensions(self):
     label_dim = 2
@@ -265,8 +252,7 @@ class BaselineRegressorEvaluationTest(tf.test.TestCase):
       save_variables_to_ckpt(self._model_dir)
 
     baseline_regressor = _baseline_regressor_fn(
-        label_dimension=label_dim,
-        model_dir=self._model_dir)
+        label_dimension=label_dim, model_dir=self._model_dir)
     input_fn = numpy_io.numpy_input_fn(
         x={
             'age': np.array([[2., 4., 5.]]),
@@ -328,8 +314,7 @@ class BaselineRegressorPredictTest(tf.test.TestCase):
       save_variables_to_ckpt(self._model_dir)
 
     baseline_regressor = _baseline_regressor_fn(
-        label_dimension=label_dimension,
-        model_dir=self._model_dir)
+        label_dimension=label_dimension, model_dir=self._model_dir)
 
     predict_input_fn = numpy_io.numpy_input_fn(
         # x shape=[batch_size, x_dim]
@@ -341,8 +326,7 @@ class BaselineRegressorPredictTest(tf.test.TestCase):
     predictions = baseline_regressor.predict(input_fn=predict_input_fn)
     predicted_scores = list([x['predictions'] for x in predictions])
     # score = bias, shape=[batch_size, label_dimension]
-    self.assertAllClose([[0.2, 0.4, 0.6], [0.2, 0.4, 0.6]],
-                        predicted_scores)
+    self.assertAllClose([[0.2, 0.4, 0.6], [0.2, 0.4, 0.6]], predicted_scores)
 
 
 class BaselineRegressorIntegrationTest(tf.test.TestCase):
@@ -361,8 +345,7 @@ class BaselineRegressorIntegrationTest(tf.test.TestCase):
         tf.feature_column.numeric_column('x', shape=(input_dimension,))
     ]
     est = _baseline_regressor_fn(
-        label_dimension=label_dimension,
-        model_dir=self._model_dir)
+        label_dimension=label_dimension, model_dir=self._model_dir)
 
     # TRAIN
     # learn y = x
@@ -379,8 +362,7 @@ class BaselineRegressorIntegrationTest(tf.test.TestCase):
     self.assertAllEqual((prediction_length, label_dimension), predictions.shape)
 
     # EXPORT
-    feature_spec = tf.feature_column.make_parse_example_spec(
-        feature_columns)
+    feature_spec = tf.feature_column.make_parse_example_spec(feature_columns)
     serving_input_receiver_fn = export.build_parsing_serving_input_receiver_fn(
         feature_spec)
     export_dir = est.export_saved_model(tempfile.mkdtemp(),
@@ -463,15 +445,17 @@ class BaselineRegressorIntegrationTest(tf.test.TestCase):
 
     serialized_examples = []
     for datum in data:
-      example = example_pb2.Example(features=feature_pb2.Features(
-          feature={
-              'x':
-                  feature_pb2.Feature(float_list=feature_pb2.FloatList(
-                      value=datum)),
-              'y':
-                  feature_pb2.Feature(float_list=feature_pb2.FloatList(
-                      value=datum[:label_dimension])),
-          }))
+      example = example_pb2.Example(
+          features=feature_pb2.Features(
+              feature={
+                  'x':
+                      feature_pb2.Feature(
+                          float_list=feature_pb2.FloatList(value=datum)),
+                  'y':
+                      feature_pb2.Feature(
+                          float_list=feature_pb2.FloatList(
+                              value=datum[:label_dimension])),
+              }))
       serialized_examples.append(example.SerializeToString())
 
     feature_spec = {
@@ -480,7 +464,8 @@ class BaselineRegressorIntegrationTest(tf.test.TestCase):
     }
 
     def _train_input_fn():
-      feature_map = tf.compat.v1.io.parse_example(serialized_examples, feature_spec)
+      feature_map = tf.compat.v1.io.parse_example(serialized_examples,
+                                                  feature_spec)
       features = queue_parsed_features(feature_map)
       labels = features.pop('y')
       return features, labels
@@ -530,15 +515,15 @@ class BaselineRegressorTrainingTest(tf.test.TestCase):
     }
 
     self.assertEqual([], shapes[tf.compat.v1.GraphKeys.GLOBAL_STEP])
-    self.assertEqual(expected_global_step,
-                     tf.train.load_variable(self._model_dir,
-                                                    tf.compat.v1.GraphKeys.GLOBAL_STEP))
+    self.assertEqual(
+        expected_global_step,
+        tf.train.load_variable(self._model_dir,
+                               tf.compat.v1.GraphKeys.GLOBAL_STEP))
 
     self.assertEqual([label_dimension], shapes[BIAS_NAME])
     if expected_bias is not None:
       self.assertEqual(expected_bias,
-                       tf.train.load_variable(self._model_dir,
-                                                      BIAS_NAME))
+                       tf.train.load_variable(self._model_dir, BIAS_NAME))
 
   def testFromScratchWithDefaultOptimizer(self):
     # Create BaselineRegressor.
@@ -549,15 +534,16 @@ class BaselineRegressorTrainingTest(tf.test.TestCase):
     # Train for a few steps, and validate final checkpoint.
     num_steps = 10
     baseline_regressor.train(
-        input_fn=lambda: ({'age': ((age,),)}, ((label,),)), steps=num_steps)
+        input_fn=lambda: ({
+            'age': ((age,),)
+        }, ((label,),)), steps=num_steps)
     self._assert_checkpoint(label_dimension=1, expected_global_step=num_steps)
 
   def testTrainWithOneDimLabel(self):
     label_dimension = 1
     batch_size = 20
     est = _baseline_regressor_fn(
-        label_dimension=label_dimension,
-        model_dir=self._model_dir)
+        label_dimension=label_dimension, model_dir=self._model_dir)
     data_rank_1 = np.linspace(0., 2., batch_size, dtype=np.float32)
     self.assertEqual((batch_size,), data_rank_1.shape)
 
@@ -582,8 +568,10 @@ class BaselineRegressorTrainingTest(tf.test.TestCase):
     self.assertEqual((batch_size,), data_rank_1.shape)
 
     train_input_fn = numpy_io.numpy_input_fn(
-        x={'age': data_rank_1,
-           'w': data_rank_1},
+        x={
+            'age': data_rank_1,
+            'w': data_rank_1
+        },
         y=data_rank_1,
         batch_size=batch_size,
         num_epochs=None,
@@ -598,20 +586,19 @@ class BaselineRegressorTrainingTest(tf.test.TestCase):
     # loss = (logits - label)^2 = (0 - 5.)^2 = 25.
     mock_optimizer = mock_optimizer_v2(self, expected_loss=25.)
     baseline_regressor = _baseline_regressor_fn(
-        model_dir=self._model_dir,
-        optimizer=mock_optimizer)
+        model_dir=self._model_dir, optimizer=mock_optimizer)
 
     # Train for a few steps, and validate optimizer and final checkpoint.
     num_steps = 10
     baseline_regressor.train(
-        input_fn=lambda: ({'age': ((age,),)}, ((label,),)), steps=num_steps)
+        input_fn=lambda: ({
+            'age': ((age,),)
+        }, ((label,),)), steps=num_steps)
     self.assertEqual(
         num_steps,
         baseline_regressor.get_variable_value(mock_optimizer.iterations.name))
     self._assert_checkpoint(
-        label_dimension=1,
-        expected_global_step=num_steps,
-        expected_bias=[0.])
+        label_dimension=1, expected_global_step=num_steps, expected_bias=[0.])
 
   def testFromCheckpoint(self):
     # Create initial checkpoint.
@@ -629,13 +616,14 @@ class BaselineRegressorTrainingTest(tf.test.TestCase):
     # loss = (logits - label)^2 = (7 - 5)^2 = 4
     mock_optimizer = mock_optimizer_v2(self, expected_loss=4.)
     baseline_regressor = _baseline_regressor_fn(
-        model_dir=self._model_dir,
-        optimizer=mock_optimizer)
+        model_dir=self._model_dir, optimizer=mock_optimizer)
 
     # Train for a few steps, and validate optimizer and final checkpoint.
     num_steps = 10
     baseline_regressor.train(
-        input_fn=lambda: ({'age': ((17,),)}, ((5.,),)), steps=num_steps)
+        input_fn=lambda: ({
+            'age': ((17,),)
+        }, ((5.,),)), steps=num_steps)
     self.assertEqual(
         initial_global_step + num_steps,
         baseline_regressor.get_variable_value(mock_optimizer.iterations.name))
@@ -663,13 +651,14 @@ class BaselineRegressorTrainingTest(tf.test.TestCase):
     # loss = 2
     mock_optimizer = mock_optimizer_v2(self, expected_loss=2.)
     baseline_regressor = _baseline_regressor_fn(
-        model_dir=self._model_dir,
-        optimizer=mock_optimizer)
+        model_dir=self._model_dir, optimizer=mock_optimizer)
 
     # Train for a few steps, and validate optimizer and final checkpoint.
     num_steps = 10
     baseline_regressor.train(
-        input_fn=lambda: ({'age': ((17,), (15,))}, ((5.,), (3.,))),
+        input_fn=lambda: ({
+            'age': ((17,), (15,))
+        }, ((5.,), (3.,))),
         steps=num_steps)
     self.assertEqual(
         initial_global_step + num_steps,
@@ -692,26 +681,27 @@ class BaselineClassifierTrainingTest(tf.test.TestCase):
     if self._model_dir:
       shutil.rmtree(self._model_dir)
 
-  def _assert_checkpoint(
-      self, n_classes, expected_global_step, expected_bias=None):
+  def _assert_checkpoint(self,
+                         n_classes,
+                         expected_global_step,
+                         expected_bias=None):
     logits_dimension = n_classes if n_classes > 2 else 1
 
     shapes = {
-        name: shape for (name, shape) in
-        tf.train.list_variables(self._model_dir)
+        name: shape
+        for (name, shape) in tf.train.list_variables(self._model_dir)
     }
 
     self.assertEqual([], shapes[tf.compat.v1.GraphKeys.GLOBAL_STEP])
     self.assertEqual(
         expected_global_step,
-        tf.train.load_variable(
-            self._model_dir, tf.compat.v1.GraphKeys.GLOBAL_STEP))
+        tf.train.load_variable(self._model_dir,
+                               tf.compat.v1.GraphKeys.GLOBAL_STEP))
 
     self.assertEqual([logits_dimension], shapes[BIAS_NAME])
     if expected_bias is not None:
       self.assertAllEqual(expected_bias,
-                          tf.train.load_variable(
-                              self._model_dir, BIAS_NAME))
+                          tf.train.load_variable(self._model_dir, BIAS_NAME))
 
   def _testFromScratchWithDefaultOptimizer(self, n_classes):
     label = 0
@@ -722,7 +712,9 @@ class BaselineClassifierTrainingTest(tf.test.TestCase):
     # Train for a few steps, and validate final checkpoint.
     num_steps = 10
     est.train(
-        input_fn=lambda: ({'age': ((age,),)}, ((label,),)), steps=num_steps)
+        input_fn=lambda: ({
+            'age': ((age,),)
+        }, ((label,),)), steps=num_steps)
     self._assert_checkpoint(n_classes, num_steps)
 
   def testBinaryClassesFromScratchWithDefaultOptimizer(self):
@@ -790,8 +782,13 @@ class BaselineClassifierTrainingTest(tf.test.TestCase):
     self.assertEqual((2, 1), data_rank_2.shape)
 
     train_input_fn = numpy_io.numpy_input_fn(
-        x={'age': data_rank_1, 'w': data_rank_2}, y=data_rank_1,
-        batch_size=batch_size, num_epochs=None,
+        x={
+            'age': data_rank_1,
+            'w': data_rank_2
+        },
+        y=data_rank_1,
+        batch_size=batch_size,
+        num_epochs=None,
         shuffle=True)
     est.train(train_input_fn, steps=200)
     self._assert_checkpoint(n_classes, 200)
@@ -811,8 +808,13 @@ class BaselineClassifierTrainingTest(tf.test.TestCase):
     self.assertEqual((2,), data_rank_1.shape)
 
     train_input_fn = numpy_io.numpy_input_fn(
-        x={'age': data_rank_1, 'w': data_rank_1}, y=data_rank_1,
-        batch_size=batch_size, num_epochs=None,
+        x={
+            'age': data_rank_1,
+            'w': data_rank_1
+        },
+        y=data_rank_1,
+        batch_size=batch_size,
+        num_epochs=None,
         shuffle=True)
     est.train(train_input_fn, steps=200)
     self._assert_checkpoint(n_classes, 200)
@@ -847,7 +849,9 @@ class BaselineClassifierTrainingTest(tf.test.TestCase):
     # Train for a few steps, and validate optimizer and final checkpoint.
     num_steps = 10
     est.train(
-        input_fn=lambda: ({'age': ((age,),)}, ((label,),)), steps=num_steps)
+        input_fn=lambda: ({
+            'age': ((age,),)
+        }, ((label,),)), steps=num_steps)
     self.assertEqual(num_steps,
                      est.get_variable_value(mock_optimizer.iterations.name))
     self._assert_checkpoint(
@@ -870,7 +874,8 @@ class BaselineClassifierTrainingTest(tf.test.TestCase):
     with tf.Graph().as_default():
       tf.Variable(bias, name=BIAS_NAME)
       tf.Variable(
-          initial_global_step, name=tf.compat.v1.GraphKeys.GLOBAL_STEP,
+          initial_global_step,
+          name=tf.compat.v1.GraphKeys.GLOBAL_STEP,
           dtype=tf.dtypes.int64)
       save_variables_to_ckpt(self._model_dir)
 
@@ -900,7 +905,9 @@ class BaselineClassifierTrainingTest(tf.test.TestCase):
     # Train for a few steps, and validate optimizer and final checkpoint.
     num_steps = 10
     est.train(
-        input_fn=lambda: ({'age': ((age,),)}, ((label,),)), steps=num_steps)
+        input_fn=lambda: ({
+            'age': ((age,),)
+        }, ((label,),)), steps=num_steps)
     self.assertEqual(initial_global_step + num_steps,
                      est.get_variable_value(mock_optimizer.iterations.name))
     self._assert_checkpoint(
@@ -926,7 +933,8 @@ class BaselineClassifierTrainingTest(tf.test.TestCase):
     with tf.Graph().as_default():
       tf.Variable(bias, name=BIAS_NAME)
       tf.Variable(
-          initial_global_step, name=tf.compat.v1.GraphKeys.GLOBAL_STEP,
+          initial_global_step,
+          name=tf.compat.v1.GraphKeys.GLOBAL_STEP,
           dtype=tf.dtypes.int64)
       save_variables_to_ckpt(self._model_dir)
 
@@ -943,7 +951,9 @@ class BaselineClassifierTrainingTest(tf.test.TestCase):
     # Train for a few steps, and validate optimizer and final checkpoint.
     num_steps = 10
     est.train(
-        input_fn=lambda: ({'age': ((age,),)}, ((label,),)), steps=num_steps)
+        input_fn=lambda: ({
+            'age': ((age,),)
+        }, ((label,),)), steps=num_steps)
     self.assertEqual(initial_global_step + num_steps,
                      est.get_variable_value(mock_optimizer.iterations.name))
 
@@ -966,7 +976,8 @@ class BaselineClassifierTrainingTest(tf.test.TestCase):
     with tf.Graph().as_default():
       tf.Variable(bias, name=BIAS_NAME)
       tf.Variable(
-          initial_global_step, name=tf.compat.v1.GraphKeys.GLOBAL_STEP,
+          initial_global_step,
+          name=tf.compat.v1.GraphKeys.GLOBAL_STEP,
           dtype=tf.dtypes.int64)
       save_variables_to_ckpt(self._model_dir)
 
@@ -1002,9 +1013,7 @@ class BaselineClassifierTrainingTest(tf.test.TestCase):
 
     # Train for a few steps, and validate optimizer and final checkpoint.
     num_steps = 10
-    est.train(
-        input_fn=lambda: ({'age': (age)}, (label)),
-        steps=num_steps)
+    est.train(input_fn=lambda: ({'age': (age)}, (label)), steps=num_steps)
     self.assertEqual(initial_global_step + num_steps,
                      est.get_variable_value(mock_optimizer.iterations.name))
     self._assert_checkpoint(
@@ -1041,10 +1050,11 @@ class BaselineClassifierEvaluationTest(tf.test.TestCase):
       save_variables_to_ckpt(self._model_dir)
 
     est = _baseline_classifier_fn(
-        n_classes=n_classes,
-        model_dir=self._model_dir)
+        n_classes=n_classes, model_dir=self._model_dir)
     eval_metrics = est.evaluate(
-        input_fn=lambda: ({'age': ((age,),)}, ((label,),)), steps=1)
+        input_fn=lambda: ({
+            'age': ((age,),)
+        }, ((label,),)), steps=1)
 
     if n_classes == 2:
       # Binary classes: loss = -log(sigmoid(-1)) / batch size = 1.3133
@@ -1076,8 +1086,10 @@ class BaselineClassifierEvaluationTest(tf.test.TestCase):
           metric_keys.MetricKeys.ACCURACY: 0.,
       }
 
-    self.assertAllClose(sorted_key_dict(expected_metrics),
-                        sorted_key_dict(eval_metrics), rtol=1e-3)
+    self.assertAllClose(
+        sorted_key_dict(expected_metrics),
+        sorted_key_dict(eval_metrics),
+        rtol=1e-3)
 
   def test_binary_classes_evaluation_for_simple_data(self):
     self._test_evaluation_for_simple_data(n_classes=2)
@@ -1094,15 +1106,17 @@ class BaselineClassifierEvaluationTest(tf.test.TestCase):
     with tf.Graph().as_default():
       tf.Variable(bias, name=BIAS_NAME)
       tf.Variable(
-          initial_global_step, name=tf.compat.v1.GraphKeys.GLOBAL_STEP,
+          initial_global_step,
+          name=tf.compat.v1.GraphKeys.GLOBAL_STEP,
           dtype=tf.dtypes.int64)
       save_variables_to_ckpt(self._model_dir)
 
     est = _baseline_classifier_fn(
-        n_classes=n_classes,
-        model_dir=self._model_dir)
+        n_classes=n_classes, model_dir=self._model_dir)
     eval_metrics = est.evaluate(
-        input_fn=lambda: ({'age': (age)}, (label)), steps=1)
+        input_fn=lambda: ({
+            'age': (age)
+        }, (label)), steps=1)
 
     if n_classes == 2:
       # Logits are (-1., -1.) labels are (1, 0).
@@ -1142,8 +1156,10 @@ class BaselineClassifierEvaluationTest(tf.test.TestCase):
           metric_keys.MetricKeys.ACCURACY: 0.5,
       }
 
-    self.assertAllClose(sorted_key_dict(expected_metrics),
-                        sorted_key_dict(eval_metrics), rtol=1e-3)
+    self.assertAllClose(
+        sorted_key_dict(expected_metrics),
+        sorted_key_dict(eval_metrics),
+        rtol=1e-3)
 
   def test_binary_classes_evaluation_batch(self):
     self._test_evaluation_batch(n_classes=2)
@@ -1165,16 +1181,18 @@ class BaselineClassifierEvaluationTest(tf.test.TestCase):
     with tf.Graph().as_default():
       tf.Variable(bias, name=BIAS_NAME)
       tf.Variable(
-          initial_global_step, name=tf.compat.v1.GraphKeys.GLOBAL_STEP,
+          initial_global_step,
+          name=tf.compat.v1.GraphKeys.GLOBAL_STEP,
           dtype=tf.dtypes.int64)
       save_variables_to_ckpt(self._model_dir)
 
     est = _baseline_classifier_fn(
-        n_classes=n_classes,
-        weight_column='w',
-        model_dir=self._model_dir)
+        n_classes=n_classes, weight_column='w', model_dir=self._model_dir)
     eval_metrics = est.evaluate(
-        input_fn=lambda: ({'age': (age), 'w': (weights)}, (label)), steps=1)
+        input_fn=lambda: ({
+            'age': (age),
+            'w': (weights)
+        }, (label)), steps=1)
 
     if n_classes == 2:
       # Logits are (-1., -1.) labels are (1, 0).
@@ -1198,8 +1216,8 @@ class BaselineClassifierEvaluationTest(tf.test.TestCase):
           metric_keys.MetricKeys.RECALL: 0.,
           metric_keys.MetricKeys.PREDICTION_MEAN: predictions_mean,
           metric_keys.MetricKeys.LABEL_MEAN: label_mean,
-          metric_keys.MetricKeys.ACCURACY_BASELINE: (
-              max(label_mean, 1-label_mean)),
+          metric_keys.MetricKeys.ACCURACY_BASELINE:
+              (max(label_mean, 1 - label_mean)),
           metric_keys.MetricKeys.AUC: 0.5,
           metric_keys.MetricKeys.AUC_PR: 0.33333,
       }
@@ -1223,8 +1241,10 @@ class BaselineClassifierEvaluationTest(tf.test.TestCase):
           metric_keys.MetricKeys.ACCURACY: 2. / (1. + 2.),
       }
 
-    self.assertAllClose(sorted_key_dict(expected_metrics),
-                        sorted_key_dict(eval_metrics), rtol=1e-3)
+    self.assertAllClose(
+        sorted_key_dict(expected_metrics),
+        sorted_key_dict(eval_metrics),
+        rtol=1e-3)
 
   def test_binary_classes_evaluation_weights(self):
     self._test_evaluation_weights(n_classes=2)
@@ -1276,7 +1296,8 @@ class BaselineClassifierPredictTest(tf.test.TestCase):
           'class_ids': [1],
           'all_class_ids': [0, 1],
           'classes': [label_output_fn(1)],
-          'all_classes': [label_output_fn(0), label_output_fn(1)],
+          'all_classes': [label_output_fn(0),
+                          label_output_fn(1)],
           'logistic': [sigmoid(np.array(scalar_logits))],
           'logits': [scalar_logits],
           'probabilities': softmax,
@@ -1305,21 +1326,21 @@ class BaselineClassifierPredictTest(tf.test.TestCase):
                         predictions[0]['all_classes'])
     expected_predictions.pop('all_classes')
     predictions[0].pop('all_classes')
-    self.assertAllClose(sorted_key_dict(expected_predictions),
-                        sorted_key_dict(predictions[0]))
+    self.assertAllClose(
+        sorted_key_dict(expected_predictions), sorted_key_dict(predictions[0]))
 
   def testBinaryClassesWithoutLabelVocabulary(self):
     n_classes = 2
-    self._testPredictions(n_classes,
-                          label_vocabulary=None,
-                          label_output_fn=lambda x: ('%s' % x).encode())
+    self._testPredictions(
+        n_classes,
+        label_vocabulary=None,
+        label_output_fn=lambda x: ('%s' % x).encode())
 
   def testBinaryClassesWithLabelVocabulary(self):
     n_classes = 2
     self._testPredictions(
         n_classes,
-        label_vocabulary=['class_vocab_{}'.format(i)
-                          for i in range(n_classes)],
+        label_vocabulary=['class_vocab_{}'.format(i) for i in range(n_classes)],
         label_output_fn=lambda x: ('class_vocab_%s' % x).encode())
 
   def testMultiClassesWithoutLabelVocabulary(self):
@@ -1333,8 +1354,7 @@ class BaselineClassifierPredictTest(tf.test.TestCase):
     n_classes = 4
     self._testPredictions(
         n_classes,
-        label_vocabulary=['class_vocab_{}'.format(i)
-                          for i in range(n_classes)],
+        label_vocabulary=['class_vocab_{}'.format(i) for i in range(n_classes)],
         label_output_fn=lambda x: ('class_vocab_%s' % x).encode())
 
 
@@ -1353,8 +1373,7 @@ class BaselineClassifierIntegrationTest(tf.test.TestCase):
         tf.feature_column.numeric_column('x', shape=(input_dimension,))
     ]
     est = _baseline_classifier_fn(
-        n_classes=n_classes,
-        model_dir=self._model_dir)
+        n_classes=n_classes, model_dir=self._model_dir)
 
     # TRAIN
     # learn y = x
@@ -1371,8 +1390,7 @@ class BaselineClassifierIntegrationTest(tf.test.TestCase):
     self.assertAllEqual((prediction_length, 1), predictions.shape)
 
     # EXPORT
-    feature_spec = tf.feature_column.make_parse_example_spec(
-        feature_columns)
+    feature_spec = tf.feature_column.make_parse_example_spec(feature_columns)
     serving_input_receiver_fn = export.build_parsing_serving_input_receiver_fn(
         feature_spec)
     export_dir = est.export_saved_model(tempfile.mkdtemp(),
@@ -1467,15 +1485,16 @@ class BaselineClassifierIntegrationTest(tf.test.TestCase):
 
     serialized_examples = []
     for x, y in zip(data, target):
-      example = example_pb2.Example(features=feature_pb2.Features(
-          feature={
-              'x':
-                  feature_pb2.Feature(float_list=feature_pb2.FloatList(
-                      value=x)),
-              'y':
-                  feature_pb2.Feature(int64_list=feature_pb2.Int64List(
-                      value=[y])),
-          }))
+      example = example_pb2.Example(
+          features=feature_pb2.Features(
+              feature={
+                  'x':
+                      feature_pb2.Feature(
+                          float_list=feature_pb2.FloatList(value=x)),
+                  'y':
+                      feature_pb2.Feature(
+                          int64_list=feature_pb2.Int64List(value=[y])),
+              }))
       serialized_examples.append(example.SerializeToString())
 
     feature_spec = {
@@ -1484,7 +1503,8 @@ class BaselineClassifierIntegrationTest(tf.test.TestCase):
     }
 
     def _train_input_fn():
-      feature_map = tf.compat.v1.io.parse_example(serialized_examples, feature_spec)
+      feature_map = tf.compat.v1.io.parse_example(serialized_examples,
+                                                  feature_spec)
       features = queue_parsed_features(feature_map)
       labels = features.pop('y')
       return features, labels

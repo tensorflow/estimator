@@ -21,17 +21,11 @@ from __future__ import print_function
 import shutil
 import tempfile
 
-import tensorflow as tf
 import numpy as np
 import six
-
-from tensorflow.python.feature_column import feature_column_v2
-from tensorflow.python.framework import ops
+import tensorflow as tf
 from tensorflow.python.keras.optimizer_v2 import adagrad as adagrad_v2
 from tensorflow.python.keras.utils import losses_utils
-from tensorflow.python.platform import gfile
-from tensorflow.python.platform import test
-from tensorflow.python.summary.writer import writer_cache
 from tensorflow_estimator.python.estimator.canned import dnn
 from tensorflow_estimator.python.estimator.canned import dnn_testing_utils
 from tensorflow_estimator.python.estimator.canned import prediction_keys
@@ -54,17 +48,15 @@ def _dnn_estimator_fn(weight_column=None, label_dimension=1, **kwargs):
 
 def _dnn_estimator_classifier_fn(n_classes=3, **kwargs):
   return dnn.DNNEstimatorV2(
-      head=multi_class_head.MultiClassHead(
-          n_classes=n_classes),
-      **kwargs)
+      head=multi_class_head.MultiClassHead(n_classes=n_classes), **kwargs)
 
 
 class DNNLogitFnBuilderTest(tf.test.TestCase):
 
   def testLongInPy2(self):
     if six.PY2:
-      ret = dnn.dnn_logit_fn_builder(long(1), None, None, None,
-                                     None, None, None)
+      ret = dnn.dnn_logit_fn_builder(
+          long(1), None, None, None, None, None, None)
       self.assertTrue(callable(ret))
 
 
@@ -114,8 +106,13 @@ class DNNEstimatorIntegrationTest(tf.test.TestCase):
       tf.compat.v1.summary.FileWriterCache.clear()
       shutil.rmtree(self._model_dir)
 
-  def _test_complete_flow(self, train_input_fn, eval_input_fn, predict_input_fn,
-                          input_dimension, label_dimension, batch_size,
+  def _test_complete_flow(self,
+                          train_input_fn,
+                          eval_input_fn,
+                          predict_input_fn,
+                          input_dimension,
+                          label_dimension,
+                          batch_size,
                           optimizer='Adagrad'):
     feature_columns = [
         tf.feature_column.numeric_column('x', shape=(input_dimension,))
@@ -198,6 +195,7 @@ class DNNEstimatorIntegrationTest(tf.test.TestCase):
         label_dimension=label_dimension,
         batch_size=batch_size,
         optimizer=adagrad_v2.Adagrad(0.01))  # Test with optimizer_v2 instance
+
 
 if __name__ == '__main__':
   tf.test.main()

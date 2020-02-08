@@ -21,17 +21,12 @@ from __future__ import print_function
 import inspect
 import tempfile
 
-import tensorflow as tf
 from absl.testing import parameterized
 import numpy as np
-
-from tensorflow.python.data.ops import dataset_ops
+import tensorflow as tf
 from tensorflow.python.distribute import combinations
 from tensorflow.python.distribute import strategy_combinations
-from tensorflow.python.feature_column import feature_column_v2 as fc_impl
-from tensorflow.python.framework import random_seed
 from tensorflow.python.keras import metrics
-from tensorflow.python.platform import test
 from tensorflow_estimator.python.estimator import run_config
 from tensorflow_estimator.python.estimator.canned import dnn
 from tensorflow_estimator.python.estimator.canned import dnn_linear_combined

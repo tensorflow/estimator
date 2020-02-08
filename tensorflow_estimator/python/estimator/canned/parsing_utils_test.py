@@ -19,11 +19,6 @@ from __future__ import division
 from __future__ import print_function
 
 import tensorflow as tf
-
-from tensorflow.python.feature_column import feature_column_lib as fc
-from tensorflow.python.framework import dtypes
-from tensorflow.python.ops import parsing_ops
-from tensorflow.python.platform import test
 from tensorflow_estimator.python.estimator.canned import parsing_utils
 
 
@@ -63,8 +58,7 @@ class BaseClassifierParseExampleSpec(object):
         'a':
             tf.io.FixedLenFeature((1,), dtype=tf.dtypes.float32),
         'b':
-            tf.io.FixedLenFeature(
-                (1,), dtype=tf.dtypes.int64, default_value=0),
+            tf.io.FixedLenFeature((1,), dtype=tf.dtypes.int64, default_value=0),
     }
     self.assertDictEqual(expected_spec, parsing_spec)
 
@@ -96,7 +90,8 @@ class BaseClassifierParseExampleSpec(object):
     with self.assertRaisesRegexp(ValueError,
                                  'label should not be used as feature'):
       self._parse_example_fn(
-          feature_columns=[tf.feature_column.numeric_column('a')], label_key='a')
+          feature_columns=[tf.feature_column.numeric_column('a')],
+          label_key='a')
 
   def test_weight_column_should_not_be_used_as_feature(self):
     with self.assertRaisesRegexp(ValueError,
@@ -126,7 +121,8 @@ class ClassifierParseExampleSpecV2(BaseClassifierParseExampleSpec,
 
   def test_non_v1_feature_column(self):
     parsing_spec = self._parse_example_fn(
-        feature_columns=[tf.feature_column.sequence_numeric_column('a')], label_key='b')
+        feature_columns=[tf.feature_column.sequence_numeric_column('a')],
+        label_key='b')
     expected_spec = {
         'a': tf.io.VarLenFeature(dtype=tf.dtypes.float32),
         'b': tf.io.FixedLenFeature((1,), dtype=tf.dtypes.int64),
@@ -178,8 +174,9 @@ class BaseRegressorParseExampleSpec(object):
         'a':
             tf.io.FixedLenFeature((1,), dtype=tf.dtypes.float32),
         'b':
-            tf.io.FixedLenFeature(
-                (1,), dtype=tf.dtypes.float32, default_value=0.),
+            tf.io.FixedLenFeature((1,),
+                                  dtype=tf.dtypes.float32,
+                                  default_value=0.),
     }
     self.assertDictEqual(expected_spec, parsing_spec)
 
@@ -222,7 +219,8 @@ class BaseRegressorParseExampleSpec(object):
     with self.assertRaisesRegexp(ValueError,
                                  'label should not be used as feature'):
       self._parse_example_fn(
-          feature_columns=[tf.feature_column.numeric_column('a')], label_key='a')
+          feature_columns=[tf.feature_column.numeric_column('a')],
+          label_key='a')
 
   def test_weight_column_should_not_be_used_as_feature(self):
     with self.assertRaisesRegexp(ValueError,
@@ -242,7 +240,8 @@ class BaseRegressorParseExampleSpec(object):
           weight_column=not_a_numeric_column)
 
 
-class RegressorParseExampleSpecV2(BaseRegressorParseExampleSpec, tf.test.TestCase):
+class RegressorParseExampleSpecV2(BaseRegressorParseExampleSpec,
+                                  tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
     tf.test.TestCase.__init__(self, methodName)
@@ -251,7 +250,8 @@ class RegressorParseExampleSpecV2(BaseRegressorParseExampleSpec, tf.test.TestCas
 
   def test_non_v1_feature_column(self):
     parsing_spec = self._parse_example_fn(
-        feature_columns=[tf.feature_column.sequence_numeric_column('a')], label_key='b')
+        feature_columns=[tf.feature_column.sequence_numeric_column('a')],
+        label_key='b')
     expected_spec = {
         'a': tf.io.VarLenFeature(dtype=tf.dtypes.float32),
         'b': tf.io.FixedLenFeature((1,), dtype=tf.dtypes.float32),
@@ -259,7 +259,8 @@ class RegressorParseExampleSpecV2(BaseRegressorParseExampleSpec, tf.test.TestCas
     self.assertDictEqual(expected_spec, parsing_spec)
 
 
-class RegressorParseExampleSpecV1(BaseRegressorParseExampleSpec, tf.test.TestCase):
+class RegressorParseExampleSpecV1(BaseRegressorParseExampleSpec,
+                                  tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
     tf.test.TestCase.__init__(self, methodName)

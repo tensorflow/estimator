@@ -19,15 +19,6 @@ from __future__ import division
 from __future__ import print_function
 
 import tensorflow as tf
-
-from tensorflow.python.framework import test_util
-from tensorflow.python.platform import test
-from tensorflow.python.training import adagrad
-from tensorflow.python.training import adam
-from tensorflow.python.training import ftrl
-from tensorflow.python.training import gradient_descent
-from tensorflow.python.training import optimizer as optimizer_lib
-from tensorflow.python.training import rmsprop
 from tensorflow_estimator.python.estimator.canned import optimizers
 
 
@@ -85,8 +76,10 @@ class GetOptimizerInstance(tf.test.TestCase):
       optimizers.get_optimizer_instance((1, 2, 3))
 
   def test_callable(self):
+
     def _optimizer_fn():
       return _TestOptimizer()
+
     opt = optimizers.get_optimizer_instance(_optimizer_fn)
     self.assertIsInstance(opt, _TestOptimizer)
 
@@ -95,8 +88,10 @@ class GetOptimizerInstance(tf.test.TestCase):
     self.assertIsInstance(opt, _TestOptimizer)
 
   def test_callable_returns_invalid(self):
+
     def _optimizer_fn():
       return (1, 2, 3)
+
     with self.assertRaisesRegexp(
         ValueError, 'The given object is not an Optimizer instance'):
       optimizers.get_optimizer_instance(_optimizer_fn)

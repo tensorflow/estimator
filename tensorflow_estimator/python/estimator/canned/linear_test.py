@@ -20,13 +20,8 @@ from __future__ import print_function
 
 import tensorflow as tf
 
-
 from tensorflow.python.feature_column import feature_column_v2
-from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
-from tensorflow.python.ops import array_ops
-from tensorflow.python.ops import gen_math_ops
-from tensorflow.python.platform import test
 from tensorflow_estimator.python.estimator.canned import linear
 from tensorflow_estimator.python.estimator.canned import linear_testing_utils
 
@@ -160,32 +155,26 @@ class ComputeFractionOfZeroTest(tf.test.TestCase):
 
   def test_small_float32(self):
     self._assertSparsity(
-        0.75,
-        ops.convert_to_tensor([0, 0, 0, 1], dtype=tf.dtypes.float32))
+        0.75, ops.convert_to_tensor([0, 0, 0, 1], dtype=tf.dtypes.float32))
     self._assertSparsity(
-        0.5,
-        ops.convert_to_tensor([0, 1, 0, 1], dtype=tf.dtypes.float32))
+        0.5, ops.convert_to_tensor([0, 1, 0, 1], dtype=tf.dtypes.float32))
 
   def test_small_int32(self):
     self._assertSparsity(
-        0.75,
-        ops.convert_to_tensor([0, 0, 0, 1], dtype=tf.dtypes.int32))
+        0.75, ops.convert_to_tensor([0, 0, 0, 1], dtype=tf.dtypes.int32))
 
   def test_small_float64(self):
     self._assertSparsity(
-        0.75,
-        ops.convert_to_tensor([0, 0, 0, 1], dtype=tf.dtypes.float64))
+        0.75, ops.convert_to_tensor([0, 0, 0, 1], dtype=tf.dtypes.float64))
 
   def test_small_int64(self):
     self._assertSparsity(
-        0.75,
-        ops.convert_to_tensor([0, 0, 0, 1], dtype=tf.dtypes.int64))
+        0.75, ops.convert_to_tensor([0, 0, 0, 1], dtype=tf.dtypes.int64))
 
   def test_nested(self):
     self._assertSparsity(
-        0.75,
-        [ops.convert_to_tensor([0, 0]),
-         ops.convert_to_tensor([0, 1])])
+        0.75, [ops.convert_to_tensor([0, 0]),
+               ops.convert_to_tensor([0, 1])])
 
   def test_none(self):
     with self.assertRaises(ValueError):
@@ -208,32 +197,25 @@ class ComputeFractionOfZeroTest(tf.test.TestCase):
 
   def test_some_empty(self):
     with self.test_session():
-      self._assertSparsity(
-          0.5,
-          [
-              ops.convert_to_tensor([]),
-              ops.convert_to_tensor([0.]),
-              ops.convert_to_tensor([1.]),
-          ])
+      self._assertSparsity(0.5, [
+          ops.convert_to_tensor([]),
+          ops.convert_to_tensor([0.]),
+          ops.convert_to_tensor([1.]),
+      ])
 
   def test_mixed_types(self):
     with self.test_session():
-      self._assertSparsity(
-          0.6,
-          [
-              ops.convert_to_tensor([0, 0, 1, 1, 1], dtype=tf.dtypes.float32),
-              ops.convert_to_tensor([0, 0, 0, 0, 1], dtype=tf.dtypes.int32),
-          ])
+      self._assertSparsity(0.6, [
+          ops.convert_to_tensor([0, 0, 1, 1, 1], dtype=tf.dtypes.float32),
+          ops.convert_to_tensor([0, 0, 0, 0, 1], dtype=tf.dtypes.int32),
+      ])
 
   def test_2_27_zeros__using_512_MiB_of_ram(self):
-    self._assertSparsity(
-        1.,
-        tf.zeros([int(2**27 * 1.01)], dtype=tf.dtypes.int8))
+    self._assertSparsity(1., tf.zeros([int(2**27 * 1.01)],
+                                      dtype=tf.dtypes.int8))
 
   def test_2_27_ones__using_512_MiB_of_ram(self):
-    self._assertSparsity(
-        0.,
-        tf.ones([int(2**27 * 1.01)], dtype=tf.dtypes.int8))
+    self._assertSparsity(0., tf.ones([int(2**27 * 1.01)], dtype=tf.dtypes.int8))
 
 
 if __name__ == '__main__':

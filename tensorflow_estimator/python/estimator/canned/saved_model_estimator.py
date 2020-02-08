@@ -20,22 +20,12 @@ from __future__ import print_function
 
 import os
 
-import tensorflow as tf
 import six
-
-from tensorflow.python.framework import dtypes
-from tensorflow.python.framework import ops
-from tensorflow.python.framework import tensor_shape
-from tensorflow.python.platform import gfile
-from tensorflow.python.platform import tf_logging as logging
+import tensorflow as tf
 from tensorflow.python.saved_model import constants
 from tensorflow.python.saved_model import loader_impl
 from tensorflow.python.saved_model import signature_constants
 from tensorflow.python.saved_model import utils_impl as saved_model_utils
-from tensorflow.python.training import monitored_session
-from tensorflow.python.training import saver
-from tensorflow.python.training import training_util
-from tensorflow.python.util import compat
 from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator import estimator as estimator_lib
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
@@ -160,9 +150,9 @@ class SavedModelEstimator(estimator_lib.EstimatorV2):
   def _extract_available_modes(self):
     """Return list of modes found in SavedModel."""
     available_modes = []
-    tf.compat.v1.logging.info('Checking available modes for SavedModelEstimator.')
-    for mode in [ModeKeys.TRAIN, ModeKeys.EVAL,
-                 ModeKeys.PREDICT]:
+    tf.compat.v1.logging.info(
+        'Checking available modes for SavedModelEstimator.')
+    for mode in [ModeKeys.TRAIN, ModeKeys.EVAL, ModeKeys.PREDICT]:
       try:
         self._get_meta_graph_def_for_mode(mode)
       except RuntimeError:
@@ -172,7 +162,8 @@ class SavedModelEstimator(estimator_lib.EstimatorV2):
       if self._get_signature_def_for_mode(mode) is not None:
         available_modes.append(mode)
 
-    tf.compat.v1.logging.info('Available modes for Estimator: %s' % available_modes)
+    tf.compat.v1.logging.info('Available modes for Estimator: %s' %
+                              available_modes)
     return available_modes
 
   def _validate_mode(self, mode):
@@ -193,8 +184,9 @@ class SavedModelEstimator(estimator_lib.EstimatorV2):
     else:
       sig_def_key = mode
     if sig_def_key not in meta_graph_def.signature_def:
-      tf.compat.v1.logging.warn('Metagraph for mode %s was found, but SignatureDef with'
-                      ' key \"%s\" is missing.' % (mode, sig_def_key))
+      tf.compat.v1.logging.warn(
+          'Metagraph for mode %s was found, but SignatureDef with'
+          ' key \"%s\" is missing.' % (mode, sig_def_key))
       return None
     return meta_graph_def.signature_def[sig_def_key]
 
@@ -220,7 +212,7 @@ class SavedModelEstimator(estimator_lib.EstimatorV2):
     self._validate_mode(mode)
 
     g = tf.compat.v1.get_default_graph()
-    if  tf.compat.v1.train.get_global_step(g) is not None:
+    if tf.compat.v1.train.get_global_step(g) is not None:
       raise RuntimeError(
           'Graph must not contain a global step tensor before the SavedModel is'
           ' loaded. Please make sure that the input function does not create a '
@@ -237,7 +229,8 @@ class SavedModelEstimator(estimator_lib.EstimatorV2):
     # names of the output tensors may be remapped. This ensures that the correct
     # tensors are returned in the EstimatorSpec.
     output_tensor_names = [
-        value.name for value in six.itervalues(signature_def.outputs)]
+        value.name for value in six.itervalues(signature_def.outputs)
+    ]
 
     # Load the graph. `output_tensors` contains output `Tensors` in the same
     # same order as the `output_tensor_names` list.
@@ -247,7 +240,8 @@ class SavedModelEstimator(estimator_lib.EstimatorV2):
 
     # Create saver object, and restore from the SavedModel `variables` directory
     # if no checkpoints have been saved in the `model_dir`.
-    saver_obj = tf.compat.v1.train.Saver(saver_def=self._get_saver_def_from_mode(mode))
+    saver_obj = tf.compat.v1.train.Saver(
+        saver_def=self._get_saver_def_from_mode(mode))
     init_fn = None
     if not super(SavedModelEstimator, self).latest_checkpoint():
       init_fn = self._restore_from_saver
@@ -273,8 +267,10 @@ class SavedModelEstimator(estimator_lib.EstimatorV2):
 
     # Extract values to return in the EstimatorSpec.
     output_map = dict(zip(output_tensor_names, output_tensors))
-    outputs = {key: output_map[value.name]
-               for key, value in six.iteritems(signature_def.outputs)}
+    outputs = {
+        key: output_map[value.name]
+        for key, value in six.iteritems(signature_def.outputs)
+    }
 
     loss, predictions, metrics = _validate_and_extract_outputs(
         mode, outputs, signature_def.method_name)
@@ -311,10 +307,11 @@ class SavedModelEstimator(estimator_lib.EstimatorV2):
 def _get_saved_model_ckpt(saved_model_dir):
   """Return path to variables checkpoint in a `SavedModel` directory."""
   if not tf.compat.v1.gfile.Exists(
-      os.path.join(saved_model_utils.get_variables_dir(saved_model_dir),
-                   tf.compat.as_text('variables.index'))):
-    raise ValueError('Directory provided has an invalid SavedModel format: %s'
-                     % saved_model_dir)
+      os.path.join(
+          saved_model_utils.get_variables_dir(saved_model_dir),
+          tf.compat.as_text('variables.index'))):
+    raise ValueError('Directory provided has an invalid SavedModel format: %s' %
+                     saved_model_dir)
   return saved_model_utils.get_variables_path(saved_model_dir)
 
 
@@ -326,7 +323,8 @@ def _clear_saved_model_collections():
   MetaGraphs are added to the builder.
   """
   del tf.compat.v1.get_collection_ref(tf.saved_model.ASSETS_KEY)[:]
-  del tf.compat.v1.get_collection_ref(tf.compat.v1.saved_model.LEGACY_INIT_OP_KEY)[:]
+  del tf.compat.v1.get_collection_ref(
+      tf.compat.v1.saved_model.LEGACY_INIT_OP_KEY)[:]
   del tf.compat.v1.get_collection_ref(tf.compat.v1.saved_model.MAIN_OP_KEY)[:]
   del tf.compat.v1.get_collection_ref(constants.TRAIN_OP_KEY)[:]
 
@@ -400,12 +398,11 @@ def _check_same_dtype_and_shape(tensor, tensor_info, name):
   if dtype_error or shape_error:
     msg = 'Tensor shape and/or dtype validation failed for input %s:' % name
     if dtype_error:
-      msg += ('\n\tExpected dtype: %s, Got: %s'
-              % (tf.dtypes.DType(tensor_info.dtype), tensor.dtype))
+      msg += ('\n\tExpected dtype: %s, Got: %s' %
+              (tf.dtypes.DType(tensor_info.dtype), tensor.dtype))
     if shape_error:
-      msg += ('\n\tExpected shape: %s, Got: %s'
-              % (tf.TensorShape(tensor_info.tensor_shape),
-                 tensor.shape))
+      msg += ('\n\tExpected shape: %s, Got: %s' %
+              (tf.TensorShape(tensor_info.tensor_shape), tensor.shape))
 
     raise ValueError(msg)
 
@@ -437,9 +434,10 @@ def _extract_eval_metrics(output_dict):
       # If the key ends with the value suffix, and there is a corresponding
       # key ending with the update_op suffix, then add tensors to metrics dict.
       if split_key[-1] == export_lib._SupervisedOutput.METRIC_VALUE_SUFFIX:
-        update_op = ''.join(
-            [metric_name, separator_char,
-             export_lib._SupervisedOutput.METRIC_UPDATE_SUFFIX])
+        update_op = ''.join([
+            metric_name, separator_char,
+            export_lib._SupervisedOutput.METRIC_UPDATE_SUFFIX
+        ])
         if update_op in output_dict:
           update_op_tensor = output_dict[update_op]
           metric_ops[metric_name] = (tensor, update_op_tensor)
@@ -488,9 +486,11 @@ def _validate_and_extract_outputs(mode, output_dict, method_name):
     loss = output_dict[export_lib._SupervisedOutput.LOSS_NAME]
     metrics = _extract_eval_metrics(output_dict)
     predictions = {
-        key: value for key, value in six.iteritems(output_dict)
+        key: value
+        for key, value in six.iteritems(output_dict)
         if key.split(export_lib._SupervisedOutput._SEPARATOR_CHAR)[0] == (
-            export_lib._SupervisedOutput.PREDICTIONS_NAME)}
+            export_lib._SupervisedOutput.PREDICTIONS_NAME)
+    }
 
   # pylint: enable=protected-access
   return loss, predictions, metrics

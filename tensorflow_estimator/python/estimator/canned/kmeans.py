@@ -22,22 +22,11 @@ from __future__ import print_function
 
 import time
 
-import tensorflow as tf
 import numpy as np
-
-from tensorflow.python.feature_column import feature_column_lib as fc
+import tensorflow as tf
 from tensorflow.python.framework import ops
-from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import clustering_ops
 from tensorflow.python.ops import control_flow_ops
-from tensorflow.python.ops import math_ops
-from tensorflow.python.ops import metrics
-from tensorflow.python.ops import state_ops
-from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.saved_model import signature_constants
-from tensorflow.python.summary import summary
-from tensorflow.python.training import session_run_hook
-from tensorflow.python.training import training_util
 from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator import estimator
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
@@ -85,9 +74,9 @@ class _InitializeClustersHook(tf.compat.v1.train.SessionRunHook):
 
     Args:
       init_op: An op that, when run, will choose some initial cluster centers.
-          This op may need to be run multiple times to choose all the centers.
+        This op may need to be run multiple times to choose all the centers.
       is_initialized_var: A boolean variable reporting whether all initial
-          centers have been chosen.
+        centers have been chosen.
       is_chief: A boolean specifying whether this task is the chief.
     """
     self._init_op = init_op
@@ -240,7 +229,9 @@ class _ModelFn(object):
         },
         loss=loss,
         train_op=training_op,
-        eval_metric_ops={KMeansClustering.SCORE: tf.compat.v1.metrics.mean(loss)},
+        eval_metric_ops={
+            KMeansClustering.SCORE: tf.compat.v1.metrics.mean(loss)
+        },
         training_hooks=training_hooks,
         export_outputs=export_outputs)
 
@@ -413,8 +404,8 @@ class KMeansClustering(estimator.Estimator):
     if isinstance(initial_clusters, str) and initial_clusters not in [
         KMeansClustering.RANDOM_INIT, KMeansClustering.KMEANS_PLUS_PLUS_INIT
     ]:
-      raise ValueError(
-          "Unsupported initialization algorithm '%s'" % initial_clusters)
+      raise ValueError("Unsupported initialization algorithm '%s'" %
+                       initial_clusters)
     if distance_metric not in [
         KMeansClustering.SQUARED_EUCLIDEAN_DISTANCE,
         KMeansClustering.COSINE_DISTANCE
@@ -454,7 +445,7 @@ class KMeansClustering(estimator.Estimator):
 
     Args:
       input_fn: Input points. See `tf.estimator.Estimator.evaluate`. Only one
-          batch is retrieved.
+        batch is retrieved.
 
     Returns:
       The sum of the squared distance from each point in the first batch of

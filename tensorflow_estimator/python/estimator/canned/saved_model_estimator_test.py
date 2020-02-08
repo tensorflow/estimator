@@ -22,30 +22,14 @@ import os
 import shutil
 import tempfile
 
-import tensorflow as tf
 import six
-
-from tensorflow.python.data.ops import dataset_ops
-from tensorflow.python.framework import constant_op
-from tensorflow.python.framework import dtypes
+import tensorflow as tf
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import test_util
 from tensorflow.python.framework.ops import add_to_collection
 from tensorflow.python.framework.ops import GraphKeys
-from tensorflow.python.keras import losses
-from tensorflow.python.ops import array_ops
-from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import lookup_ops
-from tensorflow.python.ops import math_ops
-from tensorflow.python.ops import metrics as metrics_lib
-from tensorflow.python.ops import state_ops
-from tensorflow.python.ops import string_ops
-from tensorflow.python.ops import variables
-from tensorflow.python.platform import test
-from tensorflow.python.saved_model import constants
-from tensorflow.python.training import monitored_session
 from tensorflow.python.training import saver_test_utils
-from tensorflow.python.training import training
 from tensorflow_estimator.python.estimator import estimator
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
 from tensorflow_estimator.python.estimator.canned import saved_model_estimator
@@ -64,7 +48,8 @@ def _serving_feature_dict():
 
 
 def dummy_input_fn_features_only():
-  return tf.compat.v1.data.Dataset.from_tensors(_serving_feature_dict()).repeat()
+  return tf.compat.v1.data.Dataset.from_tensors(
+      _serving_feature_dict()).repeat()
 
 
 def dummy_supervised_receiver_fn():
@@ -98,8 +83,10 @@ def model_fn_diff_modes(features, labels, mode):
       loss=loss,
       train_op=train_op,
       eval_metric_ops={
-          'abs_err': tf.compat.v1.metrics.mean_absolute_error(
-              tf.constant(0), predictions)},
+          'abs_err':
+              tf.compat.v1.metrics.mean_absolute_error(
+                  tf.constant(0), predictions)
+      },
       predictions=predictions)
 
 
@@ -143,21 +130,21 @@ class SavedModelEstimatorTest(tf.test.TestCase):
     self.tmpdirs.append(tmpdir)
     return tmpdir
 
-  def _export_estimator(self, train=True, evaluate=True, predict=True,
+  def _export_estimator(self,
+                        train=True,
+                        evaluate=True,
+                        predict=True,
                         model_fn=model_fn_diff_modes):
     est = estimator.Estimator(model_fn, self._get_tmp_dir())
     est.train(input_fn=dummy_input_fn, steps=10)
 
     input_receiver_fn_map = {}
     if train:
-      input_receiver_fn_map[ModeKeys.TRAIN] = (
-          dummy_supervised_receiver_fn())
+      input_receiver_fn_map[ModeKeys.TRAIN] = (dummy_supervised_receiver_fn())
     if evaluate:
-      input_receiver_fn_map[ModeKeys.EVAL] = (
-          dummy_supervised_receiver_fn())
+      input_receiver_fn_map[ModeKeys.EVAL] = (dummy_supervised_receiver_fn())
     if predict:
-      input_receiver_fn_map[ModeKeys.PREDICT] = (
-          dummy_serving_receiver_fn())
+      input_receiver_fn_map[ModeKeys.PREDICT] = (dummy_serving_receiver_fn())
 
     export_base_path = self._get_tmp_dir()
     export_dir = est.experimental_export_all_saved_models(
@@ -165,8 +152,8 @@ class SavedModelEstimatorTest(tf.test.TestCase):
     return export_dir
 
   def test_load_all_modes(self):
-    sme = saved_model_estimator.SavedModelEstimator(
-        self._export_estimator(), self._get_tmp_dir())
+    sme = saved_model_estimator.SavedModelEstimator(self._export_estimator(),
+                                                    self._get_tmp_dir())
     sme.train(input_fn=dummy_input_fn, steps=1)
     sme.train(input_fn=dummy_input_fn, steps=2)
     self.assertEqual(13, sme.get_variable_value('global_step'))
@@ -183,8 +170,8 @@ class SavedModelEstimatorTest(tf.test.TestCase):
 
   def test_load_all_modes_no_train(self):
     """Ensure that all functions can be used without requiring a ckpt."""
-    sme = saved_model_estimator.SavedModelEstimator(
-        self._export_estimator(), self._get_tmp_dir())
+    sme = saved_model_estimator.SavedModelEstimator(self._export_estimator(),
+                                                    self._get_tmp_dir())
     eval_results = sme.evaluate(dummy_input_fn, steps=5)
     self.assertEqual(10, eval_results['global_step'])
     self.assertEqual(106, eval_results['loss'])
@@ -210,42 +197,42 @@ class SavedModelEstimatorTest(tf.test.TestCase):
       sme2.evaluate(dummy_input_fn, steps=5)
 
   def test_with_incorrect_input(self):
-    sme = saved_model_estimator.SavedModelEstimator(
-        self._export_estimator(), self._get_tmp_dir())
+    sme = saved_model_estimator.SavedModelEstimator(self._export_estimator(),
+                                                    self._get_tmp_dir())
 
     def bad_shape_input_fn():
-      return tf.compat.v1.data.Dataset.from_tensors((
-          {'x': tf.constant([1, 2], dtype=tf.dtypes.int64)},
-          tf.constant([1, 2], dtype=tf.dtypes.float32)))
+      return tf.compat.v1.data.Dataset.from_tensors(({
+          'x': tf.constant([1, 2], dtype=tf.dtypes.int64)
+      }, tf.constant([1, 2], dtype=tf.dtypes.float32)))
 
     with self.assertRaisesRegexp(ValueError, 'Expected shape'):
       sme.train(bad_shape_input_fn, steps=1)
 
     def bad_dtype_input_fn():
-      return tf.compat.v1.data.Dataset.from_tensors((
-          {'x': tf.constant([[1], [1]], dtype=tf.dtypes.int32)},
-          tf.constant([[1], [1]], dtype=tf.dtypes.int64)))
+      return tf.compat.v1.data.Dataset.from_tensors(({
+          'x': tf.constant([[1], [1]], dtype=tf.dtypes.int32)
+      }, tf.constant([[1], [1]], dtype=tf.dtypes.int64)))
 
     with self.assertRaisesRegexp(ValueError, 'Expected dtype'):
       sme.train(bad_dtype_input_fn, steps=1)
 
   def test_input_fn_with_global_step(self):
-    sme = saved_model_estimator.SavedModelEstimator(
-        self._export_estimator(), self._get_tmp_dir())
+    sme = saved_model_estimator.SavedModelEstimator(self._export_estimator(),
+                                                    self._get_tmp_dir())
 
     def bad_input_fn():
       tf.compat.v1.train.get_or_create_global_step()
-      return tf.compat.v1.data.Dataset.from_tensors((
-          {'x': tf.constant([[1], [1]], dtype=tf.dtypes.int64)},
-          tf.constant([[1], [1]], dtype=tf.dtypes.float32)))
+      return tf.compat.v1.data.Dataset.from_tensors(({
+          'x': tf.constant([[1], [1]], dtype=tf.dtypes.int64)
+      }, tf.constant([[1], [1]], dtype=tf.dtypes.float32)))
 
     with self.assertRaisesRegexp(RuntimeError,
                                  'Graph must not contain a global step tensor'):
       sme.train(bad_input_fn, steps=1)
 
   def test_re_export_saved_model_serving_only(self):
-    sme = saved_model_estimator.SavedModelEstimator(
-        self._export_estimator(), self._get_tmp_dir())
+    sme = saved_model_estimator.SavedModelEstimator(self._export_estimator(),
+                                                    self._get_tmp_dir())
     sme.train(dummy_input_fn, steps=3)
     self.assertEqual(13, sme.get_variable_value('global_step'))
     self.assertEqual(60, sme.get_variable_value('some_var'))
@@ -255,11 +242,11 @@ class SavedModelEstimatorTest(tf.test.TestCase):
 
     # Export SavedModel, and test that the variable and prediction values are
     # the same.
-    sme_export_dir = sme.export_saved_model(
-        self._get_tmp_dir(), dummy_serving_receiver_fn())
+    sme_export_dir = sme.export_saved_model(self._get_tmp_dir(),
+                                            dummy_serving_receiver_fn())
 
-    sme2 = saved_model_estimator.SavedModelEstimator(
-        sme_export_dir, self._get_tmp_dir())
+    sme2 = saved_model_estimator.SavedModelEstimator(sme_export_dir,
+                                                     self._get_tmp_dir())
     self.assertEqual(60, sme.get_variable_value('some_var'))
     self.assertEqual(13, sme.get_variable_value('global_step'))
 
@@ -267,16 +254,22 @@ class SavedModelEstimatorTest(tf.test.TestCase):
     self.assertDictEqual({'output': 503}, predictions)
 
   def test_re_export_saved_model(self):
-    sme = saved_model_estimator.SavedModelEstimator(
-        self._export_estimator(), self._get_tmp_dir())
+    sme = saved_model_estimator.SavedModelEstimator(self._export_estimator(),
+                                                    self._get_tmp_dir())
     self.assertDictEqual(
-        {'loss': 106, 'metrics/abs_err': 502, 'global_step': 10},
-        sme.evaluate(dummy_input_fn, steps=1))
+        {
+            'loss': 106,
+            'metrics/abs_err': 502,
+            'global_step': 10
+        }, sme.evaluate(dummy_input_fn, steps=1))
 
     sme.train(dummy_input_fn, steps=3)
     self.assertDictEqual(
-        {'loss': 106, 'metrics/abs_err': 502, 'global_step': 13},
-        sme.evaluate(dummy_input_fn, steps=1))
+        {
+            'loss': 106,
+            'metrics/abs_err': 502,
+            'global_step': 13
+        }, sme.evaluate(dummy_input_fn, steps=1))
     self.assertEqual(60, sme.get_variable_value('some_var'))
 
     predictions = next(sme.predict(dummy_input_fn_features_only))
@@ -286,15 +279,19 @@ class SavedModelEstimatorTest(tf.test.TestCase):
     input_receiver_fn_map = {
         ModeKeys.TRAIN: dummy_supervised_receiver_fn(),
         ModeKeys.EVAL: dummy_supervised_receiver_fn(),
-        ModeKeys.PREDICT: dummy_serving_receiver_fn()}
+        ModeKeys.PREDICT: dummy_serving_receiver_fn()
+    }
     sme_export_dir = sme.experimental_export_all_saved_models(
         self._get_tmp_dir(), input_receiver_fn_map)
 
-    sme2 = saved_model_estimator.SavedModelEstimator(
-        sme_export_dir, self._get_tmp_dir())
+    sme2 = saved_model_estimator.SavedModelEstimator(sme_export_dir,
+                                                     self._get_tmp_dir())
     self.assertDictEqual(
-        {'loss': 106, 'metrics/abs_err': 502, 'global_step': 13},
-        sme.evaluate(dummy_input_fn, steps=1))
+        {
+            'loss': 106,
+            'metrics/abs_err': 502,
+            'global_step': 13
+        }, sme.evaluate(dummy_input_fn, steps=1))
     self.assertEqual(60, sme.get_variable_value('some_var'))
 
     sme.train(dummy_input_fn, steps=7)
@@ -309,13 +306,19 @@ class SavedModelEstimatorTest(tf.test.TestCase):
         self._get_tmp_dir())
 
     self.assertDictEqual(
-        {'loss': 106, 'metrics/abs_err': 502, 'global_step': 10},
-        sme.evaluate(dummy_input_fn, steps=1))
+        {
+            'loss': 106,
+            'metrics/abs_err': 502,
+            'global_step': 10
+        }, sme.evaluate(dummy_input_fn, steps=1))
 
     sme.train(dummy_input_fn, steps=3)
     self.assertDictEqual(
-        {'loss': 106, 'metrics/abs_err': 502, 'global_step': 13},
-        sme.evaluate(dummy_input_fn, steps=1))
+        {
+            'loss': 106,
+            'metrics/abs_err': 502,
+            'global_step': 13
+        }, sme.evaluate(dummy_input_fn, steps=1))
     self.assertEqual(60, sme.get_variable_value('some_var'))
 
     predictions = next(sme.predict(dummy_input_fn_features_only))
@@ -345,15 +348,18 @@ class SavedModelEstimatorTest(tf.test.TestCase):
     self.assertAlmostEqual(505.2, predictions['output'], places=4)
 
   def test_load_saved_model_from_serving_only(self):
+
     def model_fn(features, labels, mode):
       _, _ = features, labels
       return model_fn_lib.EstimatorSpec(
           mode,
           loss=tf.constant([103]),
-          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1),
+          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(),
+                                           1),
           predictions=tf.constant([502]),
-          export_outputs={'test': export_lib.ClassificationOutput(
-              tf.constant([[32.]]))})
+          export_outputs={
+              'test': export_lib.ClassificationOutput(tf.constant([[32.]]))
+          })
 
     est = estimator.Estimator(model_fn, self._get_tmp_dir())
     est.train(input_fn=dummy_input_fn, steps=10)
@@ -363,11 +369,11 @@ class SavedModelEstimatorTest(tf.test.TestCase):
           {'test-features': tf.constant([[1], [1]])},
           tf.compat.v1.placeholder(dtype=tf.dtypes.string))
 
-    export_dir = est.export_saved_model(
-        self._get_tmp_dir(), serving_input_receiver_fn)
+    export_dir = est.export_saved_model(self._get_tmp_dir(),
+                                        serving_input_receiver_fn)
 
-    sme = saved_model_estimator.SavedModelEstimator(
-        export_dir, self._get_tmp_dir())
+    sme = saved_model_estimator.SavedModelEstimator(export_dir,
+                                                    self._get_tmp_dir())
 
     def input_fn():
       return {'inputs': tf.constant('someinputstr')}
@@ -376,20 +382,22 @@ class SavedModelEstimatorTest(tf.test.TestCase):
     self.assertDictEqual({'scores': 32}, prediction)
 
   def test_with_local_init_op(self):
+
     def model_fn(features, labels, mode):
       _, _ = features, labels
       v = tf.Variable(21, name='some_var')
       scaffold = tf.compat.v1.train.Scaffold(
-          local_init_op=tf.compat.v1.assign_add(v, -3).op
-      )
+          local_init_op=tf.compat.v1.assign_add(v, -3).op)
       return model_fn_lib.EstimatorSpec(
           mode,
           scaffold=scaffold,
-          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1),
+          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(),
+                                           1),
           loss=tf.identity(v))
+
     export_dir = self._export_estimator(predict=False, model_fn=model_fn)
-    sme = saved_model_estimator.SavedModelEstimator(
-        export_dir, self._get_tmp_dir())
+    sme = saved_model_estimator.SavedModelEstimator(export_dir,
+                                                    self._get_tmp_dir())
 
     eval_results1 = sme.evaluate(dummy_input_fn, steps=2)
     self.assertEqual(15, eval_results1['loss'])
@@ -415,33 +423,36 @@ class SavedModelEstimatorTest(tf.test.TestCase):
       # saved model's assets directory by assigning a hash of filepath_tensor
       # to some_var.
       filepath_tensor = ops.convert_to_tensor(absolute_filepath)
-      tf.compat.v1.add_to_collection(tf.compat.v1.GraphKeys.ASSET_FILEPATHS, filepath_tensor)
+      tf.compat.v1.add_to_collection(tf.compat.v1.GraphKeys.ASSET_FILEPATHS,
+                                     filepath_tensor)
       scaffold = tf.compat.v1.train.Scaffold(
           local_init_op=tf.compat.v1.assign(
-              v, tf.strings.to_hash_bucket_fast(
-                  filepath_tensor, num_buckets)).op
-      )
+              v, tf.strings.to_hash_bucket_fast(filepath_tensor,
+                                                num_buckets)).op)
       return model_fn_lib.EstimatorSpec(
           mode,
           scaffold=scaffold,
-          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1),
+          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(),
+                                           1),
           loss=tf.identity(0))
+
     export_dir = self._export_estimator(predict=False, model_fn=model_fn)
-    sme = saved_model_estimator.SavedModelEstimator(
-        export_dir, self._get_tmp_dir())
+    sme = saved_model_estimator.SavedModelEstimator(export_dir,
+                                                    self._get_tmp_dir())
 
     with self.session() as sess:
       expected_bucket = sess.run(
           tf.strings.to_hash_bucket_fast(
-              os.path.join(six.ensure_str(export_dir),
-                           six.ensure_str(tf.saved_model.ASSETS_DIRECTORY),
-                           six.ensure_str(filename)),
-              num_buckets))
+              os.path.join(
+                  six.ensure_str(export_dir),
+                  six.ensure_str(tf.saved_model.ASSETS_DIRECTORY),
+                  six.ensure_str(filename)), num_buckets))
 
     sme.train(dummy_input_fn, steps=1)
     self.assertEqual(expected_bucket, sme.get_variable_value('some_var'))
 
   def test_with_working_input_fn(self):
+
     def model_fn(features, labels, mode):
       loss = None
       if labels is not None:
@@ -449,9 +460,12 @@ class SavedModelEstimatorTest(tf.test.TestCase):
       return model_fn_lib.EstimatorSpec(
           mode,
           loss=loss,
-          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1),
-          predictions={'features_0': tf.identity([features['x'][0][0]]),
-                       'features_1': tf.identity([features['x'][1][0]])})
+          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(),
+                                           1),
+          predictions={
+              'features_0': tf.identity([features['x'][0][0]]),
+              'features_1': tf.identity([features['x'][1][0]])
+          })
 
     sme = saved_model_estimator.SavedModelEstimator(
         self._export_estimator(model_fn=model_fn), self._get_tmp_dir())
@@ -471,17 +485,21 @@ class SavedModelEstimatorTest(tf.test.TestCase):
       return model_fn_lib.EstimatorSpec(
           mode,
           loss=loss,
-          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1))
+          train_op=tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(),
+                                           1))
+
     sme = saved_model_estimator.SavedModelEstimator(
         self._export_estimator(train=False, predict=False, model_fn=model_fn),
         self._get_tmp_dir())
     sme.evaluate(dummy_input_fn, steps=1)  # Should run without error
 
   def test_saveable_resources(self):
+
     def model_fn(features, labels, mode):
-      tb = lookup_ops.MutableHashTable(key_dtype=tf.dtypes.int32,
-                                       value_dtype=tf.dtypes.int32,
-                                       default_value=-1)
+      tb = lookup_ops.MutableHashTable(
+          key_dtype=tf.dtypes.int32,
+          value_dtype=tf.dtypes.int32,
+          default_value=-1)
       predictions = tb.lookup(features['x'])
       train_op = None
       if mode == ModeKeys.TRAIN:
@@ -489,34 +507,30 @@ class SavedModelEstimatorTest(tf.test.TestCase):
             tb.insert(features['x'], labels),
             tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1))
       return model_fn_lib.EstimatorSpec(
-          mode,
-          loss=tf.constant(0),
-          predictions=predictions,
-          train_op=train_op)
+          mode, loss=tf.constant(0), predictions=predictions, train_op=train_op)
 
     # Trains the model so that the table maps 1 -> 4, and -2 -> -3
     # (see dummy_input_fn)
     sme = saved_model_estimator.SavedModelEstimator(
-        self._export_estimator(model_fn=model_fn),
-        self._get_tmp_dir())
+        self._export_estimator(model_fn=model_fn), self._get_tmp_dir())
 
     def gen_input_fn(features, labels=None):
+
       def fn():
         if labels:
-          t = ({'x': tf.constant(features, name='feature_x')},
-               tf.constant(labels, name='truth'))
+          t = ({
+              'x': tf.constant(features, name='feature_x')
+          }, tf.constant(labels, name='truth'))
         else:
           t = {'x': tf.constant(features, name='feature_x')}
         return tf.compat.v1.data.Dataset.from_tensors(t).repeat()
+
       return fn
 
-    self.assertAllEqual(
-        [-1], next(sme.predict(gen_input_fn([[5]])))['output'])
-    self.assertAllEqual(
-        [4], next(sme.predict(gen_input_fn([[1]])))['output'])
+    self.assertAllEqual([-1], next(sme.predict(gen_input_fn([[5]])))['output'])
+    self.assertAllEqual([4], next(sme.predict(gen_input_fn([[1]])))['output'])
     sme.train(gen_input_fn([[5]], [[6]]), steps=1)
-    self.assertAllEqual(
-        [6], next(sme.predict(gen_input_fn([[5]])))['output'])
+    self.assertAllEqual([6], next(sme.predict(gen_input_fn([[5]])))['output'])
 
 
 if __name__ == '__main__':

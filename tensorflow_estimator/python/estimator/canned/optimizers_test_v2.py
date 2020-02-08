@@ -26,8 +26,6 @@ from tensorflow.python.keras.optimizer_v2 import ftrl
 from tensorflow.python.keras.optimizer_v2 import gradient_descent
 from tensorflow.python.keras.optimizer_v2 import optimizer_v2
 from tensorflow.python.keras.optimizer_v2 import rmsprop
-from tensorflow.python.ops import variables
-from tensorflow.python.platform import test
 from tensorflow_estimator.python.estimator.canned import optimizers
 
 

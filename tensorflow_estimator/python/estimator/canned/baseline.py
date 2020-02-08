@@ -49,21 +49,12 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
 import six
-
+import tensorflow as tf
 from tensorflow.python.feature_column import feature_column as feature_column_v1
 from tensorflow.python.feature_column import feature_column_v2
 from tensorflow.python.framework import ops
 from tensorflow.python.keras.utils import losses_utils
-from tensorflow.python.ops import array_ops
-from tensorflow.python.ops import check_ops
-from tensorflow.python.ops import init_ops
-from tensorflow.python.ops import math_ops
-from tensorflow.python.ops import variable_scope
-from tensorflow.python.ops import variables
-from tensorflow.python.ops.losses import losses
-from tensorflow.python.training import training_util
 from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator import estimator
 from tensorflow_estimator.python.estimator.canned import head as head_lib
@@ -115,7 +106,8 @@ def _get_batch_size_and_size_checks(features, weight_column_key):
     if batch_size is None:
       batch_size = first_dim
     else:
-      size_checks.append(tf.compat.v1.debugging.assert_equal(batch_size, first_dim))
+      size_checks.append(
+          tf.compat.v1.debugging.assert_equal(batch_size, first_dim))
 
   return size_checks, batch_size
 
@@ -127,7 +119,8 @@ def _baseline_logit_fn_builder(num_outputs, weight_column=None):
     num_outputs: Number of outputs for the model.
     weight_column: A string or a `_NumericColumn` created by
       `tf.feature_column.numeric_column` defining feature column representing
-       weights. It will be multiplied by the loss of the example.
+      weights. It will be multiplied by the loss of the example.
+
   Returns:
     A logit_fn (see below).
   """
@@ -143,6 +136,7 @@ def _baseline_logit_fn_builder(num_outputs, weight_column=None):
       features: The first item returned from the `input_fn` passed to `train`,
         `evaluate`, and `predict`. This should be a single `Tensor` or dict with
         `Tensor` values.
+
     Returns:
       A `Tensor` representing the logits.
     """
@@ -151,30 +145,36 @@ def _baseline_logit_fn_builder(num_outputs, weight_column=None):
         features, weight_column_key)
     with tf.control_dependencies(size_checks):
       with tf.compat.v1.variable_scope('baseline'):
-        bias = tf.compat.v1.get_variable('bias', shape=[num_outputs],
-                                           initializer=tf.compat.v1.initializers.zeros)
-        return tf.math.multiply(bias, tf.ones([batch_size,
-                                                       num_outputs]))
+        bias = tf.compat.v1.get_variable(
+            'bias',
+            shape=[num_outputs],
+            initializer=tf.compat.v1.initializers.zeros)
+        return tf.math.multiply(bias, tf.ones([batch_size, num_outputs]))
 
   return baseline_logit_fn
 
 
-def _baseline_model_fn(features, labels, mode, head, optimizer,
-                       weight_column=None, config=None):
+def _baseline_model_fn(features,
+                       labels,
+                       mode,
+                       head,
+                       optimizer,
+                       weight_column=None,
+                       config=None):
   """Model_fn for baseline models.
 
   Args:
     features: `Tensor` or dict of `Tensor` (depends on data passed to `train`).
     labels: `Tensor` of labels that are compatible with the `Head` instance.
-    mode: Defines whether this is training, evaluation or prediction.
-      See `ModeKeys`.
+    mode: Defines whether this is training, evaluation or prediction. See
+      `ModeKeys`.
     head: A `Head` instance.
     optimizer: String, `tf.Optimizer` object, or callable that creates the
       optimizer to use for training. If not specified, will use `FtrlOptimizer`
       with a default learning rate of 0.3.
     weight_column: A string or a `_NumericColumn` created by
       `tf.feature_column.numeric_column` defining feature column representing
-       weights. It will be multiplied by the loss of the example.
+      weights. It will be multiplied by the loss of the example.
     config: `RunConfig` object to configure the runtime settings.
 
   Raises:
@@ -222,10 +222,8 @@ def _baseline_model_fn_builder_v2(features, num_outputs, weight_column=None):
       features, weight_column_key)
   with tf.control_dependencies(size_checks):
     with ops.name_scope('baseline'):
-      bias = tf.Variable(
-          initial_value=tf.zeros([num_outputs]), name='bias')
-      logits = tf.math.multiply(bias, tf.ones([batch_size,
-                                                       num_outputs]))
+      bias = tf.Variable(initial_value=tf.zeros([num_outputs]), name='bias')
+      logits = tf.math.multiply(bias, tf.ones([batch_size, num_outputs]))
   return [bias], logits
 
 
@@ -253,9 +251,8 @@ def _baseline_model_fn_v2(
       `tf.feature_column.numeric_column` defining feature column representing
       weights. It will be multiplied by the loss of the example.
     config: `RunConfig` object to configure the runtime settings.
-    loss_reduction: One of `tf.keras.losses.Reduction` except `NONE`.
-        Describes how to reduce training loss over batch. Defaults to
-        `SUM_OVER_BATCH_SIZE`.
+    loss_reduction: One of `tf.keras.losses.Reduction` except `NONE`. Describes
+      how to reduce training loss over batch. Defaults to `SUM_OVER_BATCH_SIZE`.
 
   Raises:
     KeyError: If weight column is specified but not present.
@@ -361,11 +358,11 @@ class BaselineClassifierV2(estimator.EstimatorV2):
         continue training a previously saved model.
       n_classes: number of label classes. Default is binary classification.
         It must be greater than 1. Note: Class labels are integers representing
-        the class index (i.e. values from 0 to n_classes-1). For arbitrary
-        label values (e.g. string labels), convert to class indices first.
+          the class index (i.e. values from 0 to n_classes-1). For arbitrary
+          label values (e.g. string labels), convert to class indices first.
       weight_column: A string or a `NumericColumn` created by
         `tf.feature_column.numeric_column` defining feature column representing
-         weights. It will be multiplied by the loss of the example.
+        weights. It will be multiplied by the loss of the example.
       label_vocabulary: Optional list of strings with size `[n_classes]`
         defining the label vocabulary. Only supported for `n_classes` > 2.
       optimizer: String, `tf.keras.optimizers.*` object, or callable that
@@ -374,6 +371,7 @@ class BaselineClassifierV2(estimator.EstimatorV2):
       config: `RunConfig` object to configure the runtime settings.
       loss_reduction: One of `tf.losses.Reduction` except `NONE`. Describes how
         to reduce training loss over batch. Defaults to `SUM_OVER_BATCH_SIZE`.
+
     Returns:
       A `BaselineClassifier` estimator.
 
@@ -381,7 +379,8 @@ class BaselineClassifierV2(estimator.EstimatorV2):
       ValueError: If `n_classes` < 2.
     """
     head = head_utils.binary_or_multi_class_head(
-        n_classes, weight_column=weight_column,
+        n_classes,
+        weight_column=weight_column,
         label_vocabulary=label_vocabulary,
         loss_reduction=loss_reduction)
 
@@ -397,9 +396,7 @@ class BaselineClassifierV2(estimator.EstimatorV2):
           loss_reduction=loss_reduction)
 
     super(BaselineClassifierV2, self).__init__(
-        model_fn=_model_fn,
-        model_dir=model_dir,
-        config=config)
+        model_fn=_model_fn, model_dir=model_dir, config=config)
 
 
 @estimator_export(v1=['estimator.BaselineClassifier'])  # pylint: disable=missing-docstring
@@ -428,9 +425,7 @@ class BaselineClassifier(estimator.Estimator):
           config=config)
 
     super(BaselineClassifier, self).__init__(
-        model_fn=_model_fn,
-        model_dir=model_dir,
-        config=config)
+        model_fn=_model_fn, model_dir=model_dir, config=config)
 
 
 @estimator_export('estimator.BaselineEstimator', v1=[])
@@ -484,11 +479,7 @@ class BaselineEstimatorV2(estimator.EstimatorV2):
     `key=weight_column` whose value is a `Tensor`.
   """
 
-  def __init__(self,
-               head,
-               model_dir=None,
-               optimizer='Ftrl',
-               config=None):
+  def __init__(self, head, model_dir=None, optimizer='Ftrl', config=None):
     """Initializes a BaselineEstimator instance.
 
     Args:
@@ -502,6 +493,7 @@ class BaselineEstimatorV2(estimator.EstimatorV2):
         `Ftrl` as the default optimizer.
       config: `RunConfig` object to configure the runtime settings.
     """
+
     def _model_fn(features, labels, mode, config):
       return _baseline_model_fn_v2(
           features=features,
@@ -510,21 +502,17 @@ class BaselineEstimatorV2(estimator.EstimatorV2):
           head=head,
           optimizer=optimizer,
           config=config)
+
     super(BaselineEstimatorV2, self).__init__(
-        model_fn=_model_fn,
-        model_dir=model_dir,
-        config=config)
+        model_fn=_model_fn, model_dir=model_dir, config=config)
 
 
 @estimator_export(v1=['estimator.BaselineEstimator'])  # pylint: disable=missing-docstring
 class BaselineEstimator(estimator.Estimator):
   __doc__ = BaselineEstimatorV2.__doc__
 
-  def __init__(self,
-               head,
-               model_dir=None,
-               optimizer='Ftrl',
-               config=None):
+  def __init__(self, head, model_dir=None, optimizer='Ftrl', config=None):
+
     def _model_fn(features, labels, mode, config):
       return _baseline_model_fn(
           features=features,
@@ -533,10 +521,9 @@ class BaselineEstimator(estimator.Estimator):
           head=head,
           optimizer=optimizer,
           config=config)
+
     super(BaselineEstimator, self).__init__(
-        model_fn=_model_fn,
-        model_dir=model_dir,
-        config=config)
+        model_fn=_model_fn, model_dir=model_dir, config=config)
 
 
 @estimator_export('estimator.BaselineRegressor', v1=[])
@@ -606,13 +593,14 @@ class BaselineRegressorV2(estimator.EstimatorV2):
         (typically, these have shape `[batch_size, label_dimension]`).
       weight_column: A string or a `_NumericColumn` created by
         `tf.feature_column.numeric_column` defining feature column representing
-         weights. It will be multiplied by the loss of the example.
+        weights. It will be multiplied by the loss of the example.
       optimizer: String, `tf.keras.optimizers.*` object, or callable that
         creates the optimizer to use for training. If not specified, will use
         `Ftrl` as the default optimizer.
       config: `RunConfig` object to configure the runtime settings.
       loss_reduction: One of `tf.losses.Reduction` except `NONE`. Describes how
         to reduce training loss over batch. Defaults to `SUM_OVER_BATCH_SIZE`.
+
     Returns:
       A `BaselineRegressor` estimator.
     """

@@ -22,25 +22,12 @@ import os
 import shutil
 import tempfile
 
-import tensorflow as tf
 import numpy as np
 import six
-
-from tensorflow.python.client import session as tf_session
-from tensorflow.python.feature_column import feature_column_v2 as feature_column_lib
-from tensorflow.python.framework import dtypes
+import tensorflow as tf
 from tensorflow.python.framework import ops
 from tensorflow.python.keras.optimizer_v2 import optimizer_v2
 from tensorflow.python.keras.utils import losses_utils
-from tensorflow.python.ops import check_ops
-from tensorflow.python.ops import control_flow_ops
-from tensorflow.python.ops import math_ops
-from tensorflow.python.ops import variables
-from tensorflow.python.platform import gfile
-from tensorflow.python.platform import test
-from tensorflow.python.summary.writer import writer_cache
-from tensorflow.python.training import checkpoint_utils
-from tensorflow.python.training import saver
 from tensorflow_estimator.python.estimator.canned import baseline
 from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.export import export
@@ -73,9 +60,7 @@ def save_variables_to_ckpt(model_dir):
     tf.compat.v1.train.Saver().save(sess, os.path.join(model_dir, 'model.ckpt'))
 
 
-def _baseline_estimator_fn(weight_column=None,
-                           label_dimension=1,
-                           **kwargs):
+def _baseline_estimator_fn(weight_column=None, label_dimension=1, **kwargs):
   return baseline.BaselineEstimatorV2(
       head=regression_head.RegressionHead(
           weight_column=weight_column,
@@ -153,13 +138,14 @@ class BaselineEstimatorEvaluationTest(tf.test.TestCase):
     # Loss per example is 3**2 = 9.
     # Training loss is the sum over batch size = (9 + 9) / 2 = 9
     # Average loss is the average over batch = 9
-    self.assertDictEqual({
-        metric_keys.MetricKeys.LOSS: 9.,
-        metric_keys.MetricKeys.LOSS_MEAN: 9.,
-        metric_keys.MetricKeys.PREDICTION_MEAN: 13.,
-        metric_keys.MetricKeys.LABEL_MEAN: 10.,
-        tf.compat.v1.GraphKeys.GLOBAL_STEP: 100
-    }, eval_metrics)
+    self.assertDictEqual(
+        {
+            metric_keys.MetricKeys.LOSS: 9.,
+            metric_keys.MetricKeys.LOSS_MEAN: 9.,
+            metric_keys.MetricKeys.PREDICTION_MEAN: 13.,
+            metric_keys.MetricKeys.LABEL_MEAN: 10.,
+            tf.compat.v1.GraphKeys.GLOBAL_STEP: 100
+        }, eval_metrics)
 
   def test_evaluation_weights(self):
     """Tests evaluation with weights."""
@@ -175,21 +161,21 @@ class BaselineEstimatorEvaluationTest(tf.test.TestCase):
       return features, labels
 
     baseline_estimator = _baseline_estimator_fn(
-        weight_column='weights',
-        model_dir=self._model_dir)
+        weight_column='weights', model_dir=self._model_dir)
     eval_metrics = baseline_estimator.evaluate(input_fn=_input_fn, steps=1)
 
     # Logit is bias = 13, while label is 10.
     # Loss per example is 3**2 = 9.
     # Training loss is the weighted sum over batch size= (9 + 2*9) / 2 = 13.5
     # average loss is the weighted average = 9 + 2*9 / (1 + 2) = 9
-    self.assertDictEqual({
-        metric_keys.MetricKeys.LOSS: 13.5,
-        metric_keys.MetricKeys.LOSS_MEAN: 9.,
-        metric_keys.MetricKeys.PREDICTION_MEAN: 13.,
-        metric_keys.MetricKeys.LABEL_MEAN: 10.,
-        tf.compat.v1.GraphKeys.GLOBAL_STEP: 100
-    }, eval_metrics)
+    self.assertDictEqual(
+        {
+            metric_keys.MetricKeys.LOSS: 13.5,
+            metric_keys.MetricKeys.LOSS_MEAN: 9.,
+            metric_keys.MetricKeys.PREDICTION_MEAN: 13.,
+            metric_keys.MetricKeys.LABEL_MEAN: 10.,
+            tf.compat.v1.GraphKeys.GLOBAL_STEP: 100
+        }, eval_metrics)
 
   def test_evaluation_for_multi_dimensions(self):
     label_dim = 2
@@ -199,8 +185,7 @@ class BaselineEstimatorEvaluationTest(tf.test.TestCase):
       save_variables_to_ckpt(self._model_dir)
 
     baseline_estimator = _baseline_estimator_fn(
-        label_dimension=label_dim,
-        model_dir=self._model_dir)
+        label_dimension=label_dim, model_dir=self._model_dir)
     input_fn = numpy_io.numpy_input_fn(
         x={
             'age': np.array([[2., 4., 5.]]),
@@ -262,8 +247,7 @@ class BaselineEstimatorPredictTest(tf.test.TestCase):
       save_variables_to_ckpt(self._model_dir)
 
     baseline_estimator = _baseline_estimator_fn(
-        label_dimension=label_dimension,
-        model_dir=self._model_dir)
+        label_dimension=label_dimension, model_dir=self._model_dir)
 
     predict_input_fn = numpy_io.numpy_input_fn(
         # x shape=[batch_size, x_dim]
@@ -275,8 +259,7 @@ class BaselineEstimatorPredictTest(tf.test.TestCase):
     predictions = baseline_estimator.predict(input_fn=predict_input_fn)
     predicted_scores = list([x['predictions'] for x in predictions])
     # score = bias, shape=[batch_size, label_dimension]
-    self.assertAllClose([[0.2, 0.4, 0.6], [0.2, 0.4, 0.6]],
-                        predicted_scores)
+    self.assertAllClose([[0.2, 0.4, 0.6], [0.2, 0.4, 0.6]], predicted_scores)
 
 
 class BaselineEstimatorIntegrationTest(tf.test.TestCase):
@@ -295,8 +278,7 @@ class BaselineEstimatorIntegrationTest(tf.test.TestCase):
         tf.feature_column.numeric_column('x', shape=(input_dimension,))
     ]
     est = _baseline_estimator_fn(
-        label_dimension=label_dimension,
-        model_dir=self._model_dir)
+        label_dimension=label_dimension, model_dir=self._model_dir)
 
     # TRAIN
     # learn y = x
@@ -313,8 +295,7 @@ class BaselineEstimatorIntegrationTest(tf.test.TestCase):
     self.assertAllEqual((prediction_length, label_dimension), predictions.shape)
 
     # EXPORT
-    feature_spec = tf.feature_column.make_parse_example_spec(
-        feature_columns)
+    feature_spec = tf.feature_column.make_parse_example_spec(feature_columns)
     serving_input_receiver_fn = export.build_parsing_serving_input_receiver_fn(
         feature_spec)
     export_dir = est.export_saved_model(tempfile.mkdtemp(),
@@ -378,15 +359,15 @@ class BaselineEstimatorTrainingTest(tf.test.TestCase):
     }
 
     self.assertEqual([], shapes[tf.compat.v1.GraphKeys.GLOBAL_STEP])
-    self.assertEqual(expected_global_step,
-                     tf.train.load_variable(self._model_dir,
-                                                    tf.compat.v1.GraphKeys.GLOBAL_STEP))
+    self.assertEqual(
+        expected_global_step,
+        tf.train.load_variable(self._model_dir,
+                               tf.compat.v1.GraphKeys.GLOBAL_STEP))
 
     self.assertEqual([label_dimension], shapes[BIAS_NAME])
     if expected_bias is not None:
       self.assertEqual(expected_bias,
-                       tf.train.load_variable(self._model_dir,
-                                                      BIAS_NAME))
+                       tf.train.load_variable(self._model_dir, BIAS_NAME))
 
   def testFromScratch(self):
     # Create BaselineRegressor.
@@ -395,8 +376,7 @@ class BaselineEstimatorTrainingTest(tf.test.TestCase):
     # loss = (logits - label)^2 = (0 - 5.)^2 = 25.
     mock_optimizer = mock_optimizer_v2(self, expected_loss=25.)
     baseline_estimator = _baseline_estimator_fn(
-        model_dir=self._model_dir,
-        optimizer=mock_optimizer)
+        model_dir=self._model_dir, optimizer=mock_optimizer)
 
     # Train for a few steps, and validate optimizer and final checkpoint.
     num_steps = 10
@@ -406,9 +386,7 @@ class BaselineEstimatorTrainingTest(tf.test.TestCase):
         num_steps,
         baseline_estimator.get_variable_value(mock_optimizer.iterations.name))
     self._assert_checkpoint(
-        label_dimension=1,
-        expected_global_step=num_steps,
-        expected_bias=[0.])
+        label_dimension=1, expected_global_step=num_steps, expected_bias=[0.])
 
   def testFromCheckpoint(self):
     # Create initial checkpoint.
@@ -426,8 +404,7 @@ class BaselineEstimatorTrainingTest(tf.test.TestCase):
     # loss = (logits - label)^2 = (7 - 5)^2 = 4
     mock_optimizer = mock_optimizer_v2(self, expected_loss=4.)
     baseline_estimator = _baseline_estimator_fn(
-        model_dir=self._model_dir,
-        optimizer=mock_optimizer)
+        model_dir=self._model_dir, optimizer=mock_optimizer)
 
     # Train for a few steps, and validate optimizer and final checkpoint.
     num_steps = 10

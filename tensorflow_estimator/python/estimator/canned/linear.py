@@ -20,31 +20,14 @@ from __future__ import print_function
 
 import math
 
-import tensorflow as tf
 import six
-
+import tensorflow as tf
 from tensorflow.python.feature_column import feature_column
 from tensorflow.python.feature_column import feature_column_lib
-from tensorflow.python.framework import constant_op
-from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
 from tensorflow.python.keras.optimizer_v2 import ftrl as ftrl_v2
 from tensorflow.python.keras.utils import losses_utils
-from tensorflow.python.ops import array_ops
-from tensorflow.python.ops import control_flow_ops
-from tensorflow.python.ops import math_ops
-from tensorflow.python.ops import nn
-from tensorflow.python.ops import partitioned_variables
 from tensorflow.python.ops import resource_variable_ops
-from tensorflow.python.ops import variable_scope
-from tensorflow.python.ops import variables as variable_ops
-from tensorflow.python.ops.losses import losses
-from tensorflow.python.summary import summary
-from tensorflow.python.training import ftrl
-from tensorflow.python.training import session_run_hook
-from tensorflow.python.training import training
-from tensorflow.python.training import training_util
-from tensorflow.python.util import nest
 from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator import estimator
 from tensorflow_estimator.python.estimator.canned import head as head_lib
@@ -65,8 +48,10 @@ class LinearSDCA(object):
   """Stochastic Dual Coordinate Ascent helper for linear estimators.
 
   Objects of this class are intended to be provided as the optimizer argument
-  (though LinearSDCA objects do not implement the `tf.train.Optimizer` interface)
-  when creating `tf.estimator.LinearClassifier` or `tf.estimator.LinearRegressor`.
+  (though LinearSDCA objects do not implement the `tf.train.Optimizer`
+  interface)
+  when creating `tf.estimator.LinearClassifier` or
+  `tf.estimator.LinearRegressor`.
 
   SDCA can only be used with `LinearClassifier` and `LinearRegressor` under the
   following conditions:
@@ -133,8 +118,8 @@ class LinearSDCA(object):
       num_loss_partitions: Number of workers.
       num_table_shards: Number of shards of the internal state table, typically
         set to match the number of parameter servers.
-      symmetric_l1_regularization: A float value, must be greater than or
-        equal to zero.
+      symmetric_l1_regularization: A float value, must be greater than or equal
+        to zero.
       symmetric_l2_regularization: A float value, must be greater than zero and
         should typically be greater than 1.
       adaptive: A boolean indicating whether to use adaptive sampling.
@@ -154,8 +139,8 @@ class LinearSDCA(object):
     if id_weight_pair.weight_tensor:
       weight_tensor = id_weight_pair.weight_tensor.values
     else:
-      weight_tensor = tf.ones(
-          [tf.compat.v1.shape(id_tensor.indices)[0]], tf.dtypes.float32)
+      weight_tensor = tf.ones([tf.compat.v1.shape(id_tensor.indices)[0]],
+                              tf.dtypes.float32)
 
     example_ids = tf.reshape(id_tensor.indices[:, 0], [-1])
     flat_ids = tf.cast(
@@ -185,7 +170,7 @@ class LinearSDCA(object):
 
     weights = tf.reshape(
         tf.math.unsorted_segment_sum(weight_tensor, idx,
-                                      tf.compat.v1.shape(ids)[0]), [-1])
+                                     tf.compat.v1.shape(ids)[0]), [-1])
     return sdca_ops._SparseFeatureColumn(  # pylint: disable=protected-access
         example_ids_filtered, reproject_ids, weights)
 
@@ -212,8 +197,8 @@ class LinearSDCA(object):
             state_manager.get_variable(column, 'weights'))
       elif isinstance(column, feature_column_lib.DenseColumn):
         if column.variable_shape.ndims != 1:
-          raise ValueError('Column %s has rank %d, larger than 1.' % (
-              type(column).__name__, column.variable_shape.ndims))
+          raise ValueError('Column %s has rank %d, larger than 1.' %
+                           (type(column).__name__, column.variable_shape.ndims))
         dense_features.append(column.get_dense_tensor(cache, state_manager))
         # For real valued columns, the variables list contains exactly one
         # element.
@@ -234,8 +219,7 @@ class LinearSDCA(object):
     training_examples = dict(
         sparse_features=sparse_feature_with_values,
         dense_features=dense_features,
-        example_labels=tf.compat.v1.to_float(
-            tf.reshape(targets, shape=[-1])),
+        example_labels=tf.compat.v1.to_float(tf.reshape(targets, shape=[-1])),
         example_weights=example_weights,
         example_ids=example_ids)
     training_variables = dict(
@@ -300,7 +284,9 @@ def _compute_fraction_of_zero(variables):
     variables = tf.nest.flatten(variables)
 
     with ops.name_scope('total_size'):
-      sizes = [tf.compat.v1.size(x, out_type=tf.dtypes.int64) for x in variables]
+      sizes = [
+          tf.compat.v1.size(x, out_type=tf.dtypes.int64) for x in variables
+      ]
       total_size_int64 = tf.math.add_n(sizes)
     with ops.name_scope('total_zero'):
       total_zero_float32 = tf.math.add_n([
@@ -327,8 +313,8 @@ def linear_logit_fn_builder_v2(units, feature_columns, sparse_combiner='sum'):
 
   Args:
     units: An int indicating the dimension of the logit layer.
-    feature_columns: An iterable containing all the feature columns used by
-      the model.
+    feature_columns: An iterable containing all the feature columns used by the
+      model.
     sparse_combiner: A string specifying how to reduce if a categorical column
       is multivalent.  One of "mean", "sqrtn", and "sum".
 
@@ -341,9 +327,9 @@ def linear_logit_fn_builder_v2(units, feature_columns, sparse_combiner='sum'):
     """Linear model logit_fn.
 
     Args:
-      features: This is the first item returned from the `input_fn`
-                passed to `train`, `evaluate`, and `predict`. This should be a
-                single `Tensor` or `dict` of same.
+      features: This is the first item returned from the `input_fn` passed to
+        `train`, `evaluate`, and `predict`. This should be a single `Tensor` or
+        `dict` of same.
 
     Returns:
       A `Tensor` representing the logits.
@@ -383,7 +369,7 @@ def linear_logit_fn_builder_v2(units, feature_columns, sparse_combiner='sum'):
       # so we should provide a scalar summary.
       tf.compat.v1.summary.scalar('bias', bias[0][0])
     tf.compat.v1.summary.scalar('fraction_of_zero_weights',
-                   _compute_fraction_of_zero(variables))
+                                _compute_fraction_of_zero(variables))
     return logits
 
   return linear_logit_fn
@@ -395,8 +381,8 @@ def linear_logit_fn_builder(units, feature_columns, sparse_combiner='sum'):
 
   Args:
     units: An int indicating the dimension of the logit layer.
-    feature_columns: An iterable containing all the feature columns used by
-      the model.
+    feature_columns: An iterable containing all the feature columns used by the
+      model.
     sparse_combiner: A string specifying how to reduce if a categorical column
       is multivalent.  One of "mean", "sqrtn", and "sum".
 
@@ -409,9 +395,9 @@ def linear_logit_fn_builder(units, feature_columns, sparse_combiner='sum'):
     """Linear model logit_fn.
 
     Args:
-      features: This is the first item returned from the `input_fn`
-                passed to `train`, `evaluate`, and `predict`. This should be a
-                single `Tensor` or `dict` of same.
+      features: This is the first item returned from the `input_fn` passed to
+        `train`, `evaluate`, and `predict`. This should be a single `Tensor` or
+        `dict` of same.
 
     Returns:
       A `Tensor` representing the logits.
@@ -456,7 +442,7 @@ def linear_logit_fn_builder(units, feature_columns, sparse_combiner='sum'):
       # so we should provide a scalar summary.
       tf.compat.v1.summary.scalar('bias', bias[0][0])
     tf.compat.v1.summary.scalar('fraction_of_zero_weights',
-                   _compute_fraction_of_zero(variables))
+                                _compute_fraction_of_zero(variables))
     return logits
 
   return linear_logit_fn
@@ -468,11 +454,11 @@ def _sdca_model_fn(features, labels, mode, head, feature_columns, optimizer):
   Args:
     features: dict of `Tensor`.
     labels: `Tensor` of shape `[batch_size]`.
-    mode: Defines whether this is training, evaluation or prediction.
-      See `ModeKeys`.
+    mode: Defines whether this is training, evaluation or prediction. See
+      `ModeKeys`.
     head: A `Head` instance.
-    feature_columns: An iterable containing all the feature columns used by
-      the model.
+    feature_columns: An iterable containing all the feature columns used by the
+      model.
     optimizer: a `LinearSDCA` instance.
 
   Returns:
@@ -500,12 +486,15 @@ def _sdca_model_fn(features, labels, mode, head, feature_columns, optimizer):
   # tf.get_variables() for variable creation. So we modify the model name to
   # keep the variable names the same for checkpoint backward compatibility in
   # canned Linear v2.
-  if isinstance(head, (binary_class_head.BinaryClassHead,
-                       regression_head.RegressionHead)):
+  if isinstance(
+      head,
+      (binary_class_head.BinaryClassHead, regression_head.RegressionHead)):
     linear_model_name = 'linear/linear_model'
 
   linear_model = feature_column_lib.LinearModel(
-      feature_columns=feature_columns, units=1, sparse_combiner='sum',
+      feature_columns=feature_columns,
+      units=1,
+      sparse_combiner='sum',
       name=linear_model_name)
   logits = linear_model(features)
 
@@ -522,7 +511,7 @@ def _sdca_model_fn(features, labels, mode, head, feature_columns, optimizer):
 
   tf.compat.v1.summary.scalar('bias', bias[0][0])
   tf.compat.v1.summary.scalar('fraction_of_zero_weights',
-                 _compute_fraction_of_zero(variables))
+                              _compute_fraction_of_zero(variables))
 
   if mode == ModeKeys.TRAIN:
     sdca_model, train_op = optimizer.get_train_step(
@@ -543,14 +532,12 @@ def _sdca_model_fn(features, labels, mode, head, feature_columns, optimizer):
         labels=labels,
         train_op_fn=lambda unused_loss_fn: train_op,
         logits=logits)
-    return model_fn_ops._replace(training_chief_hooks=(
-        model_fn_ops.training_chief_hooks + (update_weights_hook,)))
+    return model_fn_ops._replace(
+        training_chief_hooks=(model_fn_ops.training_chief_hooks +
+                              (update_weights_hook,)))
   else:
     return head.create_estimator_spec(
-        features=features,
-        mode=mode,
-        labels=labels,
-        logits=logits)
+        features=features, mode=mode, labels=labels, logits=logits)
 
 
 class _SDCAUpdateWeightsHook(tf.compat.v1.train.SessionRunHook):
@@ -572,19 +559,21 @@ class _SDCAUpdateWeightsHook(tf.compat.v1.train.SessionRunHook):
     return tf.compat.v1.train.SessionRunArgs(self._update_op)
 
 
-def _linear_model_fn_builder_v2(units, feature_columns, sparse_combiner='sum',
+def _linear_model_fn_builder_v2(units,
+                                feature_columns,
+                                sparse_combiner='sum',
                                 features=None):
   """Function builder for a linear model_fn.
 
   Args:
     units: An int indicating the dimension of the logit layer.
-    feature_columns: An iterable containing all the feature columns used by
-      the model.
+    feature_columns: An iterable containing all the feature columns used by the
+      model.
     sparse_combiner: A string specifying how to reduce if a categorical column
       is multivalent.  One of "mean", "sqrtn", and "sum".
-    features: This is the first item returned from the `input_fn`
-              passed to `train`, `evaluate`, and `predict`. This should be a
-              single `Tensor` or `dict` of same.
+    features: This is the first item returned from the `input_fn` passed to
+      `train`, `evaluate`, and `predict`. This should be a single `Tensor` or
+      `dict` of same.
 
   Returns:
     A `Tensor` representing the logits.
@@ -625,7 +614,7 @@ def _linear_model_fn_builder_v2(units, feature_columns, sparse_combiner='sum',
     # so we should provide a scalar summary.
     tf.compat.v1.summary.scalar('bias', bias[0])
   tf.compat.v1.summary.scalar('fraction_of_zero_weights',
-                 _compute_fraction_of_zero(variables))
+                              _compute_fraction_of_zero(variables))
 
   return logits, linear_model.variables
 
@@ -695,18 +684,25 @@ def _linear_model_fn_v2(features,
         logits=logits)
 
 
-def _linear_model_fn(features, labels, mode, head, feature_columns, optimizer,
-                     partitioner, config, sparse_combiner='sum'):
+def _linear_model_fn(features,
+                     labels,
+                     mode,
+                     head,
+                     feature_columns,
+                     optimizer,
+                     partitioner,
+                     config,
+                     sparse_combiner='sum'):
   """A model_fn for linear models that use a gradient-based optimizer.
 
   Args:
     features: dict of `Tensor`.
     labels: `Tensor` of shape `[batch_size, logits_dimension]`.
-    mode: Defines whether this is training, evaluation or prediction.
-      See `ModeKeys`.
+    mode: Defines whether this is training, evaluation or prediction. See
+      `ModeKeys`.
     head: A `Head` instance.
-    feature_columns: An iterable containing all the feature columns used by
-      the model.
+    feature_columns: An iterable containing all the feature columns used by the
+      model.
     optimizer: string, `Optimizer` object, or callable that defines the
       optimizer to use for training. If `None`, will use a FTRL optimizer.
     partitioner: Partitioner for variables.
@@ -726,25 +722,23 @@ def _linear_model_fn(features, labels, mode, head, feature_columns, optimizer,
 
   num_ps_replicas = config.num_ps_replicas if config else 0
 
-  partitioner = partitioner or (
-      tf.compat.v1.min_max_variable_partitioner(
-          max_partitions=num_ps_replicas,
-          min_slice_size=64 << 20))
+  partitioner = partitioner or (tf.compat.v1.min_max_variable_partitioner(
+      max_partitions=num_ps_replicas, min_slice_size=64 << 20))
 
   with tf.compat.v1.variable_scope(
-      'linear',
-      values=tuple(six.itervalues(features)),
+      'linear', values=tuple(six.itervalues(features)),
       partitioner=partitioner):
 
     if isinstance(optimizer, LinearSDCA):
       assert sparse_combiner == 'sum'
-      return _sdca_model_fn(
-          features, labels, mode, head, feature_columns, optimizer)
+      return _sdca_model_fn(features, labels, mode, head, feature_columns,
+                            optimizer)
     else:
       logit_fn = linear_logit_fn_builder(
-          units=head.logits_dimension, feature_columns=feature_columns,
+          units=head.logits_dimension,
+          feature_columns=feature_columns,
           sparse_combiner=sparse_combiner,
-          )
+      )
       logits = logit_fn(features=features)
 
       optimizer = optimizers.get_optimizer_instance(
@@ -760,10 +754,7 @@ def _linear_model_fn(features, labels, mode, head, feature_columns, optimizer,
 
 
 def _validate_linear_sdca_optimizer_for_linear_classifier(
-    feature_columns,
-    n_classes,
-    optimizer,
-    sparse_combiner):
+    feature_columns, n_classes, optimizer, sparse_combiner):
   """Helper function for the initialization of LinearClassifier."""
   if isinstance(optimizer, LinearSDCA):
     if sparse_combiner != 'sum':
@@ -882,30 +873,30 @@ class LinearClassifierV2(estimator.EstimatorV2):
         the model. All items in the set should be instances of classes derived
         from `FeatureColumn`.
       model_dir: Directory to save model parameters, graph and etc. This can
-        also be used to load checkpoints from the directory into a estimator
-        to continue training a previously saved model.
-      n_classes: number of label classes. Default is binary classification.
-        Note that class labels are integers representing the class index (i.e.
-        values from 0 to n_classes-1). For arbitrary label values (e.g. string
-        labels), convert to class indices first.
+        also be used to load checkpoints from the directory into a estimator to
+        continue training a previously saved model.
+      n_classes: number of label classes. Default is binary classification. Note
+        that class labels are integers representing the class index (i.e. values
+        from 0 to n_classes-1). For arbitrary label values (e.g. string labels),
+        convert to class indices first.
       weight_column: A string or a `_NumericColumn` created by
         `tf.feature_column.numeric_column` defining feature column representing
         weights. It is used to down weight or boost examples during training. It
         will be multiplied by the loss of the example. If it is a string, it is
         used as a key to fetch weight tensor from the `features`. If it is a
-        `_NumericColumn`, raw tensor is fetched by key `weight_column.key`,
-        then weight_column.normalizer_fn is applied on it to get weight tensor.
+        `_NumericColumn`, raw tensor is fetched by key `weight_column.key`, then
+        weight_column.normalizer_fn is applied on it to get weight tensor.
       label_vocabulary: A list of strings represents possible label values. If
         given, labels must be string type and have any value in
-        `label_vocabulary`. If it is not given, that means labels are
-        already encoded as integer or float within [0, 1] for `n_classes=2` and
-        encoded as integer values in {0, 1,..., n_classes-1} for `n_classes`>2 .
-        Also there will be errors if vocabulary is not provided and labels are
+        `label_vocabulary`. If it is not given, that means labels are already
+        encoded as integer or float within [0, 1] for `n_classes=2` and encoded
+        as integer values in {0, 1,..., n_classes-1} for `n_classes`>2 . Also
+        there will be errors if vocabulary is not provided and labels are
         string.
       optimizer: An instance of `tf.keras.optimizers.*` or
-        `tf.estimator.experimental.LinearSDCA` used to train the model. Can
-        also be a string (one of 'Adagrad', 'Adam', 'Ftrl', 'RMSProp', 'SGD'),
-        or callable. Defaults to FTRL optimizer.
+        `tf.estimator.experimental.LinearSDCA` used to train the model. Can also
+        be a string (one of 'Adagrad', 'Adam', 'Ftrl', 'RMSProp', 'SGD'), or
+        callable. Defaults to FTRL optimizer.
       config: `RunConfig` object to configure the runtime settings.
       warm_start_from: A string filepath to a checkpoint to warm-start from, or
         a `WarmStartSettings` object to fully configure warm-starting.  If the
@@ -934,7 +925,8 @@ class LinearClassifierV2(estimator.EstimatorV2):
     estimator._canned_estimator_api_gauge.get_cell('Classifier').set('Linear')  # pylint: disable=protected-access
 
     head = head_utils.binary_or_multi_class_head(
-        n_classes, weight_column=weight_column,
+        n_classes,
+        weight_column=weight_column,
         label_vocabulary=label_vocabulary,
         loss_reduction=loss_reduction)
 
@@ -1099,11 +1091,11 @@ class LinearEstimatorV2(estimator.EstimatorV2):
         the model. All items in the set should be instances of classes derived
         from `FeatureColumn`.
       model_dir: Directory to save model parameters, graph and etc. This can
-        also be used to load checkpoints from the directory into a estimator
-        to continue training a previously saved model.
+        also be used to load checkpoints from the directory into a estimator to
+        continue training a previously saved model.
       optimizer: An instance of `tf.keras.optimizers.*` used to train the model.
-         Can also be a string (one of 'Adagrad', 'Adam', 'Ftrl', 'RMSProp',
-         'SGD'), or callable. Defaults to FTRL optimizer.
+        Can also be a string (one of 'Adagrad', 'Adam', 'Ftrl', 'RMSProp',
+        'SGD'), or callable. Defaults to FTRL optimizer.
       config: `RunConfig` object to configure the runtime settings.
       sparse_combiner: A string specifying how to reduce if a categorical column
         is multivalent.  One of "mean", "sqrtn", and "sum" -- these are
@@ -1111,6 +1103,7 @@ class LinearEstimatorV2(estimator.EstimatorV2):
         be useful for bag-of-words features. for more details, see
         `tf.feature_column.linear_model`.
     """
+
     def _model_fn(features, labels, mode, config):
       return _linear_model_fn_v2(
           features=features,
@@ -1148,8 +1141,8 @@ class LinearEstimator(estimator.Estimator):
         the model. All items in the set should be instances of classes derived
         from `FeatureColumn`.
       model_dir: Directory to save model parameters, graph and etc. This can
-        also be used to load checkpoints from the directory into a estimator
-        to continue training a previously saved model.
+        also be used to load checkpoints from the directory into a estimator to
+        continue training a previously saved model.
       optimizer: An instance of `tf.Optimizer` used to train the model. Can also
         be a string (one of 'Adagrad', 'Adam', 'Ftrl', 'RMSProp', 'SGD'), or
         callable. Defaults to FTRL optimizer.
@@ -1161,6 +1154,7 @@ class LinearEstimator(estimator.Estimator):
         be useful for bag-of-words features. for more details, see
         `tf.feature_column.linear_model`.
     """
+
     def _model_fn(features, labels, mode, config):
       return _linear_model_fn(
           features=features,
@@ -1179,10 +1173,7 @@ class LinearEstimator(estimator.Estimator):
 
 
 def _validate_linear_sdca_optimizer_for_linear_regressor(
-    feature_columns,
-    label_dimension,
-    optimizer,
-    sparse_combiner):
+    feature_columns, label_dimension, optimizer, sparse_combiner):
   """Helper function for the initialization of LinearRegressor."""
   if isinstance(optimizer, LinearSDCA):
     if sparse_combiner != 'sum':
