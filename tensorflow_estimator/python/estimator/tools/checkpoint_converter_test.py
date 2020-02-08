@@ -21,14 +21,9 @@ from __future__ import print_function
 import os
 import shutil
 
-import tensorflow as tf
 import numpy as np
-
+import tensorflow as tf
 from tensorflow.python.feature_column import feature_column
-from tensorflow.python.feature_column import feature_column_v2
-from tensorflow.python.framework import ops
-from tensorflow.python.platform import test
-from tensorflow.python.summary.writer import writer_cache
 from tensorflow_estimator.python.estimator.canned import dnn
 from tensorflow_estimator.python.estimator.canned import dnn_linear_combined
 from tensorflow_estimator.python.estimator.canned import head as head_lib
@@ -97,8 +92,9 @@ class DNNCheckpointConverterTest(tf.test.TestCase):
     self.assertTrue(est_v2.latest_checkpoint().startswith(self._new_ckpt_dir))
     # Make sure estimator v2 restores from the converted checkpoint, and
     # continues training extra steps.
-    self.assertEqual(num_steps + extra_steps,
-                     est_v2.get_variable_value(tf.compat.v1.GraphKeys.GLOBAL_STEP))
+    self.assertEqual(
+        num_steps + extra_steps,
+        est_v2.get_variable_value(tf.compat.v1.GraphKeys.GLOBAL_STEP))
 
   def _create_input_fn(self, label_dimension, batch_size):
     """Creates input_fn for integration test."""
@@ -212,8 +208,9 @@ class LinearCheckpointConverterTest(tf.test.TestCase):
     self.assertTrue(est_v2.latest_checkpoint().startswith(self._new_ckpt_dir))
     # Make sure estimator v2 restores from the converted checkpoint, and
     # continues training extra steps.
-    self.assertEqual(num_steps + extra_steps,
-                     est_v2.get_variable_value(tf.compat.v1.GraphKeys.GLOBAL_STEP))
+    self.assertEqual(
+        num_steps + extra_steps,
+        est_v2.get_variable_value(tf.compat.v1.GraphKeys.GLOBAL_STEP))
 
   def _create_input_fn(self, label_dimension, batch_size):
     """Creates input_fn for integration test."""
@@ -338,8 +335,9 @@ class DNNLinearCombinedCheckpointConverterTest(tf.test.TestCase):
     self.assertTrue(est_v2.latest_checkpoint().startswith(self._new_ckpt_dir))
     # Make sure estimator v2 restores from the converted checkpoint, and
     # continues training extra steps.
-    self.assertEqual(num_steps + extra_steps,
-                     est_v2.get_variable_value(tf.compat.v1.GraphKeys.GLOBAL_STEP))
+    self.assertEqual(
+        num_steps + extra_steps,
+        est_v2.get_variable_value(tf.compat.v1.GraphKeys.GLOBAL_STEP))
 
   def _create_input_fn(self, label_dimension, batch_size):
     """Creates input_fn for integration test."""

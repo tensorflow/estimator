@@ -52,28 +52,16 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
-
 import argparse
 import sys
-
+import tensorflow as tf
 from google.protobuf import text_format
 from tensorflow.core.framework import graph_pb2
-from tensorflow.python.client import session
-from tensorflow.python.framework import ops
 from tensorflow.python.keras.optimizer_v2 import adagrad
 from tensorflow.python.keras.optimizer_v2 import adam
 from tensorflow.python.keras.optimizer_v2 import ftrl
 from tensorflow.python.keras.optimizer_v2 import gradient_descent
 from tensorflow.python.keras.optimizer_v2 import rmsprop
-from tensorflow.python.ops import math_ops
-from tensorflow.python.ops import variables
-from tensorflow.python.platform import app
-from tensorflow.python.platform import gfile
-from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.training import saver as saver_lib
-from tensorflow.python.training import training
-
 
 # Optimizer name mapping from v1 to v2.
 OPT_NAME_V1_TO_V2 = {
@@ -239,8 +227,9 @@ def _convert_hyper_params_in_graph(graph_from_path, opt_name_v1, var_map,
     if opt_name_v1 + '/' + node_name in nodes_full:
       hp_value = node.attr.get('value').tensor.float_val[0]
       hp_name_v2 = 'training/' + opt_name_v2 + '/' + node_name
-      tf.compat.v1.logging.info('Hyper parameter {} with value {} found in Graph.'.format(
-          hp_name_v2, hp_value))
+      tf.compat.v1.logging.info(
+          'Hyper parameter {} with value {} found in Graph.'.format(
+              hp_name_v2, hp_value))
       _add_new_variable(hp_value, hp_name_v2, node_name, var_map, var_names_map)
       # Adds this node to nodes_in_graph
       nodes_in_graph.append(node_name)
@@ -249,11 +238,13 @@ def _convert_hyper_params_in_graph(graph_from_path, opt_name_v1, var_map,
   # manually. The tensor value is its default value from optimizer v2 config.
   nodes_not_in_graph = sorted(list(set(nodes_full) - set(nodes_in_graph)))
   opt_v2_config = OPT_V2_INSTANCE[opt_name_v1].get_config()
-  tf.compat.v1.logging.info('For hyper parameter variables that are NOT in Graph:')
+  tf.compat.v1.logging.info(
+      'For hyper parameter variables that are NOT in Graph:')
   for node_name in nodes_not_in_graph:
     hp_name_v2 = 'training/' + opt_name_v2 + '/' + node_name
-    tf.compat.v1.logging.info('Hyper parameter {} with default value {} is added.'.format(
-        hp_name_v2, opt_v2_config[node_name]))
+    tf.compat.v1.logging.info(
+        'Hyper parameter {} with default value {} is added.'.format(
+            hp_name_v2, opt_v2_config[node_name]))
     _add_new_variable(opt_v2_config[node_name], hp_name_v2, node_name, var_map,
                       var_names_map)
 
@@ -331,7 +322,8 @@ def convert_checkpoint(estimator_type, source_checkpoint, source_graph,
                                      var_names_map)
 
     # Log the variable mapping from opt v1 to v2.
-    tf.compat.v1.logging.info('<----- Variable names converted (v1 --> v2): ----->')
+    tf.compat.v1.logging.info(
+        '<----- Variable names converted (v1 --> v2): ----->')
     for name_v2 in var_names_map:
       tf.compat.v1.logging.info('%s --> %s' % (var_names_map[name_v2], name_v2))
 
@@ -339,7 +331,8 @@ def convert_checkpoint(estimator_type, source_checkpoint, source_graph,
     saver = tf.compat.v1.train.Saver(var_list=var_map)
     with tf.compat.v1.Session() as sess:
       sess.run(tf.compat.v1.initializers.global_variables())
-      tf.compat.v1.logging.info('Writing checkpoint_to_path %s' % target_checkpoint)
+      tf.compat.v1.logging.info('Writing checkpoint_to_path %s' %
+                                target_checkpoint)
       saver.save(sess, target_checkpoint)
 
 
@@ -359,8 +352,8 @@ if __name__ == '__main__':
       type=str,
       choices=['dnn', 'linear', 'combined'],
       help='The type of estimator to be converted. So far, the checkpoint '
-           'converter only supports Canned Estimator. So the allowed types '
-           'include linear, dnn and combined.')
+      'converter only supports Canned Estimator. So the allowed types '
+      'include linear, dnn and combined.')
   parser.add_argument(
       'source_checkpoint',
       type=str,
