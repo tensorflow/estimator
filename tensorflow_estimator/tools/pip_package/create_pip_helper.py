@@ -22,7 +22,7 @@ import argparse
 import fnmatch
 import os
 
-PIP_EXCLUDED_FILES = set([
+PIP_EXCLUDED_FILES = frozenset([
     'tensorflow_estimator/python/estimator/canned/optimizers_test_v2.py',
     'tensorflow_estimator/python/estimator/canned/dnn_test_fc_v2.py',
     'tensorflow_estimator/python/estimator/canned/dnn_test_fc_v1.py',
@@ -41,9 +41,7 @@ PIP_EXCLUDED_FILES = set([
 ])
 
 # Directories that should not have __init__.py files generated within them.
-EXCLUDED_INIT_FILE_DIRECTORIES = set([
-    'tensorflow_estimator/tools'
-])
+EXCLUDED_INIT_FILE_DIRECTORIES = frozenset(['tensorflow_estimator/tools'])
 
 
 class PipPackagingError(Exception):
@@ -66,7 +64,7 @@ def create_init_files(pip_root):
   """
   has_contrib = False
   for path, subdirs, _ in os.walk(pip_root):
-    has_contrib = has_contrib or "/contrib/" in path
+    has_contrib = has_contrib or '/contrib/' in path
     for subdir in subdirs:
       init_file_path = os.path.join(path, subdir, '__init__.py')
       if any(excluded_path in init_file_path
@@ -105,8 +103,8 @@ def verify_python_files_in_pip(pip_root, bazel_root, has_contrib):
         raise PipPackagingError(
             ('Pip package missing the file %s. If this is expected, add it '
              'to PIP_EXCLUDED_FILES in create_pip_helper.py. Otherwise, '
-             'make sure it is a build dependency of the pip package')
-            % file_name)
+             'make sure it is a build dependency of the pip package') %
+            file_name)
       if path_exists and file_excluded:
         raise PipPackagingError(
             ('File in PIP_EXCLUDED_FILES included in pip. %s' % file_name))
@@ -129,6 +127,6 @@ def main():
   has_contrib = create_init_files(args.pip_root)
   verify_python_files_in_pip(args.pip_root, args.bazel_root, has_contrib)
 
+
 if __name__ == '__main__':
   main()
-
