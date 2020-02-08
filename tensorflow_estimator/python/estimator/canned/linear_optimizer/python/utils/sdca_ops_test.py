@@ -18,28 +18,15 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
-
 import random
 import threading
-
+import tensorflow as tf
 from tensorflow.core.example import example_pb2
 from tensorflow.core.protobuf import config_pb2
 from tensorflow.python.eager import context
-from tensorflow.python.framework import constant_op
-from tensorflow.python.framework import dtypes
-from tensorflow.python.framework import errors_impl
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import test_util
 from tensorflow.python.framework.test_util import TensorFlowTestCase
-from tensorflow.python.ops import array_ops
-from tensorflow.python.ops import control_flow_ops
-from tensorflow.python.ops import gen_sdca_ops
-from tensorflow.python.ops import math_ops
-from tensorflow.python.ops import parsing_ops
-from tensorflow.python.ops import partitioned_variables
-from tensorflow.python.ops import variable_scope
-from tensorflow.python.ops import variables as variables_lib
 from tensorflow.python.platform import googletest
 from tensorflow_estimator.python.estimator.canned.linear_optimizer.python.utils.sdca_ops import _SDCAModel
 from tensorflow_estimator.python.estimator.canned.linear_optimizer.python.utils.sdca_ops import _SparseFeatureColumn
@@ -117,8 +104,7 @@ def make_random_examples_and_variables_dicts(num_examples, dim, num_non_zero):
           [i for i in range(num_examples) for _ in range(num_non_zero)], [
               i for _ in range(num_examples)
               for i in random.sample(range(dim), num_non_zero)
-          ],
-          [num_non_zero**(-0.5) for _ in range(num_examples * num_non_zero)])
+          ], [num_non_zero**(-0.5) for _ in range(num_examples * num_non_zero)])
   ]
   examples_dict = dict(
       sparse_features=sparse_features,
@@ -129,11 +115,9 @@ def make_random_examples_and_variables_dicts(num_examples, dim, num_non_zero):
       ],
       example_ids=[str(i) for i in range(num_examples)])
 
-  weights = tf.compat.v1.Variable(
-      tf.zeros([dim], dtype=tf.dtypes.float32))
+  weights = tf.compat.v1.Variable(tf.zeros([dim], dtype=tf.dtypes.float32))
   variables_dict = dict(
-      sparse_features_weights=[weights],
-      dense_features_weights=[])
+      sparse_features_weights=[weights], dense_features_weights=[])
 
   return examples_dict, variables_dict
 
@@ -143,8 +127,7 @@ def make_variable_dict(max_age, max_gender, num_shards=None, partitioned=False):
   # examples_dict.
   partitioner = None
   if partitioned:
-    partitioner = tf.compat.v1.fixed_size_partitioner(num_shards=2,
-                                                               axis=0)
+    partitioner = tf.compat.v1.fixed_size_partitioner(num_shards=2, axis=0)
   with tf.compat.v1.variable_scope(
       name_or_scope=('variables/shard_{}'.format(num_shards)
                      if num_shards else 'variables'),
@@ -171,6 +154,7 @@ def make_dense_examples_and_variables_dicts(dense_features_values, weights,
     dense_features_values: The values of the dense features
     weights: The example weights.
     labels: The example labels.
+
   Returns:
     One dictionary for the examples and one for the variables.
   """
@@ -183,14 +167,14 @@ def make_dense_examples_and_variables_dicts(dense_features_values, weights,
         ['dense_tensor shape must be [batch_size, dimension] or [batch_size]'])
     # Reshape to [batch_size, dense_column_dimension].
     with tf.control_dependencies([check_shape_op]):
-      dense_tensor = tf.reshape(
-          dense_tensor, [dense_tensor.get_shape().as_list()[0], -1])
+      dense_tensor = tf.reshape(dense_tensor,
+                                [dense_tensor.get_shape().as_list()[0], -1])
     dense_tensors.append(dense_tensor)
     # Add variables of shape [feature_column_dimension].
     dense_weights.append(
         tf.compat.v1.Variable(
-            tf.zeros(
-                [dense_tensor.get_shape().as_list()[1]], dtype=tf.dtypes.float32)))
+            tf.zeros([dense_tensor.get_shape().as_list()[1]],
+                     dtype=tf.dtypes.float32)))
 
   examples_dict = dict(
       sparse_features=[],
@@ -207,7 +191,7 @@ def make_dense_examples_and_variables_dicts(dense_features_values, weights,
 def get_binary_predictions_for_logistic(predictions, cutoff=0.5):
   return tf.cast(
       tf.math.greater_equal(predictions,
-                             tf.compat.v1.ones_like(predictions) * cutoff),
+                            tf.compat.v1.ones_like(predictions) * cutoff),
       dtype=tf.dtypes.int32)
 
 
@@ -356,8 +340,7 @@ class SdcaWithLogisticLossTest(_SDCAModelTest):
             partitioner=tf.compat.v1.fixed_size_partitioner(
                 num_shards=2, axis=0)):
           gender_weights = tf.compat.v1.get_variable(
-              name='gender',
-              initializer=tf.zeros([2], dtype=tf.dtypes.float32))
+              name='gender', initializer=tf.zeros([2], dtype=tf.dtypes.float32))
         variables = dict(
             sparse_features_weights=[age_weights, gender_weights],
             dense_features_weights=[])
@@ -440,8 +423,7 @@ class SdcaWithLogisticLossTest(_SDCAModelTest):
       lr = _SDCAModel(examples, variables, options)
       tf.compat.v1.initializers.global_variables().run()
       train_op = lr.minimize()
-      with self.assertRaisesRegexp(tf.errors.InvalidArgumentError,
-                                   'Duplicate'):
+      with self.assertRaisesRegexp(tf.errors.InvalidArgumentError, 'Duplicate'):
         train_op.run()
 
   def testDistributedSimple(self):
@@ -493,9 +475,12 @@ class SdcaWithLogisticLossTest(_SDCAModelTest):
 
           def minimize(worker_id):
             with context.graph_mode(), self._single_threaded_test_session():
-              feed_dict = {example_ids: [
-                  str(i + worker_id*len(example_weights)) for i in range(
-                      len(example_weights))]}
+              feed_dict = {
+                  example_ids: [
+                      str(i + worker_id * len(example_weights))
+                      for i in range(len(example_weights))
+                  ]
+              }
               for _ in range(_MAX_ITERATIONS):
                 train_op.run(feed_dict=feed_dict)  # pylint: disable=cell-var-from-loop
 
@@ -507,7 +492,8 @@ class SdcaWithLogisticLossTest(_SDCAModelTest):
           for t in threads:
             t.join()
           lr.update_weights(train_op).run(feed_dict={
-              example_ids: [str(i) for i in range(len(example_weights))]})
+              example_ids: [str(i) for i in range(len(example_weights))]
+          })
 
           # Test only the unregularized loss because the optimal value of the
           # regularized loss depends on num_loss_partitions.
@@ -776,8 +762,7 @@ class SdcaWithLogisticLossTest(_SDCAModelTest):
       lr = _SDCAModel(examples, variables, options)
       tf.compat.v1.initializers.global_variables().run()
       train_op = lr.minimize()
-      with self.assertRaisesRegexp(tf.errors.InvalidArgumentError,
-                                   'indices.*'):
+      with self.assertRaisesRegexp(tf.errors.InvalidArgumentError, 'indices.*'):
         train_op.run()
 
   def testOutOfRangeDenseFeatures(self):
@@ -788,8 +773,7 @@ class SdcaWithLogisticLossTest(_SDCAModelTest):
           labels=[1.0, 0.0])
       # Replace with a variable of size 1 instead of 2.
       variables['dense_features_weights'] = [
-          tf.compat.v1.Variable(tf.zeros(
-              [1], dtype=tf.dtypes.float32))
+          tf.compat.v1.Variable(tf.zeros([1], dtype=tf.dtypes.float32))
       ]
       options = dict(
           symmetric_l2_regularization=1.0,
@@ -880,8 +864,9 @@ class SdcaWithLinearLossTest(_SDCAModelTest):
 
       # Predictions should be 2/3 of label due to minimizing regularized loss:
       #   (label - 2 * weight)^2 / 2 + L2 * 2 * weight^2
-      self.assertAllClose(
-          [-20.0 / 3.0, 28.0 / 3.0], predictions.eval(), rtol=0.005)
+      self.assertAllClose([-20.0 / 3.0, 28.0 / 3.0],
+                          predictions.eval(),
+                          rtol=0.005)
       # Approximate gap should be very close to 0.0. (In fact, because the gap
       # is only approximate, it is likely that upon convergence the duality gap
       # can have a tiny negative value).
@@ -931,10 +916,9 @@ class SdcaWithLinearLossTest(_SDCAModelTest):
       #   (label - 2 * weight)^2 + L2 * 16 * weight^2
       optimal1 = -10.0 / 5.0
       optimal2 = 14.0 / 5.0
-      self.assertAllClose(
-          [optimal1, optimal1, optimal2, optimal2],
-          predictions.eval(),
-          rtol=0.01)
+      self.assertAllClose([optimal1, optimal1, optimal2, optimal2],
+                          predictions.eval(),
+                          rtol=0.01)
 
   def testL1Regularization(self):
     # Setup test data
@@ -1017,8 +1001,9 @@ class SdcaWithLinearLossTest(_SDCAModelTest):
       # w_2* = w_4* = 2 \cdot s_2 y_2/(\lambda + 8 s_2). Equivalently, due to
       # regularization and example weights, the predictions are within:
       # 8 \cdot s_i /(\lambda + 8 \cdot s_i) of the labels.
-      self.assertAllClose(
-          [-10 * 40.0 / 41.0, 14.0 * 24 / 25.0], predictions.eval(), atol=0.01)
+      self.assertAllClose([-10 * 40.0 / 41.0, 14.0 * 24 / 25.0],
+                          predictions.eval(),
+                          atol=0.01)
 
   def testDenseFeaturesWithDefaultWeights(self):
     with self._single_threaded_test_session():
@@ -1361,8 +1346,7 @@ class SdcaFprintTest(_SDCAModelTest):
 
 
 class _SparseFeatureColumnTest(TensorFlowTestCase):
-  """Tests for _SparseFeatureColumn.
-  """
+  """Tests for _SparseFeatureColumn."""
 
   def testBasic(self):
     expected_example_indices = [1, 1, 1, 2]
@@ -1373,19 +1357,16 @@ class _SparseFeatureColumnTest(TensorFlowTestCase):
     self.assertIsInstance(sfc.feature_indices, tf.Tensor)
     self.assertEqual(sfc.feature_values, None)
     with self.cached_session():
-      self.assertAllEqual(
-          expected_example_indices,
-          self.evaluate(sfc.example_indices))
-      self.assertAllEqual(
-          expected_feature_indices,
-          self.evaluate(sfc.feature_indices))
+      self.assertAllEqual(expected_example_indices,
+                          self.evaluate(sfc.example_indices))
+      self.assertAllEqual(expected_feature_indices,
+                          self.evaluate(sfc.feature_indices))
     expected_feature_values = [1.0, 2.0, 3.0, 4.0]
     sfc = _SparseFeatureColumn([1, 1, 1, 2], [0, 1, 2, 0],
                                expected_feature_values)
     with self.cached_session():
-      self.assertAllEqual(
-          expected_feature_values,
-          self.evaluate(sfc.feature_values))
+      self.assertAllEqual(expected_feature_values,
+                          self.evaluate(sfc.feature_values))
 
 
 if __name__ == '__main__':

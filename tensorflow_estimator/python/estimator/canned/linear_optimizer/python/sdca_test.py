@@ -18,16 +18,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
 import numpy as np
-
-from tensorflow.python.feature_column import feature_column_lib
-from tensorflow.python.framework import constant_op
-from tensorflow.python.framework import sparse_tensor
-from tensorflow.python.framework import test_util
-from tensorflow.python.ops import array_ops
-from tensorflow.python.ops import partitioned_variables
-from tensorflow.python.platform import test
+import tensorflow as tf
 from tensorflow_estimator.python.estimator.canned import linear
 
 
@@ -63,10 +55,8 @@ class SDCAClassifierTest(tf.test.TestCase):
     # feature.
     def input_fn():
       return {
-          'example_id':
-              tf.constant(['1', '2']),
-          'dense_feature':
-              tf.constant([[500.0, 800.0], [200.0, 600.0]])
+          'example_id': tf.constant(['1', '2']),
+          'dense_feature': tf.constant([[500.0, 800.0], [200.0, 600.0]])
       }, tf.constant([[0], [1]])
 
     dense_feature = tf.feature_column.numeric_column('dense_feature', shape=2)
@@ -210,8 +200,8 @@ class SDCAClassifierTest(tf.test.TestCase):
                   dense_shape=[3, 1])
       }, tf.constant([[0], [0], [1]])
 
-    country_language = tf.feature_column.crossed_column(
-        ['language', 'country'], hash_bucket_size=100)
+    country_language = tf.feature_column.crossed_column(['language', 'country'],
+                                                        hash_bucket_size=100)
     optimizer = linear.LinearSDCA(
         example_id_column='example_id', symmetric_l2_regularization=0.01)
     classifier = linear.LinearClassifierV2(
@@ -293,8 +283,7 @@ class SDCAClassifierTest(tf.test.TestCase):
     classifier = linear.LinearClassifier(
         feature_columns=[price, sq_footage_bucket, country, sq_footage_country],
         weight_column='weights',
-        partitioner=tf.compat.v1.fixed_size_partitioner(
-            num_shards=2, axis=0),
+        partitioner=tf.compat.v1.fixed_size_partitioner(num_shards=2, axis=0),
         optimizer=optimizer)
     classifier.train(input_fn=input_fn, steps=100)
     loss = classifier.evaluate(input_fn=input_fn, steps=1)['loss']
@@ -330,8 +319,9 @@ class SDCARegressorTest(tf.test.TestCase):
                   regressor.get_variable_names())
     regressor_weights = regressor.get_variable_value(
         'linear/linear_model/x/weights')
-    self.assertAllClose(
-        [w[0] for w in weights], regressor_weights.flatten(), rtol=0.1)
+    self.assertAllClose([w[0] for w in weights],
+                        regressor_weights.flatten(),
+                        rtol=0.1)
 
   def testMixedFeaturesArbitraryWeights(self):
     """Tests LinearRegressor with LinearSDCA and a mix of features."""
@@ -405,8 +395,7 @@ class SDCARegressorTest(tf.test.TestCase):
     regressor = linear.LinearRegressor(
         feature_columns=[price, sq_footage_bucket, country, sq_footage_country],
         weight_column='weights',
-        partitioner=tf.compat.v1.fixed_size_partitioner(
-            num_shards=2, axis=0),
+        partitioner=tf.compat.v1.fixed_size_partitioner(num_shards=2, axis=0),
         optimizer=optimizer)
     regressor.train(input_fn=input_fn, steps=20)
     loss = regressor.evaluate(input_fn=input_fn, steps=1)['loss']
@@ -446,10 +435,10 @@ class SDCARegressorTest(tf.test.TestCase):
     self.assertIn('linear/linear_model/price/weights', variable_names)
     self.assertIn('linear/linear_model/country/weights', variable_names)
     no_l1_reg_weights = {
-        'linear/linear_model/price/weights': regressor.get_variable_value(
-            'linear/linear_model/price/weights'),
-        'linear/linear_model/country/weights': regressor.get_variable_value(
-            'linear/linear_model/country/weights'),
+        'linear/linear_model/price/weights':
+            regressor.get_variable_value('linear/linear_model/price/weights'),
+        'linear/linear_model/country/weights':
+            regressor.get_variable_value('linear/linear_model/country/weights'),
     }
 
     # Regressor with L1 regularization.
@@ -464,10 +453,10 @@ class SDCARegressorTest(tf.test.TestCase):
     regressor.train(input_fn=input_fn, steps=20)
     l1_reg_loss = regressor.evaluate(input_fn=input_fn, steps=1)['loss']
     l1_reg_weights = {
-        'linear/linear_model/price/weights': regressor.get_variable_value(
-            'linear/linear_model/price/weights'),
-        'linear/linear_model/country/weights': regressor.get_variable_value(
-            'linear/linear_model/country/weights'),
+        'linear/linear_model/price/weights':
+            regressor.get_variable_value('linear/linear_model/price/weights'),
+        'linear/linear_model/country/weights':
+            regressor.get_variable_value('linear/linear_model/country/weights'),
     }
 
     # Unregularized loss is lower when there is no L1 regularization.
@@ -500,14 +489,11 @@ class SDCARegressorTest(tf.test.TestCase):
       """
       num_examples = 40
       return {
-          'example_id':
-              tf.constant([str(x + 1) for x in range(num_examples)]),
+          'example_id': tf.constant([str(x + 1) for x in range(num_examples)]),
           # place_holder is an empty column which is always 0 (absent), because
           # LinearClassifier requires at least one column.
-          'place_holder':
-              tf.constant([[0.0]] * num_examples),
-      }, tf.constant(
-          [1 if i % 4 is 0 else 0 for i in range(num_examples)])
+          'place_holder': tf.constant([[0.0]] * num_examples),
+      }, tf.constant([1 if i % 4 == 0 else 0 for i in range(num_examples)])
 
     place_holder = tf.feature_column.numeric_column('place_holder')
     optimizer = linear.LinearSDCA(
@@ -515,8 +501,10 @@ class SDCARegressorTest(tf.test.TestCase):
     regressor = linear.LinearRegressorV2(
         feature_columns=[place_holder], optimizer=optimizer)
     regressor.train(input_fn=input_fn, steps=100)
-    self.assertNear(regressor.get_variable_value(
-        'linear/linear_model/bias_weights')[0], 0.25, err=0.1)
+    self.assertNear(
+        regressor.get_variable_value('linear/linear_model/bias_weights')[0],
+        0.25,
+        err=0.1)
 
   def testBiasAndOtherColumns(self):
     """Tests LinearRegressor with LinearSDCA and validates bias weight."""
@@ -544,16 +532,12 @@ class SDCARegressorTest(tf.test.TestCase):
       num_examples = 200
       half = int(num_examples / 2)
       return {
-          'example_id':
-              tf.constant([str(x + 1) for x in range(num_examples)]),
-          'a':
-              tf.constant([[1]] * int(half) + [[0]] * int(half)),
-          'b':
-              tf.constant([[0]] * int(half) + [[1]] * int(half)),
-      }, tf.constant(
-          [[x]
-           for x in [1, 0, 0, 1, 1, 0, 0, 0, 1, 0] * int(half / 10) +
-           [0, 1, 0, 0, 0, 0, 0, 0, 1, 0] * int(half / 10)])
+          'example_id': tf.constant([str(x + 1) for x in range(num_examples)]),
+          'a': tf.constant([[1]] * int(half) + [[0]] * int(half)),
+          'b': tf.constant([[0]] * int(half) + [[1]] * int(half)),
+      }, tf.constant([[x]
+                      for x in [1, 0, 0, 1, 1, 0, 0, 0, 1, 0] * int(half / 10) +
+                      [0, 1, 0, 0, 0, 0, 0, 0, 1, 0] * int(half / 10)])
 
     optimizer = linear.LinearSDCA(
         example_id_column='example_id', symmetric_l2_regularization=0.1)
@@ -571,12 +555,18 @@ class SDCARegressorTest(tf.test.TestCase):
     self.assertIn('linear/linear_model/a/weights', variable_names)
     self.assertIn('linear/linear_model/b/weights', variable_names)
     # TODO(b/29339026): Change the expected results to expect a centered bias.
-    self.assertNear(regressor.get_variable_value(
-        'linear/linear_model/bias_weights')[0], 0.2, err=0.05)
-    self.assertNear(regressor.get_variable_value(
-        'linear/linear_model/a/weights')[0], 0.2, err=0.05)
-    self.assertNear(regressor.get_variable_value(
-        'linear/linear_model/b/weights')[0], 0.0, err=0.05)
+    self.assertNear(
+        regressor.get_variable_value('linear/linear_model/bias_weights')[0],
+        0.2,
+        err=0.05)
+    self.assertNear(
+        regressor.get_variable_value('linear/linear_model/a/weights')[0],
+        0.2,
+        err=0.05)
+    self.assertNear(
+        regressor.get_variable_value('linear/linear_model/b/weights')[0],
+        0.0,
+        err=0.05)
 
   def testBiasAndOtherColumnsFabricatedCentered(self):
     """Tests LinearRegressor with LinearSDCA and validates bias weight."""
@@ -598,14 +588,11 @@ class SDCARegressorTest(tf.test.TestCase):
       num_examples = 200
       half = int(num_examples / 2)
       return {
-          'example_id':
-              tf.constant([str(x + 1) for x in range(num_examples)]),
-          'a':
-              tf.constant([[1]] * int(half) + [[0]] * int(half)),
-          'b':
-              tf.constant([[0]] * int(half) + [[1]] * int(half)),
+          'example_id': tf.constant([str(x + 1) for x in range(num_examples)]),
+          'a': tf.constant([[1]] * int(half) + [[0]] * int(half)),
+          'b': tf.constant([[0]] * int(half) + [[1]] * int(half)),
       }, tf.constant([[1 if x % 10 == 0 else 0] for x in range(half)] +
-                              [[-1 if x % 10 == 0 else 0] for x in range(half)])
+                     [[-1 if x % 10 == 0 else 0] for x in range(half)])
 
     optimizer = linear.LinearSDCA(
         example_id_column='example_id', symmetric_l2_regularization=0.1)
@@ -622,12 +609,18 @@ class SDCARegressorTest(tf.test.TestCase):
     self.assertIn('linear/linear_model/bias_weights', variable_names)
     self.assertIn('linear/linear_model/a/weights', variable_names)
     self.assertIn('linear/linear_model/b/weights', variable_names)
-    self.assertNear(regressor.get_variable_value(
-        'linear/linear_model/bias_weights')[0], 0.0, err=0.05)
-    self.assertNear(regressor.get_variable_value(
-        'linear/linear_model/a/weights')[0], 0.1, err=0.05)
-    self.assertNear(regressor.get_variable_value(
-        'linear/linear_model/b/weights')[0], -0.1, err=0.05)
+    self.assertNear(
+        regressor.get_variable_value('linear/linear_model/bias_weights')[0],
+        0.0,
+        err=0.05)
+    self.assertNear(
+        regressor.get_variable_value('linear/linear_model/a/weights')[0],
+        0.1,
+        err=0.05)
+    self.assertNear(
+        regressor.get_variable_value('linear/linear_model/b/weights')[0],
+        -0.1,
+        err=0.05)
 
   def testUnknownBatchSize(self):
     """Tests LinearRegressor with LinearSDCA and unknown batch size."""
@@ -638,16 +631,14 @@ class SDCARegressorTest(tf.test.TestCase):
       return {
           'example_id':
               tf.compat.v1.placeholder_with_default(
-                  tf.constant(['0', '1']),
-                  shape=[None]),
+                  tf.constant(['0', '1']), shape=[None]),
           # always_zero is an empty column which is always 0 (absent), because
           # LinearClassifier requires at least one column.
           'always_zero':
               tf.compat.v1.placeholder_with_default(
-                  tf.constant([[0.0]] * 2),
-                  shape=[None, 1]),
-      }, tf.compat.v1.placeholder_with_default(tf.constant([0.0, 1.0]),
-                                            shape=[None])
+                  tf.constant([[0.0]] * 2), shape=[None, 1]),
+      }, tf.compat.v1.placeholder_with_default(
+          tf.constant([0.0, 1.0]), shape=[None])
 
     always_zero = tf.feature_column.numeric_column('always_zero')
     optimizer = linear.LinearSDCA(
@@ -657,8 +648,10 @@ class SDCARegressorTest(tf.test.TestCase):
     regressor = linear.LinearRegressorV2(
         feature_columns=[always_zero], optimizer=optimizer)
     regressor.train(input_fn=input_fn, steps=100)
-    self.assertNear(regressor.get_variable_value(
-        'linear/linear_model/bias_weights')[0], 0.5, err=0.1)
+    self.assertNear(
+        regressor.get_variable_value('linear/linear_model/bias_weights')[0],
+        0.5,
+        err=0.1)
 
 
 if __name__ == '__main__':

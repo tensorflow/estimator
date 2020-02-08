@@ -19,11 +19,6 @@ from __future__ import division
 from __future__ import print_function
 
 import tensorflow as tf
-
-from tensorflow.python.eager import context
-from tensorflow.python.framework import constant_op
-from tensorflow.python.framework import dtypes
-from tensorflow.python.framework import test_util
 from tensorflow.python.platform import googletest
 from tensorflow_estimator.python.estimator.canned.linear_optimizer.python.utils.sharded_mutable_dense_hashtable import _ShardedMutableDenseHashTable
 
@@ -62,10 +57,9 @@ class _ShardedMutableDenseHashTableTest(tf.test.TestCase):
         default_val = [-0.1, 0.2]
         empty_key = [0, 1]
         deleted_key = [1, 0]
-        keys = tf.constant([[11, 12], [13, 14], [15, 16]],
-                                    tf.dtypes.int64)
+        keys = tf.constant([[11, 12], [13, 14], [15, 16]], tf.dtypes.int64)
         values = tf.constant([[0.5, 0.6], [1.5, 1.6], [2.5, 2.6]],
-                                      tf.dtypes.float32)
+                             tf.dtypes.float32)
         table = _ShardedMutableDenseHashTable(
             tf.dtypes.int64,
             tf.dtypes.float32,
@@ -79,7 +73,7 @@ class _ShardedMutableDenseHashTableTest(tf.test.TestCase):
         self.assertAllEqual(3, self.evaluate(table.size()))
 
         input_string = tf.constant([[11, 12], [13, 14], [11, 14]],
-                                            tf.dtypes.int64)
+                                   tf.dtypes.int64)
         output = table.lookup(input_string)
         self.assertAllEqual([3, 2], output.get_shape())
         self.assertAllClose([[0.5, 0.6], [1.5, 1.6], [-0.1, 0.2]],
