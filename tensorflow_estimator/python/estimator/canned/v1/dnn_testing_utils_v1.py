@@ -22,37 +22,12 @@ import os
 import shutil
 import tempfile
 
-import tensorflow as tf
 import numpy as np
 import six
-
+import tensorflow as tf
 from tensorflow.core.framework import summary_pb2
-from tensorflow.python.client import session as tf_session
 from tensorflow.python.feature_column import feature_column
-from tensorflow.python.feature_column import feature_column_v2
-from tensorflow.python.framework import constant_op
-from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
-from tensorflow.python.ops import array_ops
-from tensorflow.python.ops import check_ops
-from tensorflow.python.ops import control_flow_ops
-from tensorflow.python.ops import init_ops
-from tensorflow.python.ops import math_ops
-from tensorflow.python.ops import nn
-from tensorflow.python.ops import partitioned_variables
-from tensorflow.python.ops import state_ops
-from tensorflow.python.ops import variable_scope
-from tensorflow.python.ops import variables as variables_lib
-from tensorflow.python.platform import test
-from tensorflow.python.summary import summary as summary_lib
-from tensorflow.python.summary.writer import writer_cache
-from tensorflow.python.training import checkpoint_utils
-from tensorflow.python.training import gradient_descent
-from tensorflow.python.training import monitored_session
-from tensorflow.python.training import optimizer as optimizer_lib
-from tensorflow.python.training import saver
-from tensorflow.python.training import session_run_hook
-from tensorflow.python.training import training_util
 from tensorflow_estimator.python.estimator import estimator
 from tensorflow_estimator.python.estimator import model_fn
 from tensorflow_estimator.python.estimator.canned import head as head_lib
@@ -79,7 +54,6 @@ OCCUPATION_EMBEDDING_NAME = ('dnn/input_from_feature_columns/input_layer/'
                              'occupation_embedding/embedding_weights')
 CITY_EMBEDDING_NAME = ('dnn/input_from_feature_columns/input_layer/'
                        'city_embedding/embedding_weights')
-
 
 # This is so that we can easily switch between feature_column and
 # feature_column_v2 for testing.
@@ -150,7 +124,8 @@ def create_checkpoint(weights_and_biases,
     with tf.compat.v1.Session() as sess:
       tf.compat.v1.initializers.global_variables().run()
       global_step_var.assign(global_step).eval()
-      tf.compat.v1.train.Saver().save(sess, os.path.join(model_dir, 'model.ckpt'))
+      tf.compat.v1.train.Saver().save(sess,
+                                      os.path.join(model_dir, 'model.ckpt'))
 
 
 def mock_head(testcase, hidden_units, logits_dimension, expected_logits):
@@ -163,10 +138,15 @@ def mock_head(testcase, hidden_units, logits_dimension, expected_logits):
       hidden_weights_names + hidden_biases_names +
       [LOGITS_WEIGHTS_NAME + '/part_0:0', LOGITS_BIASES_NAME + '/part_0:0'])
 
-  def _create_tpu_estimator_spec(
-      features, mode, logits, labels, train_op_fn=None, optimizer=None):
+  def _create_tpu_estimator_spec(features,
+                                 mode,
+                                 logits,
+                                 labels,
+                                 train_op_fn=None,
+                                 optimizer=None):
     del features, labels  # Not used.
-    trainable_vars = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.TRAINABLE_VARIABLES)
+    trainable_vars = tf.compat.v1.get_collection(
+        tf.compat.v1.GraphKeys.TRAINABLE_VARIABLES)
     testcase.assertItemsEqual(expected_var_names,
                               [var.name for var in trainable_vars])
     loss = tf.constant(1.)
@@ -181,18 +161,21 @@ def mock_head(testcase, hidden_units, logits_dimension, expected_logits):
         return model_fn._TPUEstimatorSpec(
             mode=mode, loss=loss, train_op=train_op)
       elif mode == ModeKeys.EVAL:
-        return model_fn._TPUEstimatorSpec(
-            mode=mode, loss=tf.identity(loss))
+        return model_fn._TPUEstimatorSpec(mode=mode, loss=tf.identity(loss))
       elif mode == ModeKeys.PREDICT:
         return model_fn._TPUEstimatorSpec(
             mode=mode, predictions={'logits': tf.identity(logits)})
       else:
         testcase.fail('Invalid mode: {}'.format(mode))
 
-  def _create_estimator_spec(
-      features, mode, logits, labels, train_op_fn=None, optimizer=None):
-    tpu_spec = _create_tpu_estimator_spec(
-        features, mode, logits, labels, train_op_fn, optimizer)
+  def _create_estimator_spec(features,
+                             mode,
+                             logits,
+                             labels,
+                             train_op_fn=None,
+                             optimizer=None):
+    tpu_spec = _create_tpu_estimator_spec(features, mode, logits, labels,
+                                          train_op_fn, optimizer)
     return tpu_spec.as_estimator_spec()
 
   head = tf.compat.v1.test.mock.NonCallableMagicMock(spec=head_lib._Head)
@@ -248,7 +231,8 @@ def mock_optimizer(testcase, hidden_units, expected_loss=None):
 
   optimizer_mock = tf.compat.v1.test.mock.NonCallableMagicMock(
       spec=tf.compat.v1.train.Optimizer,
-      wraps=tf.compat.v1.train.Optimizer(use_locking=False, name='my_optimizer'))
+      wraps=tf.compat.v1.train.Optimizer(
+          use_locking=False, name='my_optimizer'))
   optimizer_mock.minimize = tf.compat.v1.test.mock.MagicMock(wraps=_minimize)
 
   return optimizer_mock
@@ -311,14 +295,13 @@ class BaseDNNModelFnTest(object):
     logits = [[-1*2.38 +1*0 +0.3]] = [[-2.08]]
     """
     base_global_step = 100
-    create_checkpoint(
-        (([[.6, .5]], [.1, -.1]), ([[1., .8], [-.8, -1.]], [.2, -.2]),
-         ([[-1.], [1.]], [.3]),), base_global_step, self._model_dir)
+    create_checkpoint((
+        ([[.6, .5]], [.1, -.1]),
+        ([[1., .8], [-.8, -1.]], [.2, -.2]),
+        ([[-1.], [1.]], [.3]),
+    ), base_global_step, self._model_dir)
 
-    for mode in [
-        ModeKeys.TRAIN, ModeKeys.EVAL,
-        ModeKeys.PREDICT
-    ]:
+    for mode in [ModeKeys.TRAIN, ModeKeys.EVAL, ModeKeys.PREDICT]:
       self._test_logits(
           mode,
           hidden_units=(2, 2),
@@ -337,15 +320,13 @@ class BaseDNNModelFnTest(object):
            = [[-2.08, 2.08, 1.19]]
     """
     base_global_step = 100
-    create_checkpoint((([[.6, .5]], [.1, -.1]), ([[1., .8], [-.8, -1.]],
-                                                 [.2, -.2]),
-                       ([[-1., 1., .5], [-1., 1., .5]], [.3, -.3, .0]),),
-                      base_global_step, self._model_dir)
+    create_checkpoint((
+        ([[.6, .5]], [.1, -.1]),
+        ([[1., .8], [-.8, -1.]], [.2, -.2]),
+        ([[-1., 1., .5], [-1., 1., .5]], [.3, -.3, .0]),
+    ), base_global_step, self._model_dir)
 
-    for mode in [
-        ModeKeys.TRAIN, ModeKeys.EVAL,
-        ModeKeys.PREDICT
-    ]:
+    for mode in [ModeKeys.TRAIN, ModeKeys.EVAL, ModeKeys.PREDICT]:
       self._test_logits(
           mode,
           hidden_units=(2, 2),
@@ -368,15 +349,13 @@ class BaseDNNModelFnTest(object):
            = [[-2.08, 2.08, 1.19], [-1.08, 1.08, 0.69]]
     """
     base_global_step = 100
-    create_checkpoint((([[.6, .5]], [.1, -.1]), ([[1., .8], [-.8, -1.]],
-                                                 [.2, -.2]),
-                       ([[-1., 1., .5], [-1., 1., .5]], [.3, -.3, .0]),),
-                      base_global_step, self._model_dir)
+    create_checkpoint((
+        ([[.6, .5]], [.1, -.1]),
+        ([[1., .8], [-.8, -1.]], [.2, -.2]),
+        ([[-1., 1., .5], [-1., 1., .5]], [.3, -.3, .0]),
+    ), base_global_step, self._model_dir)
 
-    for mode in [
-        ModeKeys.TRAIN, ModeKeys.EVAL,
-        ModeKeys.PREDICT
-    ]:
+    for mode in [ModeKeys.TRAIN, ModeKeys.EVAL, ModeKeys.PREDICT]:
       self._test_logits(
           mode,
           hidden_units=(2, 2),
@@ -395,15 +374,13 @@ class BaseDNNModelFnTest(object):
     logits = [[-1*0.78 +1*0 +0.3]] = [[-0.48]]
     """
     base_global_step = 100
-    create_checkpoint((([[.6, .5], [-.6, -.5]],
-                        [.1, -.1]), ([[1., .8], [-.8, -1.]], [.2, -.2]),
-                       ([[-1.], [1.]], [.3]),), base_global_step,
-                      self._model_dir)
+    create_checkpoint((
+        ([[.6, .5], [-.6, -.5]], [.1, -.1]),
+        ([[1., .8], [-.8, -1.]], [.2, -.2]),
+        ([[-1.], [1.]], [.3]),
+    ), base_global_step, self._model_dir)
 
-    for mode in [
-        ModeKeys.TRAIN, ModeKeys.EVAL,
-        ModeKeys.PREDICT
-    ]:
+    for mode in [ModeKeys.TRAIN, ModeKeys.EVAL, ModeKeys.PREDICT]:
       self._test_logits(
           mode,
           hidden_units=(2, 2),
@@ -422,15 +399,13 @@ class BaseDNNModelFnTest(object):
     logits = [[-1*0.78 + 0.3, 1*0.78 -0.3, 0.5*0.78]] = [[-0.48, 0.48, 0.39]]
     """
     base_global_step = 100
-    create_checkpoint((([[.6, .5], [-.6, -.5]],
-                        [.1, -.1]), ([[1., .8], [-.8, -1.]], [.2, -.2]),
-                       ([[-1., 1., .5], [-1., 1., .5]], [.3, -.3, .0]),),
-                      base_global_step, self._model_dir)
+    create_checkpoint((
+        ([[.6, .5], [-.6, -.5]], [.1, -.1]),
+        ([[1., .8], [-.8, -1.]], [.2, -.2]),
+        ([[-1., 1., .5], [-1., 1., .5]], [.3, -.3, .0]),
+    ), base_global_step, self._model_dir)
 
-    for mode in [
-        ModeKeys.TRAIN, ModeKeys.EVAL,
-        ModeKeys.PREDICT
-    ]:
+    for mode in [ModeKeys.TRAIN, ModeKeys.EVAL, ModeKeys.PREDICT]:
       self._test_logits(
           mode,
           hidden_units=(2, 2),
@@ -446,19 +421,17 @@ class BaseDNNModelFnTest(object):
     one 2D feature column.
     """
     base_global_step = 100
-    create_checkpoint((([[.6, .5], [-.6, -.5]],
-                        [.1, -.1]), ([[1., .8], [-.8, -1.]], [.2, -.2]),
-                       ([[-1., 1., .5], [-1., 1., .5]], [.3, -.3, .0]),),
-                      base_global_step, self._model_dir)
+    create_checkpoint((
+        ([[.6, .5], [-.6, -.5]], [.1, -.1]),
+        ([[1., .8], [-.8, -1.]], [.2, -.2]),
+        ([[-1., 1., .5], [-1., 1., .5]], [.3, -.3, .0]),
+    ), base_global_step, self._model_dir)
     hidden_units = (2, 2)
     logits_dimension = 3
     inputs = ([[10.]], [[8.]])
     expected_logits = [[-0.48, 0.48, 0.39]]
 
-    for mode in [
-        ModeKeys.TRAIN, ModeKeys.EVAL,
-        ModeKeys.PREDICT
-    ]:
+    for mode in [ModeKeys.TRAIN, ModeKeys.EVAL, ModeKeys.PREDICT]:
       with tf.Graph().as_default():
         tf.compat.v1.train.create_global_step()
         head = mock_head(
@@ -509,10 +482,7 @@ class BaseDNNModelFnTest(object):
     inputs = ([[10.]], [[8.]])
     expected_logits = [[-0.48, 0.48, 0.39]]
 
-    for mode in [
-        ModeKeys.TRAIN, ModeKeys.EVAL,
-        ModeKeys.PREDICT
-    ]:
+    for mode in [ModeKeys.TRAIN, ModeKeys.EVAL, ModeKeys.PREDICT]:
       with tf.Graph().as_default():
         tf.compat.v1.train.create_global_step()
         head = mock_head(
@@ -617,8 +587,7 @@ class BaseDNNLogitFnTest(object):
             dropout=None,
             input_layer_partitioner=input_layer_partitioner,
             batch_norm=batch_norm)
-        logits = logit_fn(
-            features={'age': tf.constant(inputs)}, mode=mode)
+        logits = logit_fn(features={'age': tf.constant(inputs)}, mode=mode)
         with tf.compat.v1.train.MonitoredTrainingSession(
             checkpoint_dir=self._model_dir) as sess:
           self.assertAllClose(expected_logits, sess.run(logits))
@@ -633,13 +602,12 @@ class BaseDNNLogitFnTest(object):
     logits = [[-1*2.38 +1*0 +0.3]] = [[-2.08]]
     """
     base_global_step = 100
-    create_checkpoint(
-        (([[.6, .5]], [.1, -.1]), ([[1., .8], [-.8, -1.]], [.2, -.2]),
-         ([[-1.], [1.]], [.3]),), base_global_step, self._model_dir)
-    for mode in [
-        ModeKeys.TRAIN, ModeKeys.EVAL,
-        ModeKeys.PREDICT
-    ]:
+    create_checkpoint((
+        ([[.6, .5]], [.1, -.1]),
+        ([[1., .8], [-.8, -1.]], [.2, -.2]),
+        ([[-1.], [1.]], [.3]),
+    ), base_global_step, self._model_dir)
+    for mode in [ModeKeys.TRAIN, ModeKeys.EVAL, ModeKeys.PREDICT]:
       self._test_logits(
           mode,
           hidden_units=(2, 2),
@@ -689,11 +657,13 @@ class BaseDNNLogitFnTest(object):
         ),
         base_global_step,
         self._model_dir,
-        batch_norm_vars=([[0, 0],  # beta.
-                          [1, 1],  # gamma.
-                          [0, 0],  # moving mean.
-                          [1, 1],  # moving variance.
-                         ],))
+        batch_norm_vars=(
+            [
+                [0, 0],  # beta.
+                [1, 1],  # gamma.
+                [0, 0],  # moving mean.
+                [1, 1],  # moving variance.
+            ],))
     self._test_logits(
         ModeKeys.TRAIN,
         hidden_units=[2],
@@ -721,14 +691,12 @@ class BaseDNNLogitFnTest(object):
            = [[-2.08, 2.08, 1.19]]
     """
     base_global_step = 100
-    create_checkpoint((([[.6, .5]], [.1, -.1]), ([[1., .8], [-.8, -1.]],
-                                                 [.2, -.2]),
-                       ([[-1., 1., .5], [-1., 1., .5]], [.3, -.3, .0]),),
-                      base_global_step, self._model_dir)
-    for mode in [
-        ModeKeys.TRAIN, ModeKeys.EVAL,
-        ModeKeys.PREDICT
-    ]:
+    create_checkpoint((
+        ([[.6, .5]], [.1, -.1]),
+        ([[1., .8], [-.8, -1.]], [.2, -.2]),
+        ([[-1., 1., .5], [-1., 1., .5]], [.3, -.3, .0]),
+    ), base_global_step, self._model_dir)
+    for mode in [ModeKeys.TRAIN, ModeKeys.EVAL, ModeKeys.PREDICT]:
       self._test_logits(
           mode,
           hidden_units=(2, 2),
@@ -751,14 +719,12 @@ class BaseDNNLogitFnTest(object):
            = [[-2.08, 2.08, 1.19], [-1.08, 1.08, 0.69]]
     """
     base_global_step = 100
-    create_checkpoint((([[.6, .5]], [.1, -.1]), ([[1., .8], [-.8, -1.]],
-                                                 [.2, -.2]),
-                       ([[-1., 1., .5], [-1., 1., .5]], [.3, -.3, .0]),),
-                      base_global_step, self._model_dir)
-    for mode in [
-        ModeKeys.TRAIN, ModeKeys.EVAL,
-        ModeKeys.PREDICT
-    ]:
+    create_checkpoint((
+        ([[.6, .5]], [.1, -.1]),
+        ([[1., .8], [-.8, -1.]], [.2, -.2]),
+        ([[-1., 1., .5], [-1., 1., .5]], [.3, -.3, .0]),
+    ), base_global_step, self._model_dir)
+    for mode in [ModeKeys.TRAIN, ModeKeys.EVAL, ModeKeys.PREDICT]:
       self._test_logits(
           mode,
           hidden_units=(2, 2),
@@ -777,15 +743,13 @@ class BaseDNNLogitFnTest(object):
     logits = [[-1*0.78 +1*0 +0.3]] = [[-0.48]]
     """
     base_global_step = 100
-    create_checkpoint((([[.6, .5], [-.6, -.5]],
-                        [.1, -.1]), ([[1., .8], [-.8, -1.]], [.2, -.2]),
-                       ([[-1.], [1.]], [.3]),), base_global_step,
-                      self._model_dir)
+    create_checkpoint((
+        ([[.6, .5], [-.6, -.5]], [.1, -.1]),
+        ([[1., .8], [-.8, -1.]], [.2, -.2]),
+        ([[-1.], [1.]], [.3]),
+    ), base_global_step, self._model_dir)
 
-    for mode in [
-        ModeKeys.TRAIN, ModeKeys.EVAL,
-        ModeKeys.PREDICT
-    ]:
+    for mode in [ModeKeys.TRAIN, ModeKeys.EVAL, ModeKeys.PREDICT]:
       self._test_logits(
           mode,
           hidden_units=(2, 2),
@@ -804,14 +768,12 @@ class BaseDNNLogitFnTest(object):
     logits = [[-1*0.78 + 0.3, 1*0.78 -0.3, 0.5*0.78]] = [[-0.48, 0.48, 0.39]]
     """
     base_global_step = 100
-    create_checkpoint((([[.6, .5], [-.6, -.5]],
-                        [.1, -.1]), ([[1., .8], [-.8, -1.]], [.2, -.2]),
-                       ([[-1., 1., .5], [-1., 1., .5]], [.3, -.3, .0]),),
-                      base_global_step, self._model_dir)
-    for mode in [
-        ModeKeys.TRAIN, ModeKeys.EVAL,
-        ModeKeys.PREDICT
-    ]:
+    create_checkpoint((
+        ([[.6, .5], [-.6, -.5]], [.1, -.1]),
+        ([[1., .8], [-.8, -1.]], [.2, -.2]),
+        ([[-1., 1., .5], [-1., 1., .5]], [.3, -.3, .0]),
+    ), base_global_step, self._model_dir)
+    for mode in [ModeKeys.TRAIN, ModeKeys.EVAL, ModeKeys.PREDICT]:
       self._test_logits(
           mode,
           hidden_units=(2, 2),
@@ -827,20 +789,18 @@ class BaseDNNLogitFnTest(object):
     one 2D feature column.
     """
     base_global_step = 100
-    create_checkpoint((([[.6, .5], [-.6, -.5]],
-                        [.1, -.1]), ([[1., .8], [-.8, -1.]], [.2, -.2]),
-                       ([[-1., 1., .5], [-1., 1., .5]], [.3, -.3, .0]),),
-                      base_global_step, self._model_dir)
+    create_checkpoint((
+        ([[.6, .5], [-.6, -.5]], [.1, -.1]),
+        ([[1., .8], [-.8, -1.]], [.2, -.2]),
+        ([[-1., 1., .5], [-1., 1., .5]], [.3, -.3, .0]),
+    ), base_global_step, self._model_dir)
 
     hidden_units = (2, 2)
     logits_dimension = 3
     inputs = ([[10.]], [[8.]])
     expected_logits = [[-0.48, 0.48, 0.39]]
 
-    for mode in [
-        ModeKeys.TRAIN, ModeKeys.EVAL,
-        ModeKeys.PREDICT
-    ]:
+    for mode in [ModeKeys.TRAIN, ModeKeys.EVAL, ModeKeys.PREDICT]:
       with tf.Graph().as_default():
         # Global step needed for MonitoredSession, which is in turn used to
         # explicitly set variable weights through a checkpoint.
@@ -891,10 +851,7 @@ class BaseDNNLogitFnTest(object):
     inputs = ([[10.]], [[8.]])
     expected_logits = [[-0.48, 0.48, 0.39]]
 
-    for mode in [
-        ModeKeys.TRAIN, ModeKeys.EVAL,
-        ModeKeys.PREDICT
-    ]:
+    for mode in [ModeKeys.TRAIN, ModeKeys.EVAL, ModeKeys.PREDICT]:
       with tf.Graph().as_default():
         # Global step needed for MonitoredSession, which is in turn used to
         # explicitly set variable weights through a checkpoint.
@@ -991,7 +948,8 @@ class BaseDNNWarmStartingTest(object):
         hidden_units=[256, 128],
         feature_columns=[city],
         n_classes=4,
-        optimizer=tf.compat.v1.train.GradientDescentOptimizer(learning_rate=0.0),
+        optimizer=tf.compat.v1.train.GradientDescentOptimizer(
+            learning_rate=0.0),
         warm_start_from=dnn_classifier.model_dir)
 
     warm_started_dnn_classifier.train(input_fn=self._input_fn, max_steps=1)
@@ -1021,7 +979,8 @@ class BaseDNNWarmStartingTest(object):
     warm_started_dnn_regressor = self._dnn_regressor_fn(
         hidden_units=[256, 128],
         feature_columns=[city],
-        optimizer=tf.compat.v1.train.GradientDescentOptimizer(learning_rate=0.0),
+        optimizer=tf.compat.v1.train.GradientDescentOptimizer(
+            learning_rate=0.0),
         warm_start_from=dnn_regressor.model_dir)
 
     warm_started_dnn_regressor.train(input_fn=self._input_fn, max_steps=1)
@@ -1053,7 +1012,8 @@ class BaseDNNWarmStartingTest(object):
         hidden_units=[256, 128],
         feature_columns=[city],
         n_classes=4,
-        optimizer=tf.compat.v1.train.GradientDescentOptimizer(learning_rate=0.0),
+        optimizer=tf.compat.v1.train.GradientDescentOptimizer(
+            learning_rate=0.0),
         # The provided regular expression will only warm-start the city
         # embedding, not the kernels and biases of the hidden weights.
         warm_start_from=estimator.WarmStartSettings(
@@ -1134,7 +1094,8 @@ class BaseDNNWarmStartingTest(object):
         hidden_units=[256, 128],
         feature_columns=[occupation],
         n_classes=4,
-        optimizer=tf.compat.v1.train.GradientDescentOptimizer(learning_rate=0.0),
+        optimizer=tf.compat.v1.train.GradientDescentOptimizer(
+            learning_rate=0.0),
         warm_start_from=estimator.WarmStartSettings(
             ckpt_to_initialize_from=dnn_classifier.model_dir,
             var_name_to_vocab_info={
@@ -1203,7 +1164,8 @@ class BaseDNNWarmStartingTest(object):
         hidden_units=[256, 128],
         feature_columns=[city],
         n_classes=4,
-        optimizer=tf.compat.v1.train.GradientDescentOptimizer(learning_rate=0.0),
+        optimizer=tf.compat.v1.train.GradientDescentOptimizer(
+            learning_rate=0.0),
         # The 'city' variable correspond to the 'locality' variable in the
         # previous model.
         warm_start_from=estimator.WarmStartSettings(
@@ -1243,48 +1205,53 @@ class BaseDNNClassifierEvaluateTest(object):
   def test_one_dim(self):
     """Asserts evaluation metrics for one-dimensional input and logits."""
     global_step = 100
-    create_checkpoint(
-        (([[.6, .5]], [.1, -.1]), ([[1., .8], [-.8, -1.]], [.2, -.2]),
-         ([[-1.], [1.]], [.3]),), global_step, self._model_dir)
+    create_checkpoint((
+        ([[.6, .5]], [.1, -.1]),
+        ([[1., .8], [-.8, -1.]], [.2, -.2]),
+        ([[-1.], [1.]], [.3]),
+    ), global_step, self._model_dir)
 
     dnn_classifier = self._dnn_classifier_fn(
         hidden_units=(2, 2),
         feature_columns=[self._fc_impl.numeric_column('age')],
         model_dir=self._model_dir)
+
     def _input_fn():
       # batch_size = 2, one false label, and one true.
       return {'age': [[10.], [10.]]}, [[1], [0]]
+
     # Uses identical numbers as DNNModelTest.test_one_dim_logits.
     # See that test for calculation of logits.
     # logits = [[-2.08], [-2.08]] =>
     # logistic = 1/(1 + exp(-logits)) = [[0.11105597], [0.11105597]]
     # loss = -1. * log(0.111) -1. * log(0.889) = 2.31544200
     expected_loss = 2.31544200
-    self.assertAllClose({
-        metric_keys.MetricKeys.LOSS: expected_loss,
-        metric_keys.MetricKeys.LOSS_MEAN: expected_loss / 2.,
-        metric_keys.MetricKeys.ACCURACY: 0.5,
-        metric_keys.MetricKeys.PRECISION: 0.0,
-        metric_keys.MetricKeys.RECALL: 0.0,
-        metric_keys.MetricKeys.PREDICTION_MEAN: 0.11105597,
-        metric_keys.MetricKeys.LABEL_MEAN: 0.5,
-        metric_keys.MetricKeys.ACCURACY_BASELINE: 0.5,
-        # There is no good way to calculate AUC for only two data points. But
-        # that is what the algorithm returns.
-        metric_keys.MetricKeys.AUC: 0.5,
-        metric_keys.MetricKeys.AUC_PR: 0.75,
-
-        tf.compat.v1.GraphKeys.GLOBAL_STEP: global_step
-    }, dnn_classifier.evaluate(input_fn=_input_fn, steps=1))
+    self.assertAllClose(
+        {
+            metric_keys.MetricKeys.LOSS: expected_loss,
+            metric_keys.MetricKeys.LOSS_MEAN: expected_loss / 2.,
+            metric_keys.MetricKeys.ACCURACY: 0.5,
+            metric_keys.MetricKeys.PRECISION: 0.0,
+            metric_keys.MetricKeys.RECALL: 0.0,
+            metric_keys.MetricKeys.PREDICTION_MEAN: 0.11105597,
+            metric_keys.MetricKeys.LABEL_MEAN: 0.5,
+            metric_keys.MetricKeys.ACCURACY_BASELINE: 0.5,
+            # There is no good way to calculate AUC for only two data points.
+            # But that is what the algorithm returns.
+            metric_keys.MetricKeys.AUC: 0.5,
+            metric_keys.MetricKeys.AUC_PR: 0.75,
+            tf.compat.v1.GraphKeys.GLOBAL_STEP: global_step
+        },
+        dnn_classifier.evaluate(input_fn=_input_fn, steps=1))
 
   def test_multi_dim(self):
     """Asserts evaluation metrics for multi-dimensional input and logits."""
     global_step = 100
-    create_checkpoint(
-        (([[.6, .5], [-.6, -.5]], [.1, -.1]), ([[1., .8], [-.8, -1.]],
-                                               [.2, -.2]),
-         ([[-1., 1., .5], [-1., 1., .5]], [.3, -.3,
-                                           .0]),), global_step, self._model_dir)
+    create_checkpoint((
+        ([[.6, .5], [-.6, -.5]], [.1, -.1]),
+        ([[1., .8], [-.8, -1.]], [.2, -.2]),
+        ([[-1., 1., .5], [-1., 1., .5]], [.3, -.3, .0]),
+    ), global_step, self._model_dir)
     n_classes = 3
 
     dnn_classifier = self._dnn_classifier_fn(
@@ -1292,9 +1259,11 @@ class BaseDNNClassifierEvaluateTest(object):
         feature_columns=[self._fc_impl.numeric_column('age', shape=[2])],
         n_classes=n_classes,
         model_dir=self._model_dir)
+
     def _input_fn():
       # batch_size = 2, one false label, and one true.
       return {'age': [[10., 8.], [10., 8.]]}, [[1], [0]]
+
     # Uses identical numbers as
     # DNNModelFnTest.test_multi_dim_input_multi_dim_logits.
     # See that test for calculation of logits.
@@ -1304,27 +1273,32 @@ class BaseDNNClassifierEvaluateTest(object):
     #                  [0.16670536, 0.43538380, 0.39791084]]
     # loss = -log(0.43538380) - log(0.16670536)
     expected_loss = 2.62305466
-    self.assertAllClose({
-        metric_keys.MetricKeys.LOSS: expected_loss,
-        metric_keys.MetricKeys.LOSS_MEAN: expected_loss / 2,
-        metric_keys.MetricKeys.ACCURACY: 0.5,
-        tf.compat.v1.GraphKeys.GLOBAL_STEP: global_step
-    }, dnn_classifier.evaluate(input_fn=_input_fn, steps=1))
+    self.assertAllClose(
+        {
+            metric_keys.MetricKeys.LOSS: expected_loss,
+            metric_keys.MetricKeys.LOSS_MEAN: expected_loss / 2,
+            metric_keys.MetricKeys.ACCURACY: 0.5,
+            tf.compat.v1.GraphKeys.GLOBAL_STEP: global_step
+        }, dnn_classifier.evaluate(input_fn=_input_fn, steps=1))
 
   def test_float_labels(self):
     """Asserts evaluation metrics for float labels in binary classification."""
     global_step = 100
-    create_checkpoint(
-        (([[.6, .5]], [.1, -.1]), ([[1., .8], [-.8, -1.]], [.2, -.2]),
-         ([[-1.], [1.]], [.3]),), global_step, self._model_dir)
+    create_checkpoint((
+        ([[.6, .5]], [.1, -.1]),
+        ([[1., .8], [-.8, -1.]], [.2, -.2]),
+        ([[-1.], [1.]], [.3]),
+    ), global_step, self._model_dir)
 
     dnn_classifier = self._dnn_classifier_fn(
         hidden_units=(2, 2),
         feature_columns=[self._fc_impl.numeric_column('age')],
         model_dir=self._model_dir)
+
     def _input_fn():
       # batch_size = 2, one false label, and one true.
       return {'age': [[10.], [10.]]}, [[0.8], [0.4]]
+
     # Uses identical numbers as DNNModelTest.test_one_dim_logits.
     # See that test for calculation of logits.
     # logits = [[-2.08], [-2.08]] =>
@@ -1338,10 +1312,11 @@ class BaseDNNClassifierEvaluateTest(object):
     """Tests evaluation with weights."""
     # Uses same checkpoint with test_multi_dims
     global_step = 100
-    create_checkpoint((([[.6, .5], [-.6, -.5]],
-                        [.1, -.1]), ([[1., .8], [-.8, -1.]], [.2, -.2]),
-                       ([[-1., 1., .5], [-1., 1., .5]], [.3, -.3, .0]),),
-                      global_step, self._model_dir)
+    create_checkpoint((
+        ([[.6, .5], [-.6, -.5]], [.1, -.1]),
+        ([[1., .8], [-.8, -1.]], [.2, -.2]),
+        ([[-1., 1., .5], [-1., 1., .5]], [.3, -.3, .0]),
+    ), global_step, self._model_dir)
     n_classes = 3
 
     dnn_classifier = self._dnn_classifier_fn(
@@ -1382,38 +1357,43 @@ class BaseDNNRegressorEvaluateTest(object):
     """Asserts evaluation metrics for one-dimensional input and logits."""
     # Create checkpoint: num_inputs=1, hidden_units=(2, 2), num_outputs=1.
     global_step = 100
-    create_checkpoint(
-        (([[.6, .5]], [.1, -.1]), ([[1., .8], [-.8, -1.]], [.2, -.2]),
-         ([[-1.], [1.]], [.3]),), global_step, self._model_dir)
+    create_checkpoint((
+        ([[.6, .5]], [.1, -.1]),
+        ([[1., .8], [-.8, -1.]], [.2, -.2]),
+        ([[-1.], [1.]], [.3]),
+    ), global_step, self._model_dir)
 
     dnn_regressor = self._dnn_regressor_fn(
         hidden_units=(2, 2),
         feature_columns=[self._fc_impl.numeric_column('age')],
         model_dir=self._model_dir)
+
     def _input_fn():
       return {'age': [[10.]]}, [[1.]]
+
     # Uses identical numbers as DNNModelTest.test_one_dim_logits.
     # See that test for calculation of logits.
     # logits = [[-2.08]] => predictions = [-2.08].
     # loss = (1+2.08)^2 = 9.4864
     expected_loss = 9.4864
-    self.assertAllClose({
-        metric_keys.MetricKeys.LOSS: expected_loss,
-        metric_keys.MetricKeys.LOSS_MEAN: expected_loss,
-        metric_keys.MetricKeys.PREDICTION_MEAN: -2.08,
-        metric_keys.MetricKeys.LABEL_MEAN: 1.0,
-        tf.compat.v1.GraphKeys.GLOBAL_STEP: global_step
-    }, dnn_regressor.evaluate(input_fn=_input_fn, steps=1))
+    self.assertAllClose(
+        {
+            metric_keys.MetricKeys.LOSS: expected_loss,
+            metric_keys.MetricKeys.LOSS_MEAN: expected_loss,
+            metric_keys.MetricKeys.PREDICTION_MEAN: -2.08,
+            metric_keys.MetricKeys.LABEL_MEAN: 1.0,
+            tf.compat.v1.GraphKeys.GLOBAL_STEP: global_step
+        }, dnn_regressor.evaluate(input_fn=_input_fn, steps=1))
 
   def test_multi_dim(self):
     """Asserts evaluation metrics for multi-dimensional input and logits."""
     # Create checkpoint: num_inputs=2, hidden_units=(2, 2), num_outputs=3.
     global_step = 100
-    create_checkpoint(
-        (([[.6, .5], [-.6, -.5]], [.1, -.1]), ([[1., .8], [-.8, -1.]],
-                                               [.2, -.2]),
-         ([[-1., 1., .5], [-1., 1., .5]], [.3, -.3,
-                                           .0]),), global_step, self._model_dir)
+    create_checkpoint((
+        ([[.6, .5], [-.6, -.5]], [.1, -.1]),
+        ([[1., .8], [-.8, -1.]], [.2, -.2]),
+        ([[-1., 1., .5], [-1., 1., .5]], [.3, -.3, .0]),
+    ), global_step, self._model_dir)
     label_dimension = 3
 
     dnn_regressor = self._dnn_regressor_fn(
@@ -1421,30 +1401,34 @@ class BaseDNNRegressorEvaluateTest(object):
         feature_columns=[self._fc_impl.numeric_column('age', shape=[2])],
         label_dimension=label_dimension,
         model_dir=self._model_dir)
+
     def _input_fn():
       return {'age': [[10., 8.]]}, [[1., -1., 0.5]]
+
     # Uses identical numbers as
     # DNNModelFnTest.test_multi_dim_input_multi_dim_logits.
     # See that test for calculation of logits.
     # logits = [[-0.48, 0.48, 0.39]]
     # loss = (1+0.48)^2 + (-1-0.48)^2 + (0.5-0.39)^2 = 4.3929
     expected_loss = 4.3929
-    self.assertAllClose({
-        metric_keys.MetricKeys.LOSS: expected_loss,
-        metric_keys.MetricKeys.LOSS_MEAN: expected_loss / label_dimension,
-        metric_keys.MetricKeys.PREDICTION_MEAN: 0.39 / 3.0,
-        metric_keys.MetricKeys.LABEL_MEAN: 0.5 / 3.0,
-        tf.compat.v1.GraphKeys.GLOBAL_STEP: global_step
-    }, dnn_regressor.evaluate(input_fn=_input_fn, steps=1))
+    self.assertAllClose(
+        {
+            metric_keys.MetricKeys.LOSS: expected_loss,
+            metric_keys.MetricKeys.LOSS_MEAN: expected_loss / label_dimension,
+            metric_keys.MetricKeys.PREDICTION_MEAN: 0.39 / 3.0,
+            metric_keys.MetricKeys.LABEL_MEAN: 0.5 / 3.0,
+            tf.compat.v1.GraphKeys.GLOBAL_STEP: global_step
+        }, dnn_regressor.evaluate(input_fn=_input_fn, steps=1))
 
   def test_multi_dim_weights(self):
     """Asserts evaluation metrics for multi-dimensional input and logits."""
     # same checkpoint with test_multi_dim.
     global_step = 100
-    create_checkpoint((([[.6, .5], [-.6, -.5]],
-                        [.1, -.1]), ([[1., .8], [-.8, -1.]], [.2, -.2]),
-                       ([[-1., 1., .5], [-1., 1., .5]], [.3, -.3, .0]),),
-                      global_step, self._model_dir)
+    create_checkpoint((
+        ([[.6, .5], [-.6, -.5]], [.1, -.1]),
+        ([[1., .8], [-.8, -1.]], [.2, -.2]),
+        ([[-1., 1., .5], [-1., 1., .5]], [.3, -.3, .0]),
+    ), global_step, self._model_dir)
     label_dimension = 3
 
     dnn_regressor = self._dnn_regressor_fn(
@@ -1482,11 +1466,13 @@ class BaseDNNClassifierPredictTest(object):
 
   def _test_one_dim(self, label_vocabulary, label_output_fn):
     """Asserts predictions for one-dimensional input and logits."""
-    create_checkpoint(
-        (([[.6, .5]], [.1, -.1]), ([[1., .8], [-.8, -1.]], [.2, -.2]),
-         ([[-1.], [1.]], [.3]),),
-        global_step=0,
-        model_dir=self._model_dir)
+    create_checkpoint((
+        ([[.6, .5]], [.1, -.1]),
+        ([[1., .8], [-.8, -1.]], [.2, -.2]),
+        ([[-1.], [1.]], [.3]),
+    ),
+                      global_step=0,
+                      model_dir=self._model_dir)
 
     dnn_classifier = self._dnn_classifier_fn(
         hidden_units=(2, 2),
@@ -1507,16 +1493,16 @@ class BaseDNNClassifierPredictTest(object):
     self.assertAllClose([0.11105597],
                         predictions[prediction_keys.PredictionKeys.LOGISTIC])
     self.assertAllClose(
-        [0.88894403,
-         0.11105597], predictions[prediction_keys.PredictionKeys.PROBABILITIES])
+        [0.88894403, 0.11105597],
+        predictions[prediction_keys.PredictionKeys.PROBABILITIES])
     self.assertAllClose([0],
                         predictions[prediction_keys.PredictionKeys.CLASS_IDS])
     self.assertAllEqual([label_output_fn(0)],
                         predictions[prediction_keys.PredictionKeys.CLASSES])
 
   def test_one_dim_without_label_vocabulary(self):
-    self._test_one_dim(label_vocabulary=None,
-                       label_output_fn=lambda x: ('%s' % x).encode())
+    self._test_one_dim(
+        label_vocabulary=None, label_output_fn=lambda x: ('%s' % x).encode())
 
   def test_one_dim_with_label_vocabulary(self):
     n_classes = 2
@@ -1526,12 +1512,13 @@ class BaseDNNClassifierPredictTest(object):
 
   def _test_multi_dim_with_3_classes(self, label_vocabulary, label_output_fn):
     """Asserts predictions for multi-dimensional input and logits."""
-    create_checkpoint(
-        (([[.6, .5], [-.6, -.5]], [.1, -.1]),
-         ([[1., .8], [-.8, -1.]], [.2, -.2]), ([[-1., 1., .5], [-1., 1., .5]],
-                                               [.3, -.3, .0]),),
-        global_step=0,
-        model_dir=self._model_dir)
+    create_checkpoint((
+        ([[.6, .5], [-.6, -.5]], [.1, -.1]),
+        ([[1., .8], [-.8, -1.]], [.2, -.2]),
+        ([[-1., 1., .5], [-1., 1., .5]], [.3, -.3, .0]),
+    ),
+                      global_step=0,
+                      model_dir=self._model_dir)
 
     dnn_classifier = self._dnn_classifier_fn(
         hidden_units=(2, 2),
@@ -1552,29 +1539,27 @@ class BaseDNNClassifierPredictTest(object):
     # probabilities = [0.16670536, 0.43538380, 0.39791084]
     # class_ids = argmax(probabilities) = [1]
     predictions = next(dnn_classifier.predict(input_fn=input_fn))
-    self.assertItemsEqual(
-        [prediction_keys.PredictionKeys.LOGITS,
-         prediction_keys.PredictionKeys.PROBABILITIES,
-         prediction_keys.PredictionKeys.CLASS_IDS,
-         prediction_keys.PredictionKeys.CLASSES,
-         prediction_keys.PredictionKeys.ALL_CLASS_IDS,
-         prediction_keys.PredictionKeys.ALL_CLASSES],
-        six.iterkeys(predictions))
-    self.assertAllClose(
-        [-0.48, 0.48, 0.39], predictions[prediction_keys.PredictionKeys.LOGITS])
+    self.assertItemsEqual([
+        prediction_keys.PredictionKeys.LOGITS,
+        prediction_keys.PredictionKeys.PROBABILITIES,
+        prediction_keys.PredictionKeys.CLASS_IDS,
+        prediction_keys.PredictionKeys.CLASSES,
+        prediction_keys.PredictionKeys.ALL_CLASS_IDS,
+        prediction_keys.PredictionKeys.ALL_CLASSES
+    ], six.iterkeys(predictions))
+    self.assertAllClose([-0.48, 0.48, 0.39],
+                        predictions[prediction_keys.PredictionKeys.LOGITS])
     self.assertAllClose(
         [0.16670536, 0.43538380, 0.39791084],
         predictions[prediction_keys.PredictionKeys.PROBABILITIES])
-    self.assertAllEqual(
-        [1], predictions[prediction_keys.PredictionKeys.CLASS_IDS])
-    self.assertAllEqual(
-        [label_output_fn(1)],
-        predictions[prediction_keys.PredictionKeys.CLASSES])
+    self.assertAllEqual([1],
+                        predictions[prediction_keys.PredictionKeys.CLASS_IDS])
+    self.assertAllEqual([label_output_fn(1)],
+                        predictions[prediction_keys.PredictionKeys.CLASSES])
 
   def test_multi_dim_with_3_classes_but_no_label_vocab(self):
     self._test_multi_dim_with_3_classes(
-        label_vocabulary=None,
-        label_output_fn=lambda x: ('%s' % x).encode())
+        label_vocabulary=None, label_output_fn=lambda x: ('%s' % x).encode())
 
   def test_multi_dim_with_3_classes_and_label_vocab(self):
     n_classes = 3
@@ -1600,11 +1585,13 @@ class BaseDNNRegressorPredictTest(object):
   def test_one_dim(self):
     """Asserts predictions for one-dimensional input and logits."""
     # Create checkpoint: num_inputs=1, hidden_units=(2, 2), num_outputs=1.
-    create_checkpoint(
-        (([[.6, .5]], [.1, -.1]), ([[1., .8], [-.8, -1.]], [.2, -.2]),
-         ([[-1.], [1.]], [.3]),),
-        global_step=0,
-        model_dir=self._model_dir)
+    create_checkpoint((
+        ([[.6, .5]], [.1, -.1]),
+        ([[1., .8], [-.8, -1.]], [.2, -.2]),
+        ([[-1.], [1.]], [.3]),
+    ),
+                      global_step=0,
+                      model_dir=self._model_dir)
 
     dnn_regressor = self._dnn_regressor_fn(
         hidden_units=(2, 2),
@@ -1622,11 +1609,11 @@ class BaseDNNRegressorPredictTest(object):
   def test_multi_dim(self):
     """Asserts predictions for multi-dimensional input and logits."""
     # Create checkpoint: num_inputs=2, hidden_units=(2, 2), num_outputs=3.
-    create_checkpoint(
-        (([[.6, .5], [-.6, -.5]], [.1, -.1]),
-         ([[1., .8], [-.8, -1.]], [.2, -.2]), ([[-1., 1., .5], [-1., 1., .5]],
-                                               [.3, -.3,
-                                                .0]),), 100, self._model_dir)
+    create_checkpoint((
+        ([[.6, .5], [-.6, -.5]], [.1, -.1]),
+        ([[1., .8], [-.8, -1.]], [.2, -.2]),
+        ([[-1., 1., .5], [-1., 1., .5]], [.3, -.3, .0]),
+    ), 100, self._model_dir)
 
     dnn_regressor = self._dnn_regressor_fn(
         hidden_units=(2, 2),
@@ -1642,9 +1629,10 @@ class BaseDNNRegressorPredictTest(object):
     # DNNModelFnTest.test_multi_dim_input_multi_dim_logits.
     # See that test for calculation of logits.
     # logits = [[-0.48, 0.48, 0.39]] => predictions = [-0.48, 0.48, 0.39]
-    self.assertAllClose({
-        prediction_keys.PredictionKeys.PREDICTIONS: [-0.48, 0.48, 0.39],
-    }, next(dnn_regressor.predict(input_fn=input_fn)))
+    self.assertAllClose(
+        {
+            prediction_keys.PredictionKeys.PREDICTIONS: [-0.48, 0.48, 0.39],
+        }, next(dnn_regressor.predict(input_fn=input_fn)))
 
 
 class _SummaryHook(tf.compat.v1.train.SessionRunHook):
@@ -1668,8 +1656,8 @@ class _SummaryHook(tf.compat.v1.train.SessionRunHook):
     return tuple(self._summaries)
 
 
-def _assert_checkpoint(
-    testcase, global_step, input_units, hidden_units, output_units, model_dir):
+def _assert_checkpoint(testcase, global_step, input_units, hidden_units,
+                       output_units, model_dir):
   """Asserts checkpoint contains expected variables with proper shapes.
 
   Args:
@@ -1680,35 +1668,28 @@ def _assert_checkpoint(
     output_units: The dimension of output layer (logits).
     model_dir: The model directory.
   """
-  shapes = {
-      name: shape
-      for (name, shape) in tf.train.list_variables(model_dir)
-  }
+  shapes = {name: shape for (name, shape) in tf.train.list_variables(model_dir)}
 
   # Global step.
   testcase.assertEqual([], shapes[tf.compat.v1.GraphKeys.GLOBAL_STEP])
   testcase.assertEqual(
       global_step,
-      tf.train.load_variable(
-          model_dir, tf.compat.v1.GraphKeys.GLOBAL_STEP))
+      tf.train.load_variable(model_dir, tf.compat.v1.GraphKeys.GLOBAL_STEP))
 
   # Hidden layer weights.
   prev_layer_units = input_units
   for i in range(len(hidden_units)):
     layer_units = hidden_units[i]
-    testcase.assertAllEqual(
-        (prev_layer_units, layer_units),
-        shapes[HIDDEN_WEIGHTS_NAME_PATTERN % i])
-    testcase.assertAllEqual(
-        (layer_units,),
-        shapes[HIDDEN_BIASES_NAME_PATTERN % i])
+    testcase.assertAllEqual((prev_layer_units, layer_units),
+                            shapes[HIDDEN_WEIGHTS_NAME_PATTERN % i])
+    testcase.assertAllEqual((layer_units,),
+                            shapes[HIDDEN_BIASES_NAME_PATTERN % i])
     prev_layer_units = layer_units
 
   # Output layer weights.
   testcase.assertAllEqual((prev_layer_units, output_units),
                           shapes[LOGITS_WEIGHTS_NAME])
-  testcase.assertAllEqual((output_units,),
-                          shapes[LOGITS_BIASES_NAME])
+  testcase.assertAllEqual((output_units,), shapes[LOGITS_BIASES_NAME])
 
 
 def _assert_simple_summary(testcase, expected_values, actual_summary):
@@ -1719,10 +1700,12 @@ def _assert_simple_summary(testcase, expected_values, actual_summary):
     expected_values: Dict of expected tags and simple values.
     actual_summary: `summary_pb2.Summary`.
   """
-  testcase.assertAllClose(expected_values, {
-      v.tag: v.simple_value
-      for v in actual_summary.value if (v.tag in expected_values)
-  })
+  testcase.assertAllClose(
+      expected_values, {
+          v.tag: v.simple_value
+          for v in actual_summary.value
+          if (v.tag in expected_values)
+      })
 
 
 class BaseDNNClassifierTrainTest(object):
@@ -1749,10 +1732,16 @@ class BaseDNNClassifierTrainTest(object):
     # Train for a few steps, then validate final checkpoint.
     num_steps = 5
     dnn_classifier.train(
-        input_fn=lambda: ({'age': [[10.]]}, [[1]]), steps=num_steps)
+        input_fn=lambda: ({
+            'age': [[10.]]
+        }, [[1]]), steps=num_steps)
     _assert_checkpoint(
-        self, num_steps, input_units=1, hidden_units=hidden_units,
-        output_units=1, model_dir=self._model_dir)
+        self,
+        num_steps,
+        input_units=1,
+        hidden_units=hidden_units,
+        output_units=1,
+        model_dir=self._model_dir)
 
   def test_from_scratch_with_default_optimizer_multi_class(self):
     hidden_units = (2, 2)
@@ -1766,15 +1755,20 @@ class BaseDNNClassifierTrainTest(object):
     # Train for a few steps, then validate final checkpoint.
     num_steps = 5
     dnn_classifier.train(
-        input_fn=lambda: ({'age': [[10.]]}, [[2]]), steps=num_steps)
+        input_fn=lambda: ({
+            'age': [[10.]]
+        }, [[2]]), steps=num_steps)
     _assert_checkpoint(
-        self, num_steps, input_units=1, hidden_units=hidden_units,
-        output_units=n_classes, model_dir=self._model_dir)
+        self,
+        num_steps,
+        input_units=1,
+        hidden_units=hidden_units,
+        output_units=n_classes,
+        model_dir=self._model_dir)
 
   def test_from_scratch_validate_summary(self):
     hidden_units = (2, 2)
-    opt = mock_optimizer(
-        self, hidden_units=hidden_units)
+    opt = mock_optimizer(self, hidden_units=hidden_units)
     dnn_classifier = self._dnn_classifier_fn(
         hidden_units=hidden_units,
         feature_columns=(self._fc_impl.numeric_column('age'),),
@@ -1787,12 +1781,19 @@ class BaseDNNClassifierTrainTest(object):
     num_steps = 5
     summary_hook = _SummaryHook()
     dnn_classifier.train(
-        input_fn=lambda: ({'age': [[10.]]}, [[1]]), steps=num_steps,
+        input_fn=lambda: ({
+            'age': [[10.]]
+        }, [[1]]),
+        steps=num_steps,
         hooks=(summary_hook,))
     self.assertEqual(1, opt.minimize.call_count)
     _assert_checkpoint(
-        self, num_steps, input_units=1, hidden_units=hidden_units,
-        output_units=1, model_dir=self._model_dir)
+        self,
+        num_steps,
+        input_units=1,
+        hidden_units=hidden_units,
+        output_units=1,
+        model_dir=self._model_dir)
     summaries = summary_hook.summaries()
     self.assertEqual(num_steps, len(summaries))
     for summary in summaries:
@@ -1803,9 +1804,11 @@ class BaseDNNClassifierTrainTest(object):
   def test_binary_classification(self):
     base_global_step = 100
     hidden_units = (2, 2)
-    create_checkpoint(
-        (([[.6, .5]], [.1, -.1]), ([[1., .8], [-.8, -1.]], [.2, -.2]),
-         ([[-1.], [1.]], [.3]),), base_global_step, self._model_dir)
+    create_checkpoint((
+        ([[.6, .5]], [.1, -.1]),
+        ([[1., .8], [-.8, -1.]], [.2, -.2]),
+        ([[-1.], [1.]], [.3]),
+    ), base_global_step, self._model_dir)
 
     # Uses identical numbers as DNNModelFnTest.test_one_dim_logits.
     # See that test for calculation of logits.
@@ -1826,32 +1829,39 @@ class BaseDNNClassifierTrainTest(object):
     num_steps = 5
     summary_hook = _SummaryHook()
     dnn_classifier.train(
-        input_fn=lambda: ({'age': [[10.]]}, [[1]]), steps=num_steps,
+        input_fn=lambda: ({
+            'age': [[10.]]
+        }, [[1]]),
+        steps=num_steps,
         hooks=(summary_hook,))
     self.assertEqual(1, opt.minimize.call_count)
     summaries = summary_hook.summaries()
     self.assertEqual(num_steps, len(summaries))
     for summary in summaries:
       _assert_simple_summary(
-          self,
-          {
+          self, {
               metric_keys.MetricKeys.LOSS_MEAN: expected_loss,
               'dnn/dnn/hiddenlayer_0/fraction_of_zero_values': 0.,
               'dnn/dnn/hiddenlayer_1/fraction_of_zero_values': .5,
               'dnn/dnn/logits/fraction_of_zero_values': 0.,
               metric_keys.MetricKeys.LOSS: expected_loss,
-          },
-          summary)
+          }, summary)
     _assert_checkpoint(
-        self, base_global_step + num_steps, input_units=1,
-        hidden_units=hidden_units, output_units=1, model_dir=self._model_dir)
+        self,
+        base_global_step + num_steps,
+        input_units=1,
+        hidden_units=hidden_units,
+        output_units=1,
+        model_dir=self._model_dir)
 
   def test_binary_classification_float_labels(self):
     base_global_step = 100
     hidden_units = (2, 2)
-    create_checkpoint(
-        (([[.6, .5]], [.1, -.1]), ([[1., .8], [-.8, -1.]], [.2, -.2]),
-         ([[-1.], [1.]], [.3]),), base_global_step, self._model_dir)
+    create_checkpoint((
+        ([[.6, .5]], [.1, -.1]),
+        ([[1., .8], [-.8, -1.]], [.2, -.2]),
+        ([[-1.], [1.]], [.3]),
+    ), base_global_step, self._model_dir)
 
     # Uses identical numbers as DNNModelFnTest.test_one_dim_logits.
     # See that test for calculation of logits.
@@ -1871,17 +1881,20 @@ class BaseDNNClassifierTrainTest(object):
     # checkpoint.
     num_steps = 5
     dnn_classifier.train(
-        input_fn=lambda: ({'age': [[10.]]}, [[0.8]]), steps=num_steps)
+        input_fn=lambda: ({
+            'age': [[10.]]
+        }, [[0.8]]), steps=num_steps)
     self.assertEqual(1, opt.minimize.call_count)
 
   def test_multi_class(self):
     n_classes = 3
     base_global_step = 100
     hidden_units = (2, 2)
-    create_checkpoint(
-        (([[.6, .5]], [.1, -.1]), ([[1., .8], [-.8, -1.]], [.2, -.2]),
-         ([[-1., 1., .5], [-1., 1., .5]],
-          [.3, -.3, .0]),), base_global_step, self._model_dir)
+    create_checkpoint((
+        ([[.6, .5]], [.1, -.1]),
+        ([[1., .8], [-.8, -1.]], [.2, -.2]),
+        ([[-1., 1., .5], [-1., 1., .5]], [.3, -.3, .0]),
+    ), base_global_step, self._model_dir)
 
     # Uses identical numbers as DNNModelFnTest.test_multi_dim_logits.
     # See that test for calculation of logits.
@@ -1903,25 +1916,29 @@ class BaseDNNClassifierTrainTest(object):
     num_steps = 5
     summary_hook = _SummaryHook()
     dnn_classifier.train(
-        input_fn=lambda: ({'age': [[10.]]}, [[1]]), steps=num_steps,
+        input_fn=lambda: ({
+            'age': [[10.]]
+        }, [[1]]),
+        steps=num_steps,
         hooks=(summary_hook,))
     self.assertEqual(1, opt.minimize.call_count)
     summaries = summary_hook.summaries()
     self.assertEqual(num_steps, len(summaries))
     for summary in summaries:
       _assert_simple_summary(
-          self,
-          {
+          self, {
               metric_keys.MetricKeys.LOSS_MEAN: expected_loss,
               'dnn/dnn/hiddenlayer_0/fraction_of_zero_values': 0.,
               'dnn/dnn/hiddenlayer_1/fraction_of_zero_values': .5,
               'dnn/dnn/logits/fraction_of_zero_values': 0.,
               metric_keys.MetricKeys.LOSS: expected_loss,
-          },
-          summary)
+          }, summary)
     _assert_checkpoint(
-        self, base_global_step + num_steps, input_units=1,
-        hidden_units=hidden_units, output_units=n_classes,
+        self,
+        base_global_step + num_steps,
+        input_units=1,
+        hidden_units=hidden_units,
+        output_units=n_classes,
         model_dir=self._model_dir)
 
 
@@ -1949,10 +1966,16 @@ class BaseDNNRegressorTrainTest(object):
     # Train for a few steps, then validate final checkpoint.
     num_steps = 5
     dnn_regressor.train(
-        input_fn=lambda: ({'age': ((1,),)}, ((10,),)), steps=num_steps)
+        input_fn=lambda: ({
+            'age': ((1,),)
+        }, ((10,),)), steps=num_steps)
     _assert_checkpoint(
-        self, num_steps, input_units=1, hidden_units=hidden_units,
-        output_units=1, model_dir=self._model_dir)
+        self,
+        num_steps,
+        input_units=1,
+        hidden_units=hidden_units,
+        output_units=1,
+        model_dir=self._model_dir)
 
   def test_from_scratch(self):
     hidden_units = (2, 2)
@@ -1969,12 +1992,19 @@ class BaseDNNRegressorTrainTest(object):
     num_steps = 5
     summary_hook = _SummaryHook()
     dnn_regressor.train(
-        input_fn=lambda: ({'age': ((1,),)}, ((5.,),)), steps=num_steps,
+        input_fn=lambda: ({
+            'age': ((1,),)
+        }, ((5.,),)),
+        steps=num_steps,
         hooks=(summary_hook,))
     self.assertEqual(1, opt.minimize.call_count)
     _assert_checkpoint(
-        self, num_steps, input_units=1, hidden_units=hidden_units,
-        output_units=1, model_dir=self._model_dir)
+        self,
+        num_steps,
+        input_units=1,
+        hidden_units=hidden_units,
+        output_units=1,
+        model_dir=self._model_dir)
     summaries = summary_hook.summaries()
     self.assertEqual(num_steps, len(summaries))
     for summary in summaries:
@@ -1986,9 +2016,11 @@ class BaseDNNRegressorTrainTest(object):
     """Asserts train loss for one-dimensional input and logits."""
     base_global_step = 100
     hidden_units = (2, 2)
-    create_checkpoint(
-        (([[.6, .5]], [.1, -.1]), ([[1., .8], [-.8, -1.]], [.2, -.2]),
-         ([[-1.], [1.]], [.3]),), base_global_step, self._model_dir)
+    create_checkpoint((
+        ([[.6, .5]], [.1, -.1]),
+        ([[1., .8], [-.8, -1.]], [.2, -.2]),
+        ([[-1.], [1.]], [.3]),
+    ), base_global_step, self._model_dir)
 
     # Uses identical numbers as DNNModelFnTest.test_one_dim_logits.
     # See that test for calculation of logits.
@@ -2009,35 +2041,40 @@ class BaseDNNRegressorTrainTest(object):
     num_steps = 5
     summary_hook = _SummaryHook()
     dnn_regressor.train(
-        input_fn=lambda: ({'age': [[10.]]}, [[1.]]), steps=num_steps,
+        input_fn=lambda: ({
+            'age': [[10.]]
+        }, [[1.]]),
+        steps=num_steps,
         hooks=(summary_hook,))
     self.assertEqual(1, opt.minimize.call_count)
     summaries = summary_hook.summaries()
     self.assertEqual(num_steps, len(summaries))
     for summary in summaries:
       _assert_simple_summary(
-          self,
-          {
+          self, {
               metric_keys.MetricKeys.LOSS_MEAN: expected_loss,
               'dnn/dnn/hiddenlayer_0/fraction_of_zero_values': 0.,
               'dnn/dnn/hiddenlayer_1/fraction_of_zero_values': 0.5,
               'dnn/dnn/logits/fraction_of_zero_values': 0.,
               metric_keys.MetricKeys.LOSS: expected_loss,
-          },
-          summary)
+          }, summary)
     _assert_checkpoint(
-        self, base_global_step + num_steps, input_units=1,
-        hidden_units=hidden_units, output_units=1, model_dir=self._model_dir)
+        self,
+        base_global_step + num_steps,
+        input_units=1,
+        hidden_units=hidden_units,
+        output_units=1,
+        model_dir=self._model_dir)
 
   def test_multi_dim(self):
     """Asserts train loss for multi-dimensional input and logits."""
     base_global_step = 100
     hidden_units = (2, 2)
-    create_checkpoint(
-        (([[.6, .5], [-.6, -.5]], [.1, -.1]), ([[1., .8], [-.8, -1.]],
-                                               [.2, -.2]),
-         ([[-1., 1., .5], [-1., 1., .5]],
-          [.3, -.3, .0]),), base_global_step, self._model_dir)
+    create_checkpoint((
+        ([[.6, .5], [-.6, -.5]], [.1, -.1]),
+        ([[1., .8], [-.8, -1.]], [.2, -.2]),
+        ([[-1., 1., .5], [-1., 1., .5]], [.3, -.3, .0]),
+    ), base_global_step, self._model_dir)
     input_dimension = 2
     label_dimension = 3
 
@@ -2064,7 +2101,9 @@ class BaseDNNRegressorTrainTest(object):
     num_steps = 5
     summary_hook = _SummaryHook()
     dnn_regressor.train(
-        input_fn=lambda: ({'age': [[10., 8.]]}, [[1., -1., 0.5]]),
+        input_fn=lambda: ({
+            'age': [[10., 8.]]
+        }, [[1., -1., 0.5]]),
         steps=num_steps,
         hooks=(summary_hook,))
     self.assertEqual(1, opt.minimize.call_count)
@@ -2072,16 +2111,17 @@ class BaseDNNRegressorTrainTest(object):
     self.assertEqual(num_steps, len(summaries))
     for summary in summaries:
       _assert_simple_summary(
-          self,
-          {
+          self, {
               metric_keys.MetricKeys.LOSS_MEAN: expected_loss / label_dimension,
               'dnn/dnn/hiddenlayer_0/fraction_of_zero_values': 0.,
               'dnn/dnn/hiddenlayer_1/fraction_of_zero_values': 0.5,
               'dnn/dnn/logits/fraction_of_zero_values': 0.,
               metric_keys.MetricKeys.LOSS: expected_loss,
-          },
-          summary)
+          }, summary)
     _assert_checkpoint(
-        self, base_global_step + num_steps, input_units=input_dimension,
-        hidden_units=hidden_units, output_units=label_dimension,
+        self,
+        base_global_step + num_steps,
+        input_units=input_dimension,
+        hidden_units=hidden_units,
+        output_units=label_dimension,
         model_dir=self._model_dir)

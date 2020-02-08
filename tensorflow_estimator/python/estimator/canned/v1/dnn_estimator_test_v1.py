@@ -21,17 +21,10 @@ from __future__ import print_function
 import shutil
 import tempfile
 
-import tensorflow as tf
 import numpy as np
 import six
-
-from tensorflow.python.feature_column import feature_column_lib as feature_column
-from tensorflow.python.framework import ops
+import tensorflow as tf
 from tensorflow.python.framework import test_util
-from tensorflow.python.ops.losses import losses
-from tensorflow.python.platform import gfile
-from tensorflow.python.platform import test
-from tensorflow.python.summary.writer import writer_cache
 from tensorflow_estimator.python.estimator.canned import dnn
 from tensorflow_estimator.python.estimator.canned import head as head_lib
 from tensorflow_estimator.python.estimator.canned import prediction_keys
@@ -58,7 +51,7 @@ def _dnn_estimator_classifier_fn(n_classes=3, **kwargs):
       **kwargs)
 
 
-@test_util.run_v1_only("Tests v1 only symbols")
+@test_util.run_v1_only('Tests v1 only symbols')
 class DNNEstimatorEvaluateTest(
     dnn_testing_utils_v1.BaseDNNRegressorEvaluateTest, tf.test.TestCase):
 
@@ -68,7 +61,7 @@ class DNNEstimatorEvaluateTest(
         self, _dnn_estimator_fn)
 
 
-@test_util.run_v1_only("Tests v1 only symbols")
+@test_util.run_v1_only('Tests v1 only symbols')
 class DNNEstimatorPredictTest(dnn_testing_utils_v1.BaseDNNRegressorPredictTest,
                               tf.test.TestCase):
 
@@ -78,7 +71,7 @@ class DNNEstimatorPredictTest(dnn_testing_utils_v1.BaseDNNRegressorPredictTest,
         self, _dnn_estimator_fn)
 
 
-@test_util.run_v1_only("Tests v1 only symbols")
+@test_util.run_v1_only('Tests v1 only symbols')
 class DNNEstimatorTrainTest(dnn_testing_utils_v1.BaseDNNRegressorTrainTest,
                             tf.test.TestCase):
 
@@ -88,7 +81,7 @@ class DNNEstimatorTrainTest(dnn_testing_utils_v1.BaseDNNRegressorTrainTest,
         self, _dnn_estimator_fn)
 
 
-@test_util.run_v1_only("Tests v1 only symbols")
+@test_util.run_v1_only('Tests v1 only symbols')
 class DNNEstimatorWarmStartingTest(dnn_testing_utils_v1.BaseDNNWarmStartingTest,
                                    tf.test.TestCase):
 
@@ -98,7 +91,7 @@ class DNNEstimatorWarmStartingTest(dnn_testing_utils_v1.BaseDNNWarmStartingTest,
         self, _dnn_estimator_classifier_fn, _dnn_estimator_fn)
 
 
-@test_util.run_v1_only("Tests v1 only symbols")
+@test_util.run_v1_only('Tests v1 only symbols')
 class DNNEstimatorIntegrationTest(tf.test.TestCase):
 
   def setUp(self):
@@ -137,7 +130,8 @@ class DNNEstimatorIntegrationTest(tf.test.TestCase):
     self.assertAllEqual((batch_size, label_dimension), predictions.shape)
 
     # Export
-    feature_spec = tf.compat.v1.feature_column.make_parse_example_spec(feature_columns)
+    feature_spec = tf.compat.v1.feature_column.make_parse_example_spec(
+        feature_columns)
     serving_input_receiver_fn = export.build_parsing_serving_input_receiver_fn(
         feature_spec)
     export_dir = est.export_saved_model(tempfile.mkdtemp(),

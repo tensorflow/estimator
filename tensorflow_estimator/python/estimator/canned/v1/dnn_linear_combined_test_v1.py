@@ -21,28 +21,16 @@ from __future__ import print_function
 import shutil
 import tempfile
 
-import tensorflow as tf
 from absl.testing import parameterized
 import numpy as np
 import six
-
+import tensorflow as tf
 from tensorflow.core.example import example_pb2
 from tensorflow.core.example import feature_pb2
 from tensorflow.python.feature_column import feature_column
 from tensorflow.python.feature_column import feature_column_v2
-from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import test_util
-from tensorflow.python.ops import nn
-from tensorflow.python.ops import parsing_ops
-from tensorflow.python.ops import variables as variables_lib
-from tensorflow.python.platform import gfile
-from tensorflow.python.platform import test
-from tensorflow.python.summary.writer import writer_cache
-from tensorflow.python.training import checkpoint_utils
-from tensorflow.python.training import gradient_descent
-from tensorflow.python.training import input as input_lib
-from tensorflow.python.training import optimizer as optimizer_lib
 from tensorflow_estimator.python.estimator import estimator
 from tensorflow_estimator.python.estimator.canned import dnn_linear_combined
 from tensorflow_estimator.python.estimator.canned import prediction_keys
@@ -51,7 +39,6 @@ from tensorflow_estimator.python.estimator.canned.v1 import linear_testing_utils
 from tensorflow_estimator.python.estimator.export import export
 from tensorflow_estimator.python.estimator.inputs import numpy_io
 from tensorflow_estimator.python.estimator.inputs import pandas_io
-
 
 try:
   # pylint: disable=g-import-not-at-top
@@ -62,7 +49,6 @@ except IOError:
   HAS_PANDAS = False
 except ImportError:
   HAS_PANDAS = False
-
 
 # This is so that we can easily switch between feature_column and
 # feature_column_v2 for testing.
@@ -75,14 +61,14 @@ feature_column.categorical_column_with_vocabulary_file = feature_column._categor
 feature_column.embedding_column = feature_column._embedding_column
 
 
-@test_util.run_v1_only("Tests v1 only symbols")
+@test_util.run_v1_only('Tests v1 only symbols')
 class DNNOnlyModelFnTest(dnn_testing_utils_v1.BaseDNNModelFnTest,
                          tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
     tf.test.TestCase.__init__(self, methodName)
-    dnn_testing_utils_v1.BaseDNNModelFnTest.__init__(
-        self, self._dnn_only_model_fn)
+    dnn_testing_utils_v1.BaseDNNModelFnTest.__init__(self,
+                                                     self._dnn_only_model_fn)
 
   def _dnn_only_model_fn(self,
                          features,
@@ -131,9 +117,10 @@ def _linear_regressor_fn(feature_columns,
       linear_sparse_combiner=sparse_combiner)
 
 
-@test_util.run_v1_only("Tests v1 only symbols")
+@test_util.run_v1_only('Tests v1 only symbols')
 class LinearOnlyRegressorPartitionerTest(
-    linear_testing_utils_v1.BaseLinearRegressorPartitionerTest, tf.test.TestCase):
+    linear_testing_utils_v1.BaseLinearRegressorPartitionerTest,
+    tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
     tf.test.TestCase.__init__(self, methodName)
@@ -141,9 +128,10 @@ class LinearOnlyRegressorPartitionerTest(
         self, _linear_regressor_fn, fc_lib=feature_column)
 
 
-@test_util.run_v1_only("Tests v1 only symbols")
+@test_util.run_v1_only('Tests v1 only symbols')
 class LinearOnlyRegressorPartitionerV2Test(
-    linear_testing_utils_v1.BaseLinearRegressorPartitionerTest, tf.test.TestCase):
+    linear_testing_utils_v1.BaseLinearRegressorPartitionerTest,
+    tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
     tf.test.TestCase.__init__(self, methodName)
@@ -151,9 +139,10 @@ class LinearOnlyRegressorPartitionerV2Test(
         self, _linear_regressor_fn, fc_lib=feature_column_v2)
 
 
-@test_util.run_v1_only("Tests v1 only symbols")
+@test_util.run_v1_only('Tests v1 only symbols')
 class LinearOnlyRegressorEvaluationTest(
-    linear_testing_utils_v1.BaseLinearRegressorEvaluationTest, tf.test.TestCase):
+    linear_testing_utils_v1.BaseLinearRegressorEvaluationTest,
+    tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
     tf.test.TestCase.__init__(self, methodName)
@@ -161,9 +150,10 @@ class LinearOnlyRegressorEvaluationTest(
         self, _linear_regressor_fn, fc_lib=feature_column)
 
 
-@test_util.run_v1_only("Tests v1 only symbols")
+@test_util.run_v1_only('Tests v1 only symbols')
 class LinearOnlyRegressorEvaluationV2Test(
-    linear_testing_utils_v1.BaseLinearRegressorEvaluationTest, tf.test.TestCase):
+    linear_testing_utils_v1.BaseLinearRegressorEvaluationTest,
+    tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
     tf.test.TestCase.__init__(self, methodName)
@@ -171,7 +161,7 @@ class LinearOnlyRegressorEvaluationV2Test(
         self, _linear_regressor_fn, fc_lib=feature_column_v2)
 
 
-@test_util.run_v1_only("Tests v1 only symbols")
+@test_util.run_v1_only('Tests v1 only symbols')
 class LinearOnlyRegressorPredictTest(
     linear_testing_utils_v1.BaseLinearRegressorPredictTest, tf.test.TestCase):
 
@@ -181,7 +171,7 @@ class LinearOnlyRegressorPredictTest(
         self, _linear_regressor_fn, fc_lib=feature_column)
 
 
-@test_util.run_v1_only("Tests v1 only symbols")
+@test_util.run_v1_only('Tests v1 only symbols')
 class LinearOnlyRegressorPredictV2Test(
     linear_testing_utils_v1.BaseLinearRegressorPredictTest, tf.test.TestCase):
 
@@ -191,9 +181,10 @@ class LinearOnlyRegressorPredictV2Test(
         self, _linear_regressor_fn, fc_lib=feature_column_v2)
 
 
-@test_util.run_v1_only("Tests v1 only symbols")
+@test_util.run_v1_only('Tests v1 only symbols')
 class LinearOnlyRegressorIntegrationTest(
-    linear_testing_utils_v1.BaseLinearRegressorIntegrationTest, tf.test.TestCase):
+    linear_testing_utils_v1.BaseLinearRegressorIntegrationTest,
+    tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
     tf.test.TestCase.__init__(self, methodName)
@@ -201,9 +192,10 @@ class LinearOnlyRegressorIntegrationTest(
         self, _linear_regressor_fn, fc_lib=feature_column)
 
 
-@test_util.run_v1_only("Tests v1 only symbols")
+@test_util.run_v1_only('Tests v1 only symbols')
 class LinearOnlyRegressorIntegrationV2Test(
-    linear_testing_utils_v1.BaseLinearRegressorIntegrationTest, tf.test.TestCase):
+    linear_testing_utils_v1.BaseLinearRegressorIntegrationTest,
+    tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
     tf.test.TestCase.__init__(self, methodName)
@@ -211,7 +203,7 @@ class LinearOnlyRegressorIntegrationV2Test(
         self, _linear_regressor_fn, fc_lib=feature_column_v2)
 
 
-@test_util.run_v1_only("Tests v1 only symbols")
+@test_util.run_v1_only('Tests v1 only symbols')
 class LinearOnlyRegressorTrainingTest(
     linear_testing_utils_v1.BaseLinearRegressorTrainingTest, tf.test.TestCase):
 
@@ -221,7 +213,7 @@ class LinearOnlyRegressorTrainingTest(
         self, _linear_regressor_fn, fc_lib=feature_column)
 
 
-@test_util.run_v1_only("Tests v1 only symbols")
+@test_util.run_v1_only('Tests v1 only symbols')
 class LinearOnlyRegressorTrainingV2Test(
     linear_testing_utils_v1.BaseLinearRegressorTrainingTest, tf.test.TestCase):
 
@@ -252,7 +244,7 @@ def _linear_classifier_fn(feature_columns,
       linear_sparse_combiner=sparse_combiner)
 
 
-@test_util.run_v1_only("Tests v1 only symbols")
+@test_util.run_v1_only('Tests v1 only symbols')
 class LinearOnlyClassifierTrainingTest(
     linear_testing_utils_v1.BaseLinearClassifierTrainingTest, tf.test.TestCase):
 
@@ -262,7 +254,7 @@ class LinearOnlyClassifierTrainingTest(
         self, linear_classifier_fn=_linear_classifier_fn, fc_lib=feature_column)
 
 
-@test_util.run_v1_only("Tests v1 only symbols")
+@test_util.run_v1_only('Tests v1 only symbols')
 class LinearOnlyClassifierTrainingV2Test(
     linear_testing_utils_v1.BaseLinearClassifierTrainingTest, tf.test.TestCase):
 
@@ -274,9 +266,10 @@ class LinearOnlyClassifierTrainingV2Test(
         fc_lib=feature_column_v2)
 
 
-@test_util.run_v1_only("Tests v1 only symbols")
+@test_util.run_v1_only('Tests v1 only symbols')
 class LinearOnlyClassifierClassesEvaluationTest(
-    linear_testing_utils_v1.BaseLinearClassifierEvaluationTest, tf.test.TestCase):
+    linear_testing_utils_v1.BaseLinearClassifierEvaluationTest,
+    tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
     tf.test.TestCase.__init__(self, methodName)
@@ -284,9 +277,10 @@ class LinearOnlyClassifierClassesEvaluationTest(
         self, linear_classifier_fn=_linear_classifier_fn, fc_lib=feature_column)
 
 
-@test_util.run_v1_only("Tests v1 only symbols")
+@test_util.run_v1_only('Tests v1 only symbols')
 class LinearOnlyClassifierClassesEvaluationV2Test(
-    linear_testing_utils_v1.BaseLinearClassifierEvaluationTest, tf.test.TestCase):
+    linear_testing_utils_v1.BaseLinearClassifierEvaluationTest,
+    tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
     tf.test.TestCase.__init__(self, methodName)
@@ -296,7 +290,7 @@ class LinearOnlyClassifierClassesEvaluationV2Test(
         fc_lib=feature_column_v2)
 
 
-@test_util.run_v1_only("Tests v1 only symbols")
+@test_util.run_v1_only('Tests v1 only symbols')
 class LinearOnlyClassifierPredictTest(
     linear_testing_utils_v1.BaseLinearClassifierPredictTest, tf.test.TestCase):
 
@@ -306,7 +300,7 @@ class LinearOnlyClassifierPredictTest(
         self, linear_classifier_fn=_linear_classifier_fn, fc_lib=feature_column)
 
 
-@test_util.run_v1_only("Tests v1 only symbols")
+@test_util.run_v1_only('Tests v1 only symbols')
 class LinearOnlyClassifierPredictV2Test(
     linear_testing_utils_v1.BaseLinearClassifierPredictTest, tf.test.TestCase):
 
@@ -318,9 +312,10 @@ class LinearOnlyClassifierPredictV2Test(
         fc_lib=feature_column_v2)
 
 
-@test_util.run_v1_only("Tests v1 only symbols")
+@test_util.run_v1_only('Tests v1 only symbols')
 class LinearOnlyClassifierIntegrationTest(
-    linear_testing_utils_v1.BaseLinearClassifierIntegrationTest, tf.test.TestCase):
+    linear_testing_utils_v1.BaseLinearClassifierIntegrationTest,
+    tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
     tf.test.TestCase.__init__(self, methodName)
@@ -328,9 +323,10 @@ class LinearOnlyClassifierIntegrationTest(
         self, linear_classifier_fn=_linear_classifier_fn, fc_lib=feature_column)
 
 
-@test_util.run_v1_only("Tests v1 only symbols")
+@test_util.run_v1_only('Tests v1 only symbols')
 class LinearOnlyClassifierIntegrationV2Test(
-    linear_testing_utils_v1.BaseLinearClassifierIntegrationTest, tf.test.TestCase):
+    linear_testing_utils_v1.BaseLinearClassifierIntegrationTest,
+    tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
     tf.test.TestCase.__init__(self, methodName)
@@ -340,7 +336,7 @@ class LinearOnlyClassifierIntegrationV2Test(
         fc_lib=feature_column_v2)
 
 
-@test_util.run_v1_only("Tests v1 only symbols")
+@test_util.run_v1_only('Tests v1 only symbols')
 @parameterized.parameters((feature_column,), (feature_column_v2,))
 class DNNLinearCombinedRegressorIntegrationTest(tf.test.TestCase):
 
@@ -352,10 +348,11 @@ class DNNLinearCombinedRegressorIntegrationTest(tf.test.TestCase):
       tf.compat.v1.summary.FileWriterCache.clear()
       shutil.rmtree(self._model_dir)
 
-  def _test_complete_flow_helper(
-      self, linear_feature_columns, dnn_feature_columns, feature_spec,
-      train_input_fn, eval_input_fn, predict_input_fn, input_dimension,
-      label_dimension, batch_size):
+  def _test_complete_flow_helper(self, linear_feature_columns,
+                                 dnn_feature_columns, feature_spec,
+                                 train_input_fn, eval_input_fn,
+                                 predict_input_fn, input_dimension,
+                                 label_dimension, batch_size):
     est = dnn_linear_combined.DNNLinearCombinedRegressor(
         linear_feature_columns=linear_feature_columns,
         dnn_hidden_units=(2, 2),
@@ -396,7 +393,8 @@ class DNNLinearCombinedRegressorIntegrationTest(tf.test.TestCase):
         fc_impl.numeric_column('x', shape=(input_dimension,))
     ]
     feature_columns = linear_feature_columns + dnn_feature_columns
-    feature_spec = tf.compat.v1.feature_column.make_parse_example_spec(feature_columns)
+    feature_spec = tf.compat.v1.feature_column.make_parse_example_spec(
+        feature_columns)
     self._test_complete_flow_helper(linear_feature_columns, dnn_feature_columns,
                                     feature_spec, train_input_fn, eval_input_fn,
                                     predict_input_fn, input_dimension,
@@ -413,7 +411,8 @@ class DNNLinearCombinedRegressorIntegrationTest(tf.test.TestCase):
         feature_column.numeric_column('x', shape=(input_dimension,))
     ]
     feature_columns = linear_feature_columns + dnn_feature_columns
-    feature_spec = tf.compat.v1.feature_column.make_parse_example_spec(feature_columns)
+    feature_spec = tf.compat.v1.feature_column.make_parse_example_spec(
+        feature_columns)
     self._test_complete_flow_helper(linear_feature_columns, dnn_feature_columns,
                                     feature_spec, train_input_fn, eval_input_fn,
                                     predict_input_fn, input_dimension,
@@ -430,7 +429,8 @@ class DNNLinearCombinedRegressorIntegrationTest(tf.test.TestCase):
         tf.feature_column.numeric_column('x', shape=(input_dimension,))
     ]
     feature_columns = linear_feature_columns + dnn_feature_columns
-    feature_spec = tf.compat.v1.feature_column.make_parse_example_spec(feature_columns)
+    feature_spec = tf.compat.v1.feature_column.make_parse_example_spec(
+        feature_columns)
     self._test_complete_flow_helper(linear_feature_columns, dnn_feature_columns,
                                     feature_spec, train_input_fn, eval_input_fn,
                                     predict_input_fn, input_dimension,
@@ -450,14 +450,9 @@ class DNNLinearCombinedRegressorIntegrationTest(tf.test.TestCase):
         num_epochs=None,
         shuffle=True)
     eval_input_fn = numpy_io.numpy_input_fn(
-        x={'x': data},
-        y=data,
-        batch_size=batch_size,
-        shuffle=False)
+        x={'x': data}, y=data, batch_size=batch_size, shuffle=False)
     predict_input_fn = numpy_io.numpy_input_fn(
-        x={'x': data},
-        batch_size=batch_size,
-        shuffle=False)
+        x={'x': data}, batch_size=batch_size, shuffle=False)
 
     fn_to_run(
         train_input_fn=train_input_fn,
@@ -487,20 +482,11 @@ class DNNLinearCombinedRegressorIntegrationTest(tf.test.TestCase):
     x = pd.DataFrame({'x': data})
     y = pd.Series(data)
     train_input_fn = pandas_io.pandas_input_fn(
-        x=x,
-        y=y,
-        batch_size=batch_size,
-        num_epochs=None,
-        shuffle=True)
+        x=x, y=y, batch_size=batch_size, num_epochs=None, shuffle=True)
     eval_input_fn = pandas_io.pandas_input_fn(
-        x=x,
-        y=y,
-        batch_size=batch_size,
-        shuffle=False)
+        x=x, y=y, batch_size=batch_size, shuffle=False)
     predict_input_fn = pandas_io.pandas_input_fn(
-        x=x,
-        batch_size=batch_size,
-        shuffle=False)
+        x=x, batch_size=batch_size, shuffle=False)
 
     fn_to_run(
         train_input_fn=train_input_fn,
@@ -529,24 +515,30 @@ class DNNLinearCombinedRegressorIntegrationTest(tf.test.TestCase):
 
     serialized_examples = []
     for datum in data:
-      example = example_pb2.Example(features=feature_pb2.Features(
-          feature={
-              'x': feature_pb2.Feature(
-                  float_list=feature_pb2.FloatList(value=datum)),
-              'y': feature_pb2.Feature(
-                  float_list=feature_pb2.FloatList(value=datum)),
-          }))
+      example = example_pb2.Example(
+          features=feature_pb2.Features(
+              feature={
+                  'x':
+                      feature_pb2.Feature(
+                          float_list=feature_pb2.FloatList(value=datum)),
+                  'y':
+                      feature_pb2.Feature(
+                          float_list=feature_pb2.FloatList(value=datum)),
+              }))
       serialized_examples.append(example.SerializeToString())
 
     feature_spec = {
         'x': tf.io.FixedLenFeature([label_dimension], tf.dtypes.float32),
         'y': tf.io.FixedLenFeature([label_dimension], tf.dtypes.float32),
     }
+
     def _train_input_fn():
-      feature_map = tf.compat.v1.io.parse_example(serialized_examples, feature_spec)
+      feature_map = tf.compat.v1.io.parse_example(serialized_examples,
+                                                  feature_spec)
       features = linear_testing_utils_v1.queue_parsed_features(feature_map)
       labels = features.pop('y')
       return features, labels
+
     def _eval_input_fn():
       feature_map = tf.compat.v1.io.parse_example(
           tf.compat.v1.train.limit_epochs(serialized_examples, num_epochs=1),
@@ -554,6 +546,7 @@ class DNNLinearCombinedRegressorIntegrationTest(tf.test.TestCase):
       features = linear_testing_utils_v1.queue_parsed_features(feature_map)
       labels = features.pop('y')
       return features, labels
+
     def _predict_input_fn():
       feature_map = tf.compat.v1.io.parse_example(
           tf.compat.v1.train.limit_epochs(serialized_examples, num_epochs=1),
@@ -606,7 +599,7 @@ def _dnn_classifier_fn(hidden_units,
       config=config)
 
 
-@test_util.run_v1_only("Tests v1 only symbols")
+@test_util.run_v1_only('Tests v1 only symbols')
 class DNNOnlyClassifierEvaluateTest(
     dnn_testing_utils_v1.BaseDNNClassifierEvaluateTest, tf.test.TestCase):
 
@@ -616,7 +609,7 @@ class DNNOnlyClassifierEvaluateTest(
         self, _dnn_classifier_fn, fc_impl=feature_column)
 
 
-@test_util.run_v1_only("Tests v1 only symbols")
+@test_util.run_v1_only('Tests v1 only symbols')
 class DNNOnlyClassifierEvaluateV2Test(
     dnn_testing_utils_v1.BaseDNNClassifierEvaluateTest, tf.test.TestCase):
 
@@ -626,7 +619,7 @@ class DNNOnlyClassifierEvaluateV2Test(
         self, _dnn_classifier_fn, fc_impl=feature_column_v2)
 
 
-@test_util.run_v1_only("Tests v1 only symbols")
+@test_util.run_v1_only('Tests v1 only symbols')
 class DNNOnlyClassifierPredictTest(
     dnn_testing_utils_v1.BaseDNNClassifierPredictTest, tf.test.TestCase):
 
@@ -636,7 +629,7 @@ class DNNOnlyClassifierPredictTest(
         self, _dnn_classifier_fn, fc_impl=feature_column)
 
 
-@test_util.run_v1_only("Tests v1 only symbols")
+@test_util.run_v1_only('Tests v1 only symbols')
 class DNNOnlyClassifierPredictV2Test(
     dnn_testing_utils_v1.BaseDNNClassifierPredictTest, tf.test.TestCase):
 
@@ -646,7 +639,7 @@ class DNNOnlyClassifierPredictV2Test(
         self, _dnn_classifier_fn, fc_impl=feature_column_v2)
 
 
-@test_util.run_v1_only("Tests v1 only symbols")
+@test_util.run_v1_only('Tests v1 only symbols')
 class DNNOnlyClassifierTrainTest(
     dnn_testing_utils_v1.BaseDNNClassifierTrainTest, tf.test.TestCase):
 
@@ -656,7 +649,7 @@ class DNNOnlyClassifierTrainTest(
         self, _dnn_classifier_fn, fc_impl=feature_column)
 
 
-@test_util.run_v1_only("Tests v1 only symbols")
+@test_util.run_v1_only('Tests v1 only symbols')
 class DNNOnlyClassifierTrainV2Test(
     dnn_testing_utils_v1.BaseDNNClassifierTrainTest, tf.test.TestCase):
 
@@ -686,7 +679,7 @@ def _dnn_regressor_fn(hidden_units,
       config=config)
 
 
-@test_util.run_v1_only("Tests v1 only symbols")
+@test_util.run_v1_only('Tests v1 only symbols')
 class DNNOnlyRegressorEvaluateTest(
     dnn_testing_utils_v1.BaseDNNRegressorEvaluateTest, tf.test.TestCase):
 
@@ -696,7 +689,7 @@ class DNNOnlyRegressorEvaluateTest(
         self, _dnn_regressor_fn, fc_impl=feature_column)
 
 
-@test_util.run_v1_only("Tests v1 only symbols")
+@test_util.run_v1_only('Tests v1 only symbols')
 class DNNOnlyRegressorEvaluateV2Test(
     dnn_testing_utils_v1.BaseDNNRegressorEvaluateTest, tf.test.TestCase):
 
@@ -706,7 +699,7 @@ class DNNOnlyRegressorEvaluateV2Test(
         self, _dnn_regressor_fn, fc_impl=feature_column_v2)
 
 
-@test_util.run_v1_only("Tests v1 only symbols")
+@test_util.run_v1_only('Tests v1 only symbols')
 class DNNOnlyRegressorPredictTest(
     dnn_testing_utils_v1.BaseDNNRegressorPredictTest, tf.test.TestCase):
 
@@ -716,7 +709,7 @@ class DNNOnlyRegressorPredictTest(
         self, _dnn_regressor_fn, fc_impl=feature_column)
 
 
-@test_util.run_v1_only("Tests v1 only symbols")
+@test_util.run_v1_only('Tests v1 only symbols')
 class DNNOnlyRegressorPredictV2Test(
     dnn_testing_utils_v1.BaseDNNRegressorPredictTest, tf.test.TestCase):
 
@@ -726,9 +719,9 @@ class DNNOnlyRegressorPredictV2Test(
         self, _dnn_regressor_fn, fc_impl=feature_column_v2)
 
 
-@test_util.run_v1_only("Tests v1 only symbols")
-class DNNOnlyRegressorTrainTest(
-    dnn_testing_utils_v1.BaseDNNRegressorTrainTest, tf.test.TestCase):
+@test_util.run_v1_only('Tests v1 only symbols')
+class DNNOnlyRegressorTrainTest(dnn_testing_utils_v1.BaseDNNRegressorTrainTest,
+                                tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
     tf.test.TestCase.__init__(self, methodName)
@@ -736,7 +729,7 @@ class DNNOnlyRegressorTrainTest(
         self, _dnn_regressor_fn, fc_impl=feature_column)
 
 
-@test_util.run_v1_only("Tests v1 only symbols")
+@test_util.run_v1_only('Tests v1 only symbols')
 class DNNOnlyRegressorTrainV2Test(
     dnn_testing_utils_v1.BaseDNNRegressorTrainTest, tf.test.TestCase):
 
@@ -746,7 +739,7 @@ class DNNOnlyRegressorTrainV2Test(
         self, _dnn_regressor_fn, fc_impl=feature_column_v2)
 
 
-@test_util.run_v1_only("Tests v1 only symbols")
+@test_util.run_v1_only('Tests v1 only symbols')
 @parameterized.parameters((feature_column,), (feature_column_v2,))
 class DNNLinearCombinedClassifierIntegrationTest(tf.test.TestCase):
 
@@ -794,7 +787,8 @@ class DNNLinearCombinedClassifierIntegrationTest(tf.test.TestCase):
     self.assertAllEqual((batch_size, n_classes), predicted_proba.shape)
 
     # EXPORT
-    feature_spec = tf.compat.v1.feature_column.make_parse_example_spec(feature_columns)
+    feature_spec = tf.compat.v1.feature_column.make_parse_example_spec(
+        feature_columns)
     serving_input_receiver_fn = export.build_parsing_serving_input_receiver_fn(
         feature_spec)
     export_dir = est.export_saved_model(tempfile.mkdtemp(),
@@ -818,14 +812,9 @@ class DNNLinearCombinedClassifierIntegrationTest(tf.test.TestCase):
         num_epochs=None,
         shuffle=True)
     eval_input_fn = numpy_io.numpy_input_fn(
-        x={'x': x_data},
-        y=y_data,
-        batch_size=batch_size,
-        shuffle=False)
+        x={'x': x_data}, y=y_data, batch_size=batch_size, shuffle=False)
     predict_input_fn = numpy_io.numpy_input_fn(
-        x={'x': x_data},
-        batch_size=batch_size,
-        shuffle=False)
+        x={'x': x_data}, batch_size=batch_size, shuffle=False)
 
     self._test_complete_flow(
         train_input_fn=train_input_fn,
@@ -847,20 +836,11 @@ class DNNLinearCombinedClassifierIntegrationTest(tf.test.TestCase):
     x = pd.DataFrame({'x': data})
     y = pd.Series(self._as_label(data))
     train_input_fn = pandas_io.pandas_input_fn(
-        x=x,
-        y=y,
-        batch_size=batch_size,
-        num_epochs=None,
-        shuffle=True)
+        x=x, y=y, batch_size=batch_size, num_epochs=None, shuffle=True)
     eval_input_fn = pandas_io.pandas_input_fn(
-        x=x,
-        y=y,
-        batch_size=batch_size,
-        shuffle=False)
+        x=x, y=y, batch_size=batch_size, shuffle=False)
     predict_input_fn = pandas_io.pandas_input_fn(
-        x=x,
-        batch_size=batch_size,
-        shuffle=False)
+        x=x, batch_size=batch_size, shuffle=False)
 
     self._test_complete_flow(
         train_input_fn=train_input_fn,
@@ -876,32 +856,37 @@ class DNNLinearCombinedClassifierIntegrationTest(tf.test.TestCase):
     input_dimension = 2
     n_classes = 3
     batch_size = 10
-    data = np.linspace(0., n_classes-1., batch_size * input_dimension,
-                       dtype=np.float32)
+    data = np.linspace(
+        0., n_classes - 1., batch_size * input_dimension, dtype=np.float32)
     data = data.reshape(batch_size, input_dimension)
 
     serialized_examples = []
     for datum in data:
-      example = example_pb2.Example(features=feature_pb2.Features(
-          feature={
-              'x':
-                  feature_pb2.Feature(float_list=feature_pb2.FloatList(
-                      value=datum)),
-              'y':
-                  feature_pb2.Feature(int64_list=feature_pb2.Int64List(
-                      value=self._as_label(datum[:1]))),
-          }))
+      example = example_pb2.Example(
+          features=feature_pb2.Features(
+              feature={
+                  'x':
+                      feature_pb2.Feature(
+                          float_list=feature_pb2.FloatList(value=datum)),
+                  'y':
+                      feature_pb2.Feature(
+                          int64_list=feature_pb2.Int64List(
+                              value=self._as_label(datum[:1]))),
+              }))
       serialized_examples.append(example.SerializeToString())
 
     feature_spec = {
         'x': tf.io.FixedLenFeature([input_dimension], tf.dtypes.float32),
         'y': tf.io.FixedLenFeature([1], tf.dtypes.int64),
     }
+
     def _train_input_fn():
-      feature_map = tf.compat.v1.io.parse_example(serialized_examples, feature_spec)
+      feature_map = tf.compat.v1.io.parse_example(serialized_examples,
+                                                  feature_spec)
       features = linear_testing_utils_v1.queue_parsed_features(feature_map)
       labels = features.pop('y')
       return features, labels
+
     def _eval_input_fn():
       feature_map = tf.compat.v1.io.parse_example(
           tf.compat.v1.train.limit_epochs(serialized_examples, num_epochs=1),
@@ -909,6 +894,7 @@ class DNNLinearCombinedClassifierIntegrationTest(tf.test.TestCase):
       features = linear_testing_utils_v1.queue_parsed_features(feature_map)
       labels = features.pop('y')
       return features, labels
+
     def _predict_input_fn():
       feature_map = tf.compat.v1.io.parse_example(
           tf.compat.v1.train.limit_epochs(serialized_examples, num_epochs=1),
@@ -927,7 +913,7 @@ class DNNLinearCombinedClassifierIntegrationTest(tf.test.TestCase):
         fc_impl=fc_impl)
 
 
-@test_util.run_v1_only("Tests v1 only symbols")
+@test_util.run_v1_only('Tests v1 only symbols')
 @parameterized.parameters((feature_column,), (feature_column_v2,))
 class DNNLinearCombinedTests(tf.test.TestCase):
 
@@ -980,12 +966,10 @@ class DNNLinearCombinedTests(tf.test.TestCase):
     est.train(input_fn, steps=1)
     # verifies train_op fires linear minimize op
     self.assertEqual(100.,
-                     tf.train.load_variable(
-                         self._model_dir, 'linear_called'))
+                     tf.train.load_variable(self._model_dir, 'linear_called'))
     # verifies train_op fires dnn minimize op
-    self.assertEqual(100.,
-                     tf.train.load_variable(
-                         self._model_dir, 'dnn_called'))
+    self.assertEqual(100., tf.train.load_variable(self._model_dir,
+                                                  'dnn_called'))
 
   def test_dnn_and_linear_logits_are_added(self, fc_impl):
     with tf.Graph().as_default():
@@ -1009,14 +993,12 @@ class DNNLinearCombinedTests(tf.test.TestCase):
     # linear logits = 10*1 + 2 = 12
     # dnn logits = (10*3 + 4)*5 + 6 = 176
     # logits = dnn + linear = 176 + 12 = 188
-    self.assertAllClose(
-        {
-            prediction_keys.PredictionKeys.PREDICTIONS: [188.],
-        },
-        next(est.predict(input_fn=input_fn)))
+    self.assertAllClose({
+        prediction_keys.PredictionKeys.PREDICTIONS: [188.],
+    }, next(est.predict(input_fn=input_fn)))
 
 
-@test_util.run_v1_only("Tests v1 only symbols")
+@test_util.run_v1_only('Tests v1 only symbols')
 @parameterized.parameters((feature_column,), (feature_column_v2,))
 class DNNLinearCombinedWarmStartingTest(tf.test.TestCase):
 
