@@ -17,21 +17,9 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
-
 import re
-from tensorflow.python.framework import dtypes
+import tensorflow as tf
 from tensorflow.python.framework import ops
-from tensorflow.python.framework import sparse_tensor
-from tensorflow.python.ops import array_ops
-from tensorflow.python.ops import control_flow_ops
-from tensorflow.python.ops import math_ops
-from tensorflow.python.ops import metrics_impl
-from tensorflow.python.ops import state_ops
-from tensorflow.python.ops import variable_scope
-from tensorflow.python.summary import summary
-from tensorflow.python.training import training_util
-from tensorflow.python.util import nest
 from tensorflow_estimator.python.estimator import estimator_lib
 from tensorflow_estimator.python.estimator.canned import head as head_lib
 from tensorflow_estimator.python.estimator.canned import metric_keys
@@ -43,10 +31,13 @@ class _NoStatePredictOutput(export_lib.PredictOutput):
 
   def as_signature_def(self, receiver_tensors):
     no_state_receiver_tensors = {
-        key: value for key, value in receiver_tensors.items()
-        if not key.startswith(feature_keys.State.STATE_PREFIX)}
-    return super(_NoStatePredictOutput, self).as_signature_def(
-        receiver_tensors=no_state_receiver_tensors)
+        key: value
+        for key, value in receiver_tensors.items()
+        if not key.startswith(feature_keys.State.STATE_PREFIX)
+    }
+    return super(
+        _NoStatePredictOutput,
+        self).as_signature_def(receiver_tensors=no_state_receiver_tensors)
 
 
 class TimeSeriesRegressionHead(head_lib._Head):  # pylint:disable=protected-access
@@ -81,8 +72,7 @@ class TimeSeriesRegressionHead(head_lib._Head):  # pylint:disable=protected-acce
   # once `_Head.create_loss` becomes extendable
   def create_loss(self, features, mode, logits=None, labels=None):
     """See `_Head`."""
-    model_outputs = self.state_manager.define_loss(
-        self.model, features, mode)
+    model_outputs = self.state_manager.define_loss(self.model, features, mode)
     tf.compat.v1.summary.scalar(
         head_lib._summary_key(self._name, metric_keys.MetricKeys.LOSS),
         model_outputs.loss)
@@ -103,12 +93,9 @@ class TimeSeriesRegressionHead(head_lib._Head):  # pylint:disable=protected-acce
       model_outputs = self.create_loss(features, mode)
 
     train_op = self.optimizer.minimize(
-        model_outputs.loss,
-        global_step=tf.compat.v1.train.get_global_step())
+        model_outputs.loss, global_step=tf.compat.v1.train.get_global_step())
     return estimator_lib.EstimatorSpec(
-        loss=model_outputs.loss,
-        mode=mode,
-        train_op=train_op)
+        loss=model_outputs.loss, mode=mode, train_op=train_op)
 
   def _evaluate_ops(self, features):
     """Add ops for evaluation (aka filtering) to the graph."""
@@ -148,12 +135,14 @@ class TimeSeriesRegressionHead(head_lib._Head):  # pylint:disable=protected-acce
     with tf.compat.v1.variable_scope("model", use_resource=True):
       prediction_outputs = self.model.predict(features=features)
     with tf.compat.v1.variable_scope("model", reuse=True):
-      filtering_outputs = self.create_loss(
-          features, estimator_lib.ModeKeys.EVAL)
+      filtering_outputs = self.create_loss(features,
+                                           estimator_lib.ModeKeys.EVAL)
     with tf.compat.v1.variable_scope("model", reuse=True):
       no_state_features = {
-          k: v for k, v in features.items()
-          if not k.startswith(feature_keys.State.STATE_PREFIX)}
+          k: v
+          for k, v in features.items()
+          if not k.startswith(feature_keys.State.STATE_PREFIX)
+      }
       # Ignore any state management when cold-starting. The model's default
       # start state is replicated across the batch.
       cold_filtering_outputs = self.model.define_loss(
@@ -233,7 +222,7 @@ class TimeSeriesRegressionHead(head_lib._Head):  # pylint:disable=protected-acce
   def create_estimator_spec(self, features, mode, labels=None):
     """Performs basic error checking and returns an EstimatorSpec."""
     with ops.name_scope(self._name, "head"):
-        # for better error messages.
+      # for better error messages.
       if labels is not None and not (isinstance(labels, dict) and labels == {}):  # pylint: disable=g-explicit-bool-comparison
         raise ValueError(
             "The model received a `labels`, which is not supported. "
@@ -356,8 +345,7 @@ class OneShotPredictionHead(TimeSeriesRegressionHead):
       prediction_features[feature_keys.State.STATE_TUPLE] = (
           cold_filtering_outputs.end_state)
     with tf.compat.v1.variable_scope("model", reuse=True):
-      prediction_outputs = self.model.predict(
-          features=prediction_features)
+      prediction_outputs = self.model.predict(features=prediction_features)
     return estimator_lib.EstimatorSpec(
         mode=estimator_lib.ModeKeys.PREDICT,
         export_outputs={
@@ -445,6 +433,7 @@ def _identity_metric_single(name, input_tensor):
   Args:
     name: A name for the metric.
     input_tensor: Any Tensor.
+
   Returns:
     A tuple of (value, update_op).
   """

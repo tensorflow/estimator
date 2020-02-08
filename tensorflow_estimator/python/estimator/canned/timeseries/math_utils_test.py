@@ -19,15 +19,6 @@ from __future__ import division
 from __future__ import print_function
 
 import tensorflow as tf
-
-from tensorflow.python.framework import dtypes
-from tensorflow.python.framework import ops
-from tensorflow.python.ops import array_ops
-from tensorflow.python.ops import math_ops
-from tensorflow.python.ops import variables
-from tensorflow.python.platform import test
-from tensorflow.python.training import coordinator as coordinator_lib
-from tensorflow.python.training import queue_runner_impl
 from tensorflow_estimator.python.estimator.canned.timeseries import math_utils
 from tensorflow_estimator.python.estimator.canned.timeseries.feature_keys import TrainEvalFeatures
 
@@ -46,8 +37,8 @@ class InputStatisticsTests(tf.test.TestCase):
       data_length_range = tf.range(data_length, dtype=dtype)
       num_features_range = tf.range(num_features, dtype=dtype)
       times = 2 * data_length_range[None, :] - 3
-      values = (
-          data_length_range[:, None] + num_features_range[None, :])[None, ...]
+      values = (data_length_range[:, None] + num_features_range[None, :])[None,
+                                                                          ...]
       features = {
           TrainEvalFeatures.TIMES: times,
           TrainEvalFeatures.VALUES: values,
@@ -56,7 +47,8 @@ class InputStatisticsTests(tf.test.TestCase):
       with self.session(graph=graph) as session:
         tf.compat.v1.initializers.global_variables().run()
         coordinator = tf.train.Coordinator()
-        tf.compat.v1.train.queue_runner.start_queue_runners(session, coord=coordinator)
+        tf.compat.v1.train.queue_runner.start_queue_runners(
+            session, coord=coordinator)
         for _ in range(warmup_iterations):
           # A control dependency should ensure that, for queue-based statistics,
           # a use of any statistic is preceded by an update of all adaptive

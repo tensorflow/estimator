@@ -18,21 +18,9 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
-
 import collections
-
-from tensorflow.python.framework import dtypes
-from tensorflow.python.framework import ops
-from tensorflow.python.ops import array_ops
-from tensorflow.python.ops import control_flow_ops
+import tensorflow as tf
 from tensorflow.python.ops import gen_math_ops
-from tensorflow.python.ops import init_ops
-from tensorflow.python.ops import math_ops
-from tensorflow.python.ops import nn
-from tensorflow.python.ops import state_ops
-from tensorflow.python.ops import variable_scope
-from tensorflow.python.util import nest
 from tensorflow_estimator.python.estimator.canned.timeseries.feature_keys import TrainEvalFeatures
 
 
@@ -46,6 +34,7 @@ def replicate_state(start_state, batch_size):
   Args:
     start_state: Model-defined state to replicate.
     batch_size: Batch dimension for data.
+
   Returns:
     Replicated versions of the state.
   """
@@ -53,55 +42,48 @@ def replicate_state(start_state, batch_size):
   replicated_state = [
       tf.tile(
           tf.compat.v1.expand_dims(state_nonbatch, 0),
-          tf.concat([[batch_size], tf.ones(
-              [tf.rank(state_nonbatch)], dtype=tf.dtypes.int32)], 0))
-      for state_nonbatch in flattened_state
+          tf.concat([[batch_size],
+                     tf.ones([tf.rank(state_nonbatch)], dtype=tf.dtypes.int32)],
+                    0)) for state_nonbatch in flattened_state
   ]
   return tf.nest.pack_sequence_as(start_state, replicated_state)
 
 
 Moments = collections.namedtuple("Moments", ["mean", "variance"])
 
-
 # Currently all of these statistics are computed incrementally (i.e. are updated
 # every time a new mini-batch of training data is presented) when this object is
 # created in InputStatisticsFromMiniBatch.
 InputStatistics = collections.namedtuple(
     "InputStatistics",
-    ["series_start_moments",  # The mean and variance of each feature in a chunk
-                              # (with a size configured in the statistics
-                              # object) at the start of the series. A tuple of
-                              # (mean, variance), each with shape [number of
-                              # features], floating point. One use is in state
-                              # space models, to keep priors calibrated even as
-                              # earlier parts of the series are presented. If
-                              # this object was created by
-                              # InputStatisticsFromMiniBatch, these moments are
-                              # computed based on the earliest chunk of data
-                              # presented so far. However, there is a race
-                              # condition in the update, so these may reflect
-                              # statistics later in the series, but should
-                              # eventually reflect statistics in a chunk at the
-                              # series start.
-     "overall_feature_moments",  # The mean and variance of each feature over
-                                 # the entire series. A tuple of (mean,
-                                 # variance), each with shape [number of
-                                 # features]. If this object was created by
-                                 # InputStatisticsFromMiniBatch, these moments
-                                 # are estimates based on the data seen so far.
-     "start_time",  # The first (lowest) time in the series, a scalar
-                    # integer. If this object was created by
-                    # InputStatisticsFromMiniBatch, this is the lowest time seen
-                    # so far rather than the lowest time that will ever be seen
-                    # (guaranteed to be at least as low as the lowest time
-                    # presented in the current minibatch).
-     "total_observation_count",  # Count of data points, a scalar integer. If
-                                 # this object was created by
-                                 # InputStatisticsFromMiniBatch, this is an
-                                 # estimate of the total number of observations
-                                 # in the whole dataset computed based on the
-                                 # density of the series and the minimum and
-                                 # maximum times seen.
+    [
+        # The mean and variance of each feature in a chunk (with a size
+        # configured in the statistics object) at the start of the series. A
+        # tuple of (mean, variance), each with shape [number of features],
+        # floating point. One use is in state space models, to keep priors
+        # calibrated even as earlier parts of the series are presented. If this
+        # object was created by InputStatisticsFromMiniBatch, these moments are
+        # computed based on the earliest chunk of data presented so far.
+        # However, there is a race condition in the update, so these may reflect
+        # statistics later in the series, but should eventually reflect
+        # statistics in a chunk at the series start.
+        "series_start_moments",
+        # The mean and variance of each feature over the entire series. A tuple
+        # of (mean, variance), each with shape [number of features]. If this
+        # object was created by InputStatisticsFromMiniBatch, these moments are
+        # estimates based on the data seen so far.
+        "overall_feature_moments",
+        # The first (lowest) time in the series, a scalar integer. If this
+        # object was created by InputStatisticsFromMiniBatch, this is the lowest
+        # time seen so far rather than the lowest time that will ever be seen
+        # (guaranteed to be at least as low as the lowest time presented in the
+        # current minibatch).
+        "start_time",
+        # Count of data points, a scalar integer. If this object was created by
+        # InputStatisticsFromMiniBatch, this is an estimate of the total number
+        # of observations in the whole dataset computed based on the density of
+        # the series and the minimum and maximum times seen.
+        "total_observation_count",
     ])
 
 
@@ -117,7 +99,7 @@ class InputStatisticsFromMiniBatch(object):
       num_features: Number of features for the time series
       dtype: The floating point data type to use.
       starting_variance_window_size: The number of datapoints to use when
-          computing the mean and variance at the start of the series.
+        computing the mean and variance at the start of the series.
     """
     self._starting_variance_window_size = starting_variance_window_size
     self._num_features = num_features
@@ -130,15 +112,16 @@ class InputStatisticsFromMiniBatch(object):
 
     Args:
       features: A dictionary, the output of a `TimeSeriesInputFn` (with keys
-          TrainEvalFeatures.TIMES and TrainEvalFeatures.VALUES).
+        TrainEvalFeatures.TIMES and TrainEvalFeatures.VALUES).
       update_statistics: Whether `features` should be used to update adaptive
-          statistics. Typically True for training and false for evaluation.
+        statistics. Typically True for training and false for evaluation.
+
     Returns:
       An InputStatistics object composed of Variables, which will be updated
       based on mini-batches of data if requested.
     """
-    if (TrainEvalFeatures.TIMES in features
-        and TrainEvalFeatures.VALUES in features):
+    if (TrainEvalFeatures.TIMES in features and
+        TrainEvalFeatures.VALUES in features):
       times = features[TrainEvalFeatures.TIMES]
       values = features[TrainEvalFeatures.VALUES]
     else:
@@ -165,9 +148,9 @@ class InputStatisticsFromMiniBatch(object):
       assign_op = self._update_statistics_from_mini_batch(
           statistics, auxiliary_variables, times, values)
       with tf.control_dependencies([assign_op]):
-        stat_variables = tf.nest.pack_sequence_as(statistics, [
-            tf.identity(tensor) for tensor in tf.nest.flatten(statistics)
-        ])
+        stat_variables = tf.nest.pack_sequence_as(
+            statistics,
+            [tf.identity(tensor) for tensor in tf.nest.flatten(statistics)])
         # Since start time updates have a race condition, ensure that the
         # reported start time is at least as low as the lowest time in this
         # mini-batch. The start time should converge on the correct value
@@ -180,23 +163,27 @@ class InputStatisticsFromMiniBatch(object):
     else:
       return statistics
 
-  class _AdaptiveInputAuxiliaryStatistics(collections.namedtuple(
-      "_AdaptiveInputAuxiliaryStatistics",
-      ["max_time_seen",  # The maximum time seen (best effort if updated from
-                         # multiple workers; see notes about race condition
-                         # below).
-       "chunk_count",  # The number of chunks seen.
-       "inter_observation_duration_sum",  # The sum across chunks of their "time
-                                          # density" (number of times per
-                                          # example).
-       "example_count",  # The number of examples seen (each example has a
-                         # single time associated with it and one or more
-                         # real-valued features).
-       "overall_feature_sum",  # The sum of values for each feature. Shape
-                               # [number of features].
-       "overall_feature_sum_of_squares",  # The sum of squared values for each
-                                          # feature. Shape [number of features]
-      ])):
+  class _AdaptiveInputAuxiliaryStatistics(
+      collections.namedtuple(
+          "_AdaptiveInputAuxiliaryStatistics",
+          [
+              # The maximum time seen (best effort if updated from multiple
+              # workers; see notes about race condition below).
+              "max_time_seen",
+              # The number of chunks seen.
+              "chunk_count",
+              # The sum across chunks of their "time density" (number of times
+              # per example).
+              "inter_observation_duration_sum",
+              # The number of examples seen (each example has a single time
+              # associated with it and one or more real-valued features).
+              "example_count",
+              # The sum of values for each feature. Shape [number of features].
+              "overall_feature_sum",
+              # The sum of squared values for each feature.
+              # Shape [number of features].
+              "overall_feature_sum_of_squares",
+          ])):
     """Extra statistics used to incrementally update InputStatistics."""
 
     def __new__(cls, num_features, dtype):
@@ -240,16 +227,17 @@ class InputStatisticsFromMiniBatch(object):
                   initializer=tf.compat.v1.initializers.zeros(),
                   trainable=False))
 
-  def _update_statistics_from_mini_batch(
-      self, statistics, auxiliary_variables, times, values):
+  def _update_statistics_from_mini_batch(self, statistics, auxiliary_variables,
+                                         times, values):
     """Given mini-batch input, update `statistics` and `auxiliary_variables`."""
     values = tf.cast(values, self._dtype)
     # The density (measured in times per observation) that we see in each part
     # of the mini-batch.
-    batch_inter_observation_duration = (tf.cast(
-        tf.math.reduce_max(times, axis=1) - tf.math.reduce_min(times, axis=1),
-        self._dtype) / tf.cast(
-            tf.compat.v1.shape(times)[1] - 1, self._dtype))
+    batch_inter_observation_duration = (
+        tf.cast(
+            tf.math.reduce_max(times, axis=1) -
+            tf.math.reduce_min(times, axis=1), self._dtype) /
+        tf.cast(tf.compat.v1.shape(times)[1] - 1, self._dtype))
     # Co-locate updates with their variables to minimize race conditions when
     # updating statistics.
     with tf.compat.v1.device(auxiliary_variables.max_time_seen.device):
@@ -258,15 +246,15 @@ class InputStatisticsFromMiniBatch(object):
       # last chunk is presented enough times.
       latest_time = tf.cast(tf.math.reduce_max(times), tf.dtypes.int64)
       max_time_seen = tf.math.maximum(auxiliary_variables.max_time_seen,
-                                           latest_time)
-      max_time_seen_assign = tf.compat.v1.assign(auxiliary_variables.max_time_seen,
-                                              max_time_seen)
+                                      latest_time)
+      max_time_seen_assign = tf.compat.v1.assign(
+          auxiliary_variables.max_time_seen, max_time_seen)
     with tf.compat.v1.device(auxiliary_variables.chunk_count.device):
-      chunk_count_assign = tf.compat.v1.assign_add(auxiliary_variables.chunk_count,
-                                                tf.compat.v1.shape(
-                                                    times,
-                                                    out_type=tf.dtypes.int64)[0])
-    with tf.compat.v1.device(auxiliary_variables.inter_observation_duration_sum.device):
+      chunk_count_assign = tf.compat.v1.assign_add(
+          auxiliary_variables.chunk_count,
+          tf.compat.v1.shape(times, out_type=tf.dtypes.int64)[0])
+    with tf.compat.v1.device(
+        auxiliary_variables.inter_observation_duration_sum.device):
       inter_observation_duration_assign = tf.compat.v1.assign_add(
           auxiliary_variables.inter_observation_duration_sum,
           tf.math.reduce_sum(batch_inter_observation_duration))
@@ -284,19 +272,21 @@ class InputStatisticsFromMiniBatch(object):
       overall_feature_sum_assign = tf.compat.v1.assign_add(
           auxiliary_variables.overall_feature_sum,
           tf.math.reduce_sum(values, axis=[0, 1]))
-    with tf.compat.v1.device(auxiliary_variables.overall_feature_sum_of_squares.device):
+    with tf.compat.v1.device(
+        auxiliary_variables.overall_feature_sum_of_squares.device):
       overall_feature_sum_of_squares_assign = tf.compat.v1.assign_add(
           auxiliary_variables.overall_feature_sum_of_squares,
           tf.math.reduce_sum(values**2, axis=[0, 1]))
-    per_chunk_aux_updates = tf.group(
-        max_time_seen_assign, chunk_count_assign,
-        inter_observation_duration_assign, example_count_assign,
-        overall_feature_sum_assign, overall_feature_sum_of_squares_assign)
+    per_chunk_aux_updates = tf.group(max_time_seen_assign, chunk_count_assign,
+                                     inter_observation_duration_assign,
+                                     example_count_assign,
+                                     overall_feature_sum_assign,
+                                     overall_feature_sum_of_squares_assign)
     with tf.control_dependencies([per_chunk_aux_updates]):
       example_count_float = tf.cast(auxiliary_variables.example_count,
-                                          self._dtype)
-      new_feature_mean = (auxiliary_variables.overall_feature_sum /
-                          example_count_float)
+                                    self._dtype)
+      new_feature_mean = (
+          auxiliary_variables.overall_feature_sum / example_count_float)
       overall_feature_mean_update = tf.compat.v1.assign(
           statistics.overall_feature_moments.mean, new_feature_mean)
       overall_feature_var_update = tf.compat.v1.assign(
@@ -306,7 +296,9 @@ class InputStatisticsFromMiniBatch(object):
           (auxiliary_variables.overall_feature_sum_of_squares /
            example_count_float - new_feature_mean**2))
       # TODO(b/35675805): Remove this cast
-      min_time_batch = tf.cast(tf.compat.v1.math.argmin(times[:, 0]), tf.dtypes.int32)
+      min_time_batch = tf.cast(
+          tf.compat.v1.math.argmin(times[:, 0]), tf.dtypes.int32)
+
       def series_start_updates():
         # If this is the lowest-time chunk that we have seen so far, update
         # series start moments to reflect that. Note that these statistics are
@@ -319,7 +311,8 @@ class InputStatisticsFromMiniBatch(object):
         return tf.group(
             tf.compat.v1.assign(statistics.series_start_moments.mean, mean),
             tf.compat.v1.assign(statistics.series_start_moments.variance,
-                             variance))
+                                variance))
+
       with tf.compat.v1.device(statistics.start_time.device):
         series_start_update = tf.compat.v1.cond(
             # Update moments whenever we even match the lowest time seen so far,
@@ -328,9 +321,8 @@ class InputStatisticsFromMiniBatch(object):
             # statistics.start_time will reflect the global lowest time, and
             # given that we will eventually update the series start moments to
             # their correct values).
-            tf.math.less_equal(
-                times[min_time_batch, 0],
-                tf.cast(statistics.start_time, times.dtype)),
+            tf.math.less_equal(times[min_time_batch, 0],
+                               tf.cast(statistics.start_time, times.dtype)),
             series_start_updates,
             tf.no_op)
         with tf.control_dependencies([series_start_update]):
@@ -343,23 +335,23 @@ class InputStatisticsFromMiniBatch(object):
           min_time = tf.cast(tf.math.reduce_min(times), tf.dtypes.int64)
           start_time = tf.math.minimum(statistics.start_time, min_time)
           start_time_update = tf.compat.v1.assign(statistics.start_time,
-                                               start_time)
+                                                  start_time)
       inter_observation_duration_estimate = (
-          auxiliary_variables.inter_observation_duration_sum / tf.cast(
-              auxiliary_variables.chunk_count, self._dtype))
+          auxiliary_variables.inter_observation_duration_sum /
+          tf.cast(auxiliary_variables.chunk_count, self._dtype))
       # Estimate the total number of observations as:
       #   (end time - start time + 1) * average intra-chunk time density
       total_observation_count_update = tf.compat.v1.assign(
           statistics.total_observation_count,
           tf.cast(
               gen_math_ops.round(
-                  tf.cast(max_time_seen_assign -
-                                start_time_update + 1, self._dtype) /
-                  inter_observation_duration_estimate), tf.dtypes.int64))
-      per_chunk_stat_updates = tf.group(
-          overall_feature_mean_update, overall_feature_var_update,
-          series_start_update, start_time_update,
-          total_observation_count_update)
+                  tf.cast(max_time_seen_assign - start_time_update + 1,
+                          self._dtype) / inter_observation_duration_estimate),
+              tf.dtypes.int64))
+      per_chunk_stat_updates = tf.group(overall_feature_mean_update,
+                                        overall_feature_var_update,
+                                        series_start_update, start_time_update,
+                                        total_observation_count_update)
     return per_chunk_stat_updates
 
   def _create_variable_statistics_object(self):

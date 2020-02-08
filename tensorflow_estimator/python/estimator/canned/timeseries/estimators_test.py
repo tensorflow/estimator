@@ -19,20 +19,10 @@ from __future__ import print_function
 import functools
 import tempfile
 
-import tensorflow as tf
 import six
-
-from tensorflow.python.client import session
-from tensorflow.python.data.ops import dataset_ops
-from tensorflow.python.feature_column import feature_column_lib as feature_column
-from tensorflow.python.framework import dtypes
-from tensorflow.python.framework import ops
+import tensorflow as tf
 from tensorflow.python.framework import test_util
-from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import math_ops
-from tensorflow.python.platform import test
-from tensorflow.python.saved_model import loader
-from tensorflow.python.saved_model import tag_constants
 from tensorflow_estimator.python.estimator import estimator_lib
 from tensorflow_estimator.python.estimator.canned.timeseries import ar_model
 from tensorflow_estimator.python.estimator.canned.timeseries import estimators
@@ -84,15 +74,12 @@ class TimeSeriesRegressorTest(tf.test.TestCase):
     """Tests restoring previously fit models."""
     temp_dir = self.get_temp_dir()
     model_dir = tempfile.mkdtemp(dir=temp_dir)
-    exogenous_feature_columns = (
-        tf.feature_column.numeric_column("exogenous"),
-    )
+    exogenous_feature_columns = (tf.feature_column.numeric_column("exogenous"),)
     first_estimator = estimator_fn(model_dir, exogenous_feature_columns)
     train_input_fn = _build_input_fn_with_seed(2)
     eval_input_fn = _build_input_fn_with_seed(3)
     first_estimator.train(input_fn=train_input_fn, steps=1)
-    first_evaluation = first_estimator.evaluate(
-        input_fn=eval_input_fn, steps=1)
+    first_evaluation = first_estimator.evaluate(input_fn=eval_input_fn, steps=1)
     first_loss_before_fit = first_evaluation["loss"]
     self.assertAllEqual(first_loss_before_fit, first_evaluation["average_loss"])
     self.assertAllEqual([], first_loss_before_fit.shape)
@@ -108,13 +95,15 @@ class TimeSeriesRegressorTest(tf.test.TestCase):
         "exogenous": tf.range(10, dtype=tf.dtypes.float32)[None, :, None]
     }
     input_receiver_fn = first_estimator.build_raw_serving_input_receiver_fn()
-    export_location = first_estimator.export_saved_model(temp_dir,
-                                                         input_receiver_fn)
+    export_location = first_estimator.export_saved_model(
+        temp_dir, input_receiver_fn)
     if not test_saved_model:
       return
     with tf.Graph().as_default():
       with tf.compat.v1.Session() as sess:
-        signatures = tf.compat.v1.saved_model.load(sess, [tf.saved_model.SERVING], export_location)
+        signatures = tf.compat.v1.saved_model.load(sess,
+                                                   [tf.saved_model.SERVING],
+                                                   export_location)
         # Test that prediction and filtering can continue from evaluation output
         _ = saved_model_utils.predict_continuation(
             continue_from=second_evaluation,
@@ -137,8 +126,7 @@ class TimeSeriesRegressorTest(tf.test.TestCase):
             continue_from=first_filtering,
             steps=1,
             exogenous_features={
-                "exogenous":
-                    tf.range(1, dtype=tf.dtypes.float32)[None, :, None]
+                "exogenous": tf.range(1, dtype=tf.dtypes.float32)[None, :, None]
             },
             signatures=signatures,
             session=sess)
@@ -158,11 +146,10 @@ class TimeSeriesRegressorTest(tf.test.TestCase):
 
         # Test cold starting
         six.assertCountEqual(
-            self,
-            [feature_keys.FilteringFeatures.TIMES,
-             feature_keys.FilteringFeatures.VALUES,
-             "exogenous"],
-            signatures.signature_def[
+            self, [
+                feature_keys.FilteringFeatures.TIMES,
+                feature_keys.FilteringFeatures.VALUES, "exogenous"
+            ], signatures.signature_def[
                 feature_keys.SavedModelLabels.COLD_START_FILTER].inputs.keys())
         batched_times = tf.tile(
             tf.range(30, dtype=tf.dtypes.int64)[None, :], (10, 1))
@@ -182,8 +169,7 @@ class TimeSeriesRegressorTest(tf.test.TestCase):
             times=predict_times,
             exogenous_features={
                 "exogenous":
-                    math_ops.tile(
-                        tf.range(15, dtype=tf.dtypes.float32), (10,))
+                    math_ops.tile(tf.range(15, dtype=tf.dtypes.float32), (10,))
                     [None, :, None]
             },
             signatures=signatures,
@@ -191,21 +177,24 @@ class TimeSeriesRegressorTest(tf.test.TestCase):
         self.assertAllEqual([10, 15, 1], predictions["mean"].shape)
 
   def disabled_test_time_series_regressor(self):
+
     def _estimator_fn(model_dir, exogenous_feature_columns):
       return estimators.TimeSeriesRegressor(
           model=ar_model.ARModel(
-              periodicities=10, input_window_size=10, output_window_size=6,
+              periodicities=10,
+              input_window_size=10,
+              output_window_size=6,
               num_features=1,
               exogenous_feature_columns=exogenous_feature_columns,
               prediction_model_factory=functools.partial(
-                  ar_model.LSTMPredictionModel,
-                  num_units=10)),
+                  ar_model.LSTMPredictionModel, num_units=10)),
           config=_SeedRunConfig(),
           model_dir=model_dir)
 
     self._fit_restore_fit_test_template(_estimator_fn, test_saved_model=True)
 
   def test_ar_lstm_regressor(self):
+
     def _estimator_fn(model_dir, exogenous_feature_columns):
       return estimators.LSTMAutoRegressor(
           periodicities=10,

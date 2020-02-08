@@ -18,12 +18,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
 import numpy
-from tensorflow.python.framework import dtypes
-from tensorflow.python.ops import init_ops
-from tensorflow.python.ops import nn_ops
-from tensorflow.python.ops import variable_scope
+import tensorflow as tf
 from tensorflow_estimator.python.estimator.canned.timeseries import feature_keys
 
 

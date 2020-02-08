@@ -20,8 +20,6 @@ from __future__ import print_function
 
 import tensorflow as tf
 
-from tensorflow.python.saved_model import signature_constants
-
 
 class State(object):
   """Key formats for accepting/returning state."""

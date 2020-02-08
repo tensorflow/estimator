@@ -21,18 +21,10 @@ from __future__ import print_function
 import abc
 import collections
 
-import tensorflow as tf
 import six
-from tensorflow.python.feature_column import feature_column_lib as feature_column
-from tensorflow.python.framework import dtypes
-from tensorflow.python.framework import ops
-from tensorflow.python.ops import array_ops
-from tensorflow.python.ops import math_ops
-from tensorflow.python.ops import parsing_ops
-
+import tensorflow as tf
 from tensorflow_estimator.python.estimator.canned.timeseries import math_utils
 from tensorflow_estimator.python.estimator.canned.timeseries.feature_keys import TrainEvalFeatures
-
 
 ModelOutputs = collections.namedtuple(  # pylint: disable=invalid-name
     typename="ModelOutputs",
@@ -61,10 +53,10 @@ class TimeSeriesModel(object):
     Args:
       num_features: Number of features for the time series
       exogenous_feature_columns: A list of `tf.feature_column`s (for example
-           `tf.feature_column.embedding_column`) corresponding to exogenous
-           features which provide extra information to the model but are not
-           part of the series to be predicted. Passed to
-           `tf.feature_column.input_layer`.
+        `tf.feature_column.embedding_column`) corresponding to exogenous
+        features which provide extra information to the model but are not part
+        of the series to be predicted. Passed to
+        `tf.feature_column.input_layer`.
       dtype: The floating point datatype to use.
     """
     if exogenous_feature_columns:
@@ -86,8 +78,11 @@ class TimeSeriesModel(object):
   # TODO(allenl): Move more of the generic machinery for generating and
   # predicting into TimeSeriesModel, and possibly share it between generate()
   # and predict()
-  def generate(self, number_of_series, series_length,
-               model_parameters=None, seed=None):
+  def generate(self,
+               number_of_series,
+               series_length,
+               model_parameters=None,
+               seed=None):
     """Sample synthetic data from model parameters, with optional substitutions.
 
     Returns `number_of_series` possible sequences of future values, sampled from
@@ -101,9 +96,10 @@ class TimeSeriesModel(object):
       number_of_series: Number of time series to create.
       series_length: Length of each time series.
       model_parameters: A dictionary mapping model parameters to values, which
-          replace trained parameters when generating data.
+        replace trained parameters when generating data.
       seed: If specified, return deterministic time series according to this
-          value.
+        value.
+
     Returns:
       A dictionary with keys TrainEvalFeatures.TIMES (mapping to an array with
       shape [number_of_series, series_length]) and TrainEvalFeatures.VALUES
@@ -117,8 +113,8 @@ class TimeSeriesModel(object):
 
     Args:
       input_statistics: A math_utils.InputStatistics object containing input
-          statistics. If None, data-independent defaults are used, which may
-          result in longer or unstable training.
+        statistics. If None, data-independent defaults are used, which may
+        result in longer or unstable training.
     """
     self._graph_initialized = True
     self._input_statistics = input_statistics
@@ -180,12 +176,13 @@ class TimeSeriesModel(object):
         `exogenous_feature_columns` argument to `__init__` may be included
         representing exogenous regressors):
         TrainEvalFeatures.TIMES: A [batch size x window size] integer Tensor
-            with times for each observation. If there is no artificial chunking,
-            the window size is simply the length of the time series.
+          with times for each observation. If there is no artificial chunking,
+          the window size is simply the length of the time series.
         TrainEvalFeatures.VALUES: A [batch size x window size x num features]
-            Tensor with values for each observation.
-      mode: The tf.estimator.ModeKeys mode to use (TRAIN, EVAL). For INFER,
-        see predict().
+          Tensor with values for each observation.
+      mode: The tf.estimator.ModeKeys mode to use (TRAIN, EVAL). For INFER, see
+        predict().
+
     Returns:
       A ModelOutputs object.
     """
@@ -213,11 +210,12 @@ class TimeSeriesModel(object):
 
     Args:
       features: A dictionary with times, values, and (optionally) exogenous
-          regressors. See `define_loss`.
+        regressors. See `define_loss`.
       mode: The tf.estimator.ModeKeys mode to use (TRAIN, EVAL, INFER).
       state: Model-dependent state, each with size [batch size x ...]. The
-          number and type will typically be fixed by the model (for example a
-          mean and variance).
+        number and type will typically be fixed by the model (for example a mean
+        and variance).
+
     Returns:
       A ModelOutputs object.
     """
@@ -234,14 +232,14 @@ class TimeSeriesModel(object):
       features: A dictionary with at minimum the following key/value pairs
         (others corresponding to the `exogenous_feature_columns` argument to
         `__init__` may be included representing exogenous regressors):
-        PredictionFeatures.TIMES: A [batch size x window size] Tensor with
-          times to make predictions for. Times must be increasing within each
-          part of the batch, and must be greater than the last time `state` was
-          updated.
+        PredictionFeatures.TIMES: A [batch size x window size] Tensor with times
+          to make predictions for. Times must be increasing within each part of
+          the batch, and must be greater than the last time `state` was updated.
         PredictionFeatures.STATE_TUPLE: Model-dependent state, each with size
           [batch size x ...]. The number and type will typically be fixed by the
           model (for example a mean and variance). Typically these will be the
           end state returned by get_batch_loss, predicting beyond that data.
+
     Returns:
       A dictionary with model-dependent predictions corresponding to the
       requested times. Keys indicate the type of prediction, and values have
@@ -263,7 +261,8 @@ class TimeSeriesModel(object):
           tf.compat.v1.feature_column.make_parse_example_spec(
               self._exogenous_feature_columns))
       placeholder_features = tf.compat.v1.io.parse_example(
-          serialized=tf.compat.v1.placeholder(shape=[None], dtype=tf.dtypes.string),
+          serialized=tf.compat.v1.placeholder(
+              shape=[None], dtype=tf.dtypes.string),
           features=parsed_features)
       embedded = tf.compat.v1.feature_column.input_layer(
           features=placeholder_features,
@@ -275,10 +274,11 @@ class TimeSeriesModel(object):
 
     Args:
       times: A [batch size, window size] vector of times for this batch,
-          primarily used to check the shape information of exogenous features.
+        primarily used to check the shape information of exogenous features.
       features: A dictionary of exogenous features corresponding to the columns
-          in self._exogenous_feature_columns. Each value should have a shape
-          prefixed by [batch size, window size].
+        in self._exogenous_feature_columns. Each value should have a shape
+        prefixed by [batch size, window size].
+
     Returns:
       A Tensor with shape [batch size, window size, exogenous dimension], where
       the size of the exogenous dimension depends on the exogenous feature
@@ -299,9 +299,9 @@ class TimeSeriesModel(object):
         tensor_shape_dynamic = tf.compat.v1.shape(tensor)
         tensor = tf.reshape(
             tensor,
-            tf.concat([[tensor_shape_dynamic[0]
-                               * tensor_shape_dynamic[1]],
-                              tensor_shape_dynamic[2:]], axis=0))
+            tf.concat([[tensor_shape_dynamic[0] * tensor_shape_dynamic[1]],
+                       tensor_shape_dynamic[2:]],
+                      axis=0))
         # Avoid shape warnings when embedding "scalar" exogenous features (those
         # with only batch and window dimensions); input_from_feature_columns
         # expects input ranks to match the embedded rank.
@@ -316,20 +316,18 @@ class TimeSeriesModel(object):
               trainable=True))
       exogenous_regressors = tf.reshape(
           embedded_exogenous_features_single_batch_dimension,
-          tf.concat(
-              [
-                  tf.compat.v1.shape(times), tf.compat.v1.shape(
-                      embedded_exogenous_features_single_batch_dimension)[1:]
-              ],
-              axis=0))
+          tf.concat([
+              tf.compat.v1.shape(times),
+              tf.compat.v1.shape(
+                  embedded_exogenous_features_single_batch_dimension)[1:]
+          ],
+                    axis=0))
       exogenous_regressors.set_shape(times.get_shape().concatenate(
           embedded_exogenous_features_single_batch_dimension.get_shape()[1:]))
-      exogenous_regressors = tf.cast(
-          exogenous_regressors, dtype=self.dtype)
+      exogenous_regressors = tf.cast(exogenous_regressors, dtype=self.dtype)
     else:
       # Not having any exogenous features is a special case so that models can
       # avoid superfluous updates, which may not be free of side effects due to
       # bias terms in transformations.
       exogenous_regressors = None
     return exogenous_regressors
-

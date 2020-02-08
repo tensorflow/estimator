@@ -18,18 +18,9 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
-
 import math
-
-from tensorflow.python.data.ops import dataset_ops
-from tensorflow.python.framework import dtypes
+import tensorflow as tf
 from tensorflow.python.framework import test_util
-from tensorflow.python.ops import array_ops
-from tensorflow.python.ops import math_ops
-from tensorflow.python.ops import random_ops
-from tensorflow.python.platform import test
-from tensorflow.python.platform import tf_logging as logging
 from tensorflow_estimator.python.estimator import estimator_lib
 from tensorflow_estimator.python.estimator.canned.timeseries import ar_model
 from tensorflow_estimator.python.estimator.canned.timeseries.estimators import LSTMAutoRegressor
@@ -56,22 +47,21 @@ class InputFnBuilder(object):
                                       split):
     time = 1 + 3 * tf.range(num_samples, dtype=tf.dtypes.int64)
     time_offset = 2 * math.pi * tf.cast(time % periods[0],
-                                              tf.dtypes.float32) / periods[0]
+                                        tf.dtypes.float32) / periods[0]
     time_offset = time_offset[:, None]
     if len(periods) > 1:
-      time_offset2 = tf.cast(time % periods[1],
-                                   tf.dtypes.float32) / periods[1]
+      time_offset2 = tf.cast(time % periods[1], tf.dtypes.float32) / periods[1]
       time_offset2 = time_offset2[:, None]
       data1 = tf.math.sin(time_offset / 2.0)**2 * (1 + time_offset2)
     else:
       data1 = tf.math.sin(2 * time_offset) + tf.math.cos(3 * time_offset)
-    data1_noise = noise_stddev / 4. * tf.random.normal([num_samples],
-                                                               1)[:, None]
+    data1_noise = \
+      noise_stddev / 4. * tf.random.normal([num_samples], 1)[:, None]
     data1 = tf.math.add(data1, data1_noise)
 
     data2 = tf.math.sin(3 * time_offset) + tf.math.cos(5 * time_offset)
-    data2_noise = noise_stddev / 3. * tf.random.normal([num_samples],
-                                                               1)[:, None]
+    data2_noise = \
+      noise_stddev / 3. * tf.random.normal([num_samples], 1)[:, None]
     data2 = tf.math.add(data2, data2_noise)
     data = tf.concat((4 * data1, 3 * data2), 1)
     self.train_data, self.test_data = data[0:split], data[split:]
@@ -110,9 +100,9 @@ class InputFnBuilder(object):
               predict_times[None, :],
           TrainEvalFeatures.VALUES:
               predict_true_values[None, :],
-          PredictionFeatures.STATE_TUPLE: (state_times[None, :],
-                                           state_values[None, :],
-                                           state_exogenous[None, :])
+          PredictionFeatures.STATE_TUPLE:
+              (state_times[None, :], state_values[None, :],
+               state_exogenous[None, :])
       }, {})
 
     self.initialize_data()
@@ -121,9 +111,9 @@ class InputFnBuilder(object):
     predict_true_values = tf.concat(
         [self.train_data[self.window_size:], self.test_data], 0)[None, :]
     state_times = tf.cast(self.train_time[:self.window_size][None, :],
-                                tf.dtypes.float32)
+                          tf.dtypes.float32)
     state_values = tf.cast(self.train_data[:self.window_size, :][None, :],
-                                 tf.dtypes.float32)
+                           tf.dtypes.float32)
     state_exogenous = state_times[:, :, None][:, :, :0]
 
     dataset = tf.compat.v1.data.Dataset.from_tensor_slices(
@@ -201,18 +191,16 @@ class ARModelTrainingTest(tf.test.TestCase):
       # Note that we may get tighter bounds with more training steps.
       true_values = input_fn_builder.true_values()
       errors = tf.math.abs(predicted_mean -
-                            true_values) > 4 * standard_deviations
-      fraction_errors = tf.math.reduce_mean(
-          tf.cast(errors, tf.dtypes.float32))
-      tf.compat.v1.logging.warn("Fraction errors: %f", self.evaluate(fraction_errors))
+                           true_values) > 4 * standard_deviations
+      fraction_errors = tf.math.reduce_mean(tf.cast(errors, tf.dtypes.float32))
+      tf.compat.v1.logging.warn("Fraction errors: %f",
+                                self.evaluate(fraction_errors))
 
   def test_autoregression_squared(self):
-    self.train_helper(input_window_size=15,
-                      loss=ar_model.ARModel.SQUARED_LOSS)
+    self.train_helper(input_window_size=15, loss=ar_model.ARModel.SQUARED_LOSS)
 
   def test_autoregression_short_input_window(self):
-    self.train_helper(input_window_size=8,
-                      loss=ar_model.ARModel.SQUARED_LOSS)
+    self.train_helper(input_window_size=8, loss=ar_model.ARModel.SQUARED_LOSS)
 
   def test_autoregression_normal(self):
     self.train_helper(

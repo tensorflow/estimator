@@ -21,30 +21,13 @@ from __future__ import print_function
 import functools
 import os
 
-import tensorflow as tf
 from absl.testing import parameterized
 import numpy
 import six
-
+import tensorflow as tf
 from tensorflow.core.example import example_pb2
-
-from tensorflow.python.client import session as session_lib
-from tensorflow.python.feature_column import feature_column_lib as feature_column
-from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import test_util
-from tensorflow.python.ops import array_ops
-from tensorflow.python.ops import control_flow_ops
-from tensorflow.python.ops import math_ops
-from tensorflow.python.ops import metrics
-from tensorflow.python.ops import variables
-from tensorflow.python.platform import test
-from tensorflow.python.saved_model import loader
-from tensorflow.python.saved_model import tag_constants
-from tensorflow.python.training import adam
-from tensorflow.python.training import coordinator as coordinator_lib
-from tensorflow.python.training import queue_runner_impl
-from tensorflow.python.training import training as train
 from tensorflow_estimator.python.estimator import estimator_lib
 from tensorflow_estimator.python.estimator import extenders
 from tensorflow_estimator.python.estimator.canned.timeseries import ar_model
@@ -59,8 +42,10 @@ class HeadTest(tf.test.TestCase):
 
   def test_labels_provided_error(self):
     model_fn = _stub_model_fn()
-    for mode in [estimator_lib.ModeKeys.TRAIN, estimator_lib.ModeKeys.EVAL,
-                 estimator_lib.ModeKeys.PREDICT]:
+    for mode in [
+        estimator_lib.ModeKeys.TRAIN, estimator_lib.ModeKeys.EVAL,
+        estimator_lib.ModeKeys.PREDICT
+    ]:
       with self.assertRaisesRegexp(ValueError, "received a `labels`"):
         model_fn(features={}, labels={"a": "b"}, mode=mode)
 
@@ -116,22 +101,25 @@ class EvaluationMetricsTests(tf.test.TestCase):
       model_fn = ts_head_lib.TimeSeriesRegressionHead(
           model=_TickerModel(),
           state_manager=state_management.PassthroughStateManager(),
-          optimizer=tf.compat.v1.train.GradientDescentOptimizer(0.001)).create_estimator_spec
+          optimizer=tf.compat.v1.train.GradientDescentOptimizer(
+              0.001)).create_estimator_spec
       outputs = model_fn(
           features=features, labels=None, mode=estimator_lib.ModeKeys.EVAL)
       metric_update_ops = [
-          metric[1] for metric in outputs.eval_metric_ops.values()]
+          metric[1] for metric in outputs.eval_metric_ops.values()
+      ]
       loss_mean, loss_update = tf.compat.v1.metrics.mean(outputs.loss)
       metric_update_ops.append(loss_update)
       with self.cached_session() as sess:
         coordinator = tf.train.Coordinator()
-        tf.compat.v1.train.queue_runner.start_queue_runners(sess, coord=coordinator)
+        tf.compat.v1.train.queue_runner.start_queue_runners(
+            sess, coord=coordinator)
         tf.compat.v1.initializers.local_variables().run()
         sess.run(metric_update_ops)
         loss_evaled, metric_evaled, nested_metric_evaled = sess.run(
             (loss_mean, outputs.eval_metric_ops["ticker"][0],
-             outputs.eval_metric_ops[feature_keys.FilteringResults.STATE_TUPLE][
-                 0][0]))
+             outputs.eval_metric_ops[
+                 feature_keys.FilteringResults.STATE_TUPLE][0][0]))
         # The custom model_utils metrics for in-sample predictions should be in
         # sync with the Estimator's mean metric for model loss.
         self.assertAllClose(0., loss_evaled)
@@ -166,10 +154,8 @@ class EvaluationMetricsTests(tf.test.TestCase):
       target = features[feature_keys.TrainEvalFeatures.VALUES][:, -1, 0]
       return {
           "plain_boring_metric386":
-              (tf.math.reduce_mean(tf.math.abs(predict - target)),
-               tf.no_op()),
-          "fun_metric101": (tf.math.reduce_sum(predict + target),
-                            tf.no_op()),
+              (tf.math.reduce_mean(tf.math.abs(predict - target)), tf.no_op()),
+          "fun_metric101": (tf.math.reduce_sum(predict + target), tf.no_op()),
       }
 
     # Evaluation without training is enough for testing custom metrics.
@@ -200,8 +186,9 @@ class TrainEvalFeatureCheckingTests(tf.test.TestCase):
   def test_no_time_feature(self):
     model_fn = _stub_model_fn()
     for mode in [estimator_lib.ModeKeys.TRAIN, estimator_lib.ModeKeys.EVAL]:
-      with self.assertRaisesRegexp(ValueError, "Expected a '{}' feature".format(
-          feature_keys.TrainEvalFeatures.TIMES)):
+      with self.assertRaisesRegexp(
+          ValueError, "Expected a '{}' feature".format(
+              feature_keys.TrainEvalFeatures.TIMES)):
         model_fn(
             features={feature_keys.TrainEvalFeatures.VALUES: [[[1.]]]},
             labels=None,
@@ -210,8 +197,9 @@ class TrainEvalFeatureCheckingTests(tf.test.TestCase):
   def test_no_value_feature(self):
     model_fn = _stub_model_fn()
     for mode in [estimator_lib.ModeKeys.TRAIN, estimator_lib.ModeKeys.EVAL]:
-      with self.assertRaisesRegexp(ValueError, "Expected a '{}' feature".format(
-          feature_keys.TrainEvalFeatures.VALUES)):
+      with self.assertRaisesRegexp(
+          ValueError, "Expected a '{}' feature".format(
+              feature_keys.TrainEvalFeatures.VALUES)):
         model_fn(
             features={feature_keys.TrainEvalFeatures.TIMES: [[1]]},
             labels=None,
@@ -220,9 +208,9 @@ class TrainEvalFeatureCheckingTests(tf.test.TestCase):
   def test_bad_time_rank(self):
     model_fn = _stub_model_fn()
     for mode in [estimator_lib.ModeKeys.TRAIN, estimator_lib.ModeKeys.EVAL]:
-      with self.assertRaisesRegexp(ValueError,
-                                   "Expected shape.*for feature '{}'".format(
-                                       feature_keys.TrainEvalFeatures.TIMES)):
+      with self.assertRaisesRegexp(
+          ValueError, "Expected shape.*for feature '{}'".format(
+              feature_keys.TrainEvalFeatures.TIMES)):
         model_fn(
             features={
                 feature_keys.TrainEvalFeatures.TIMES: [[[1]]],
@@ -234,9 +222,9 @@ class TrainEvalFeatureCheckingTests(tf.test.TestCase):
   def test_bad_value_rank(self):
     model_fn = _stub_model_fn()
     for mode in [estimator_lib.ModeKeys.TRAIN, estimator_lib.ModeKeys.EVAL]:
-      with self.assertRaisesRegexp(ValueError,
-                                   "Expected shape.*for feature '{}'".format(
-                                       feature_keys.TrainEvalFeatures.VALUES)):
+      with self.assertRaisesRegexp(
+          ValueError, "Expected shape.*for feature '{}'".format(
+              feature_keys.TrainEvalFeatures.VALUES)):
         model_fn(
             features={
                 feature_keys.TrainEvalFeatures.TIMES: [[1]],
@@ -263,8 +251,7 @@ class TrainEvalFeatureCheckingTests(tf.test.TestCase):
     model_fn = _stub_model_fn()
     for mode in [estimator_lib.ModeKeys.TRAIN, estimator_lib.ModeKeys.EVAL]:
       with self.assertRaisesRegexp(
-          ValueError,
-          "Features must have shape.*for feature 'exogenous'"):
+          ValueError, "Features must have shape.*for feature 'exogenous'"):
         model_fn(
             features={
                 feature_keys.TrainEvalFeatures.TIMES: [[1]],
@@ -279,8 +266,9 @@ class PredictFeatureCheckingTests(tf.test.TestCase):
 
   def test_no_time_feature(self):
     model_fn = _stub_model_fn()
-    with self.assertRaisesRegexp(ValueError, "Expected a '{}' feature".format(
-        feature_keys.PredictionFeatures.TIMES)):
+    with self.assertRaisesRegexp(
+        ValueError, "Expected a '{}' feature".format(
+            feature_keys.PredictionFeatures.TIMES)):
       model_fn(
           features={
               feature_keys.PredictionFeatures.STATE_TUPLE: ([[[1.]]], 1.)
@@ -290,8 +278,9 @@ class PredictFeatureCheckingTests(tf.test.TestCase):
 
   def test_no_start_state_feature(self):
     model_fn = _stub_model_fn()
-    with self.assertRaisesRegexp(ValueError, "Expected a '{}' feature".format(
-        feature_keys.PredictionFeatures.STATE_TUPLE)):
+    with self.assertRaisesRegexp(
+        ValueError, "Expected a '{}' feature".format(
+            feature_keys.PredictionFeatures.STATE_TUPLE)):
       model_fn(
           features={feature_keys.PredictionFeatures.TIMES: [[1]]},
           labels=None,
@@ -299,9 +288,9 @@ class PredictFeatureCheckingTests(tf.test.TestCase):
 
   def test_bad_time_rank(self):
     model_fn = _stub_model_fn()
-    with self.assertRaisesRegexp(ValueError,
-                                 "Expected shape.*for feature '{}'".format(
-                                     feature_keys.PredictionFeatures.TIMES)):
+    with self.assertRaisesRegexp(
+        ValueError, "Expected shape.*for feature '{}'".format(
+            feature_keys.PredictionFeatures.TIMES)):
       model_fn(
           features={
               feature_keys.PredictionFeatures.TIMES: 1,
@@ -313,8 +302,7 @@ class PredictFeatureCheckingTests(tf.test.TestCase):
   def test_bad_exogenous_shape(self):
     model_fn = _stub_model_fn()
     with self.assertRaisesRegexp(
-        ValueError,
-        "Features must have shape.*for feature 'exogenous'"):
+        ValueError, "Features must have shape.*for feature 'exogenous'"):
       model_fn(
           features={
               feature_keys.PredictionFeatures.TIMES: [[1]],
@@ -332,14 +320,15 @@ class OneShotTests(parameterized.TestCase):
 
     def _new_temp_dir():
       return os.path.join(tf.compat.v1.test.get_temp_dir(), str(ops.uid()))
+
     model_dir = _new_temp_dir()
     categorical_column = tf.feature_column.categorical_column_with_hash_bucket(
         key="categorical_exogenous_feature", hash_bucket_size=16)
     exogenous_feature_columns = [
-        tf.feature_column.numeric_column(
-            "2d_exogenous_feature", shape=(2,)),
+        tf.feature_column.numeric_column("2d_exogenous_feature", shape=(2,)),
         tf.feature_column.embedding_column(
-            categorical_column=categorical_column, dimension=10)]
+            categorical_column=categorical_column, dimension=10)
+    ]
     estimator = ts_estimators.TimeSeriesRegressor(
         model=ar_model.ARModel(
             periodicities=10,
@@ -378,34 +367,40 @@ class OneShotTests(parameterized.TestCase):
     graph = tf.Graph()
     with graph.as_default():
       with tf.compat.v1.Session() as session:
-        signatures = tf.compat.v1.saved_model.load(
-            session, [tf.saved_model.SERVING], export_location)
+        signatures = tf.compat.v1.saved_model.load(session,
+                                                   [tf.saved_model.SERVING],
+                                                   export_location)
         self.assertEqual([feature_keys.SavedModelLabels.PREDICT],
                          list(signatures.signature_def.keys()))
         predict_signature = signatures.signature_def[
             feature_keys.SavedModelLabels.PREDICT]
-        six.assertCountEqual(
-            self,
-            [feature_keys.FilteringFeatures.TIMES,
-             feature_keys.FilteringFeatures.VALUES,
-             "2d_exogenous_feature",
-             "categorical_exogenous_feature"],
-            predict_signature.inputs.keys())
+        six.assertCountEqual(self, [
+            feature_keys.FilteringFeatures.TIMES,
+            feature_keys.FilteringFeatures.VALUES, "2d_exogenous_feature",
+            "categorical_exogenous_feature"
+        ], predict_signature.inputs.keys())
         features = {
-            feature_keys.TrainEvalFeatures.TIMES: numpy.tile(
-                numpy.arange(35, dtype=numpy.int64)[None, :], [2, 1]),
-            feature_keys.TrainEvalFeatures.VALUES: numpy.tile(numpy.arange(
-                20, dtype=numpy.float32)[None, :, None], [2, 1, 5]),
-            "2d_exogenous_feature": numpy.ones([2, 35, 2]),
-            "categorical_exogenous_feature": numpy.tile(numpy.array(
-                ["strkey"] * 35)[None, :, None], [2, 1, 1])
+            feature_keys.TrainEvalFeatures.TIMES:
+                numpy.tile(
+                    numpy.arange(35, dtype=numpy.int64)[None, :], [2, 1]),
+            feature_keys.TrainEvalFeatures.VALUES:
+                numpy.tile(
+                    numpy.arange(20, dtype=numpy.float32)[None, :, None],
+                    [2, 1, 5]),
+            "2d_exogenous_feature":
+                numpy.ones([2, 35, 2]),
+            "categorical_exogenous_feature":
+                numpy.tile(
+                    numpy.array(["strkey"] * 35)[None, :, None], [2, 1, 1])
         }
         feeds = {
             graph.as_graph_element(input_value.name): features[input_key]
-            for input_key, input_value in predict_signature.inputs.items()}
-        fetches = {output_key: graph.as_graph_element(output_value.name)
-                   for output_key, output_value
-                   in predict_signature.outputs.items()}
+            for input_key, input_value in predict_signature.inputs.items()
+        }
+        fetches = {
+            output_key: graph.as_graph_element(output_value.name)
+            for output_key, output_value in predict_signature.outputs.items()
+        }
         output = session.run(fetches, feed_dict=feeds)
         self.assertEqual((2, 15, 5), output["mean"].shape)
     # Build a parsing input function, then make a tf.Example for it to parse.
@@ -422,8 +417,7 @@ class OneShotTests(parameterized.TestCase):
         times.int64_list.value.extend(range(35))
         for i in range(20):
           values.float_list.value.extend(
-              [float(i) * 2. + feature_number
-               for feature_number in range(5)])
+              [float(i) * 2. + feature_number for feature_number in range(5)])
         real_feature = example.features.feature["2d_exogenous_feature"]
         categortical_feature = example.features.feature[
             "categorical_exogenous_feature"]
@@ -432,15 +426,17 @@ class OneShotTests(parameterized.TestCase):
           categortical_feature.bytes_list.value.append(b"strkey")
         # Serialize the tf.Example for feeding to the Session
         examples = [example.SerializeToString()] * 2
-        signatures = tf.compat.v1.saved_model.load(
-            session, [tf.saved_model.SERVING], export_location)
+        signatures = tf.compat.v1.saved_model.load(session,
+                                                   [tf.saved_model.SERVING],
+                                                   export_location)
         predict_signature = signatures.signature_def[
             feature_keys.SavedModelLabels.PREDICT]
         ((_, input_value),) = predict_signature.inputs.items()
         feeds = {graph.as_graph_element(input_value.name): examples}
-        fetches = {output_key: graph.as_graph_element(output_value.name)
-                   for output_key, output_value
-                   in predict_signature.outputs.items()}
+        fetches = {
+            output_key: graph.as_graph_element(output_value.name)
+            for output_key, output_value in predict_signature.outputs.items()
+        }
         output = session.run(fetches, feed_dict=feeds)
         self.assertEqual((2, 15, 5), output["mean"].shape)
 
