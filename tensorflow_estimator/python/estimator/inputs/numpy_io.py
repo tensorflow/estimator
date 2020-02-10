@@ -22,9 +22,8 @@ import collections
 
 import numpy as np
 from six import string_types
-
-from tensorflow_estimator.python.estimator.inputs.queues import feeding_functions
 from tensorflow.python.util.tf_export import estimator_export
+from tensorflow_estimator.python.estimator.inputs.queues import feeding_functions
 
 # Key name to pack the target into dict of `features`. See
 # `_get_unique_target_key` for details.
@@ -58,8 +57,8 @@ def _validate_and_convert_features(x):
   """Type check input data and make a shadow copy as an ordered dict.
 
   Args:
-    x: numpy array object or dict of numpy array objects. If an array,
-      the array will be treated as a single feature.
+    x: numpy array object or dict of numpy array objects. If an array, the array
+      will be treated as a single feature.
 
   Returns:
     OrderedDict copy of x.
@@ -115,8 +114,8 @@ def numpy_input_fn(x,
   ```
 
   Args:
-    x: numpy array object or dict of numpy array objects. If an array,
-      the array will be treated as a single feature.
+    x: numpy array object or dict of numpy array objects. If an array, the array
+      will be treated as a single feature.
     y: numpy array object or dict of numpy array object. `None` if absent.
     batch_size: Integer, size of batches to return.
     num_epochs: Integer, number of epochs to iterate over data. If `None` will

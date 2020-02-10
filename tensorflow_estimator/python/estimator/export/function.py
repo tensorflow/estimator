@@ -20,17 +20,14 @@ from __future__ import division
 from __future__ import print_function
 
 import six
-
+import tensorflow as tf
 from tensorflow.python.eager import def_function
 from tensorflow.python.eager import function
 from tensorflow.python.eager import wrap_function
 from tensorflow.python.framework import func_graph
-from tensorflow.python.framework import ops
 from tensorflow.python.saved_model.model_utils import export_utils
-from tensorflow.python.training import training
 from tensorflow.python.training.tracking import tracking
 from tensorflow.python.util import function_utils
-from tensorflow.python.util import nest
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
 from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 
@@ -75,7 +72,10 @@ class ModelFunction(tracking.AutoTrackable):
                        ' {}.'.format(mode))
 
     spec_fn = EstimatorSpecFunction(
-        fn, mode, config=self._config, params=self._params,
+        fn,
+        mode,
+        config=self._config,
+        params=self._params,
         variable_holder=self._variable_holder,
         input_signature=input_signature)
 
@@ -92,9 +92,10 @@ class ModelFunction(tracking.AutoTrackable):
 
   def call(self, mode, features, labels=None):
     if mode not in self._functions:
-      raise ValueError('Mode {} is not defined the ModelFunction. To add modes,'
-                       ' use the `add_mode()` function. Available modes: {}'
-                       .format(mode, self._functions.keys()))
+      raise ValueError(
+          'Mode {} is not defined the ModelFunction. To add modes,'
+          ' use the `add_mode()` function. Available modes: {}'.format(
+              mode, self._functions.keys()))
     fn = self._functions[mode]
     if fn.expects_labels:
       return fn(features, labels)
@@ -102,8 +103,11 @@ class ModelFunction(tracking.AutoTrackable):
       return fn(features)
 
 
-def _wrap_and_verify_model_fn(
-    model_fn, mode=None, config=None, params=None, input_signature=None):
+def _wrap_and_verify_model_fn(model_fn,
+                              mode=None,
+                              config=None,
+                              params=None,
+                              input_signature=None):
   """Returns a function that only has only tensor arguments (features, labels).
 
   Args:
@@ -131,12 +135,15 @@ def _wrap_and_verify_model_fn(
 
   if 'labels' in args:
     if input_signature is None or len(input_signature) == 2:
+
       def wrapped_model_fn(features, labels=None):
         return model_fn(features=features, labels=labels, **kwargs)
     else:
+
       def wrapped_model_fn(features):
         return model_fn(features=features, labels=None, **kwargs)
   else:
+
     def wrapped_model_fn(features):
       return model_fn(features=features, **kwargs)
 
@@ -150,7 +157,12 @@ class EstimatorSpecFunction(def_function.Function):
   object.
   """
 
-  def __init__(self, fn, mode, config=None, params=None, variable_holder=None,
+  def __init__(self,
+               fn,
+               mode,
+               config=None,
+               params=None,
+               variable_holder=None,
                **kwargs):
     """Initializes an EstimatorSpecFunction.
 
@@ -160,11 +172,14 @@ class EstimatorSpecFunction(def_function.Function):
       config: RunConfig that is passed to the `config` arg in the function.
       params: object that is passed to the `params` argument in the function.
       variable_holder: Optional `wrap_function.VariableHolder` object.
-      **kwargs: Optional keyword arguments to pass to tf.function
-        (e.g. input_signature).
+      **kwargs: Optional keyword arguments to pass to tf.function (e.g.
+        input_signature).
     """
     python_function, self.expects_labels = _wrap_and_verify_model_fn(
-        fn, mode=mode, config=config, params=params,
+        fn,
+        mode=mode,
+        config=config,
+        params=params,
         input_signature=kwargs.get('input_signature', None))
     super(EstimatorSpecFunction, self).__init__(python_function, mode, **kwargs)
     self._variable_holder = variable_holder
@@ -185,14 +200,9 @@ class _EstimatorSpecFunction(function.Function):
   This object handles creation of the graph functions.
   """
 
-  def __init__(
-      self,
-      python_function,
-      name,
-      variable_holder=None,
-      **kwargs):
-    super(_EstimatorSpecFunction, self).__init__(
-        python_function, name, **kwargs)
+  def __init__(self, python_function, name, variable_holder=None, **kwargs):
+    super(_EstimatorSpecFunction, self).__init__(python_function, name,
+                                                 **kwargs)
     self._variable_holder = variable_holder
 
   def _create_graph_function(self, args, kwargs, **other_kwargs):
@@ -200,12 +210,14 @@ class _EstimatorSpecFunction(function.Function):
     wrapped_graph = _EstimatorWrappedGraph(self._variable_holder)
     return wrapped_graph.wrap_model_fn(
         self._python_function,
-        self._name, signature=self.input_signature, args=args, kwargs=kwargs)
+        self._name,
+        signature=self.input_signature,
+        args=args,
+        kwargs=kwargs)
 
 
 class _EstimatorWrappedGraph(wrap_function.WrappedGraph):
-  """WrappedGraph that handles global step creation and wraps estimator fns.
-  """
+  """WrappedGraph that handles global step creation and wraps estimator fns."""
 
   def __init__(self, *args, **kwargs):
     super(_EstimatorWrappedGraph, self).__init__(*args, **kwargs)
@@ -220,7 +232,7 @@ class _EstimatorWrappedGraph(wrap_function.WrappedGraph):
     self._estimator_spec = None
 
   def _global_step(self):
-    return training.get_or_create_global_step()
+    return tf.compat.v1.train.get_or_create_global_step()
 
   @property
   def global_step(self):
@@ -236,8 +248,12 @@ class _EstimatorWrappedGraph(wrap_function.WrappedGraph):
       raise ValueError('Please wrap a model function first.')
     return self._estimator_spec
 
-  def wrap_model_fn(
-      self, model_fn, mode, args=None, kwargs=None, signature=None):
+  def wrap_model_fn(self,
+                    model_fn,
+                    mode,
+                    args=None,
+                    kwargs=None,
+                    signature=None):
     """Wraps a model function, and stores the returned estimator spec."""
     if self._concrete_model_fn is not None:
       raise ValueError('`wrap_model_fn` should be only called once per graph.')
@@ -310,7 +326,9 @@ class _EstimatorWrappedGraph(wrap_function.WrappedGraph):
     func_graph.func_graph_from_py_func(
         None,  # Name is unused.
         self._variable_holder.call_with_variable_creator_scope(fn),
-        args=None, kwargs=None, signature=[],
+        args=None,
+        kwargs=None,
+        signature=[],
         add_control_dependencies=False,
         func_graph=self.graph)
 
@@ -324,8 +342,9 @@ class _EstimatorWrappedGraph(wrap_function.WrappedGraph):
         name=_input_receiver_fn_name(None))
     functions.append((wrapped_input_receiver_fn, None))
 
-    receiver_tensors_alternatives = getattr(
-        input_receiver, 'receiver_tensors_alternatives', None)
+    receiver_tensors_alternatives = getattr(input_receiver,
+                                            'receiver_tensors_alternatives',
+                                            None)
 
     if receiver_tensors_alternatives:
       for receiver_name, receiver_tensors_alt in (
@@ -355,8 +374,8 @@ _RECEIVER_FN_NAME = '_input_receiver'
 def _canonicalize_receiver_tensors(receiver_tensors):
   """Converts receiver tensors to the expected format of `as_signature_def`."""
   # TODO(b/129646028): Wrap function doesn't support composite tensors.
-  for tensor in nest.flatten(receiver_tensors):
-    if not isinstance(tensor, ops.Tensor):
+  for tensor in tf.nest.flatten(receiver_tensors):
+    if not isinstance(tensor, tf.Tensor):
       raise ValueError('All receiver tensors must be tensors (composite '
                        'tensors are not yet supported).')
 
@@ -375,5 +394,7 @@ def _input_receiver_fn_name(name):
 def _prune_receiver_tensors(wrapped_function, receiver_tensors, outputs, name):
   inputs = _canonicalize_receiver_tensors(receiver_tensors)
   return wrapped_function.prune(
-      inputs, outputs, name=name,
+      inputs,
+      outputs,
+      name=name,
       input_signature=(None, func_graph.convert_structure_to_signature(inputs)))

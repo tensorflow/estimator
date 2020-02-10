@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ===================================================================
-
 """Utilities for the functionalities."""
 
 from __future__ import absolute_import
@@ -22,10 +21,9 @@ from __future__ import print_function
 import collections
 import re
 import time
+import numpy as np
 import six
-
-from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.training import training
+import tensorflow as tf
 
 _ITERATIONS_PER_LOOP_VALUE_REGEX = re.compile(
     r'^(?P<value>[1-9]\d*)((?P<suffix>[s|m|h])$|$)')
@@ -36,7 +34,7 @@ IterationsPerLoopCounter = collections.namedtuple('IterationsPerLoopCounter',
 
 def check_positive_integer(value, name):
   """Checks whether `value` is a positive integer."""
-  if not isinstance(value, six.integer_types):
+  if not isinstance(value, (six.integer_types, np.integer)):
     raise TypeError('{} must be int, got {}'.format(name, type(value)))
 
   if value <= 0:
@@ -84,7 +82,7 @@ def parse_iterations_per_loop(iterations_per_loop):
 # TODO(b/118302029) Remove this copy of MultiHostDatasetInitializerHook after we
 # release a tensorflow_estimator with MultiHostDatasetInitializerHook in
 # python/estimator/util.py.
-class MultiHostDatasetInitializerHook(training.SessionRunHook):
+class MultiHostDatasetInitializerHook(tf.compat.v1.train.SessionRunHook):
   """Creates a SessionRunHook that initializes all passed iterators."""
 
   def __init__(self, dataset_initializers):
@@ -94,5 +92,5 @@ class MultiHostDatasetInitializerHook(training.SessionRunHook):
     del coord
     start = time.time()
     session.run(self._initializers)
-    logging.info('Initialized dataset iterators in %d seconds',
-                 time.time() - start)
+    tf.compat.v1.logging.info('Initialized dataset iterators in %d seconds',
+                              time.time() - start)

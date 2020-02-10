@@ -22,13 +22,8 @@ import os
 import tempfile
 
 from absl.testing import parameterized
+import tensorflow as tf
 from tensorflow.python.eager import context
-from tensorflow.python.framework import ops
-from tensorflow.python.ops import control_flow_ops
-from tensorflow.python.ops import state_ops
-from tensorflow.python.platform import test
-from tensorflow.python.training import monitored_session
-from tensorflow.python.training import training_util
 from tensorflow_estimator.python.estimator import early_stopping
 from tensorflow_estimator.python.estimator import estimator
 from tensorflow_estimator.python.estimator import run_config
@@ -67,7 +62,7 @@ def _write_events(eval_dir, params):
       }, steps)
 
 
-class ReadEvalMetricsTest(test.TestCase):
+class ReadEvalMetricsTest(tf.test.TestCase):
 
   def test_read_eval_metrics(self):
     eval_dir = tempfile.mkdtemp()
@@ -79,20 +74,21 @@ class ReadEvalMetricsTest(test.TestCase):
             (2000, 3, 4),
             (3000, 5, 6),
         ])
-    self.assertEqual({
-        1000: {
-            'loss': 1,
-            'accuracy': 2
-        },
-        2000: {
-            'loss': 3,
-            'accuracy': 4
-        },
-        3000: {
-            'loss': 5,
-            'accuracy': 6
-        },
-    }, early_stopping.read_eval_metrics(eval_dir))
+    self.assertEqual(
+        {
+            1000: {
+                'loss': 1,
+                'accuracy': 2
+            },
+            2000: {
+                'loss': 3,
+                'accuracy': 4
+            },
+            3000: {
+                'loss': 5,
+                'accuracy': 6
+            },
+        }, early_stopping.read_eval_metrics(eval_dir))
 
   def test_read_eval_metrics_when_no_events(self):
     eval_dir = tempfile.mkdtemp()
@@ -108,7 +104,7 @@ class ReadEvalMetricsTest(test.TestCase):
     self.assertEqual({}, early_stopping.read_eval_metrics(eval_dir))
 
 
-class EarlyStoppingHooksTest(test.TestCase, parameterized.TestCase):
+class EarlyStoppingHooksTest(tf.test.TestCase, parameterized.TestCase):
 
   def setUp(self):
     super(EarlyStoppingHooksTest, self).setUp()
@@ -128,10 +124,10 @@ class EarlyStoppingHooksTest(test.TestCase, parameterized.TestCase):
 
   def run_session(self, hooks, should_stop):
     hooks = hooks if isinstance(hooks, list) else [hooks]
-    with ops.Graph().as_default():
-      training_util.create_global_step()
-      no_op = control_flow_ops.no_op()
-      with monitored_session.SingularMonitoredSession(hooks=hooks) as mon_sess:
+    with tf.Graph().as_default():
+      tf.compat.v1.train.create_global_step()
+      no_op = tf.no_op()
+      with tf.compat.v1.train.SingularMonitoredSession(hooks=hooks) as mon_sess:
         mon_sess.run(no_op)
         self.assertEqual(mon_sess.should_stop(), should_stop)
 
@@ -212,45 +208,54 @@ class EarlyStoppingHooksTest(test.TestCase, parameterized.TestCase):
           run_every_steps=100)
 
 
-class StopOnPredicateHookTest(test.TestCase):
+class StopOnPredicateHookTest(tf.test.TestCase):
 
   def test_stop(self):
     hook = early_stopping._StopOnPredicateHook(
         should_stop_fn=lambda: False, run_every_secs=0)
-    with ops.Graph().as_default():
-      training_util.create_global_step()
-      no_op = control_flow_ops.no_op()
-      with monitored_session.SingularMonitoredSession(hooks=[hook]) as mon_sess:
+    with tf.Graph().as_default():
+      tf.compat.v1.train.create_global_step()
+      no_op = tf.no_op()
+      with tf.compat.v1.train.SingularMonitoredSession(
+          hooks=[hook]) as mon_sess:
         mon_sess.run(no_op)
         self.assertFalse(mon_sess.should_stop())
         self.assertFalse(mon_sess.raw_session().run(hook._stop_var))
 
     hook = early_stopping._StopOnPredicateHook(
         should_stop_fn=lambda: True, run_every_secs=0)
-    with ops.Graph().as_default():
-      training_util.create_global_step()
-      no_op = control_flow_ops.no_op()
-      with monitored_session.SingularMonitoredSession(hooks=[hook]) as mon_sess:
+    with tf.Graph().as_default():
+      tf.compat.v1.train.create_global_step()
+      no_op = tf.no_op()
+      with tf.compat.v1.train.SingularMonitoredSession(
+          hooks=[hook]) as mon_sess:
         mon_sess.run(no_op)
         self.assertTrue(mon_sess.should_stop())
         self.assertTrue(mon_sess.raw_session().run(hook._stop_var))
 
 
-class CheckForStoppingHookTest(test.TestCase):
+class CheckForStoppingHookTest(tf.test.TestCase):
 
   def test_stop(self):
     hook = early_stopping._CheckForStoppingHook()
-    with ops.Graph().as_default():
-      no_op = control_flow_ops.no_op()
-      assign_op = state_ops.assign(early_stopping._get_or_create_stop_var(),
-                                   True)
-      hook._ctrl_deps = [assign_op]
-      with monitored_session.SingularMonitoredSession(hooks=[hook]) as mon_sess:
+    with tf.Graph().as_default():
+      no_op = tf.no_op()
+      assign_op = tf.compat.v1.assign(early_stopping._get_or_create_stop_var(),
+                                      True)
+      with tf.compat.v1.train.SingularMonitoredSession(
+          hooks=[hook]) as mon_sess:
         mon_sess.run(no_op)
         self.assertFalse(mon_sess.should_stop())
+
         mon_sess.run(assign_op)
-        self.assertTrue(mon_sess.should_stop())
+
+        # Because there are no guarantees that the stop variable will be read
+        # after the assign op is completed, run another no_op to ensure that the
+        # updated value is read.
+        if not mon_sess.should_stop():
+          mon_sess.run(no_op)
+          self.assertTrue(mon_sess.should_stop())
 
 
 if __name__ == '__main__':
-  test.main()
+  tf.test.main()

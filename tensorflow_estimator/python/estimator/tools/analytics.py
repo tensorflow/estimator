@@ -1,4 +1,4 @@
-# Copyright 2018 The TensorFlow Authors. All Rights Reserved.
+# Copyright 2019 The TensorFlow Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,12 +12,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Class that creates an Estimator from a SavedModel."""
-
+"""Analytics helpers library."""
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-# pylint: disable=unused-import
-from tensorflow_estimator.python.estimator.canned.saved_model_estimator import SavedModelEstimator
-# pylint: enable=unused-import
+
+def track_usage(tool_id, tags):
+  """No usage tracking for external library.
+
+  Args:
+    tool_id: A string identifier for tool to be tracked.
+    tags: list of string tags that will be added to the tracking.
+  """
+  del tool_id, tags  # Unused externally.
+
+
+def track_numerical_issues(exc_info):
+  """No tracking for external library.
+
+  Args:
+    exc_info: Output from `sys.exc_info` (type, value, traceback)
+  """
+  del exc_info

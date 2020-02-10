@@ -25,32 +25,13 @@ import tempfile
 
 import numpy as np
 import six
-
+import tensorflow as tf
 from tensorflow.core.example import example_pb2
 from tensorflow.core.example import feature_pb2
-from tensorflow.python.client import session as tf_session
-from tensorflow.python.data.ops import dataset_ops
 from tensorflow.python.feature_column import feature_column_v2
-from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
-from tensorflow.python.framework import sparse_tensor
 from tensorflow.python.keras.optimizer_v2 import gradient_descent
 from tensorflow.python.keras.optimizer_v2 import optimizer_v2
-from tensorflow.python.ops import check_ops
-from tensorflow.python.ops import control_flow_ops
-from tensorflow.python.ops import data_flow_ops
-from tensorflow.python.ops import init_ops
-from tensorflow.python.ops import math_ops
-from tensorflow.python.ops import parsing_ops
-from tensorflow.python.ops import state_ops
-from tensorflow.python.ops import variables as variables_lib
-from tensorflow.python.platform import gfile
-from tensorflow.python.platform import test
-from tensorflow.python.summary.writer import writer_cache
-from tensorflow.python.training import checkpoint_utils
-from tensorflow.python.training import input as input_lib
-from tensorflow.python.training import queue_runner
-from tensorflow.python.training import saver
 from tensorflow_estimator.python.estimator import estimator
 from tensorflow_estimator.python.estimator.canned import linear
 from tensorflow_estimator.python.estimator.canned import metric_keys
@@ -83,9 +64,9 @@ def assert_close(expected, actual, rtol=1e-04, name='assert_close'):
   with ops.name_scope(name, 'assert_close', (expected, actual, rtol)) as scope:
     expected = ops.convert_to_tensor(expected, name='expected')
     actual = ops.convert_to_tensor(actual, name='actual')
-    rdiff = math_ops.abs(expected - actual, 'diff') / math_ops.abs(expected)
+    rdiff = tf.math.abs(expected - actual, 'diff') / tf.math.abs(expected)
     rtol = ops.convert_to_tensor(rtol, name='rtol')
-    return check_ops.assert_less(
+    return tf.compat.v1.debugging.assert_less(
         rdiff,
         rtol,
         data=('Condition expected =~ actual did not hold element-wise:'
@@ -95,10 +76,10 @@ def assert_close(expected, actual, rtol=1e-04, name='assert_close'):
 
 
 def save_variables_to_ckpt(model_dir):
-  init_all_op = [variables_lib.global_variables_initializer()]
-  with tf_session.Session() as sess:
+  init_all_op = [tf.compat.v1.initializers.global_variables()]
+  with tf.compat.v1.Session() as sess:
     sess.run(init_all_op)
-    saver.Saver().save(sess, os.path.join(model_dir, 'model.ckpt'))
+    tf.compat.v1.train.Saver().save(sess, os.path.join(model_dir, 'model.ckpt'))
 
 
 def queue_parsed_features(feature_map):
@@ -108,10 +89,10 @@ def queue_parsed_features(feature_map):
     keys.append(key)
     tensors_to_enqueue.append(tensor)
   queue_dtypes = [x.dtype for x in tensors_to_enqueue]
-  input_queue = data_flow_ops.FIFOQueue(capacity=100, dtypes=queue_dtypes)
-  queue_runner.add_queue_runner(
-      queue_runner.QueueRunner(input_queue,
-                               [input_queue.enqueue(tensors_to_enqueue)]))
+  input_queue = tf.queue.FIFOQueue(capacity=100, dtypes=queue_dtypes)
+  tf.compat.v1.train.queue_runner.add_queue_runner(
+      tf.compat.v1.train.queue_runner.QueueRunner(
+          input_queue, [input_queue.enqueue(tensors_to_enqueue)]))
   dequeued_tensors = input_queue.dequeue()
   return {keys[i]: dequeued_tensors[i] for i in range(len(dequeued_tensors))}
 
@@ -139,15 +120,15 @@ def mock_optimizer(testcase, expected_loss=None):
       if expected_loss is None:
         if self.iterations is not None:
           return [self.iterations.assign_add(1).op]
-        return [control_flow_ops.no_op()]
+        return [tf.no_op()]
       assert_loss = assert_close(
-          math_ops.to_float(expected_loss, name='expected'),
+          tf.cast(expected_loss, name='expected', dtype=tf.dtypes.float32),
           loss,
           name='assert_loss')
-      with ops.control_dependencies((assert_loss,)):
+      with tf.control_dependencies((assert_loss,)):
         if self.iterations is not None:
           return [self.iterations.assign_add(1).op]
-        return [control_flow_ops.no_op()]
+        return [tf.no_op()]
 
     def get_config(self):
       config = super(_Optimizer, self).get_config()
@@ -170,66 +151,72 @@ class BaseLinearRegressorEvaluationTest(object):
 
   def tearDown(self):
     if self._model_dir:
-      writer_cache.FileWriterCache.clear()
+      tf.compat.v1.summary.FileWriterCache.clear()
       shutil.rmtree(self._model_dir)
 
   def test_evaluation_for_simple_data(self):
-    with ops.Graph().as_default():
-      variables_lib.Variable([[11.0]], name=AGE_WEIGHT_NAME)
-      variables_lib.Variable([2.0], name=BIAS_NAME)
-      variables_lib.Variable(
-          100, name=ops.GraphKeys.GLOBAL_STEP, dtype=dtypes.int64)
+    with tf.Graph().as_default():
+      tf.Variable([[11.0]], name=AGE_WEIGHT_NAME)
+      tf.Variable([2.0], name=BIAS_NAME)
+      tf.Variable(
+          100, name=tf.compat.v1.GraphKeys.GLOBAL_STEP, dtype=tf.dtypes.int64)
       save_variables_to_ckpt(self._model_dir)
 
     linear_regressor = self._linear_regressor_fn(
         feature_columns=(self._fc_lib.numeric_column('age'),),
         model_dir=self._model_dir)
     eval_metrics = linear_regressor.evaluate(
-        input_fn=lambda: ({'age': ((1,),)}, ((10.,),)), steps=1)
+        input_fn=lambda: ({
+            'age': ((1,),)
+        }, ((10.,),)), steps=1)
 
     # Logit is (1. * 11.0 + 2.0) = 13, while label is 10. Loss is 3**2 = 9.
-    self.assertDictEqual({
-        metric_keys.MetricKeys.LOSS: 9.,
-        metric_keys.MetricKeys.LOSS_MEAN: 9.,
-        metric_keys.MetricKeys.PREDICTION_MEAN: 13.,
-        metric_keys.MetricKeys.LABEL_MEAN: 10.,
-        ops.GraphKeys.GLOBAL_STEP: 100
-    }, eval_metrics)
+    self.assertDictEqual(
+        {
+            metric_keys.MetricKeys.LOSS: 9.,
+            metric_keys.MetricKeys.LOSS_MEAN: 9.,
+            metric_keys.MetricKeys.PREDICTION_MEAN: 13.,
+            metric_keys.MetricKeys.LABEL_MEAN: 10.,
+            tf.compat.v1.GraphKeys.GLOBAL_STEP: 100
+        }, eval_metrics)
 
   def test_evaluation_batch(self):
     """Tests evaluation for batch_size==2."""
-    with ops.Graph().as_default():
-      variables_lib.Variable([[11.0]], name=AGE_WEIGHT_NAME)
-      variables_lib.Variable([2.0], name=BIAS_NAME)
-      variables_lib.Variable(
-          100, name=ops.GraphKeys.GLOBAL_STEP, dtype=dtypes.int64)
+    with tf.Graph().as_default():
+      tf.Variable([[11.0]], name=AGE_WEIGHT_NAME)
+      tf.Variable([2.0], name=BIAS_NAME)
+      tf.Variable(
+          100, name=tf.compat.v1.GraphKeys.GLOBAL_STEP, dtype=tf.dtypes.int64)
       save_variables_to_ckpt(self._model_dir)
 
     linear_regressor = self._linear_regressor_fn(
         feature_columns=(self._fc_lib.numeric_column('age'),),
         model_dir=self._model_dir)
     eval_metrics = linear_regressor.evaluate(
-        input_fn=lambda: ({'age': ((1,), (1,))}, ((10.,), (10.,))), steps=1)
+        input_fn=lambda: ({
+            'age': ((1,), (1,))
+        }, ((10.,), (10.,))), steps=1)
 
     # Logit is (1. * 11.0 + 2.0) = 13, while label is 10.
     # Loss per example is 3**2 = 9.
     # Training loss is the sum over batch size = (9 + 9) / 2 = 9
     # Average loss is the average over batch = 9
-    self.assertDictEqual({
-        metric_keys.MetricKeys.LOSS: 9.,
-        metric_keys.MetricKeys.LOSS_MEAN: 9.,
-        metric_keys.MetricKeys.PREDICTION_MEAN: 13.,
-        metric_keys.MetricKeys.LABEL_MEAN: 10.,
-        ops.GraphKeys.GLOBAL_STEP: 100
-    }, eval_metrics)
+    self.assertDictEqual(
+        {
+            metric_keys.MetricKeys.LOSS: 9.,
+            metric_keys.MetricKeys.LOSS_MEAN: 9.,
+            metric_keys.MetricKeys.PREDICTION_MEAN: 13.,
+            metric_keys.MetricKeys.LABEL_MEAN: 10.,
+            tf.compat.v1.GraphKeys.GLOBAL_STEP: 100
+        }, eval_metrics)
 
   def test_evaluation_weights(self):
     """Tests evaluation with weights."""
-    with ops.Graph().as_default():
-      variables_lib.Variable([[11.0]], name=AGE_WEIGHT_NAME)
-      variables_lib.Variable([2.0], name=BIAS_NAME)
-      variables_lib.Variable(
-          100, name=ops.GraphKeys.GLOBAL_STEP, dtype=dtypes.int64)
+    with tf.Graph().as_default():
+      tf.Variable([[11.0]], name=AGE_WEIGHT_NAME)
+      tf.Variable([2.0], name=BIAS_NAME)
+      tf.Variable(
+          100, name=tf.compat.v1.GraphKeys.GLOBAL_STEP, dtype=tf.dtypes.int64)
       save_variables_to_ckpt(self._model_dir)
 
     def _input_fn():
@@ -248,22 +235,22 @@ class BaseLinearRegressorEvaluationTest(object):
     # Training loss is the weighted sum over batch / batch size =
     #     (9 + 2*9) / 2 = 13.5
     # average loss is the weighted average = 9 + 2*9 / (1 + 2) = 9
-    self.assertDictEqual({
-        metric_keys.MetricKeys.LOSS: 13.5,
-        metric_keys.MetricKeys.LOSS_MEAN: 9.,
-        metric_keys.MetricKeys.PREDICTION_MEAN: 13.,
-        metric_keys.MetricKeys.LABEL_MEAN: 10.,
-        ops.GraphKeys.GLOBAL_STEP: 100
-    }, eval_metrics)
+    self.assertDictEqual(
+        {
+            metric_keys.MetricKeys.LOSS: 13.5,
+            metric_keys.MetricKeys.LOSS_MEAN: 9.,
+            metric_keys.MetricKeys.PREDICTION_MEAN: 13.,
+            metric_keys.MetricKeys.LABEL_MEAN: 10.,
+            tf.compat.v1.GraphKeys.GLOBAL_STEP: 100
+        }, eval_metrics)
 
   def test_evaluation_for_multi_dimensions(self):
     x_dim = 3
     label_dim = 2
-    with ops.Graph().as_default():
-      variables_lib.Variable(
-          [[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]], name=AGE_WEIGHT_NAME)
-      variables_lib.Variable([7.0, 8.0], name=BIAS_NAME)
-      variables_lib.Variable(100, name='global_step', dtype=dtypes.int64)
+    with tf.Graph().as_default():
+      tf.Variable([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]], name=AGE_WEIGHT_NAME)
+      tf.Variable([7.0, 8.0], name=BIAS_NAME)
+      tf.Variable(100, name='global_step', dtype=tf.dtypes.int64)
       save_variables_to_ckpt(self._model_dir)
 
     linear_regressor = self._linear_regressor_fn(
@@ -283,7 +270,7 @@ class BaseLinearRegressorEvaluationTest(object):
     self.assertItemsEqual(
         (metric_keys.MetricKeys.LOSS, metric_keys.MetricKeys.LOSS_MEAN,
          metric_keys.MetricKeys.PREDICTION_MEAN,
-         metric_keys.MetricKeys.LABEL_MEAN, ops.GraphKeys.GLOBAL_STEP),
+         metric_keys.MetricKeys.LABEL_MEAN, tf.compat.v1.GraphKeys.GLOBAL_STEP),
         eval_metrics.keys())
 
     # Logit is
@@ -294,12 +281,12 @@ class BaseLinearRegressorEvaluationTest(object):
     self.assertAlmostEqual(0, eval_metrics[metric_keys.MetricKeys.LOSS])
 
   def test_evaluation_for_multiple_feature_columns(self):
-    with ops.Graph().as_default():
-      variables_lib.Variable([[10.0]], name=AGE_WEIGHT_NAME)
-      variables_lib.Variable([[2.0]], name=HEIGHT_WEIGHT_NAME)
-      variables_lib.Variable([5.0], name=BIAS_NAME)
-      variables_lib.Variable(
-          100, name=ops.GraphKeys.GLOBAL_STEP, dtype=dtypes.int64)
+    with tf.Graph().as_default():
+      tf.Variable([[10.0]], name=AGE_WEIGHT_NAME)
+      tf.Variable([[2.0]], name=HEIGHT_WEIGHT_NAME)
+      tf.Variable([5.0], name=BIAS_NAME)
+      tf.Variable(
+          100, name=tf.compat.v1.GraphKeys.GLOBAL_STEP, dtype=tf.dtypes.int64)
       save_variables_to_ckpt(self._model_dir)
 
     batch_size = 2
@@ -308,8 +295,10 @@ class BaseLinearRegressorEvaluationTest(object):
         self._fc_lib.numeric_column('height')
     ]
     input_fn = numpy_io.numpy_input_fn(
-        x={'age': np.array([20, 40]),
-           'height': np.array([4, 8])},
+        x={
+            'age': np.array([20, 40]),
+            'height': np.array([4, 8])
+        },
         y=np.array([[213.], [421.]]),
         batch_size=batch_size,
         num_epochs=None,
@@ -322,7 +311,7 @@ class BaseLinearRegressorEvaluationTest(object):
     self.assertItemsEqual(
         (metric_keys.MetricKeys.LOSS, metric_keys.MetricKeys.LOSS_MEAN,
          metric_keys.MetricKeys.PREDICTION_MEAN,
-         metric_keys.MetricKeys.LABEL_MEAN, ops.GraphKeys.GLOBAL_STEP),
+         metric_keys.MetricKeys.LABEL_MEAN, tf.compat.v1.GraphKeys.GLOBAL_STEP),
         eval_metrics.keys())
 
     # Logit is [(20. * 10.0 + 4 * 2.0 + 5.0), (40. * 10.0 + 8 * 2.0 + 5.0)] =
@@ -330,29 +319,29 @@ class BaseLinearRegressorEvaluationTest(object):
     self.assertAlmostEqual(0, eval_metrics[metric_keys.MetricKeys.LOSS])
 
   def test_evaluation_for_multiple_feature_columns_mix(self):
-    with ops.Graph().as_default():
-      variables_lib.Variable([[10.0]], name=AGE_WEIGHT_NAME)
-      variables_lib.Variable([[2.0]], name=HEIGHT_WEIGHT_NAME)
-      variables_lib.Variable([5.0], name=BIAS_NAME)
-      variables_lib.Variable(
-          100, name=ops.GraphKeys.GLOBAL_STEP, dtype=dtypes.int64)
+    with tf.Graph().as_default():
+      tf.Variable([[10.0]], name=AGE_WEIGHT_NAME)
+      tf.Variable([[2.0]], name=HEIGHT_WEIGHT_NAME)
+      tf.Variable([5.0], name=BIAS_NAME)
+      tf.Variable(
+          100, name=tf.compat.v1.GraphKeys.GLOBAL_STEP, dtype=tf.dtypes.int64)
       save_variables_to_ckpt(self._model_dir)
 
     batch_size = 2
     feature_columns = [
-        feature_column_v2.numeric_column('age'),
-        feature_column_v2.numeric_column('height')
+        tf.feature_column.numeric_column('age'),
+        tf.feature_column.numeric_column('height')
     ]
 
     def _input_fn():
-      features_ds = dataset_ops.Dataset.from_tensor_slices({
+      features_ds = tf.compat.v1.data.Dataset.from_tensor_slices({
           'age': np.array([20, 40]),
           'height': np.array([4, 8])
       })
-      labels_ds = dataset_ops.Dataset.from_tensor_slices(
+      labels_ds = tf.compat.v1.data.Dataset.from_tensor_slices(
           np.array([[213.], [421.]]))
-      return (dataset_ops.Dataset.zip((features_ds, labels_ds))
-              .batch(batch_size).repeat(None))
+      return (tf.compat.v1.data.Dataset.zip(
+          (features_ds, labels_ds)).batch(batch_size).repeat(None))
 
     est = self._linear_regressor_fn(
         feature_columns=feature_columns, model_dir=self._model_dir)
@@ -361,7 +350,7 @@ class BaseLinearRegressorEvaluationTest(object):
     self.assertItemsEqual(
         (metric_keys.MetricKeys.LOSS, metric_keys.MetricKeys.LOSS_MEAN,
          metric_keys.MetricKeys.PREDICTION_MEAN,
-         metric_keys.MetricKeys.LABEL_MEAN, ops.GraphKeys.GLOBAL_STEP),
+         metric_keys.MetricKeys.LABEL_MEAN, tf.compat.v1.GraphKeys.GLOBAL_STEP),
         eval_metrics.keys())
 
     # Logit is [(20. * 10.0 + 4 * 2.0 + 5.0), (40. * 10.0 + 8 * 2.0 + 5.0)] =
@@ -380,15 +369,15 @@ class BaseLinearRegressorPredictTest(object):
 
   def tearDown(self):
     if self._model_dir:
-      writer_cache.FileWriterCache.clear()
+      tf.compat.v1.summary.FileWriterCache.clear()
       shutil.rmtree(self._model_dir)
 
   def test_1d(self):
     """Tests predict when all variables are one-dimensional."""
-    with ops.Graph().as_default():
-      variables_lib.Variable([[10.]], name='linear/linear_model/x/weights')
-      variables_lib.Variable([.2], name=BIAS_NAME)
-      variables_lib.Variable(100, name='global_step', dtype=dtypes.int64)
+    with tf.Graph().as_default():
+      tf.Variable([[10.]], name='linear/linear_model/x/weights')
+      tf.Variable([.2], name=BIAS_NAME)
+      tf.Variable(100, name='global_step', dtype=tf.dtypes.int64)
       save_variables_to_ckpt(self._model_dir)
 
     linear_regressor = self._linear_regressor_fn(
@@ -412,13 +401,13 @@ class BaseLinearRegressorPredictTest(object):
     label_dimension = 3
     x_dim = 4
     feature_columns = (self._fc_lib.numeric_column('x', shape=(x_dim,)),)
-    with ops.Graph().as_default():
-      variables_lib.Variable(  # shape=[x_dim, label_dimension]
+    with tf.Graph().as_default():
+      tf.Variable(  # shape=[x_dim, label_dimension]
           [[1., 2., 3.], [2., 3., 4.], [3., 4., 5.], [4., 5., 6.]],
           name='linear/linear_model/x/weights')
-      variables_lib.Variable(  # shape=[label_dimension]
+      tf.Variable(  # shape=[label_dimension]
           [.2, .4, .6], name=BIAS_NAME)
-      variables_lib.Variable(100, name='global_step', dtype=dtypes.int64)
+      tf.Variable(100, name='global_step', dtype=tf.dtypes.int64)
       save_variables_to_ckpt(self._model_dir)
 
     linear_regressor = self._linear_regressor_fn(
@@ -441,11 +430,11 @@ class BaseLinearRegressorPredictTest(object):
 
   def testTwoFeatureColumns(self):
     """Tests predict with two feature columns."""
-    with ops.Graph().as_default():
-      variables_lib.Variable([[10.]], name='linear/linear_model/x0/weights')
-      variables_lib.Variable([[20.]], name='linear/linear_model/x1/weights')
-      variables_lib.Variable([.2], name=BIAS_NAME)
-      variables_lib.Variable(100, name='global_step', dtype=dtypes.int64)
+    with tf.Graph().as_default():
+      tf.Variable([[10.]], name='linear/linear_model/x0/weights')
+      tf.Variable([[20.]], name='linear/linear_model/x1/weights')
+      tf.Variable([.2], name=BIAS_NAME)
+      tf.Variable(100, name='global_step', dtype=tf.dtypes.int64)
       save_variables_to_ckpt(self._model_dir)
 
     linear_regressor = self._linear_regressor_fn(
@@ -454,8 +443,10 @@ class BaseLinearRegressorPredictTest(object):
         model_dir=self._model_dir)
 
     predict_input_fn = numpy_io.numpy_input_fn(
-        x={'x0': np.array([[2.]]),
-           'x1': np.array([[3.]])},
+        x={
+            'x0': np.array([[2.]]),
+            'x1': np.array([[3.]])
+        },
         y=None,
         batch_size=1,
         num_epochs=1,
@@ -467,20 +458,20 @@ class BaseLinearRegressorPredictTest(object):
 
   def testTwoFeatureColumnsMix(self):
     """Tests predict with two feature columns."""
-    with ops.Graph().as_default():
-      variables_lib.Variable([[10.]], name='linear/linear_model/x0/weights')
-      variables_lib.Variable([[20.]], name='linear/linear_model/x1/weights')
-      variables_lib.Variable([.2], name=BIAS_NAME)
-      variables_lib.Variable(100, name='global_step', dtype=dtypes.int64)
+    with tf.Graph().as_default():
+      tf.Variable([[10.]], name='linear/linear_model/x0/weights')
+      tf.Variable([[20.]], name='linear/linear_model/x1/weights')
+      tf.Variable([.2], name=BIAS_NAME)
+      tf.Variable(100, name='global_step', dtype=tf.dtypes.int64)
       save_variables_to_ckpt(self._model_dir)
 
     linear_regressor = self._linear_regressor_fn(
-        feature_columns=(feature_column_v2.numeric_column('x0'),
-                         feature_column_v2.numeric_column('x1')),
+        feature_columns=(tf.feature_column.numeric_column('x0'),
+                         tf.feature_column.numeric_column('x1')),
         model_dir=self._model_dir)
 
     def _predict_input_fn():
-      return dataset_ops.Dataset.from_tensor_slices({
+      return tf.compat.v1.data.Dataset.from_tensor_slices({
           'x0': np.array([[2.]]),
           'x1': np.array([[3.]])
       }).batch(1)
@@ -495,19 +486,20 @@ class BaseLinearRegressorPredictTest(object):
     w_b = 3.0
     w_c = 5.0
     bias = 5.0
-    with ops.Graph().as_default():
-      variables_lib.Variable([[w_a], [w_b], [w_c]], name=LANGUAGE_WEIGHT_NAME)
-      variables_lib.Variable([bias], name=BIAS_NAME)
-      variables_lib.Variable(1, name=ops.GraphKeys.GLOBAL_STEP,
-                             dtype=dtypes.int64)
+    with tf.Graph().as_default():
+      tf.Variable([[w_a], [w_b], [w_c]], name=LANGUAGE_WEIGHT_NAME)
+      tf.Variable([bias], name=BIAS_NAME)
+      tf.Variable(
+          1, name=tf.compat.v1.GraphKeys.GLOBAL_STEP, dtype=tf.dtypes.int64)
       save_variables_to_ckpt(self._model_dir)
 
     def _input_fn():
-      return dataset_ops.Dataset.from_tensors({
-          'language': sparse_tensor.SparseTensor(
-              values=['a', 'c', 'b', 'c'],
-              indices=[[0, 0], [0, 1], [1, 0], [1, 1]],
-              dense_shape=[2, 2]),
+      return tf.compat.v1.data.Dataset.from_tensors({
+          'language':
+              tf.sparse.SparseTensor(
+                  values=['a', 'c', 'b', 'c'],
+                  indices=[[0, 0], [0, 1], [1, 0], [1, 1]],
+                  dense_shape=[2, 2]),
       })
 
     feature_columns = (self._fc_lib.categorical_column_with_vocabulary_list(
@@ -520,8 +512,7 @@ class BaseLinearRegressorPredictTest(object):
     # logits_2 = w_b + w_c + bias
     #          = 3.0 + 5.0 + 5.0 = 13.0
     linear_regressor = self._linear_regressor_fn(
-        feature_columns=feature_columns,
-        model_dir=self._model_dir)
+        feature_columns=feature_columns, model_dir=self._model_dir)
     predictions = linear_regressor.predict(input_fn=_input_fn)
     predicted_scores = list([x['predictions'] for x in predictions])
     self.assertAllClose([[12.0], [13.0]], predicted_scores)
@@ -564,7 +555,7 @@ class BaseLinearRegressorIntegrationTest(object):
 
   def tearDown(self):
     if self._model_dir:
-      writer_cache.FileWriterCache.clear()
+      tf.compat.v1.summary.FileWriterCache.clear()
       shutil.rmtree(self._model_dir)
 
   def _test_complete_flow(self, train_input_fn, eval_input_fn, predict_input_fn,
@@ -583,7 +574,7 @@ class BaseLinearRegressorIntegrationTest(object):
 
     # EVALUTE
     scores = est.evaluate(eval_input_fn)
-    self.assertEqual(200, scores[ops.GraphKeys.GLOBAL_STEP])
+    self.assertEqual(200, scores[tf.compat.v1.GraphKeys.GLOBAL_STEP])
     self.assertIn(metric_keys.MetricKeys.LOSS, six.iterkeys(scores))
 
     # PREDICT
@@ -592,12 +583,12 @@ class BaseLinearRegressorIntegrationTest(object):
     self.assertAllEqual((prediction_length, label_dimension), predictions.shape)
 
     # EXPORT
-    feature_spec = feature_column_v2.make_parse_example_spec_v2(feature_columns)
+    feature_spec = tf.feature_column.make_parse_example_spec(feature_columns)
     serving_input_receiver_fn = export.build_parsing_serving_input_receiver_fn(
         feature_spec)
     export_dir = est.export_saved_model(tempfile.mkdtemp(),
                                         serving_input_receiver_fn)
-    self.assertTrue(gfile.Exists(export_dir))
+    self.assertTrue(tf.compat.v1.gfile.Exists(export_dir))
 
   def test_numpy_input_fn(self):
     """Tests complete flow with numpy_input_fn."""
@@ -675,39 +666,42 @@ class BaseLinearRegressorIntegrationTest(object):
 
     serialized_examples = []
     for datum in data:
-      example = example_pb2.Example(features=feature_pb2.Features(
-          feature={
-              'x':
-                  feature_pb2.Feature(float_list=feature_pb2.FloatList(
-                      value=datum)),
-              'y':
-                  feature_pb2.Feature(float_list=feature_pb2.FloatList(
-                      value=datum[:label_dimension])),
-          }))
+      example = example_pb2.Example(
+          features=feature_pb2.Features(
+              feature={
+                  'x':
+                      feature_pb2.Feature(
+                          float_list=feature_pb2.FloatList(value=datum)),
+                  'y':
+                      feature_pb2.Feature(
+                          float_list=feature_pb2.FloatList(
+                              value=datum[:label_dimension])),
+              }))
       serialized_examples.append(example.SerializeToString())
 
     feature_spec = {
-        'x': parsing_ops.FixedLenFeature([input_dimension], dtypes.float32),
-        'y': parsing_ops.FixedLenFeature([label_dimension], dtypes.float32),
+        'x': tf.io.FixedLenFeature([input_dimension], tf.dtypes.float32),
+        'y': tf.io.FixedLenFeature([label_dimension], tf.dtypes.float32),
     }
 
     def _train_input_fn():
-      feature_map = parsing_ops.parse_example(serialized_examples, feature_spec)
+      feature_map = tf.compat.v1.io.parse_example(serialized_examples,
+                                                  feature_spec)
       features = queue_parsed_features(feature_map)
       labels = features.pop('y')
       return features, labels
 
     def _eval_input_fn():
-      feature_map = parsing_ops.parse_example(
-          input_lib.limit_epochs(serialized_examples, num_epochs=1),
+      feature_map = tf.compat.v1.io.parse_example(
+          tf.compat.v1.train.limit_epochs(serialized_examples, num_epochs=1),
           feature_spec)
       features = queue_parsed_features(feature_map)
       labels = features.pop('y')
       return features, labels
 
     def _predict_input_fn():
-      feature_map = parsing_ops.parse_example(
-          input_lib.limit_epochs(serialized_examples, num_epochs=1),
+      feature_map = tf.compat.v1.io.parse_example(
+          tf.compat.v1.train.limit_epochs(serialized_examples, num_epochs=1),
           feature_spec)
       features = queue_parsed_features(feature_map)
       features.pop('y')
@@ -733,7 +727,7 @@ class BaseLinearRegressorTrainingTest(object):
 
   def tearDown(self):
     if self._model_dir:
-      writer_cache.FileWriterCache.clear()
+      tf.compat.v1.summary.FileWriterCache.clear()
       shutil.rmtree(self._model_dir)
 
   def _assert_checkpoint(self,
@@ -742,25 +736,24 @@ class BaseLinearRegressorTrainingTest(object):
                          expected_bias=None):
     shapes = {
         name: shape
-        for (name, shape) in checkpoint_utils.list_variables(self._model_dir)
+        for (name, shape) in tf.train.list_variables(self._model_dir)
     }
 
-    self.assertEqual([], shapes[ops.GraphKeys.GLOBAL_STEP])
-    self.assertEqual(expected_global_step,
-                     checkpoint_utils.load_variable(self._model_dir,
-                                                    ops.GraphKeys.GLOBAL_STEP))
+    self.assertEqual([], shapes[tf.compat.v1.GraphKeys.GLOBAL_STEP])
+    self.assertEqual(
+        expected_global_step,
+        tf.train.load_variable(self._model_dir,
+                               tf.compat.v1.GraphKeys.GLOBAL_STEP))
 
     self.assertEqual([1, 1], shapes[AGE_WEIGHT_NAME])
     if expected_age_weight is not None:
       self.assertEqual(expected_age_weight,
-                       checkpoint_utils.load_variable(self._model_dir,
-                                                      AGE_WEIGHT_NAME))
+                       tf.train.load_variable(self._model_dir, AGE_WEIGHT_NAME))
 
     self.assertEqual([1], shapes[BIAS_NAME])
     if expected_bias is not None:
       self.assertEqual(expected_bias,
-                       checkpoint_utils.load_variable(self._model_dir,
-                                                      BIAS_NAME))
+                       tf.train.load_variable(self._model_dir, BIAS_NAME))
 
   def testFromScratchWithDefaultOptimizer(self):
     # Create LinearRegressor.
@@ -773,7 +766,9 @@ class BaseLinearRegressorTrainingTest(object):
     # Train for a few steps, and validate final checkpoint.
     num_steps = 10
     linear_regressor.train(
-        input_fn=lambda: ({'age': ((age,),)}, ((label,),)), steps=num_steps)
+        input_fn=lambda: ({
+            'age': ((age,),)
+        }, ((label,),)), steps=num_steps)
     self._assert_checkpoint(num_steps)
 
   def testTrainWithOneDimLabel(self):
@@ -810,8 +805,10 @@ class BaseLinearRegressorTrainingTest(object):
     self.assertEqual((batch_size,), data_rank_1.shape)
 
     train_input_fn = numpy_io.numpy_input_fn(
-        x={'age': data_rank_1,
-           'w': data_rank_1},
+        x={
+            'age': data_rank_1,
+            'w': data_rank_1
+        },
         y=data_rank_1,
         batch_size=batch_size,
         num_epochs=None,
@@ -833,7 +830,9 @@ class BaseLinearRegressorTrainingTest(object):
     # Train for a few steps, and validate optimizer and final checkpoint.
     num_steps = 10
     linear_regressor.train(
-        input_fn=lambda: ({'age': ((age,),)}, ((label,),)), steps=num_steps)
+        input_fn=lambda: ({
+            'age': ((age,),)
+        }, ((label,),)), steps=num_steps)
     self.assertEqual(
         num_steps,
         linear_regressor.get_variable_value(mock_opt.iterations.name))
@@ -847,13 +846,13 @@ class BaseLinearRegressorTrainingTest(object):
     age_weight = 10.0
     bias = 5.0
     initial_global_step = 100
-    with ops.Graph().as_default():
-      variables_lib.Variable([[age_weight]], name=AGE_WEIGHT_NAME)
-      variables_lib.Variable([bias], name=BIAS_NAME)
-      variables_lib.Variable(
+    with tf.Graph().as_default():
+      tf.Variable([[age_weight]], name=AGE_WEIGHT_NAME)
+      tf.Variable([bias], name=BIAS_NAME)
+      tf.Variable(
           initial_global_step,
-          name=ops.GraphKeys.GLOBAL_STEP,
-          dtype=dtypes.int64)
+          name=tf.compat.v1.GraphKeys.GLOBAL_STEP,
+          dtype=tf.dtypes.int64)
       save_variables_to_ckpt(self._model_dir)
 
     # logits = age * age_weight + bias = 17 * 10. + 5. = 175
@@ -867,7 +866,9 @@ class BaseLinearRegressorTrainingTest(object):
     # Train for a few steps, and validate optimizer and final checkpoint.
     num_steps = 10
     linear_regressor.train(
-        input_fn=lambda: ({'age': ((17,),)}, ((5.,),)), steps=num_steps)
+        input_fn=lambda: ({
+            'age': ((17,),)
+        }, ((5.,),)), steps=num_steps)
     self.assertEqual(
         initial_global_step + num_steps,
         linear_regressor.get_variable_value(mock_opt.iterations.name))
@@ -881,13 +882,13 @@ class BaseLinearRegressorTrainingTest(object):
     age_weight = 10.0
     bias = 5.0
     initial_global_step = 100
-    with ops.Graph().as_default():
-      variables_lib.Variable([[age_weight]], name=AGE_WEIGHT_NAME)
-      variables_lib.Variable([bias], name=BIAS_NAME)
-      variables_lib.Variable(
+    with tf.Graph().as_default():
+      tf.Variable([[age_weight]], name=AGE_WEIGHT_NAME)
+      tf.Variable([bias], name=BIAS_NAME)
+      tf.Variable(
           initial_global_step,
-          name=ops.GraphKeys.GLOBAL_STEP,
-          dtype=dtypes.int64)
+          name=tf.compat.v1.GraphKeys.GLOBAL_STEP,
+          dtype=tf.dtypes.int64)
       save_variables_to_ckpt(self._model_dir)
 
     # logits = age * age_weight + bias
@@ -904,7 +905,9 @@ class BaseLinearRegressorTrainingTest(object):
     # Train for a few steps, and validate optimizer and final checkpoint.
     num_steps = 10
     linear_regressor.train(
-        input_fn=lambda: ({'age': ((17,), (15,))}, ((5.,), (3.,))),
+        input_fn=lambda: ({
+            'age': ((17,), (15,))
+        }, ((5.,), (3.,))),
         steps=num_steps)
     self.assertEqual(
         initial_global_step + num_steps,
@@ -928,35 +931,34 @@ class BaseLinearClassifierTrainingTest(object):
     if self._model_dir:
       shutil.rmtree(self._model_dir)
 
-  def _assert_checkpoint(
-      self, n_classes, expected_global_step, expected_age_weight=None,
-      expected_bias=None):
+  def _assert_checkpoint(self,
+                         n_classes,
+                         expected_global_step,
+                         expected_age_weight=None,
+                         expected_bias=None):
     logits_dimension = n_classes if n_classes > 2 else 1
 
     shapes = {
-        name: shape for (name, shape) in
-        checkpoint_utils.list_variables(self._model_dir)
+        name: shape
+        for (name, shape) in tf.train.list_variables(self._model_dir)
     }
 
-    self.assertEqual([], shapes[ops.GraphKeys.GLOBAL_STEP])
+    self.assertEqual([], shapes[tf.compat.v1.GraphKeys.GLOBAL_STEP])
     self.assertEqual(
         expected_global_step,
-        checkpoint_utils.load_variable(
-            self._model_dir, ops.GraphKeys.GLOBAL_STEP))
+        tf.train.load_variable(self._model_dir,
+                               tf.compat.v1.GraphKeys.GLOBAL_STEP))
 
-    self.assertEqual([1, logits_dimension],
-                     shapes[AGE_WEIGHT_NAME])
+    self.assertEqual([1, logits_dimension], shapes[AGE_WEIGHT_NAME])
     if expected_age_weight is not None:
-      self.assertAllEqual(expected_age_weight,
-                          checkpoint_utils.load_variable(
-                              self._model_dir,
-                              AGE_WEIGHT_NAME))
+      self.assertAllEqual(
+          expected_age_weight,
+          tf.train.load_variable(self._model_dir, AGE_WEIGHT_NAME))
 
     self.assertEqual([logits_dimension], shapes[BIAS_NAME])
     if expected_bias is not None:
       self.assertAllEqual(expected_bias,
-                          checkpoint_utils.load_variable(
-                              self._model_dir, BIAS_NAME))
+                          tf.train.load_variable(self._model_dir, BIAS_NAME))
 
   def _testFromScratchWithDefaultOptimizer(self, n_classes):
     label = 0
@@ -969,7 +971,9 @@ class BaseLinearClassifierTrainingTest(object):
     # Train for a few steps, and validate final checkpoint.
     num_steps = 10
     est.train(
-        input_fn=lambda: ({'age': ((age,),)}, ((label,),)), steps=num_steps)
+        input_fn=lambda: ({
+            'age': ((age,),)
+        }, ((label,),)), steps=num_steps)
     self._assert_checkpoint(n_classes, num_steps)
 
   def testBinaryClassesFromScratchWithDefaultOptimizer(self):
@@ -1044,8 +1048,13 @@ class BaseLinearClassifierTrainingTest(object):
     self.assertEqual((2, 1), data_rank_2.shape)
 
     train_input_fn = numpy_io.numpy_input_fn(
-        x={'age': data_rank_1, 'w': data_rank_2}, y=data_rank_1,
-        batch_size=batch_size, num_epochs=None,
+        x={
+            'age': data_rank_1,
+            'w': data_rank_2
+        },
+        y=data_rank_1,
+        batch_size=batch_size,
+        num_epochs=None,
         shuffle=True)
     est.train(train_input_fn, steps=200)
     self._assert_checkpoint(n_classes, 200)
@@ -1068,8 +1077,13 @@ class BaseLinearClassifierTrainingTest(object):
     self.assertEqual((2,), data_rank_1.shape)
 
     train_input_fn = numpy_io.numpy_input_fn(
-        x={'age': data_rank_1, 'w': data_rank_1}, y=data_rank_1,
-        batch_size=batch_size, num_epochs=None,
+        x={
+            'age': data_rank_1,
+            'w': data_rank_1
+        },
+        y=data_rank_1,
+        batch_size=batch_size,
+        num_epochs=None,
         shuffle=True)
     est.train(train_input_fn, steps=200)
     self._assert_checkpoint(n_classes, 200)
@@ -1094,7 +1108,7 @@ class BaseLinearClassifierTrainingTest(object):
     # For this particular test case, as logits are same, the formular
     # 1 * -log ( 1.0 / n_classes ) covers both binary and multi class cases.
     mock_opt = mock_optimizer(
-        self, expected_loss=-1 * math.log(1.0/n_classes))
+        self, expected_loss=-1 * math.log(1.0 / n_classes))
 
     est = linear.LinearClassifierV2(
         feature_columns=(self._fc_lib.numeric_column('age'),),
@@ -1105,10 +1119,11 @@ class BaseLinearClassifierTrainingTest(object):
     # Train for a few steps, and validate optimizer and final checkpoint.
     num_steps = 10
     est.train(
-        input_fn=lambda: ({'age': ((age,),)}, ((label,),)), steps=num_steps)
-    self.assertEqual(
-        num_steps,
-        est.get_variable_value(mock_opt.iterations.name))
+        input_fn=lambda: ({
+            'age': ((age,),)
+        }, ((label,),)), steps=num_steps)
+    self.assertEqual(num_steps,
+                     est.get_variable_value(mock_opt.iterations.name))
     self._assert_checkpoint(
         n_classes,
         expected_global_step=num_steps,
@@ -1128,18 +1143,18 @@ class BaseLinearClassifierTrainingTest(object):
     # For binary case, the expected weight has shape (1,1). For multi class
     # case, the shape is (1, n_classes). In order to test the weights, set
     # weights as 2.0 * range(n_classes).
-    age_weight = [[2.0]] if n_classes == 2 else (
-        np.reshape(2.0 * np.array(list(range(n_classes)), dtype=np.float32),
-                   (1, n_classes)))
+    age_weight = [[2.0]] if n_classes == 2 else (np.reshape(
+        2.0 * np.array(list(range(n_classes)), dtype=np.float32),
+        (1, n_classes)))
     bias = [-35.0] if n_classes == 2 else [-35.0] * n_classes
     initial_global_step = 100
-    with ops.Graph().as_default():
-      variables_lib.Variable(age_weight, name=AGE_WEIGHT_NAME)
-      variables_lib.Variable(bias, name=BIAS_NAME)
-      variables_lib.Variable(
+    with tf.Graph().as_default():
+      tf.Variable(age_weight, name=AGE_WEIGHT_NAME)
+      tf.Variable(bias, name=BIAS_NAME)
+      tf.Variable(
           initial_global_step,
-          name=ops.GraphKeys.GLOBAL_STEP,
-          dtype=dtypes.int64)
+          name=tf.compat.v1.GraphKeys.GLOBAL_STEP,
+          dtype=tf.dtypes.int64)
       save_variables_to_ckpt(self._model_dir)
 
     # For binary classifier:
@@ -1169,10 +1184,11 @@ class BaseLinearClassifierTrainingTest(object):
     # Train for a few steps, and validate optimizer and final checkpoint.
     num_steps = 10
     est.train(
-        input_fn=lambda: ({'age': ((age,),)}, ((label,),)), steps=num_steps)
-    self.assertEqual(
-        initial_global_step + num_steps,
-        est.get_variable_value(mock_opt.iterations.name))
+        input_fn=lambda: ({
+            'age': ((age,),)
+        }, ((label,),)), steps=num_steps)
+    self.assertEqual(initial_global_step + num_steps,
+                     est.get_variable_value(mock_opt.iterations.name))
     self._assert_checkpoint(
         n_classes,
         expected_global_step=initial_global_step + num_steps,
@@ -1195,13 +1211,13 @@ class BaseLinearClassifierTrainingTest(object):
     age_weight = [[2.0]]
     bias = [-35.0]
     initial_global_step = 100
-    with ops.Graph().as_default():
-      variables_lib.Variable(age_weight, name=AGE_WEIGHT_NAME)
-      variables_lib.Variable(bias, name=BIAS_NAME)
-      variables_lib.Variable(
+    with tf.Graph().as_default():
+      tf.Variable(age_weight, name=AGE_WEIGHT_NAME)
+      tf.Variable(bias, name=BIAS_NAME)
+      tf.Variable(
           initial_global_step,
-          name=ops.GraphKeys.GLOBAL_STEP,
-          dtype=dtypes.int64)
+          name=tf.compat.v1.GraphKeys.GLOBAL_STEP,
+          dtype=tf.dtypes.int64)
       save_variables_to_ckpt(self._model_dir)
 
     # logits = age * age_weight + bias = 17 * 2. - 35. = -1.
@@ -1218,10 +1234,11 @@ class BaseLinearClassifierTrainingTest(object):
     # Train for a few steps, and validate optimizer and final checkpoint.
     num_steps = 10
     est.train(
-        input_fn=lambda: ({'age': ((age,),)}, ((label,),)), steps=num_steps)
-    self.assertEqual(
-        initial_global_step + num_steps,
-        est.get_variable_value(mock_opt.iterations.name))
+        input_fn=lambda: ({
+            'age': ((age,),)
+        }, ((label,),)), steps=num_steps)
+    self.assertEqual(initial_global_step + num_steps,
+                     est.get_variable_value(mock_opt.iterations.name))
 
   def testBinaryClassesFromCheckpointFloatLabels(self):
     self._testFromCheckpointFloatLabels(n_classes=2)
@@ -1236,18 +1253,18 @@ class BaseLinearClassifierTrainingTest(object):
     # For binary case, the expected weight has shape (1,1). For multi class
     # case, the shape is (1, n_classes). In order to test the weights, set
     # weights as 2.0 * range(n_classes).
-    age_weight = [[2.0]] if n_classes == 2 else (
-        np.reshape(2.0 * np.array(list(range(n_classes)), dtype=np.float32),
-                   (1, n_classes)))
+    age_weight = [[2.0]] if n_classes == 2 else (np.reshape(
+        2.0 * np.array(list(range(n_classes)), dtype=np.float32),
+        (1, n_classes)))
     bias = [-35.0] if n_classes == 2 else [-35.0] * n_classes
     initial_global_step = 100
-    with ops.Graph().as_default():
-      variables_lib.Variable(age_weight, name=AGE_WEIGHT_NAME)
-      variables_lib.Variable(bias, name=BIAS_NAME)
-      variables_lib.Variable(
+    with tf.Graph().as_default():
+      tf.Variable(age_weight, name=AGE_WEIGHT_NAME)
+      tf.Variable(bias, name=BIAS_NAME)
+      tf.Variable(
           initial_global_step,
-          name=ops.GraphKeys.GLOBAL_STEP,
-          dtype=dtypes.int64)
+          name=tf.compat.v1.GraphKeys.GLOBAL_STEP,
+          dtype=tf.dtypes.int64)
       save_variables_to_ckpt(self._model_dir)
 
     # For binary classifier:
@@ -1284,12 +1301,9 @@ class BaseLinearClassifierTrainingTest(object):
 
     # Train for a few steps, and validate optimizer and final checkpoint.
     num_steps = 10
-    est.train(
-        input_fn=lambda: ({'age': (age)}, (label)),
-        steps=num_steps)
-    self.assertEqual(
-        initial_global_step + num_steps,
-        est.get_variable_value(mock_opt.iterations.name))
+    est.train(input_fn=lambda: ({'age': (age)}, (label)), steps=num_steps)
+    self.assertEqual(initial_global_step + num_steps,
+                     est.get_variable_value(mock_opt.iterations.name))
     self._assert_checkpoint(
         n_classes,
         expected_global_step=initial_global_step + num_steps,
@@ -1323,16 +1337,16 @@ class BaseLinearClassifierEvaluationTest(object):
     # For binary case, the expected weight has shape (1,1). For multi class
     # case, the shape is (1, n_classes). In order to test the weights, set
     # weights as 2.0 * range(n_classes).
-    age_weight = [[-11.0]] if n_classes == 2 else (
-        np.reshape(-11.0 * np.array(list(range(n_classes)), dtype=np.float32),
-                   (1, n_classes)))
+    age_weight = [[-11.0]] if n_classes == 2 else (np.reshape(
+        -11.0 * np.array(list(range(n_classes)), dtype=np.float32),
+        (1, n_classes)))
     bias = [-30.0] if n_classes == 2 else [-30.0] * n_classes
 
-    with ops.Graph().as_default():
-      variables_lib.Variable(age_weight, name=AGE_WEIGHT_NAME)
-      variables_lib.Variable(bias, name=BIAS_NAME)
-      variables_lib.Variable(
-          100, name=ops.GraphKeys.GLOBAL_STEP, dtype=dtypes.int64)
+    with tf.Graph().as_default():
+      tf.Variable(age_weight, name=AGE_WEIGHT_NAME)
+      tf.Variable(bias, name=BIAS_NAME)
+      tf.Variable(
+          100, name=tf.compat.v1.GraphKeys.GLOBAL_STEP, dtype=tf.dtypes.int64)
       save_variables_to_ckpt(self._model_dir)
 
     est = self._linear_classifier_fn(
@@ -1340,13 +1354,15 @@ class BaseLinearClassifierEvaluationTest(object):
         n_classes=n_classes,
         model_dir=self._model_dir)
     eval_metrics = est.evaluate(
-        input_fn=lambda: ({'age': ((age,),)}, ((label,),)), steps=1)
+        input_fn=lambda: ({
+            'age': ((age,),)
+        }, ((label,),)), steps=1)
 
     if n_classes == 2:
       # Binary classes: loss = sum(corss_entropy(41)) = 41.
       expected_metrics = {
           metric_keys.MetricKeys.LOSS: 41.,
-          ops.GraphKeys.GLOBAL_STEP: 100,
+          tf.compat.v1.GraphKeys.GLOBAL_STEP: 100,
           metric_keys.MetricKeys.LOSS_MEAN: 41.,
           metric_keys.MetricKeys.ACCURACY: 0.,
           metric_keys.MetricKeys.PRECISION: 0.,
@@ -1367,12 +1383,14 @@ class BaseLinearClassifierEvaluationTest(object):
       expected_metrics = {
           metric_keys.MetricKeys.LOSS: expected_loss,
           metric_keys.MetricKeys.LOSS_MEAN: expected_loss,
-          ops.GraphKeys.GLOBAL_STEP: 100,
+          tf.compat.v1.GraphKeys.GLOBAL_STEP: 100,
           metric_keys.MetricKeys.ACCURACY: 0.,
       }
 
-    self.assertAllClose(sorted_key_dict(expected_metrics),
-                        sorted_key_dict(eval_metrics), rtol=1e-3)
+    self.assertAllClose(
+        sorted_key_dict(expected_metrics),
+        sorted_key_dict(eval_metrics),
+        rtol=1e-3)
 
   def test_binary_classes_evaluation_for_simple_data(self):
     self._test_evaluation_for_simple_data(n_classes=2)
@@ -1387,18 +1405,18 @@ class BaseLinearClassifierEvaluationTest(object):
     # For binary case, the expected weight has shape (1,1). For multi class
     # case, the shape is (1, n_classes). In order to test the weights, set
     # weights as 2.0 * range(n_classes).
-    age_weight = [[2.0]] if n_classes == 2 else (
-        np.reshape(2.0 * np.array(list(range(n_classes)), dtype=np.float32),
-                   (1, n_classes)))
+    age_weight = [[2.0]] if n_classes == 2 else (np.reshape(
+        2.0 * np.array(list(range(n_classes)), dtype=np.float32),
+        (1, n_classes)))
     bias = [-35.0] if n_classes == 2 else [-35.0] * n_classes
     initial_global_step = 100
-    with ops.Graph().as_default():
-      variables_lib.Variable(age_weight, name=AGE_WEIGHT_NAME)
-      variables_lib.Variable(bias, name=BIAS_NAME)
-      variables_lib.Variable(
+    with tf.Graph().as_default():
+      tf.Variable(age_weight, name=AGE_WEIGHT_NAME)
+      tf.Variable(bias, name=BIAS_NAME)
+      tf.Variable(
           initial_global_step,
-          name=ops.GraphKeys.GLOBAL_STEP,
-          dtype=dtypes.int64)
+          name=tf.compat.v1.GraphKeys.GLOBAL_STEP,
+          dtype=tf.dtypes.int64)
       save_variables_to_ckpt(self._model_dir)
 
     est = self._linear_classifier_fn(
@@ -1406,7 +1424,9 @@ class BaseLinearClassifierEvaluationTest(object):
         n_classes=n_classes,
         model_dir=self._model_dir)
     eval_metrics = est.evaluate(
-        input_fn=lambda: ({'age': (age)}, (label)), steps=1)
+        input_fn=lambda: ({
+            'age': (age)
+        }, (label)), steps=1)
 
     if n_classes == 2:
       # Logits are (-1., 1.) labels are (1, 0).
@@ -1417,7 +1437,7 @@ class BaseLinearClassifierEvaluationTest(object):
 
       expected_metrics = {
           metric_keys.MetricKeys.LOSS: expected_loss,
-          ops.GraphKeys.GLOBAL_STEP: 100,
+          tf.compat.v1.GraphKeys.GLOBAL_STEP: 100,
           metric_keys.MetricKeys.LOSS_MEAN: expected_loss,
           metric_keys.MetricKeys.ACCURACY: 0.,
           metric_keys.MetricKeys.PRECISION: 0.,
@@ -1441,12 +1461,14 @@ class BaseLinearClassifierEvaluationTest(object):
       expected_metrics = {
           metric_keys.MetricKeys.LOSS: expected_loss,
           metric_keys.MetricKeys.LOSS_MEAN: expected_loss,
-          ops.GraphKeys.GLOBAL_STEP: 100,
+          tf.compat.v1.GraphKeys.GLOBAL_STEP: 100,
           metric_keys.MetricKeys.ACCURACY: 0.,
       }
 
-    self.assertAllClose(sorted_key_dict(expected_metrics),
-                        sorted_key_dict(eval_metrics), rtol=1e-3)
+    self.assertAllClose(
+        sorted_key_dict(expected_metrics),
+        sorted_key_dict(eval_metrics),
+        rtol=1e-3)
 
   def test_binary_classes_evaluation_batch(self):
     self._test_evaluation_batch(n_classes=2)
@@ -1463,18 +1485,18 @@ class BaseLinearClassifierEvaluationTest(object):
     # For binary case, the expected weight has shape (1,1). For multi class
     # case, the shape is (1, n_classes). In order to test the weights, set
     # weights as 2.0 * range(n_classes).
-    age_weight = [[2.0]] if n_classes == 2 else (
-        np.reshape(2.0 * np.array(list(range(n_classes)), dtype=np.float32),
-                   (1, n_classes)))
+    age_weight = [[2.0]] if n_classes == 2 else (np.reshape(
+        2.0 * np.array(list(range(n_classes)), dtype=np.float32),
+        (1, n_classes)))
     bias = [-35.0] if n_classes == 2 else [-35.0] * n_classes
     initial_global_step = 100
-    with ops.Graph().as_default():
-      variables_lib.Variable(age_weight, name=AGE_WEIGHT_NAME)
-      variables_lib.Variable(bias, name=BIAS_NAME)
-      variables_lib.Variable(
+    with tf.Graph().as_default():
+      tf.Variable(age_weight, name=AGE_WEIGHT_NAME)
+      tf.Variable(bias, name=BIAS_NAME)
+      tf.Variable(
           initial_global_step,
-          name=ops.GraphKeys.GLOBAL_STEP,
-          dtype=dtypes.int64)
+          name=tf.compat.v1.GraphKeys.GLOBAL_STEP,
+          dtype=tf.dtypes.int64)
       save_variables_to_ckpt(self._model_dir)
 
     est = self._linear_classifier_fn(
@@ -1483,7 +1505,10 @@ class BaseLinearClassifierEvaluationTest(object):
         weight_column='w',
         model_dir=self._model_dir)
     eval_metrics = est.evaluate(
-        input_fn=lambda: ({'age': (age), 'w': (weights)}, (label)), steps=1)
+        input_fn=lambda: ({
+            'age': (age),
+            'w': (weights)
+        }, (label)), steps=1)
 
     if n_classes == 2:
       # Logits are (-1., 1.) labels are (1, 0).
@@ -1499,28 +1524,18 @@ class BaseLinearClassifierEvaluationTest(object):
       predictions_mean = np.average(logistics, weights=weights)
 
       expected_metrics = {
-          metric_keys.MetricKeys.LOSS:
-              expected_loss,
-          ops.GraphKeys.GLOBAL_STEP:
-              100,
-          metric_keys.MetricKeys.LOSS_MEAN:
-              loss_mean,
-          metric_keys.MetricKeys.ACCURACY:
-              0.,
-          metric_keys.MetricKeys.PRECISION:
-              0.,
-          metric_keys.MetricKeys.RECALL:
-              0.,
-          metric_keys.MetricKeys.PREDICTION_MEAN:
-              predictions_mean,
-          metric_keys.MetricKeys.LABEL_MEAN:
-              label_mean,
-          metric_keys.MetricKeys.ACCURACY_BASELINE: (max(
-              label_mean, 1 - label_mean)),
-          metric_keys.MetricKeys.AUC:
-              0.,
-          metric_keys.MetricKeys.AUC_PR:
-              0.1891,
+          metric_keys.MetricKeys.LOSS: expected_loss,
+          tf.compat.v1.GraphKeys.GLOBAL_STEP: 100,
+          metric_keys.MetricKeys.LOSS_MEAN: loss_mean,
+          metric_keys.MetricKeys.ACCURACY: 0.,
+          metric_keys.MetricKeys.PRECISION: 0.,
+          metric_keys.MetricKeys.RECALL: 0.,
+          metric_keys.MetricKeys.PREDICTION_MEAN: predictions_mean,
+          metric_keys.MetricKeys.LABEL_MEAN: label_mean,
+          metric_keys.MetricKeys.ACCURACY_BASELINE:
+              (max(label_mean, 1 - label_mean)),
+          metric_keys.MetricKeys.AUC: 0.,
+          metric_keys.MetricKeys.AUC_PR: 0.1891,
       }
     else:
       # Multi classes: unweighted_loss = 1 * -log ( soft_max(logits)[label] )
@@ -1537,12 +1552,14 @@ class BaseLinearClassifierEvaluationTest(object):
       expected_metrics = {
           metric_keys.MetricKeys.LOSS: expected_loss,
           metric_keys.MetricKeys.LOSS_MEAN: loss_mean,
-          ops.GraphKeys.GLOBAL_STEP: 100,
+          tf.compat.v1.GraphKeys.GLOBAL_STEP: 100,
           metric_keys.MetricKeys.ACCURACY: 0.,
       }
 
-    self.assertAllClose(sorted_key_dict(expected_metrics),
-                        sorted_key_dict(eval_metrics), rtol=1e-3)
+    self.assertAllClose(
+        sorted_key_dict(expected_metrics),
+        sorted_key_dict(eval_metrics),
+        rtol=1e-3)
 
   def test_binary_classes_evaluation_weights(self):
     self._test_evaluation_weights(n_classes=2)
@@ -1571,15 +1588,15 @@ class BaseLinearClassifierPredictTest(object):
     # For binary case, the expected weight has shape (1,1). For multi class
     # case, the shape is (1, n_classes). In order to test the weights, set
     # weights as 2.0 * range(n_classes).
-    age_weight = [[-11.0]] if n_classes == 2 else (
-        np.reshape(-11.0 * np.array(list(range(n_classes)), dtype=np.float32),
-                   (1, n_classes)))
+    age_weight = [[-11.0]] if n_classes == 2 else (np.reshape(
+        -11.0 * np.array(list(range(n_classes)), dtype=np.float32),
+        (1, n_classes)))
     bias = [10.0] if n_classes == 2 else [10.0] * n_classes
 
-    with ops.Graph().as_default():
-      variables_lib.Variable(age_weight, name=AGE_WEIGHT_NAME)
-      variables_lib.Variable(bias, name=BIAS_NAME)
-      variables_lib.Variable(100, name='global_step', dtype=dtypes.int64)
+    with tf.Graph().as_default():
+      tf.Variable(age_weight, name=AGE_WEIGHT_NAME)
+      tf.Variable(bias, name=BIAS_NAME)
+      tf.Variable(100, name='global_step', dtype=tf.dtypes.int64)
       save_variables_to_ckpt(self._model_dir)
 
     est = self._linear_classifier_fn(
@@ -1605,7 +1622,10 @@ class BaseLinearClassifierPredictTest(object):
 
       expected_predictions = {
           'class_ids': [0],
+          'all_class_ids': [0, 1],
           'classes': [label_output_fn(0)],
+          'all_classes': [label_output_fn(0),
+                          label_output_fn(1)],
           'logistic': [sigmoid(np.array(scalar_logits))],
           'logits': [scalar_logits],
           'probabilities': softmax,
@@ -1613,11 +1633,14 @@ class BaseLinearClassifierPredictTest(object):
     else:
       onedim_logits = np.reshape(np.array(age_weight) * age + bias, (-1,))
       class_ids = onedim_logits.argmax()
+      all_class_ids = list(range(len(onedim_logits)))
       logits_exp = np.exp(onedim_logits)
       softmax = logits_exp / logits_exp.sum()
       expected_predictions = {
           'class_ids': [class_ids],
+          'all_class_ids': all_class_ids,
           'classes': [label_output_fn(class_ids)],
+          'all_classes': [label_output_fn(i) for i in all_class_ids],
           'logits': onedim_logits,
           'probabilities': softmax,
       }
@@ -1627,21 +1650,25 @@ class BaseLinearClassifierPredictTest(object):
     self.assertEqual(expected_predictions['classes'], predictions[0]['classes'])
     expected_predictions.pop('classes')
     predictions[0].pop('classes')
-    self.assertAllClose(sorted_key_dict(expected_predictions),
-                        sorted_key_dict(predictions[0]))
+    self.assertAllEqual(expected_predictions['all_classes'],
+                        predictions[0]['all_classes'])
+    expected_predictions.pop('all_classes')
+    predictions[0].pop('all_classes')
+    self.assertAllClose(
+        sorted_key_dict(expected_predictions), sorted_key_dict(predictions[0]))
 
   def testBinaryClassesWithoutLabelVocabulary(self):
     n_classes = 2
-    self._testPredictions(n_classes,
-                          label_vocabulary=None,
-                          label_output_fn=lambda x: ('%s' % x).encode())
+    self._testPredictions(
+        n_classes,
+        label_vocabulary=None,
+        label_output_fn=lambda x: ('%s' % x).encode())
 
   def testBinaryClassesWithLabelVocabulary(self):
     n_classes = 2
     self._testPredictions(
         n_classes,
-        label_vocabulary=['class_vocab_{}'.format(i)
-                          for i in range(n_classes)],
+        label_vocabulary=['class_vocab_{}'.format(i) for i in range(n_classes)],
         label_output_fn=lambda x: ('class_vocab_%s' % x).encode())
 
   def testMultiClassesWithoutLabelVocabulary(self):
@@ -1655,8 +1682,7 @@ class BaseLinearClassifierPredictTest(object):
     n_classes = 4
     self._testPredictions(
         n_classes,
-        label_vocabulary=['class_vocab_{}'.format(i)
-                          for i in range(n_classes)],
+        label_vocabulary=['class_vocab_{}'.format(i) for i in range(n_classes)],
         label_output_fn=lambda x: ('class_vocab_%s' % x).encode())
 
   def testSparseCombiner(self):
@@ -1664,19 +1690,20 @@ class BaseLinearClassifierPredictTest(object):
     w_b = 3.0
     w_c = 5.0
     bias = 5.0
-    with ops.Graph().as_default():
-      variables_lib.Variable([[w_a], [w_b], [w_c]], name=LANGUAGE_WEIGHT_NAME)
-      variables_lib.Variable([bias], name=BIAS_NAME)
-      variables_lib.Variable(1, name=ops.GraphKeys.GLOBAL_STEP,
-                             dtype=dtypes.int64)
+    with tf.Graph().as_default():
+      tf.Variable([[w_a], [w_b], [w_c]], name=LANGUAGE_WEIGHT_NAME)
+      tf.Variable([bias], name=BIAS_NAME)
+      tf.Variable(
+          1, name=tf.compat.v1.GraphKeys.GLOBAL_STEP, dtype=tf.dtypes.int64)
       save_variables_to_ckpt(self._model_dir)
 
     def _input_fn():
-      return dataset_ops.Dataset.from_tensors({
-          'language': sparse_tensor.SparseTensor(
-              values=['a', 'c', 'b', 'c'],
-              indices=[[0, 0], [0, 1], [1, 0], [1, 1]],
-              dense_shape=[2, 2]),
+      return tf.compat.v1.data.Dataset.from_tensors({
+          'language':
+              tf.sparse.SparseTensor(
+                  values=['a', 'c', 'b', 'c'],
+                  indices=[[0, 0], [0, 1], [1, 0], [1, 1]],
+                  dense_shape=[2, 2]),
       })
 
     feature_columns = (self._fc_lib.categorical_column_with_vocabulary_list(
@@ -1689,8 +1716,7 @@ class BaseLinearClassifierPredictTest(object):
     # logits_2 = w_b + w_c + bias
     #          = 3.0 + 5.0 + 5.0 = 13.0
     linear_classifier = self._linear_classifier_fn(
-        feature_columns=feature_columns,
-        model_dir=self._model_dir)
+        feature_columns=feature_columns, model_dir=self._model_dir)
     predictions = linear_classifier.predict(input_fn=_input_fn)
     predicted_scores = list([x['logits'] for x in predictions])
     self.assertAllClose([[12.0], [13.0]], predicted_scores)
@@ -1751,7 +1777,7 @@ class BaseLinearClassifierIntegrationTest(object):
 
     # EVALUTE
     scores = est.evaluate(eval_input_fn)
-    self.assertEqual(200, scores[ops.GraphKeys.GLOBAL_STEP])
+    self.assertEqual(200, scores[tf.compat.v1.GraphKeys.GLOBAL_STEP])
     self.assertIn(metric_keys.MetricKeys.LOSS, six.iterkeys(scores))
 
     # PREDICT
@@ -1760,12 +1786,12 @@ class BaseLinearClassifierIntegrationTest(object):
     self.assertAllEqual((prediction_length, 1), predictions.shape)
 
     # EXPORT
-    feature_spec = feature_column_v2.make_parse_example_spec_v2(feature_columns)
+    feature_spec = tf.feature_column.make_parse_example_spec(feature_columns)
     serving_input_receiver_fn = export.build_parsing_serving_input_receiver_fn(
         feature_spec)
     export_dir = est.export_saved_model(tempfile.mkdtemp(),
                                         serving_input_receiver_fn)
-    self.assertTrue(gfile.Exists(export_dir))
+    self.assertTrue(tf.compat.v1.gfile.Exists(export_dir))
 
   def _test_numpy_input_fn(self, n_classes):
     """Tests complete flow with numpy_input_fn."""
@@ -1855,39 +1881,41 @@ class BaseLinearClassifierIntegrationTest(object):
 
     serialized_examples = []
     for x, y in zip(data, target):
-      example = example_pb2.Example(features=feature_pb2.Features(
-          feature={
-              'x':
-                  feature_pb2.Feature(float_list=feature_pb2.FloatList(
-                      value=x)),
-              'y':
-                  feature_pb2.Feature(int64_list=feature_pb2.Int64List(
-                      value=[y])),
-          }))
+      example = example_pb2.Example(
+          features=feature_pb2.Features(
+              feature={
+                  'x':
+                      feature_pb2.Feature(
+                          float_list=feature_pb2.FloatList(value=x)),
+                  'y':
+                      feature_pb2.Feature(
+                          int64_list=feature_pb2.Int64List(value=[y])),
+              }))
       serialized_examples.append(example.SerializeToString())
 
     feature_spec = {
-        'x': parsing_ops.FixedLenFeature([input_dimension], dtypes.float32),
-        'y': parsing_ops.FixedLenFeature([1], dtypes.int64),
+        'x': tf.io.FixedLenFeature([input_dimension], tf.dtypes.float32),
+        'y': tf.io.FixedLenFeature([1], tf.dtypes.int64),
     }
 
     def _train_input_fn():
-      feature_map = parsing_ops.parse_example(serialized_examples, feature_spec)
+      feature_map = tf.compat.v1.io.parse_example(serialized_examples,
+                                                  feature_spec)
       features = queue_parsed_features(feature_map)
       labels = features.pop('y')
       return features, labels
 
     def _eval_input_fn():
-      feature_map = parsing_ops.parse_example(
-          input_lib.limit_epochs(serialized_examples, num_epochs=1),
+      feature_map = tf.compat.v1.io.parse_example(
+          tf.compat.v1.train.limit_epochs(serialized_examples, num_epochs=1),
           feature_spec)
       features = queue_parsed_features(feature_map)
       labels = features.pop('y')
       return features, labels
 
     def _predict_input_fn():
-      feature_map = parsing_ops.parse_example(
-          input_lib.limit_epochs(serialized_examples, num_epochs=1),
+      feature_map = tf.compat.v1.io.parse_example(
+          tf.compat.v1.train.limit_epochs(serialized_examples, num_epochs=1),
           feature_spec)
       features = queue_parsed_features(feature_map)
       features.pop('y')
@@ -1916,15 +1944,16 @@ class BaseLinearLogitFnTest(object):
   def test_basic_logit_correctness(self):
     """linear_logit_fn simply wraps feature_column_lib.linear_model."""
     age = self._fc_lib.numeric_column('age')
-    with ops.Graph().as_default():
+    with tf.Graph().as_default():
       logit_fn = linear.linear_logit_fn_builder(units=2, feature_columns=[age])
       logits = logit_fn(features={'age': [[23.], [31.]]})
-      bias_var = ops.get_collection(ops.GraphKeys.GLOBAL_VARIABLES,
-                                    'linear_model/bias_weights')[0]
-      age_var = ops.get_collection(ops.GraphKeys.GLOBAL_VARIABLES,
-                                   'linear_model/age')[0]
-      with tf_session.Session() as sess:
-        sess.run([variables_lib.global_variables_initializer()])
+      bias_var = tf.compat.v1.get_collection(
+          tf.compat.v1.GraphKeys.GLOBAL_VARIABLES,
+          'linear_model/bias_weights')[0]
+      age_var = tf.compat.v1.get_collection(
+          tf.compat.v1.GraphKeys.GLOBAL_VARIABLES, 'linear_model/age')[0]
+      with tf.compat.v1.Session() as sess:
+        sess.run([tf.compat.v1.initializers.global_variables()])
         self.assertAllClose([[0., 0.], [0., 0.]], logits.eval())
         sess.run(bias_var.assign([10., 5.]))
         self.assertAllClose([[10., 5.], [10., 5.]], logits.eval())
@@ -1938,10 +1967,10 @@ class BaseLinearLogitFnTest(object):
     if self._fc_lib != feature_column_v2:
       return
 
-    age = feature_column_v2.numeric_column('age')
-    occupation = feature_column_v2.categorical_column_with_hash_bucket(
+    age = tf.feature_column.numeric_column('age')
+    occupation = tf.feature_column.categorical_column_with_hash_bucket(
         'occupation', hash_bucket_size=5)
-    with ops.Graph().as_default():
+    with tf.Graph().as_default():
       model = feature_column_v2.LinearModel(
           feature_columns=[age, occupation], units=3, name='linear_model')
       features = {
@@ -1952,10 +1981,10 @@ class BaseLinearLogitFnTest(object):
       variables = model.variables
       variables.remove(model.bias)
       fraction_zero = linear._compute_fraction_of_zero(variables)
-      age_var = ops.get_collection(ops.GraphKeys.GLOBAL_VARIABLES,
-                                   'linear_model/age')[0]
-      with tf_session.Session() as sess:
-        sess.run([variables_lib.global_variables_initializer()])
+      age_var = tf.compat.v1.get_collection(
+          tf.compat.v1.GraphKeys.GLOBAL_VARIABLES, 'linear_model/age')[0]
+      with tf.compat.v1.Session() as sess:
+        sess.run([tf.compat.v1.initializers.global_variables()])
         # Upon initialization, all variables will be zero.
         self.assertAllClose(1, fraction_zero.eval())
 
@@ -1992,7 +2021,7 @@ class BaseLinearWarmStartingTest(object):
 
   def tearDown(self):
     # Clean up checkpoint / vocab dir.
-    writer_cache.FileWriterCache.clear()
+    tf.compat.v1.summary.FileWriterCache.clear()
     shutil.rmtree(self._ckpt_and_vocab_dir)
 
   def test_classifier_basic_warm_starting(self):
@@ -2022,12 +2051,12 @@ class BaseLinearWarmStartingTest(object):
       # sure it uses the new value after warm started.
       if 'learning_rate' in variable_name:
         self.assertAllClose(
-            0.0, warm_started_linear_classifier.get_variable_value(variable_name))
+            0.0,
+            warm_started_linear_classifier.get_variable_value(variable_name))
       else:
         self.assertAllClose(
             linear_classifier.get_variable_value(variable_name),
             warm_started_linear_classifier.get_variable_value(variable_name))
-
 
   def test_regressor_basic_warm_starting(self):
     """Tests correctness of LinearRegressor default warm-start."""
@@ -2054,7 +2083,8 @@ class BaseLinearWarmStartingTest(object):
       # sure it uses the new value after warm started.
       if 'learning_rate' in variable_name:
         self.assertAllClose(
-            0.0, warm_started_linear_regressor.get_variable_value(variable_name))
+            0.0,
+            warm_started_linear_regressor.get_variable_value(variable_name))
       else:
         self.assertAllClose(
             linear_regressor.get_variable_value(variable_name),
@@ -2135,7 +2165,7 @@ class BaseLinearWarmStartingTest(object):
         old_vocab_size=occupation.vocabulary_size,
         # Can't use constant_initializer with load_and_remap.  In practice,
         # use a truncated normal initializer.
-        backup_initializer=init_ops.random_uniform_initializer(
+        backup_initializer=tf.compat.v1.initializers.random_uniform(
             minval=0.39, maxval=0.39))
     warm_started_linear_classifier = self._linear_classifier_fn(
         feature_columns=[occupation],

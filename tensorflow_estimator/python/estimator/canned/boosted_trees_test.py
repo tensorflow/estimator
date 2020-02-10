@@ -18,37 +18,29 @@ from __future__ import division
 from __future__ import print_function
 
 import collections
+import functools
 import os
 import tempfile
 
 import numpy as np
-
+import tensorflow as tf
 from google.protobuf import text_format
 from tensorflow.core.kernels.boosted_trees import boosted_trees_pb2
-from tensorflow.python.client import session
-from tensorflow.python.data.ops import dataset_ops
+from tensorflow.python.feature_column import feature_column as feature_column_old
 from tensorflow.python.feature_column import feature_column_lib as feature_column
-from tensorflow.python.framework import constant_op
-from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import test_util
+from tensorflow.python.framework import test_util
 from tensorflow.python.ops import boosted_trees_ops
+from tensorflow.python.ops import control_flow_util
 from tensorflow.python.ops import gen_boosted_trees_ops
 from tensorflow.python.ops import resources
-from tensorflow.python.ops import variables
-from tensorflow.python.platform import gfile
 from tensorflow.python.platform import googletest
-from tensorflow.python.saved_model import loader
-from tensorflow.python.training import checkpoint_utils
-from tensorflow.python.training import saver as saver_lib
-from tensorflow.python.training import session_run_hook
-from tensorflow_estimator.python.estimator import model_fn
 from tensorflow_estimator.python.estimator import run_config
 from tensorflow_estimator.python.estimator.canned import boosted_trees
 from tensorflow_estimator.python.estimator.export import export_lib
 from tensorflow_estimator.python.estimator.inputs import numpy_io
 from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
-from tensorflow.python.framework import test_util
 
 NUM_FEATURES = 3
 
@@ -62,21 +54,39 @@ INPUT_FEATURES = np.array(
     dtype=np.float32)
 
 CLASSIFICATION_LABELS = [[0.], [1.], [1.], [0.], [0.]]
+MULTI_CLASS_LABELS = [[0], [1], [1], [0], [0], [2], [2]]
 REGRESSION_LABELS = [[1.5], [0.3], [0.2], [2.], [5.]]
+MULTI_DIM_REGRESSION_LABELS = [[1.5, -2.5], [0.3, -1.3], [0.2, -1.2],
+                               [2., -3.0], [5., -6.0], [6.1, -7.10],
+                               [7.01, -8.01]]
 FEATURES_DICT = {'f_%d' % i: INPUT_FEATURES[i] for i in range(NUM_FEATURES)}
 
 # EXAMPLE_ID is not exposed to Estimator yet, but supported at model_fn level.
-EXAMPLE_IDS = np.array([0, 1, 2, 3, 4], dtype=np.int64)
+EXAMPLE_IDS = [0, 1, 2, 3, 4]
 EXAMPLE_ID_COLUMN = '__example_id__'
 
 
-def _make_train_input_fn(is_classification):
+def _make_train_input_fn(is_classification, single_logit=True):
   """Makes train input_fn for classification/regression."""
 
   def _input_fn():
+    example_ids = EXAMPLE_IDS
     features_dict = dict(FEATURES_DICT)  # copies the dict to add an entry.
-    features_dict[EXAMPLE_ID_COLUMN] = constant_op.constant(EXAMPLE_IDS)
-    labels = CLASSIFICATION_LABELS if is_classification else REGRESSION_LABELS
+    if single_logit:
+      labels = CLASSIFICATION_LABELS if is_classification else REGRESSION_LABELS
+    else:
+      labels = MULTI_CLASS_LABELS if is_classification else MULTI_DIM_REGRESSION_LABELS
+
+      def _add_additional_examples(feature, values):
+        features_dict[feature] = np.concatenate(
+            [features_dict[feature], values])
+
+      _add_additional_examples('f_0', [1., 5.0])  # f0 quantized:[...,2,2]
+      _add_additional_examples('f_1', [0.6, 11.1])  # f1 quantized:[...,2,2]
+      _add_additional_examples('f_2', [11.99, 0.6])  # f2 quantized:[...,2,2]
+      example_ids += [5, 6]
+    features_dict[EXAMPLE_ID_COLUMN] = tf.constant(
+        example_ids, dtype=tf.dtypes.int64)
     return features_dict, labels
 
   return _input_fn
@@ -87,16 +97,17 @@ def _make_train_input_fn_dataset(is_classification, batch=None, repeat=None):
 
   def _input_fn():
     features_dict = dict(FEATURES_DICT)  # copies the dict to add an entry.
-    features_dict[EXAMPLE_ID_COLUMN] = constant_op.constant(EXAMPLE_IDS)
+    features_dict[EXAMPLE_ID_COLUMN] = tf.constant(
+        EXAMPLE_IDS, dtype=tf.dtypes.int64)
     labels = CLASSIFICATION_LABELS if is_classification else REGRESSION_LABELS
     if batch:
-      ds = dataset_ops.Dataset.zip(
-          (dataset_ops.Dataset.from_tensor_slices(features_dict),
-           dataset_ops.Dataset.from_tensor_slices(labels))).batch(batch)
+      ds = tf.compat.v1.data.Dataset.zip(
+          (tf.compat.v1.data.Dataset.from_tensor_slices(features_dict),
+           tf.compat.v1.data.Dataset.from_tensor_slices(labels))).batch(batch)
     else:
-      ds = dataset_ops.Dataset.zip(
-          (dataset_ops.Dataset.from_tensors(features_dict),
-           dataset_ops.Dataset.from_tensors(labels)))
+      ds = tf.compat.v1.data.Dataset.zip(
+          (tf.compat.v1.data.Dataset.from_tensors(features_dict),
+           tf.compat.v1.data.Dataset.from_tensors(labels)))
     # repeat indefinitely by default, or stop at the given step.
     ds = ds.repeat(repeat)
     return ds
@@ -104,17 +115,17 @@ def _make_train_input_fn_dataset(is_classification, batch=None, repeat=None):
   return _input_fn
 
 
-class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
+class BoostedTreesEstimatorTest(tf.test.TestCase):
 
   def setUp(self):
     self._head = boosted_trees._create_regression_head(label_dimension=1)
     self._numeric_feature_columns = {
-        feature_column.numeric_column('f_%d' % i, dtype=dtypes.float32)
+        tf.feature_column.numeric_column('f_%d' % i, dtype=tf.dtypes.float32)
         for i in range(NUM_FEATURES)
     }
 
     self._feature_columns = {
-        feature_column.bucketized_column(f, BUCKET_BOUNDARIES)
+        tf.feature_column.bucketized_column(f, BUCKET_BOUNDARIES)
         for f in self._numeric_feature_columns
     }
 
@@ -134,8 +145,9 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
                                           finalized_trees,
                                           attempted_layers,
                                           bucket_boundaries=None):
-    reader = checkpoint_utils.load_checkpoint(model_dir)
-    self.assertEqual(global_step, reader.get_tensor(ops.GraphKeys.GLOBAL_STEP))
+    reader = tf.train.load_checkpoint(model_dir)
+    self.assertEqual(global_step,
+                     reader.get_tensor(tf.compat.v1.GraphKeys.GLOBAL_STEP))
     serialized = reader.get_tensor('boosted_trees:0_serialized')
     ensemble_proto = boosted_trees_pb2.TreeEnsemble()
     ensemble_proto.ParseFromString(serialized)
@@ -157,9 +169,109 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
     return ensemble_proto
 
   @test_util.run_in_graph_and_eager_modes()
+  def testV2(self):
+    # Test into the future.
+    with tf.compat.forward_compatibility_horizon(2019, 8, 9):
+      control_flow_util.enable_control_flow_v2()
+      tf.compat.v1.enable_resource_variables()
+
+      categorical = tf.feature_column.categorical_column_with_vocabulary_list(
+          key='f_0', vocabulary_list=('bad', 'good', 'ok'))
+      indicator_col = tf.feature_column.indicator_column(categorical)
+      bucketized_col = tf.feature_column.bucketized_column(
+          tf.feature_column.numeric_column('f_1', dtype=tf.dtypes.float32),
+          BUCKET_BOUNDARIES)
+      numeric_col = tf.feature_column.numeric_column(
+          'f_2', dtype=tf.dtypes.float32)
+      int_numeric_col = tf.feature_column.numeric_column(
+          'f_3', dtype=tf.dtypes.int64)
+
+      labels = np.array([[0], [1], [1], [1], [1]], dtype=np.float32)
+      input_fn = numpy_io.numpy_input_fn(
+          x={
+              'f_0': np.array(['bad', 'good', 'good', 'ok', 'bad']),
+              'f_1': np.array([1, 1, 1, 1, 1]),
+              'f_2': np.array([12.5, 1.0, -2.001, -2.0001, -1.999]),
+              'f_3': np.array([100, 120, 110, 105, 156]),
+          },
+          y=labels,
+          num_epochs=None,
+          batch_size=5,
+          shuffle=False)
+      feature_columns = [
+          numeric_col, bucketized_col, indicator_col, int_numeric_col
+      ]
+
+      est = boosted_trees.BoostedTreesClassifier(
+          feature_columns=feature_columns,
+          n_batches_per_layer=1,
+          n_trees=1,
+          max_depth=5,
+          quantile_sketch_epsilon=0.33)
+
+      # It will stop after 5 steps because of the max depth and num trees.
+      num_steps = 100
+      # Train for a few steps, and validate final checkpoint.
+      est.train(input_fn, steps=num_steps)
+      self._assert_checkpoint_and_return_model(
+          est.model_dir,
+          global_step=5,
+          finalized_trees=1,
+          attempted_layers=5,
+          bucket_boundaries=[[-2.001, -1.999, 12.5], [100, 110, 156]])
+      eval_res = est.evaluate(input_fn=input_fn, steps=1)
+      self.assertAllClose(eval_res['accuracy'], 1.0)
+
+  @test_util.run_in_graph_and_eager_modes()
+  def testSwitchingConditionalAccumulatorForV1(self):
+    # Test into the future.
+    with tf.compat.forward_compatibility_horizon(2019, 8, 9):
+      categorical = tf.feature_column.categorical_column_with_vocabulary_list(
+          key='f_0', vocabulary_list=('bad', 'good', 'ok'))
+      indicator_col = tf.feature_column.indicator_column(categorical)
+      bucketized_col = tf.feature_column.bucketized_column(
+          tf.feature_column.numeric_column('f_1', dtype=tf.dtypes.float32),
+          BUCKET_BOUNDARIES)
+      numeric_col = tf.feature_column.numeric_column(
+          'f_2', dtype=tf.dtypes.float32)
+
+      labels = np.array([[0], [1], [1], [1], [1]], dtype=np.float32)
+      input_fn = numpy_io.numpy_input_fn(
+          x={
+              'f_0': np.array(['bad', 'good', 'good', 'ok', 'bad']),
+              'f_1': np.array([1, 1, 1, 1, 1]),
+              'f_2': np.array([12.5, 1.0, -2.001, -2.0001, -1.999]),
+          },
+          y=labels,
+          num_epochs=None,
+          batch_size=5,
+          shuffle=False)
+      feature_columns = [numeric_col, bucketized_col, indicator_col]
+
+      est = boosted_trees.BoostedTreesClassifier(
+          feature_columns=feature_columns,
+          n_batches_per_layer=1,
+          n_trees=1,
+          max_depth=5,
+          quantile_sketch_epsilon=0.33)
+
+      # It will stop after 5 steps because of the max depth and num trees.
+      num_steps = 100
+      # Train for a few steps, and validate final checkpoint.
+      est.train(input_fn, steps=num_steps)
+      self._assert_checkpoint_and_return_model(
+          est.model_dir,
+          global_step=5,
+          finalized_trees=1,
+          attempted_layers=5,
+          bucket_boundaries=[[-2.001, -1.999, 12.5]])
+      eval_res = est.evaluate(input_fn=input_fn, steps=1)
+      self.assertAllClose(eval_res['accuracy'], 1.0)
+
+  @test_util.run_in_graph_and_eager_modes()
   def testSavedModel(self):
     self._feature_columns = {
-        feature_column.numeric_column('f_%d' % i, dtype=dtypes.float32)
+        tf.feature_column.numeric_column('f_%d' % i, dtype=tf.dtypes.float32)
         for i in range(NUM_FEATURES)
     }
     input_fn = _make_train_input_fn_dataset(is_classification=True)
@@ -178,15 +290,16 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
 
     # Restore, to validate that the export was well-formed.
     tag_set = export_lib.EXPORT_TAG_MAP[ModeKeys.PREDICT]
-    with ops.Graph().as_default() as graph:
-      with session.Session(graph=graph) as sess:
-        loader.load(sess, tag_set, export_dir)
+    with tf.Graph().as_default() as graph:
+      with tf.compat.v1.Session(graph=graph) as sess:
+        tf.compat.v1.saved_model.load(sess, tag_set, export_dir)
         graph_ops = [x.name for x in graph.get_operations()]
         # Assert Tree Ensemble resource op is in graph def.
         self.assertTrue('boosted_trees' in graph_ops)
         # Assert Quantile Accumulator resource op is in graph def.
         self.assertTrue('boosted_trees/QuantileAccumulator' in graph_ops)
-        saveable_objects = ops.get_collection(ops.GraphKeys.SAVEABLE_OBJECTS)
+        saveable_objects = tf.compat.v1.get_collection(
+            tf.compat.v1.GraphKeys.SAVEABLE_OBJECTS)
         saveable_objects = sorted(saveable_objects, key=lambda obj: obj.name)
         # Assert QuantileAccumulator is in saveable object collection.
         self.assertEqual('boosted_trees/QuantileAccumulator:0',
@@ -195,7 +308,7 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
         self.assertEqual('boosted_trees:0', saveable_objects[1].name)
 
     # Clean up.
-    gfile.DeleteRecursively(tmpdir)
+    tf.compat.v1.gfile.DeleteRecursively(tmpdir)
 
   @test_util.run_in_graph_and_eager_modes()
   def testFirstCheckpointWorksFine(self):
@@ -215,7 +328,7 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
         n_trees=1,
         max_depth=5)
 
-    class BailOutWithoutTraining(session_run_hook.SessionRunHook):
+    class BailOutWithoutTraining(tf.compat.v1.train.SessionRunHook):
 
       def before_run(self, run_context):
         raise StopIteration('to bail out.')
@@ -232,6 +345,41 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
     predictions = list(est.predict(input_fn=predict_input_fn))
     self.assertAllClose([[0], [0], [0], [0], [0]],
                         [pred['class_ids'] for pred in predictions])
+
+  @test_util.run_in_graph_and_eager_modes()
+  def testInvalidInputParameters(self):
+    make_est = functools.partial(
+        boosted_trees.BoostedTreesRegressor,
+        feature_columns=self._feature_columns,
+        n_batches_per_layer=1,
+        n_trees=1,
+        max_depth=3,
+        learning_rate=0.01,
+        quantile_sketch_epsilon=0.01,
+        l1_regularization=0.1,
+        l2_regularization=0.21,
+        tree_complexity=0.1,
+        min_node_weight=0.0)
+    # First test using all valid parameters.
+    make_est()
+    # Parameters must be positive.
+    with self.assertRaisesRegexp(ValueError, '> 0'):
+      make_est(n_trees=0)
+    with self.assertRaisesRegexp(ValueError, '> 0'):
+      make_est(max_depth=0)
+    with self.assertRaisesRegexp(ValueError, '> 0'):
+      make_est(learning_rate=0)
+    with self.assertRaisesRegexp(ValueError, '> 0'):
+      make_est(quantile_sketch_epsilon=0)
+    # Parameters must be non-negative.
+    with self.assertRaisesRegexp(ValueError, '>= 0'):
+      make_est(l1_regularization=-0.1)
+    with self.assertRaisesRegexp(ValueError, '>= 0'):
+      make_est(l2_regularization=-0.1)
+    with self.assertRaisesRegexp(ValueError, '>= 0'):
+      make_est(tree_complexity=-0.1)
+    with self.assertRaisesRegexp(ValueError, '>= 0'):
+      make_est(min_node_weight=-0.1)
 
   @test_util.run_in_graph_and_eager_modes()
   def testTrainAndEvaluateBinaryClassifier(self):
@@ -253,9 +401,28 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
     self.assertAllClose(eval_res['accuracy'], 1.0)
 
   @test_util.run_in_graph_and_eager_modes()
+  def testTrainAndEvaluateMultiClassClassifier(self):
+    input_fn = _make_train_input_fn(is_classification=True, single_logit=False)
+    est = boosted_trees.BoostedTreesClassifier(
+        feature_columns=self._feature_columns,
+        n_classes=3,
+        n_batches_per_layer=1,
+        n_trees=1,
+        max_depth=5)
+
+    # It will stop after 5 steps because of the max depth and num trees.
+    num_steps = 100
+    # Train for a few steps, and validate final checkpoint.
+    est.train(input_fn, steps=num_steps)
+    self._assert_checkpoint(
+        est.model_dir, global_step=5, finalized_trees=1, attempted_layers=5)
+    eval_res = est.evaluate(input_fn=input_fn, steps=1)
+    self.assertAllClose(eval_res['accuracy'], 1.0)
+
+  @test_util.run_in_graph_and_eager_modes()
   def testTrainAndEvaluateBinaryClassifierWithOnlyFloatColumn(self):
     self._feature_columns = {
-        feature_column.numeric_column('f_%d' % i, dtype=dtypes.float32)
+        tf.feature_column.numeric_column('f_%d' % i, dtype=tf.dtypes.float32)
         for i in range(NUM_FEATURES)
     }
 
@@ -295,8 +462,8 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
   @test_util.run_in_graph_and_eager_modes()
   def testTrainAndEvaluateBinaryClassifierWithEmptyShape(self):
     self._feature_columns = {
-        feature_column.numeric_column(
-            'f_%d' % i, shape=(), dtype=dtypes.float32)
+        tf.feature_column.numeric_column(
+            'f_%d' % i, shape=(), dtype=tf.dtypes.float32)
         for i in range(NUM_FEATURES)
     }
 
@@ -342,10 +509,11 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
         'weight': np.array([10., 1., 2., 1., 1.], dtype=np.float32)
     }
     self._feature_columns = {
-        feature_column.numeric_column('f_%d' % i, dtype=dtypes.float32)
+        tf.feature_column.numeric_column('f_%d' % i, dtype=tf.dtypes.float32)
         for i in range(NUM_FEATURES)
     }
-    weights = feature_column.numeric_column('weight', dtype=dtypes.float32)
+    weights = tf.feature_column.numeric_column(
+        'weight', dtype=tf.dtypes.float32)
     feature_and_weight_dict_weight_1.update(FEATURES_DICT.copy())
     feature_and_weight_dict_weight_2.update(FEATURES_DICT.copy())
     input_fn_1 = numpy_io.numpy_input_fn(
@@ -397,7 +565,7 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
         'weight': np.array([10., 1., 2., 1., 1.], dtype=np.float32)
     }
     self._feature_columns = {
-        feature_column.numeric_column('f_%d' % i, dtype=dtypes.float32)
+        tf.feature_column.numeric_column('f_%d' % i, dtype=tf.dtypes.float32)
         for i in range(NUM_FEATURES)
     }
     feature_and_weight_dict_weight_1.update(FEATURES_DICT.copy())
@@ -445,7 +613,8 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
   @test_util.run_in_graph_and_eager_modes()
   def testTrainAndEvaluateBinaryClassifierWithMultiDimFloatColumn(self):
     self._feature_columns = {
-        feature_column.numeric_column('f', shape=(3,), dtype=dtypes.float32)
+        tf.feature_column.numeric_column(
+            'f', shape=(3,), dtype=tf.dtypes.float32)
     }
     input_fn = numpy_io.numpy_input_fn(
         x={'f': np.transpose(np.copy(INPUT_FEATURES))},
@@ -469,26 +638,30 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
 
   @test_util.run_in_graph_and_eager_modes()
   def testTrainAndEvaluateBinaryClassifierWithMixedColumns(self):
-    categorical = feature_column.categorical_column_with_vocabulary_list(
-        key='f_0', vocabulary_list=('bad', 'good', 'ok'))
-    indicator_col = feature_column.indicator_column(categorical)
-    bucketized_col = feature_column.bucketized_column(
-        feature_column.numeric_column('f_1', dtype=dtypes.float32),
+    bucketized_col = tf.feature_column.bucketized_column(
+        tf.feature_column.numeric_column('f_0', dtype=tf.dtypes.float32),
         BUCKET_BOUNDARIES)
-    numeric_col = feature_column.numeric_column('f_2', dtype=dtypes.float32)
+    categorical = tf.feature_column.categorical_column_with_vocabulary_list(
+        key='f_1', vocabulary_list=('bad', 'good', 'ok'))
+    indicator_col = tf.feature_column.indicator_column(
+        tf.feature_column.categorical_column_with_vocabulary_list(
+            key='f_2', vocabulary_list=('bad', 'good', 'ok')))
+    numeric_col = tf.feature_column.numeric_column(
+        'f_3', dtype=tf.dtypes.float32)
 
     labels = np.array([[0], [1], [1], [1], [1]], dtype=np.float32)
     input_fn = numpy_io.numpy_input_fn(
         x={
-            'f_0': np.array(['bad', 'good', 'good', 'ok', 'bad']),
-            'f_1': np.array([1, 1, 1, 1, 1]),
-            'f_2': np.array([12.5, 1.0, -2.001, -2.0001, -1.999]),
+            'f_0': np.array([1, 1, 1, 1, 1]),
+            'f_1': np.array(['bad', 'good', 'good', 'ok', 'bad']),
+            'f_2': np.array(['bad', 'good', 'good', 'ok', 'bad']),
+            'f_3': np.array([12.5, 1.0, -2.001, -2.0001, -1.999]),
         },
         y=labels,
         num_epochs=None,
         batch_size=5,
         shuffle=False)
-    feature_columns = [numeric_col, bucketized_col, indicator_col]
+    feature_columns = [numeric_col, bucketized_col, categorical, indicator_col]
 
     est = boosted_trees.BoostedTreesClassifier(
         feature_columns=feature_columns,
@@ -607,7 +780,7 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
 
     def _input_fn_with_integer_label():
       return (FEATURES_DICT,
-              constant_op.constant([[0], [1], [1], [0], [0]], dtypes.int32))
+              tf.constant([[0], [1], [1], [0], [0]], tf.dtypes.int32))
 
     predict_input_fn = numpy_io.numpy_input_fn(
         x=FEATURES_DICT, y=None, batch_size=1, num_epochs=1, shuffle=False)
@@ -664,6 +837,26 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
         est.model_dir, global_step=10, finalized_trees=2, attempted_layers=10)
     eval_res = est.evaluate(input_fn=input_fn, steps=1)
     self.assertAllClose(eval_res['average_loss'], 1.008551)
+
+  @test_util.run_in_graph_and_eager_modes()
+  def testTrainAndEvaluateMultiDimensionalRegressor(self):
+    input_fn = _make_train_input_fn(is_classification=False, single_logit=False)
+
+    est = boosted_trees.BoostedTreesRegressor(
+        feature_columns=self._feature_columns,
+        n_batches_per_layer=1,
+        n_trees=2,
+        max_depth=5,
+        label_dimension=2)
+
+    # It will stop after 10 steps because of the max depth and num trees.
+    num_steps = 100
+    # Train for a few steps, and validate final checkpoint.
+    est.train(input_fn, steps=num_steps)
+    self._assert_checkpoint(
+        est.model_dir, global_step=10, finalized_trees=2, attempted_layers=10)
+    eval_res = est.evaluate(input_fn=input_fn, steps=1)
+    self.assertAllClose(eval_res['average_loss'], 3.14401078224)
 
   @test_util.run_in_graph_and_eager_modes()
   def testInferRegressor(self):
@@ -832,12 +1025,12 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
 
   @test_util.run_in_graph_and_eager_modes()
   def testTrainEvaluateAndPredictWithIndicatorColumn(self):
-    categorical = feature_column.categorical_column_with_vocabulary_list(
+    categorical = tf.feature_column.categorical_column_with_vocabulary_list(
         key='categorical', vocabulary_list=('bad', 'good', 'ok'))
-    feature_indicator = feature_column.indicator_column(categorical)
-    bucketized_col = feature_column.bucketized_column(
-        feature_column.numeric_column(
-            'an_uninformative_feature', dtype=dtypes.float32),
+    feature_indicator = tf.feature_column.indicator_column(categorical)
+    bucketized_col = tf.feature_column.bucketized_column(
+        tf.feature_column.numeric_column(
+            'an_uninformative_feature', dtype=tf.dtypes.float32),
         BUCKET_BOUNDARIES)
 
     labels = np.array([[0.], [5.7], [5.7], [0.], [0.]], dtype=np.float32)
@@ -880,9 +1073,9 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
 
   @test_util.run_in_graph_and_eager_modes()
   def testTrainEvaluateAndPredictWithOnlyIndicatorColumn(self):
-    categorical = feature_column.categorical_column_with_vocabulary_list(
+    categorical = tf.feature_column.categorical_column_with_vocabulary_list(
         key='categorical', vocabulary_list=('bad', 'good', 'ok'))
-    feature_indicator = feature_column.indicator_column(categorical)
+    feature_indicator = tf.feature_column.indicator_column(categorical)
 
     labels = np.array([[0.], [5.7], [5.7], [0.], [0.]], dtype=np.float32)
     # Our categorical feature defines the labels perfectly
@@ -922,6 +1115,94 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
     self.assertEqual(0, ensemble.trees[0].nodes[0].bucketized_split.threshold)
 
   @test_util.run_in_graph_and_eager_modes()
+  def testTrainEvaluateAndPredictWithCategoricalColumn(self):
+    categorical_col = tf.feature_column.categorical_column_with_vocabulary_list(
+        key='categorical', vocabulary_list=('bad', 'good', 'ok'))
+    bucketized_col = tf.feature_column.bucketized_column(
+        tf.feature_column.numeric_column(
+            'an_uninformative_feature', dtype=tf.dtypes.float32),
+        BUCKET_BOUNDARIES)
+
+    labels = np.array([[0.], [5.7], [5.7], [0.], [0.]], dtype=np.float32)
+    # Our categorical feature defines the labels perfectly
+    input_fn = numpy_io.numpy_input_fn(
+        x={
+            'an_uninformative_feature': np.array([1, 1, 1, 1, 1]),
+            'categorical': np.array(['bad', 'good', 'good', 'ok', 'bad']),
+        },
+        y=labels,
+        batch_size=5,
+        shuffle=False)
+
+    # Train depth 1 tree.
+    est = boosted_trees.BoostedTreesRegressor(
+        feature_columns=[bucketized_col, categorical_col],
+        n_batches_per_layer=1,
+        n_trees=1,
+        learning_rate=1.0,
+        max_depth=1)
+
+    num_steps = 1
+    est.train(input_fn, steps=num_steps)
+    ensemble = self._assert_checkpoint_and_return_model(
+        est.model_dir, global_step=1, finalized_trees=1, attempted_layers=1)
+
+    # We learnt perfectly.
+    eval_res = est.evaluate(input_fn=input_fn, steps=1)
+    self.assertAllClose(eval_res['loss'], 0)
+
+    predictions = list(est.predict(input_fn))
+    self.assertAllClose(labels, [pred['predictions'] for pred in predictions])
+
+    self.assertEqual(3, len(ensemble.trees[0].nodes))
+
+    # Check that the split happened on 'good' value, which is the index 1 feature
+    # (0-numeric, 1-categorical), and the index 1 feature value of categorical.
+    self.assertEqual(1, ensemble.trees[0].nodes[0].categorical_split.feature_id)
+    self.assertEqual(1, ensemble.trees[0].nodes[0].categorical_split.value)
+
+  @test_util.run_in_graph_and_eager_modes()
+  def testTrainEvaluateAndPredictWithOnlyCategoricalColumn(self):
+    categorical = tf.feature_column.categorical_column_with_vocabulary_list(
+        key='categorical', vocabulary_list=('bad', 'good', 'ok'))
+
+    labels = np.array([[0.], [5.7], [5.7], [0.], [0.]], dtype=np.float32)
+    # Our categorical feature defines the labels perfectly
+    input_fn = numpy_io.numpy_input_fn(
+        x={
+            'categorical': np.array(['bad', 'good', 'good', 'ok', 'bad']),
+        },
+        y=labels,
+        batch_size=5,
+        shuffle=False)
+
+    # Train depth 1 tree.
+    est = boosted_trees.BoostedTreesRegressor(
+        feature_columns=[categorical],
+        n_batches_per_layer=1,
+        n_trees=1,
+        learning_rate=1.0,
+        max_depth=1)
+
+    num_steps = 1
+    est.train(input_fn, steps=num_steps)
+    ensemble = self._assert_checkpoint_and_return_model(
+        est.model_dir, global_step=1, finalized_trees=1, attempted_layers=1)
+
+    # We learnt perfectly.
+    eval_res = est.evaluate(input_fn=input_fn, steps=1)
+    self.assertAllClose(eval_res['loss'], 0)
+
+    predictions = list(est.predict(input_fn))
+    self.assertAllClose(labels, [pred['predictions'] for pred in predictions])
+
+    self.assertEqual(3, len(ensemble.trees[0].nodes))
+
+    # Check that the split happened on 'good' value, which will be encoded as
+    # feature with index 1 (0 - 'bad', 2 - 'ok')
+    self.assertEqual(1, ensemble.trees[0].nodes[0].categorical_split.value)
+
+  @test_util.run_in_graph_and_eager_modes()
   def testFeatureImportancesWithTrainedEnsemble(self):
     input_fn = _make_train_input_fn(is_classification=True)
 
@@ -940,13 +1221,15 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
         (('f_0_bucketized', 0.833933), ('f_2_bucketized', 0.606342),
          ('f_1_bucketized', 0.0)))
     self.assertAllEqual(expected_importances.keys(), importances.keys())
-    self.assertAllClose(expected_importances.values(), importances.values())
+    self.assertAllClose(
+        list(expected_importances.values()), list(importances.values()))
     importances = est.experimental_feature_importances(normalize=True)
     expected_importances = collections.OrderedDict(
         (('f_0_bucketized', 0.579010), ('f_2_bucketized', 0.420990),
          ('f_1_bucketized', 0.0)))
     self.assertAllEqual(expected_importances.keys(), importances.keys())
-    self.assertAllClose(expected_importances.values(), importances.values())
+    self.assertAllClose(
+        list(expected_importances.values()), list(importances.values()))
 
   @test_util.run_in_graph_and_eager_modes()
   def testFeatureImportancesOnEmptyEnsemble(self):
@@ -958,7 +1241,7 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
         n_trees=1,
         max_depth=5)
 
-    class BailOutWithoutTraining(session_run_hook.SessionRunHook):
+    class BailOutWithoutTraining(tf.compat.v1.train.SessionRunHook):
 
       def before_run(self, run_context):
         raise StopIteration('to bail out.')
@@ -977,7 +1260,7 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
 
   def _create_fake_checkpoint_with_tree_ensemble_proto(self, est,
                                                        tree_ensemble_text):
-    with ops.Graph().as_default():
+    with tf.Graph().as_default():
       with ops.name_scope('boosted_trees') as name:
         tree_ensemble = boosted_trees_ops.TreeEnsemble(name=name)
         tree_ensemble_proto = boosted_trees_pb2.TreeEnsemble()
@@ -986,10 +1269,10 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
         restore_op = tree_ensemble.deserialize(
             stamp_token, tree_ensemble_proto.SerializeToString())
 
-        with session.Session() as sess:
+        with tf.compat.v1.Session() as sess:
           resources.initialize_resources(resources.shared_resources()).run()
           restore_op.run()
-          saver = saver_lib.Saver()
+          saver = tf.compat.v1.train.Saver()
           save_path = os.path.join(est.model_dir, 'model.ckpt')
           saver.save(sess, save_path)
 
@@ -1119,14 +1402,16 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
         (('f_0_bucketized', 5.0), ('f_2_bucketized', 3.0), ('f_1_bucketized',
                                                             2.0)))
     self.assertAllEqual(expected_importances.keys(), importances.keys())
-    self.assertAllClose(expected_importances.values(), importances.values())
+    self.assertAllClose(
+        list(expected_importances.values()), list(importances.values()))
     # Normalize importances.
     importances = est.experimental_feature_importances(normalize=True)
     expected_importances = collections.OrderedDict(
         (('f_0_bucketized', 0.5), ('f_2_bucketized', 0.3), ('f_1_bucketized',
                                                             0.2)))
     self.assertAllEqual(expected_importances.keys(), importances.keys())
-    self.assertAllClose(expected_importances.values(), importances.values())
+    self.assertAllClose(
+        list(expected_importances.values()), list(importances.values()))
 
   @test_util.run_in_graph_and_eager_modes()
   def testFeatureImportancesWithTreeWeights(self):
@@ -1217,14 +1502,16 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
         (('f_0_bucketized', 5.0), ('f_2_bucketized', 3.0), ('f_1_bucketized',
                                                             2.0)))
     self.assertAllEqual(expected_importances.keys(), importances.keys())
-    self.assertAllClose(expected_importances.values(), importances.values())
+    self.assertAllClose(
+        list(expected_importances.values()), list(importances.values()))
     # Normalize importances.
     importances = est.experimental_feature_importances(normalize=True)
     expected_importances = collections.OrderedDict(
         (('f_0_bucketized', 0.5), ('f_2_bucketized', 0.3), ('f_1_bucketized',
                                                             0.2)))
     self.assertAllEqual(expected_importances.keys(), importances.keys())
-    self.assertAllClose(expected_importances.values(), importances.values())
+    self.assertAllClose(
+        list(expected_importances.values()), list(importances.values()))
 
   @test_util.run_in_graph_and_eager_modes()
   def testFeatureImportancesWithAllEmptyTree(self):
@@ -1316,19 +1603,18 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
 
   @test_util.run_in_graph_and_eager_modes()
   def testFeatureImportancesNamesForCategoricalColumn(self):
-    categorical = feature_column.categorical_column_with_vocabulary_list(
+    categorical = tf.feature_column.categorical_column_with_vocabulary_list(
         key='categorical', vocabulary_list=('bad', 'good', 'ok'))
-    feature_indicator = feature_column.indicator_column(categorical)
-    bucketized_col = feature_column.bucketized_column(
-        feature_column.numeric_column(
-            'continuous', dtype=dtypes.float32),
+    feature_indicator = tf.feature_column.indicator_column(categorical)
+    bucketized_col = tf.feature_column.bucketized_column(
+        tf.feature_column.numeric_column('continuous', dtype=tf.dtypes.float32),
         BUCKET_BOUNDARIES)
-    bucketized_indicator = feature_column.indicator_column(bucketized_col)
+    bucketized_indicator = tf.feature_column.indicator_column(bucketized_col)
 
     est = boosted_trees.BoostedTreesRegressor(
-        feature_columns=[feature_indicator,
-                         bucketized_col,
-                         bucketized_indicator],
+        feature_columns=[
+            feature_indicator, bucketized_col, bucketized_indicator
+        ],
         n_batches_per_layer=1,
         n_trees=2,
         learning_rate=1.0,
@@ -1425,27 +1711,73 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
     expected_importances = collections.OrderedDict(
         (('categorical', 6.0), ('continuous_bucketized', 4.0)))
     self.assertAllEqual(expected_importances.keys(), importances.keys())
-    self.assertAllClose(expected_importances.values(), importances.values())
+    self.assertAllClose(
+        list(expected_importances.values()), list(importances.values()))
     # Normalize importances.
     importances = est.experimental_feature_importances(normalize=True)
     expected_importances = collections.OrderedDict(
         (('categorical', 0.6), ('continuous_bucketized', 0.4)))
     self.assertAllEqual(expected_importances.keys(), importances.keys())
-    self.assertAllClose(expected_importances.values(), importances.values())
+    self.assertAllClose(
+        list(expected_importances.values()), list(importances.values()))
 
   @test_util.run_in_graph_and_eager_modes()
-  def testForUnsupportedColumn(self):
-    categorical_col = feature_column.categorical_column_with_vocabulary_list(
-        key='categorical', vocabulary_list=('bad', 'good', 'ok'))
+  def testForCustomDenseColumn(self):
 
-    with self.assertRaisesRegexp(
-        ValueError, 'only bucketized_column, indicator_column, numeric_column'):
-      _ = boosted_trees.BoostedTreesRegressor(
-          feature_columns=[categorical_col],
-          n_batches_per_layer=1,
-          n_trees=2,
-          learning_rate=1.0,
-          max_depth=1)
+    # Create an arbitrary custom DenseColumn. As long as the column conforms to
+    # the FeatureColumn API specifications, it should be supported.
+    class MyCustomDense(feature_column.DenseColumn):
+
+      def __init__(self, key):
+        self.key = key
+
+      @property
+      def _is_v2_column(self):
+        return True
+
+      @property
+      def name(self):
+        return self.key
+
+      def parents(self):
+        return []
+
+      def get_dense_tensor(self, transformation_cache, state_manager):
+        return transformation_cache.get(self, state_manager)
+
+      def transform_feature(self, transformation_cache, state_manager):
+        return transformation_cache.get(self.key, state_manager)
+
+      @property
+      def shape(self):
+        return (1,)
+
+      @property
+      def dtype(self):
+        return tf.dtypes.float32
+
+      @property
+      def variable_shape(self):
+        return tf.TensorShape(self.shape)
+
+      def _get_config(cls):
+        return {'key': self.key}
+
+      @property
+      def parse_example_spec(self):
+        return {self.key: tf.io.FixedLenFeature(self.shape, self.dtype, -1)}
+
+    custom_continuous = MyCustomDense(key='f_0')
+    numeric = tf.feature_column.numeric_column(key='f_1')
+    v1_numeric = feature_column_old._numeric_column('f_2')
+    input_fn = _make_train_input_fn(is_classification=False)
+    est = boosted_trees.BoostedTreesRegressor(
+        feature_columns=[custom_continuous, numeric, v1_numeric],
+        n_batches_per_layer=1,
+        n_trees=2,
+        learning_rate=1.0,
+        max_depth=1)
+    est.train(input_fn, steps=5)
 
   @test_util.run_in_graph_and_eager_modes()
   def testTreeComplexityIsSetCorrectly(self):
@@ -1624,7 +1956,7 @@ class BoostedTreesEstimatorTest(test_util.TensorFlowTestCase):
         [pred['predictions'] for pred in predictions])
 
 
-class BoostedTreesDebugOutputsTest(test_util.TensorFlowTestCase):
+class BoostedTreesDebugOutputsTest(tf.test.TestCase):
   """Test debug/model explainability outputs for individual predictions.
 
   Includes directional feature contributions (DFC).
@@ -1633,9 +1965,10 @@ class BoostedTreesDebugOutputsTest(test_util.TensorFlowTestCase):
   def setUp(self):
     self._head = boosted_trees._create_regression_head(label_dimension=1)
     self._feature_columns = {
-        feature_column.bucketized_column(
-            feature_column.numeric_column('f_%d' % i, dtype=dtypes.float32),
-            BUCKET_BOUNDARIES) for i in range(NUM_FEATURES)
+        tf.feature_column.bucketized_column(
+            tf.feature_column.numeric_column(
+                'f_%d' % i, dtype=tf.dtypes.float32), BUCKET_BOUNDARIES)
+        for i in range(NUM_FEATURES)
     }
 
   @test_util.run_in_graph_and_eager_modes()
@@ -1760,7 +2093,7 @@ class BoostedTreesDebugOutputsTest(test_util.TensorFlowTestCase):
   @test_util.run_in_graph_and_eager_modes()
   def testDFCClassifierWithOnlyFloatColumn(self):
     feature_columns = {
-        feature_column.numeric_column('f_%d' % i, dtype=dtypes.float32)
+        tf.feature_column.numeric_column('f_%d' % i, dtype=tf.dtypes.float32)
         for i in range(NUM_FEATURES)
     }
     input_fn = _make_train_input_fn(is_classification=True)
@@ -1792,7 +2125,7 @@ class BoostedTreesDebugOutputsTest(test_util.TensorFlowTestCase):
   @test_util.run_in_graph_and_eager_modes()
   def testDFCRegressorWithOnlyFloatColumn(self):
     feature_columns = {
-        feature_column.numeric_column('f_%d' % i, dtype=dtypes.float32)
+        tf.feature_column.numeric_column('f_%d' % i, dtype=tf.dtypes.float32)
         for i in range(NUM_FEATURES)
     }
     input_fn = _make_train_input_fn(is_classification=False)
@@ -1863,7 +2196,7 @@ class BoostedTreesDebugOutputsTest(test_util.TensorFlowTestCase):
                            0.06333339214324951), ('f_2_bucketized', 0.0))))
     for expected, dfc in zip(expected_dfcs, dfcs):
       self.assertAllEqual(expected.keys(), dfc.keys())
-      self.assertAllClose(expected.values(), dfc.values())
+      self.assertAllClose(list(expected.values()), list(dfc.values()))
     # Assert sum(dfcs) + bias == predictions.
     expected_predictions = [[1.6345005], [1.32570302], [1.1874305],
                             [2.01968288], [2.83268309]]
@@ -1881,16 +2214,17 @@ class BoostedTreesDebugOutputsTest(test_util.TensorFlowTestCase):
       self.assertIn('predictions', prediction_dict)
       self.assertEqual(len(prediction_dict), 3)
 
-class ModelFnTests(test_util.TensorFlowTestCase):
+
+class ModelFnTests(tf.test.TestCase):
   """Tests bt_model_fn including unexposed internal functionalities."""
 
   def setUp(self):
     self._numeric_feature_columns = {
-        feature_column.numeric_column('f_%d' % i, dtype=dtypes.float32)
+        tf.feature_column.numeric_column('f_%d' % i, dtype=tf.dtypes.float32)
         for i in range(NUM_FEATURES)
     }
     self._feature_columns = {
-        feature_column.bucketized_column(numeric_column, BUCKET_BOUNDARIES)
+        tf.feature_column.bucketized_column(numeric_column, BUCKET_BOUNDARIES)
         for numeric_column in self._numeric_feature_columns
     }
 
@@ -2496,7 +2830,7 @@ class ModelFnTests(test_util.TensorFlowTestCase):
               right_id: 2
             }
             metadata {
-              gain: 1.169714
+              gain: 1.169715
             }
           }
           nodes {
@@ -2532,7 +2866,7 @@ class ModelFnTests(test_util.TensorFlowTestCase):
               right_id: 2
             }
             metadata {
-              gain: 1.169714
+              gain: 1.169715
             }
           }
           nodes {
@@ -2618,7 +2952,7 @@ class ModelFnTests(test_util.TensorFlowTestCase):
               right_id: 2
             }
             metadata {
-              gain: 1.169714
+              gain: 1.169715
             }
           }
           nodes {
@@ -2679,7 +3013,7 @@ class ModelFnTests(test_util.TensorFlowTestCase):
               right_id: 2
             }
             metadata {
-              gain: 0.981026
+              gain: 0.981025
             }
           }
           nodes {
@@ -3008,14 +3342,14 @@ class ModelFnTests(test_util.TensorFlowTestCase):
         config=config,
         train_in_memory=train_in_memory)
     resources.initialize_resources(resources.shared_resources()).run()
-    variables.global_variables_initializer().run()
-    variables.local_variables_initializer().run()
+    tf.compat.v1.initializers.global_variables().run()
+    tf.compat.v1.initializers.local_variables().run()
 
     # Gets the train_op and serialized proto of the ensemble.
     shared_resources = resources.shared_resources()
     self.assertEqual(num_resources, len(shared_resources))
     train_op = estimator_spec.train_op
-    with ops.control_dependencies([train_op]):
+    with tf.control_dependencies([train_op]):
       _, ensemble_serialized = (
           gen_boosted_trees_ops.boosted_trees_serialize_ensemble(
               shared_resources[0].handle))
@@ -3029,7 +3363,7 @@ class ModelFnTests(test_util.TensorFlowTestCase):
     return train_op, ensemble_serialized, bucket_boundaries
 
   def testTrainClassifierInMemory(self):
-    ops.reset_default_graph()
+    tf.compat.v1.reset_default_graph()
     expected_first, expected_second, expected_third = (
         self._get_expected_ensembles_for_classification())
     with self.cached_session() as sess:
@@ -3059,7 +3393,7 @@ class ModelFnTests(test_util.TensorFlowTestCase):
       self.assertProtoEquals(expected_third, ensemble_proto)
 
   def testTrainClassifierWithFloatColumns(self):
-    ops.reset_default_graph()
+    tf.compat.v1.reset_default_graph()
     expected_first, expected_second = (
         self._get_expected_ensembles_for_classification_with_floats())
     expected_buckets = [[-2.001, -2.0001, -1.999, 1., 12.5],
@@ -3101,7 +3435,7 @@ class ModelFnTests(test_util.TensorFlowTestCase):
       self.assertAllClose(expected_buckets, evaluated_buckets)
 
   def testTrainClassifierWithFloatColumnsInMemory(self):
-    ops.reset_default_graph()
+    tf.compat.v1.reset_default_graph()
     expected_first, expected_second = (
         self._get_expected_ensembles_for_classification_with_floats())
     expected_buckets = [[-2.001, -2.0001, -1.999, 1., 12.5],
@@ -3142,9 +3476,8 @@ class ModelFnTests(test_util.TensorFlowTestCase):
       self.assertProtoEquals(expected_second, ensemble_proto)
       self.assertAllClose(expected_buckets, evaluated_buckets)
 
-
   def testTrainClassifierWithCenterBiasInMemory(self):
-    ops.reset_default_graph()
+    tf.compat.v1.reset_default_graph()
 
     # When bias centering is on, we expect the very first node to have the
     expected_first, expected_second, expected_third, expected_forth = (
@@ -3187,7 +3520,7 @@ class ModelFnTests(test_util.TensorFlowTestCase):
       self.assertProtoEquals(expected_forth, ensemble_proto)
 
   def testTrainClassifierNonInMemory(self):
-    ops.reset_default_graph()
+    tf.compat.v1.reset_default_graph()
     expected_first, expected_second, expected_third = (
         self._get_expected_ensembles_for_classification())
     with self.cached_session() as sess:
@@ -3217,7 +3550,7 @@ class ModelFnTests(test_util.TensorFlowTestCase):
       self.assertProtoEquals(expected_third, ensemble_proto)
 
   def testTrainClassifierWithCenterBiasNonInMemory(self):
-    ops.reset_default_graph()
+    tf.compat.v1.reset_default_graph()
 
     # When bias centering is on, we expect the very first node to have the
     expected_first, expected_second, expected_third, expected_forth = (
@@ -3258,7 +3591,7 @@ class ModelFnTests(test_util.TensorFlowTestCase):
       self.assertProtoEquals(expected_forth, ensemble_proto)
 
   def testTrainRegressorInMemory(self):
-    ops.reset_default_graph()
+    tf.compat.v1.reset_default_graph()
     expected_first, expected_second, expected_third = (
         self._get_expected_ensembles_for_regression())
     with self.cached_session() as sess:
@@ -3288,7 +3621,7 @@ class ModelFnTests(test_util.TensorFlowTestCase):
       self.assertProtoEquals(expected_third, ensemble_proto)
 
   def testTrainRegressorInMemoryWithCenterBias(self):
-    ops.reset_default_graph()
+    tf.compat.v1.reset_default_graph()
     expected_first, expected_second, expected_third, expected_forth = (
         self._get_expected_ensembles_for_regression_with_bias())
     with self.cached_session() as sess:
@@ -3328,7 +3661,7 @@ class ModelFnTests(test_util.TensorFlowTestCase):
       self.assertProtoEquals(expected_forth, ensemble_proto)
 
   def testTrainRegressorNonInMemory(self):
-    ops.reset_default_graph()
+    tf.compat.v1.reset_default_graph()
     expected_first, expected_second, expected_third = (
         self._get_expected_ensembles_for_regression())
     with self.cached_session() as sess:
@@ -3358,7 +3691,7 @@ class ModelFnTests(test_util.TensorFlowTestCase):
       self.assertProtoEquals(expected_third, ensemble_proto)
 
   def testTrainRegressorNotInMemoryWithCenterBias(self):
-    ops.reset_default_graph()
+    tf.compat.v1.reset_default_graph()
     expected_first, expected_second, expected_third, expected_forth = (
         self._get_expected_ensembles_for_regression_with_bias())
     with self.cached_session() as sess:
@@ -3396,6 +3729,7 @@ class ModelFnTests(test_util.TensorFlowTestCase):
       ensemble_proto = boosted_trees_pb2.TreeEnsemble()
       ensemble_proto.ParseFromString(serialized)
       self.assertProtoEquals(expected_forth, ensemble_proto)
+
 
 if __name__ == '__main__':
   googletest.main()

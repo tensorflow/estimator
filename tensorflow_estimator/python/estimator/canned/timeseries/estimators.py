@@ -19,16 +19,7 @@ from __future__ import division
 from __future__ import print_function
 
 import functools
-from tensorflow.python.feature_column import feature_column_lib as feature_column
-from tensorflow.python.framework import dtypes
-from tensorflow.python.framework import ops
-from tensorflow.python.framework import tensor_shape
-from tensorflow.python.framework import tensor_util
-from tensorflow.python.ops import array_ops
-from tensorflow.python.ops import math_ops
-from tensorflow.python.ops import parsing_ops
-from tensorflow.python.training import training as train
-from tensorflow.python.util import nest
+import tensorflow as tf
 from tensorflow_estimator.python.estimator import estimator_lib
 from tensorflow_estimator.python.estimator.canned import optimizers
 from tensorflow_estimator.python.estimator.canned.timeseries import ar_model
@@ -42,20 +33,25 @@ from tensorflow_estimator.python.estimator.export import export_lib
 class TimeSeriesRegressor(estimator_lib.Estimator):
   """An Estimator to fit and evaluate a time series model."""
 
-  def __init__(self, model, state_manager=None, optimizer=None, model_dir=None,
-               config=None, head_type=ts_head_lib.TimeSeriesRegressionHead):
+  def __init__(self,
+               model,
+               state_manager=None,
+               optimizer=None,
+               model_dir=None,
+               config=None,
+               head_type=ts_head_lib.TimeSeriesRegressionHead):
     """Initialize the Estimator.
 
     Args:
       model: The time series model to wrap (inheriting from TimeSeriesModel).
       state_manager: The state manager to use, or (by default)
-          PassthroughStateManager if none is needed.
+        PassthroughStateManager if none is needed.
       optimizer: The optimization algorithm to use when training, inheriting
-          from tf.train.Optimizer. Defaults to Adam with step size 0.02.
+        from tf.train.Optimizer. Defaults to Adam with step size 0.02.
       model_dir: See `Estimator`.
       config: See `Estimator`.
       head_type: The kind of head to use for the model (inheriting from
-          `TimeSeriesRegressionHead`).
+        `TimeSeriesRegressionHead`).
     """
     input_statistics_generator = math_utils.InputStatisticsFromMiniBatch(
         dtype=model.dtype, num_features=model.num_features)
@@ -65,53 +61,60 @@ class TimeSeriesRegressor(estimator_lib.Estimator):
       else:
         state_manager = state_management.PassthroughStateManager()
     if optimizer is None:
-      optimizer = train.AdamOptimizer(0.02)
+      optimizer = tf.compat.v1.train.AdamOptimizer(0.02)
     self._model = model
     ts_regression_head = head_type(
-        model=model, state_manager=state_manager, optimizer=optimizer,
+        model=model,
+        state_manager=state_manager,
+        optimizer=optimizer,
         input_statistics_generator=input_statistics_generator)
     model_fn = ts_regression_head.create_estimator_spec
     super(TimeSeriesRegressor, self).__init__(
-        model_fn=model_fn,
-        model_dir=model_dir,
-        config=config)
+        model_fn=model_fn, model_dir=model_dir, config=config)
 
-  def _model_start_state_placeholders(
-      self, batch_size_tensor, static_batch_size=None):
+  def _model_start_state_placeholders(self,
+                                      batch_size_tensor,
+                                      static_batch_size=None):
     """Creates placeholders with zeroed start state for the current model."""
     gathered_state = {}
     # Models may not know the shape of their state without creating some
     # variables/ops. Avoid polluting the default graph by making a new one. We
     # use only static metadata from the returned Tensors.
-    with ops.Graph().as_default():
+    with tf.Graph().as_default():
       self._model.initialize_graph()
+
       # Evaluate the initial state as same-dtype "zero" values. These zero
       # constants aren't used, but are necessary for feeding to
       # placeholder_with_default for the "cold start" case where state is not
       # fed to the model.
       def _zeros_like_constant(tensor):
-        return tensor_util.constant_value(array_ops.zeros_like(tensor))
-      start_state = nest.map_structure(
-          _zeros_like_constant, self._model.get_start_state())
+        return tf.get_static_value(tf.compat.v1.zeros_like(tensor))
+
+      start_state = tf.nest.map_structure(_zeros_like_constant,
+                                          self._model.get_start_state())
     for prefixed_state_name, state in ts_head_lib.state_to_dictionary(
         start_state).items():
-      state_shape_with_batch = tensor_shape.TensorShape(
+      state_shape_with_batch = tf.TensorShape(
           (static_batch_size,)).concatenate(state.shape)
-      default_state_broadcast = array_ops.tile(
+      default_state_broadcast = tf.tile(
           state[None, ...],
-          multiples=array_ops.concat(
+          multiples=tf.concat(
               [batch_size_tensor[None],
-               array_ops.ones(len(state.shape), dtype=dtypes.int32)],
+               tf.ones(len(state.shape), dtype=tf.dtypes.int32)],
               axis=0))
-      gathered_state[prefixed_state_name] = array_ops.placeholder_with_default(
-          input=default_state_broadcast,
-          name=prefixed_state_name,
-          shape=state_shape_with_batch)
+      gathered_state[
+          prefixed_state_name] = tf.compat.v1.placeholder_with_default(
+              input=default_state_broadcast,
+              name=prefixed_state_name,
+              shape=state_shape_with_batch)
     return gathered_state
 
-  def build_one_shot_parsing_serving_input_receiver_fn(
-      self, filtering_length, prediction_length, default_batch_size=None,
-      values_input_dtype=None, truncate_values=False):
+  def build_one_shot_parsing_serving_input_receiver_fn(self,
+                                                       filtering_length,
+                                                       prediction_length,
+                                                       default_batch_size=None,
+                                                       values_input_dtype=None,
+                                                       truncate_values=False):
     """Build an input_receiver_fn for export_saved_model accepting tf.Examples.
 
     Only compatible with `OneShotPredictionHead` (see `head`).
@@ -151,7 +154,7 @@ class TimeSeriesRegressor(estimator_lib.Estimator):
           (various dtypes)
     """
     if values_input_dtype is None:
-      values_input_dtype = dtypes.float32
+      values_input_dtype = tf.dtypes.float32
     if truncate_values:
       values_proto_length = filtering_length + prediction_length
     else:
@@ -159,54 +162,54 @@ class TimeSeriesRegressor(estimator_lib.Estimator):
 
     def _serving_input_receiver_fn():
       """A receiver function to be passed to export_saved_model."""
-      times_column = feature_column.numeric_column(
-          key=feature_keys.TrainEvalFeatures.TIMES, dtype=dtypes.int64)
-      values_column = feature_column.numeric_column(
-          key=feature_keys.TrainEvalFeatures.VALUES, dtype=values_input_dtype,
+      times_column = tf.feature_column.numeric_column(
+          key=feature_keys.TrainEvalFeatures.TIMES, dtype=tf.dtypes.int64)
+      values_column = tf.feature_column.numeric_column(
+          key=feature_keys.TrainEvalFeatures.VALUES,
+          dtype=values_input_dtype,
           shape=(self._model.num_features,))
       parsed_features_no_sequence = (
-          feature_column.make_parse_example_spec(
-              list(self._model.exogenous_feature_columns)
-              + [times_column, values_column]))
+          tf.compat.v1.feature_column.make_parse_example_spec(
+              list(self._model.exogenous_feature_columns) +
+              [times_column, values_column]))
       parsed_features = {}
       for key, feature_spec in parsed_features_no_sequence.items():
-        if isinstance(feature_spec, parsing_ops.FixedLenFeature):
+        if isinstance(feature_spec, tf.io.FixedLenFeature):
           if key == feature_keys.TrainEvalFeatures.VALUES:
             parsed_features[key] = feature_spec._replace(
-                shape=((values_proto_length,)
-                       + feature_spec.shape))
+                shape=((values_proto_length,) + feature_spec.shape))
           else:
             parsed_features[key] = feature_spec._replace(
-                shape=((filtering_length + prediction_length,)
-                       + feature_spec.shape))
-        elif feature_spec.dtype == dtypes.string:
-          parsed_features[key] = parsing_ops.FixedLenFeature(
+                shape=((filtering_length + prediction_length,) +
+                       feature_spec.shape))
+        elif feature_spec.dtype == tf.dtypes.string:
+          parsed_features[key] = tf.io.FixedLenFeature(
               shape=(filtering_length + prediction_length,),
-              dtype=dtypes.string)
+              dtype=tf.dtypes.string)
         else:  # VarLenFeature
-          raise ValueError("VarLenFeatures not supported, got %s for key %s"
-                           % (feature_spec, key))
-      tfexamples = array_ops.placeholder(
-          shape=[default_batch_size], dtype=dtypes.string, name="input")
-      features = parsing_ops.parse_example(
-          serialized=tfexamples,
-          features=parsed_features)
-      features[feature_keys.TrainEvalFeatures.TIMES] = array_ops.squeeze(
+          raise ValueError("VarLenFeatures not supported, got %s for key %s" %
+                           (feature_spec, key))
+      tfexamples = tf.compat.v1.placeholder(
+          shape=[default_batch_size], dtype=tf.dtypes.string, name="input")
+      features = tf.compat.v1.io.parse_example(
+          serialized=tfexamples, features=parsed_features)
+      features[feature_keys.TrainEvalFeatures.TIMES] = tf.compat.v1.squeeze(
           features[feature_keys.TrainEvalFeatures.TIMES], axis=-1)
-      features[feature_keys.TrainEvalFeatures.VALUES] = math_ops.cast(
+      features[feature_keys.TrainEvalFeatures.VALUES] = tf.cast(
           features[feature_keys.TrainEvalFeatures.VALUES],
           dtype=self._model.dtype)[:, :filtering_length]
       features.update(
           self._model_start_state_placeholders(
-              batch_size_tensor=array_ops.shape(
+              batch_size_tensor=tf.compat.v1.shape(
                   features[feature_keys.TrainEvalFeatures.TIMES])[0],
               static_batch_size=default_batch_size))
-      return export_lib.ServingInputReceiver(
-          features, {"examples": tfexamples})
+      return export_lib.ServingInputReceiver(features, {"examples": tfexamples})
+
     return _serving_input_receiver_fn
 
-  def build_raw_serving_input_receiver_fn(
-      self, default_batch_size=None, default_series_length=None):
+  def build_raw_serving_input_receiver_fn(self,
+                                          default_batch_size=None,
+                                          default_series_length=None):
     """Build an input_receiver_fn for export_saved_model which accepts arrays.
 
     Automatically creates placeholders for exogenous `FeatureColumn`s passed to
@@ -227,52 +230,54 @@ class TimeSeriesRegressor(estimator_lib.Estimator):
       An input_receiver_fn which may be passed to the Estimator's
       export_saved_model.
     """
+
     def _serving_input_receiver_fn():
       """A receiver function to be passed to export_saved_model."""
       placeholders = {}
-      time_placeholder = array_ops.placeholder(
+      time_placeholder = tf.compat.v1.placeholder(
           name=feature_keys.TrainEvalFeatures.TIMES,
-          dtype=dtypes.int64,
+          dtype=tf.dtypes.int64,
           shape=[default_batch_size, default_series_length])
       placeholders[feature_keys.TrainEvalFeatures.TIMES] = time_placeholder
       # Values are only necessary when filtering. For prediction the default
       # value will be ignored.
       placeholders[feature_keys.TrainEvalFeatures.VALUES] = (
-          array_ops.placeholder_with_default(
+          tf.compat.v1.placeholder_with_default(
               name=feature_keys.TrainEvalFeatures.VALUES,
-              input=array_ops.zeros(
+              input=tf.zeros(
                   shape=[
-                      default_batch_size
-                      if default_batch_size else 0, default_series_length
-                      if default_series_length else 0, self._model.num_features
+                      default_batch_size if default_batch_size else 0,
+                      default_series_length if default_series_length else 0,
+                      self._model.num_features
                   ],
                   dtype=self._model.dtype),
               shape=(default_batch_size, default_series_length,
                      self._model.num_features)))
       if self._model.exogenous_feature_columns:
-        with ops.Graph().as_default():
+        with tf.Graph().as_default():
           # Default placeholders have only an unknown batch dimension. Make them
           # in a separate graph, then splice in the series length to the shapes
           # and re-create them in the outer graph.
           parsed_features = (
-              feature_column.make_parse_example_spec(
+              tf.compat.v1.feature_column.make_parse_example_spec(
                   self._model.exogenous_feature_columns))
-          placeholder_features = parsing_ops.parse_example(
-              serialized=array_ops.placeholder(
-                  shape=[None], dtype=dtypes.string),
+          placeholder_features = tf.compat.v1.io.parse_example(
+              serialized=tf.compat.v1.placeholder(
+                  shape=[None], dtype=tf.dtypes.string),
               features=parsed_features)
           exogenous_feature_shapes = {
-              key: (value.get_shape(), value.dtype) for key, value
-              in placeholder_features.items()}
-        for feature_key, (batch_only_feature_shape, value_dtype) in (
-            exogenous_feature_shapes.items()):
+              key: (value.get_shape(), value.dtype)
+              for key, value in placeholder_features.items()
+          }
+        for feature_key, (batch_only_feature_shape,
+                          value_dtype) in (exogenous_feature_shapes.items()):
           batch_only_feature_shape = (
               batch_only_feature_shape.with_rank_at_least(1).as_list())
-          feature_shape = ([default_batch_size, default_series_length]
-                           + batch_only_feature_shape[1:])
-          placeholders[feature_key] = array_ops.placeholder(
+          feature_shape = ([default_batch_size, default_series_length] +
+                           batch_only_feature_shape[1:])
+          placeholders[feature_key] = tf.compat.v1.placeholder(
               dtype=value_dtype, name=feature_key, shape=feature_shape)
-      batch_size_tensor = array_ops.shape(time_placeholder)[0]
+      batch_size_tensor = tf.compat.v1.shape(time_placeholder)[0]
       placeholders.update(
           self._model_start_state_placeholders(
               batch_size_tensor, static_batch_size=default_batch_size))
@@ -390,10 +395,10 @@ class LSTMAutoRegressor(TimeSeriesRegressor):
       output_window_size: Number of future time steps to predict. Note that
         setting this value to > 1 empirically seems to give a better fit.
       model_dir: Directory to save model parameters, graph and etc. This can
-        also be used to load checkpoints from the directory into a estimator
-        to continue training a previously saved model.
-      num_features: The dimensionality of the time series (default value is
-        one for univariate, more than one for multivariate).
+        also be used to load checkpoints from the directory into a estimator to
+        continue training a previously saved model.
+      num_features: The dimensionality of the time series (default value is one
+        for univariate, more than one for multivariate).
       extra_feature_columns: A list of `tf.feature_column`s (for example
         `tf.feature_column.embedding_column`) corresponding to features which
         provide extra information to the model but are not part of the series to
@@ -415,8 +420,7 @@ class LSTMAutoRegressor(TimeSeriesRegressor):
       config: Optional `estimator.RunConfig` object to configure the runtime
         settings.
     """
-    optimizer = optimizers.get_optimizer_instance(
-        optimizer, learning_rate=0.01)
+    optimizer = optimizers.get_optimizer_instance(optimizer, learning_rate=0.01)
     model = ar_model.ARModel(
         periodicities=periodicities,
         input_window_size=input_window_size,

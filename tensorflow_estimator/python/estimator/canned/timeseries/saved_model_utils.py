@@ -117,7 +117,9 @@ def _canonicalize_numpy_data(data, require_single_batch):
   return features
 
 
-def _colate_features_to_feeds_and_fetches(signature, features, graph,
+def _colate_features_to_feeds_and_fetches(signature,
+                                          features,
+                                          graph,
                                           continue_from=None):
   """Uses a saved model signature to construct feed and fetch dictionaries."""
   if continue_from is None:
@@ -154,8 +156,8 @@ def predict_continuation(continue_from,
 
   Args:
     continue_from: A dictionary containing the results of either an Estimator's
-      evaluate method or filter_continuation. Used to determine the model
-      state to make predictions starting from.
+      evaluate method or filter_continuation. Used to determine the model state
+      to make predictions starting from.
     signatures: The `MetaGraphDef` protocol buffer returned from
       `tf.saved_model.loader.load`. Used to determine the names of Tensors to
       feed and fetch. Must be from the same model as `continue_from`.
@@ -175,6 +177,7 @@ def predict_continuation(continue_from,
       the batch dimension used when creating `continue_from`, and `window_size`
       is either the `steps` argument or the `window_size` of the `times`
       argument (depending on which was specified).
+
   Returns:
     A dictionary with model-specific predictions (typically having keys "mean"
     and "covariance") and a _feature_keys.PredictionResults.TIMES key indicating
@@ -218,17 +221,16 @@ def cold_start_filter(signatures, session, features):
       `tf.saved_model.loader.load` loaded the model.
     features: A dictionary mapping keys to Numpy arrays, with several possible
       shapes (requires keys `FilteringFeatures.TIMES` and
-      `FilteringFeatures.VALUES`):
-        Single example; `TIMES` is a scalar and `VALUES` is either a scalar or a
-          vector of length [number of features].
+      `FilteringFeatures.VALUES`): Single example; `TIMES` is a scalar and
+        `VALUES` is either a scalar or a vector of length [number of features].
         Sequence; `TIMES` is a vector of shape [series length], `VALUES` either
-          has shape [series length] (univariate) or [series length x number of
-          features] (multivariate).
-        Batch of sequences; `TIMES` is a vector of shape [batch size x series
-          length], `VALUES` has shape [batch size x series length] or [batch
-          size x series length x number of features].
-      In any case, `VALUES` and any exogenous features must have their shapes
-      prefixed by the shape of the value corresponding to the `TIMES` key.
+        has shape [series length] (univariate) or [series length x number of
+        features] (multivariate). Batch of sequences; `TIMES` is a vector of
+        shape [batch size x series length], `VALUES` has shape [batch size x
+        series length] or [batch size x series length x number of features]. In
+        any case, `VALUES` and any exogenous features must have their shapes
+        prefixed by the shape of the value corresponding to the `TIMES` key.
+
   Returns:
     A dictionary containing model state updated to account for the observations
     in `features`.
@@ -237,9 +239,7 @@ def cold_start_filter(signatures, session, features):
       _feature_keys.SavedModelLabels.COLD_START_FILTER]
   features = _canonicalize_numpy_data(data=features, require_single_batch=False)
   output_tensors_by_name, feed_dict = _colate_features_to_feeds_and_fetches(
-      signature=filter_signature,
-      features=features,
-      graph=session.graph)
+      signature=filter_signature, features=features, graph=session.graph)
   output = session.run(output_tensors_by_name, feed_dict=feed_dict)
   # Make it easier to chain filter -> predict by keeping track of the current
   # time.
@@ -257,8 +257,8 @@ def filter_continuation(continue_from, signatures, session, features):
 
   Args:
     continue_from: A dictionary containing the results of either an Estimator's
-      evaluate method or a previous filter step (cold start or
-      continuation). Used to determine the model state to start filtering from.
+      evaluate method or a previous filter step (cold start or continuation).
+      Used to determine the model state to start filtering from.
     signatures: The `MetaGraphDef` protocol buffer returned from
       `tf.saved_model.loader.load`. Used to determine the names of Tensors to
       feed and fetch. Must be from the same model as `continue_from`.
@@ -266,17 +266,16 @@ def filter_continuation(continue_from, signatures, session, features):
       `tf.saved_model.loader.load` loaded the model.
     features: A dictionary mapping keys to Numpy arrays, with several possible
       shapes (requires keys `FilteringFeatures.TIMES` and
-      `FilteringFeatures.VALUES`):
-        Single example; `TIMES` is a scalar and `VALUES` is either a scalar or a
-          vector of length [number of features].
+      `FilteringFeatures.VALUES`): Single example; `TIMES` is a scalar and
+        `VALUES` is either a scalar or a vector of length [number of features].
         Sequence; `TIMES` is a vector of shape [series length], `VALUES` either
-          has shape [series length] (univariate) or [series length x number of
-          features] (multivariate).
-        Batch of sequences; `TIMES` is a vector of shape [batch size x series
-          length], `VALUES` has shape [batch size x series length] or [batch
-          size x series length x number of features].
-      In any case, `VALUES` and any exogenous features must have their shapes
-      prefixed by the shape of the value corresponding to the `TIMES` key.
+        has shape [series length] (univariate) or [series length x number of
+        features] (multivariate). Batch of sequences; `TIMES` is a vector of
+        shape [batch size x series length], `VALUES` has shape [batch size x
+        series length] or [batch size x series length x number of features]. In
+        any case, `VALUES` and any exogenous features must have their shapes
+        prefixed by the shape of the value corresponding to the `TIMES` key.
+
   Returns:
     A dictionary containing model state updated to account for the observations
     in `features`.
@@ -295,5 +294,6 @@ def filter_continuation(continue_from, signatures, session, features):
   output[_feature_keys.FilteringResults.TIMES] = features[
       _feature_keys.FilteringFeatures.TIMES]
   return output
+
 
 remove_undocumented(module_name=__name__)

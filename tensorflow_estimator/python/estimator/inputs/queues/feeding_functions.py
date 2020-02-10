@@ -23,17 +23,9 @@ import random
 import types as tp
 import numpy as np
 import six
-
-from tensorflow_estimator.python.estimator.inputs.queues import feeding_queue_runner as fqr
-from tensorflow.python.framework import dtypes
-from tensorflow.python.framework import errors
+import tensorflow as tf
 from tensorflow.python.framework import ops
-from tensorflow.python.ops import array_ops
-from tensorflow.python.ops import data_flow_ops
-from tensorflow.python.ops import math_ops
-from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.summary import summary
-from tensorflow.python.training import queue_runner
+from tensorflow_estimator.python.estimator.inputs.queues import feeding_queue_runner as fqr
 
 try:
   # pylint: disable=g-import-not-at-top
@@ -132,8 +124,8 @@ def _get_integer_indices_for_next_batch(batch_indices_start, batch_size,
 
   """
   if total_epochs is not None and current_epoch >= total_epochs:
-    raise errors.OutOfRangeError(None, None,
-                                 "Already emitted %s epochs." % current_epoch)
+    raise tf.errors.OutOfRangeError(
+        None, None, "Already emitted %s epochs." % current_epoch)
 
   batch_indices_end = batch_indices_start + batch_size
   batch_indices = [
@@ -146,8 +138,8 @@ def _get_integer_indices_for_next_batch(batch_indices_start, batch_size,
     return (batch_indices, current_epoch)
 
   # Now we might have emitted more data for expected epochs. Need to trim.
-  final_epoch_end_inclusive = epoch_end_indices[
-      -(current_epoch - total_epochs + 1)]
+  final_epoch_end_inclusive = epoch_end_indices[-(current_epoch - total_epochs +
+                                                  1)]
   batch_indices = batch_indices[:final_epoch_end_inclusive + 1]
 
   return (batch_indices, total_epochs)
@@ -306,8 +298,8 @@ class _GeneratorFeedFn(object):
 
   def __call__(self):
     if self._num_epochs and self._epoch >= self._num_epochs:
-      raise errors.OutOfRangeError(None, None,
-                                   "Already emitted %s epochs." % self._epoch)
+      raise tf.errors.OutOfRangeError(
+          None, None, "Already emitted %s epochs." % self._epoch)
     list_dict = {}
     list_dict_size = 0
     while list_dict_size < self._batch_size:
@@ -322,8 +314,8 @@ class _GeneratorFeedFn(object):
           raise KeyError("key mismatch between dicts emitted by GenFun "
                          "Expected {} keys; got {}".format(
                              self._keys, data_row.keys()))
-        list_dict.setdefault(self._col_placeholders[index], list()).append(
-            data_row[key])
+        list_dict.setdefault(self._col_placeholders[index],
+                             list()).append(data_row[key])
         list_dict_size += 1
 
     if self._pad_value is not None:
@@ -333,8 +325,7 @@ class _GeneratorFeedFn(object):
       }
     else:
       feed_dict = {
-          key: np.asarray(item)
-          for key, item in list(list_dict.items())
+          key: np.asarray(item) for key, item in list(list_dict.items())
       }
     return feed_dict
 
@@ -358,13 +349,13 @@ def _enqueue_data(data,
 
   Args:
     data: a numpy `ndarray`, `OrderedDict` of numpy arrays, or a generator
-       yielding `dict`s of numpy arrays or pandas `DataFrame` that will be read
-       into the queue.
+      yielding `dict`s of numpy arrays or pandas `DataFrame` that will be read
+      into the queue.
     capacity: the capacity of the queue.
     shuffle: whether or not to shuffle the rows of the array.
     min_after_dequeue: minimum number of elements that can remain in the queue
-    after a dequeue operation. Only used when `shuffle` is true. If not set,
-    defaults to `capacity` / 4.
+      after a dequeue operation. Only used when `shuffle` is true. If not set,
+      defaults to `capacity` / 4.
     num_threads: number of threads used for reading and enqueueing.
     seed: used to seed shuffling and reader starting points.
     name: a scope name identifying the data.
@@ -384,24 +375,25 @@ def _enqueue_data(data,
   """
   with ops.name_scope(name):
     if isinstance(data, np.ndarray):
-      types = [dtypes.int64, dtypes.as_dtype(data.dtype)]
+      types = [tf.dtypes.int64, tf.dtypes.as_dtype(data.dtype)]
       queue_shapes = [(), data.shape[1:]]
       get_feed_fn = _ArrayFeedFn
     elif isinstance(data, collections.OrderedDict):
-      types = [dtypes.int64
-              ] + [dtypes.as_dtype(col.dtype) for col in data.values()]
+      types = [tf.dtypes.int64
+              ] + [tf.dtypes.as_dtype(col.dtype) for col in data.values()]
       queue_shapes = [()] + [col.shape[1:] for col in data.values()]
       get_feed_fn = _OrderedDictNumpyFeedFn
     elif isinstance(data, tp.FunctionType):
       x_first_el = six.next(data())
       x_first_keys = sorted(x_first_el.keys())
       x_first_values = [x_first_el[key] for key in x_first_keys]
-      types = [dtypes.as_dtype(col.dtype) for col in x_first_values]
+      types = [tf.dtypes.as_dtype(col.dtype) for col in x_first_values]
       queue_shapes = [col.shape for col in x_first_values]
       get_feed_fn = _GeneratorFeedFn
     elif HAS_PANDAS and isinstance(data, pd.DataFrame):
       types = [
-          dtypes.as_dtype(dt) for dt in [data.index.dtype] + list(data.dtypes)
+          tf.dtypes.as_dtype(dt)
+          for dt in [data.index.dtype] + list(data.dtypes)
       ]
       queue_shapes = [() for _ in types]
       get_feed_fn = _PandasFeedFn
@@ -421,30 +413,30 @@ def _enqueue_data(data,
     # TODO(jamieas): TensorBoard warnings for all warnings below once available.
 
     if num_threads > 1 and num_epochs is not None:
-      logging.warning(
+      tf.compat.v1.logging.warn(
           "enqueue_data was called with num_epochs and num_threads > 1. "
           "num_epochs is applied per thread, so this will produce more "
           "epochs than you probably intend. "
           "If you want to limit epochs, use one thread.")
 
     if shuffle and num_threads > 1 and num_epochs is not None:
-      logging.warning(
+      tf.compat.v1.logging.warn(
           "enqueue_data was called with shuffle=True, num_threads > 1, and "
           "num_epochs. This will create multiple threads, all reading the "
           "array/dataframe in order adding to the same shuffling queue; the "
           "results will likely not be sufficiently shuffled.")
 
     if not shuffle and num_threads > 1:
-      logging.warning(
+      tf.compat.v1.logging.warn(
           "enqueue_data was called with shuffle=False and num_threads > 1. "
           "This will create multiple threads, all reading the "
           "array/dataframe in order. If you want examples read in order, use"
           " one thread; if you want multiple threads, enable shuffling.")
 
     if shuffle:
-      min_after_dequeue = int(capacity / 4 if min_after_dequeue is None else
-                              min_after_dequeue)
-      queue = data_flow_ops.RandomShuffleQueue(
+      min_after_dequeue = int(
+          capacity / 4 if min_after_dequeue is None else min_after_dequeue)
+      queue = tf.queue.RandomShuffleQueue(
           capacity,
           min_after_dequeue,
           dtypes=types,
@@ -453,14 +445,13 @@ def _enqueue_data(data,
     elif pad_data:
       min_after_dequeue = 0  # just for the summary text
       queue_shapes = list(
-          map(lambda x: tuple(list(x[:-1]) + [None]) if len(x) > 0 else x,
-              queue_shapes))
-      queue = data_flow_ops.PaddingFIFOQueue(
+          map(lambda x: tuple(list(x[:-1]) + [None])
+              if len(x) > 0 else x, queue_shapes))
+      queue = tf.queue.PaddingFIFOQueue(
           capacity, dtypes=types, shapes=queue_shapes)
     else:
       min_after_dequeue = 0  # just for the summary text
-      queue = data_flow_ops.FIFOQueue(
-          capacity, dtypes=types, shapes=queue_shapes)
+      queue = tf.queue.FIFOQueue(capacity, dtypes=types, shapes=queue_shapes)
 
     enqueue_ops = []
     feed_fns = []
@@ -468,7 +459,7 @@ def _enqueue_data(data,
     for i in range(num_threads):
       # Note the placeholders have no shapes, so they will accept any
       # enqueue_size.  enqueue_many below will break them up.
-      placeholders = [array_ops.placeholder(t) for t in types]
+      placeholders = [tf.compat.v1.placeholder(t) for t in types]
 
       enqueue_ops.append(queue.enqueue_many(placeholders))
       seed_i = None if seed is None else (i + 1) * seed
@@ -497,17 +488,17 @@ def _enqueue_data(data,
         queue=queue,
         enqueue_ops=enqueue_ops,
         feed_fns=feed_fns)
-    queue_runner.add_queue_runner(runner)
+    tf.compat.v1.train.queue_runner.add_queue_runner(runner)
 
     full = (
-        math_ops.cast(
-            math_ops.maximum(0,
-                             queue.size() - min_after_dequeue), dtypes.float32)
-        * (1. / (capacity - min_after_dequeue)))
+        tf.cast(
+            tf.math.maximum(0,
+                            queue.size() - min_after_dequeue),
+            tf.dtypes.float32) * (1. / (capacity - min_after_dequeue)))
     # Note that name contains a '/' at the end so we intentionally do not place
     # a '/' after %s below.
-    summary_name = ("queue/%sfraction_over_%d_of_%d_full" %
-                    (queue.name, min_after_dequeue,
-                     capacity - min_after_dequeue))
-    summary.scalar(summary_name, full)
+    summary_name = (
+        "queue/%sfraction_over_%d_of_%d_full" %
+        (queue.name, min_after_dequeue, capacity - min_after_dequeue))
+    tf.compat.v1.summary.scalar(summary_name, full)
     return queue

@@ -20,15 +20,13 @@ from __future__ import print_function
 
 import time
 import tensorflow as tf
-
-from tensorflow.python.platform import test
-from tensorflow.python.training import training_util
+from tensorflow.python.framework import test_util
 from tensorflow_estimator.python.estimator.tpu import iteration_count_estimator
 from tensorflow_estimator.python.estimator.tpu import tpu_estimator
 from tensorflow_estimator.python.estimator.tpu import util as util_lib
 
 
-class IterationsPerLoopParsingTest(test.TestCase):
+class IterationsPerLoopParsingTest(tf.test.TestCase):
 
   def _parse_and_validate_iterations_per_loop(self, value, expected_value,
                                               expected_unit):
@@ -80,7 +78,7 @@ class IterationsPerLoopParsingTest(test.TestCase):
     self._parse_and_validate_invalid_iterations_per_loop('-1m')
 
 
-class IterationPredictorTest(test.TestCase):
+class IterationPredictorTest(tf.test.TestCase):
 
   def setUp(self):
     self.estimator = iteration_count_estimator.IterationCountEstimator(
@@ -240,7 +238,7 @@ class IterationPredictorTest(test.TestCase):
     self.assertLessEqual(abs(actual_elapsed_time - target_elapsed_time), 1)
 
 
-class TPUStopAtStepHookTest(test.TestCase):
+class TPUStopAtStepHookTest(tf.test.TestCase):
 
   def test_invalid_parameters_on_construction(self):
     """Tests invalid parameters on construction."""
@@ -286,8 +284,9 @@ class TPUStopAtStepHookTest(test.TestCase):
         specified as `count` or `seconds`.
       num_steps: Number of steps to execute.
     """
-    with tf.Session() as sess:
-      global_step_tensor = training_util.get_or_create_global_step(sess.graph)
+    with self.test_session() as sess:
+      global_step_tensor = tf.compat.v1.train.get_or_create_global_step(
+          sess.graph)
       global_step_tensor.load(0, session=sess)
       self.assertEqual(sess.run(global_step_tensor), 0)
 
@@ -332,7 +331,7 @@ class TPUStopAtStepHookTest(test.TestCase):
               abs(hook._next_iteration_count - expected_iterations), 1)
 
       # Estimates iterations when global_step < final_step.
-      global_step = sess.run(training_util.get_global_step())
+      global_step = sess.run(tf.compat.v1.train.get_global_step())
       self.assertEqual(global_step, 0)
       _step(hook, is_final=False, expected_iterations=3)
 
@@ -349,6 +348,7 @@ class TPUStopAtStepHookTest(test.TestCase):
       global_step_tensor.load(5, session=sess)
       _step(hook, is_final=True, expected_iterations=0)
 
+  @test_util.deprecated_graph_mode_only
   def test_hook_life_cycle(self):
     """Tests update iterations."""
     self._validate_hook_life_cycle(
@@ -357,8 +357,9 @@ class TPUStopAtStepHookTest(test.TestCase):
         util_lib.IterationsPerLoopCounter(value=3, unit='count'), 5)
 
   def _validate_initialization(self, iterations_per_loop_counter, num_steps):
-    with tf.Session() as sess:
-      global_step_tensor = training_util.get_or_create_global_step(sess.graph)
+    with self.test_session() as sess:
+      global_step_tensor = tf.compat.v1.train.get_or_create_global_step(
+          sess.graph)
       global_step_tensor.load(0, session=sess)
       self.assertEqual(sess.run(global_step_tensor), 0)
 
@@ -379,6 +380,7 @@ class TPUStopAtStepHookTest(test.TestCase):
         self.assertIsInstance(hook._iteration_count_estimator,
                               iteration_count_estimator.IterationCountEstimator)
 
+  @test_util.deprecated_graph_mode_only
   def test_initialization(self):
     """Tests initialization.
 
@@ -398,4 +400,4 @@ class TPUStopAtStepHookTest(test.TestCase):
 
 
 if __name__ == '__main__':
-  test.main()
+  tf.test.main()

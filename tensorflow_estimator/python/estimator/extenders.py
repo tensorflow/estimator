@@ -18,7 +18,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-
 from tensorflow.python.util import function_utils
 from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator import estimator as estimator_lib
@@ -70,12 +69,11 @@ def add_metrics(estimator, metric_fn):
         * labels:  Labels `Tensor` or dict of `Tensor` created by `input_fn`
           which is given to `estimator.evaluate` as an argument.
         * config: config attribute of the `estimator`.
-       - Returns:
-         Dict of metric results keyed by name. Final metrics are a union of this
-         and `estimator's` existing metrics. If there is a name conflict between
-         this and `estimator`s existing metrics, this will override the existing
-         one. The values of the dict are the results of calling a metric
-         function, namely a `(metric_tensor, update_op)` tuple.
+       - Returns: Dict of metric results keyed by name. Final metrics are a
+         union of this and `estimator's` existing metrics. If there is a name
+         conflict between this and `estimator`s existing metrics, this will
+         override the existing one. The values of the dict are the results of
+         calling a metric function, namely a `(metric_tensor, update_op)` tuple.
 
   Returns:
       A new `tf.estimator.Estimator` which has a union of original metrics with
@@ -99,7 +97,7 @@ def add_metrics(estimator, metric_fn):
       config=estimator.config,
       # pylint: disable=protected-access
       warm_start_from=estimator._warm_start_settings)
-      # pylint: enable=protected-access
+  # pylint: enable=protected-access
 
 
 def _verify_metric_fn_args(metric_fn):

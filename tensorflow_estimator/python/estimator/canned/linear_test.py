@@ -18,13 +18,10 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import tensorflow as tf
 
 from tensorflow.python.feature_column import feature_column_v2
-from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
-from tensorflow.python.ops import array_ops
-from tensorflow.python.ops import gen_math_ops
-from tensorflow.python.platform import test
 from tensorflow_estimator.python.estimator.canned import linear
 from tensorflow_estimator.python.estimator.canned import linear_testing_utils
 
@@ -41,37 +38,37 @@ def _linear_classifier_fn(*args, **kwargs):
 
 
 class LinearRegressorEvaluationV2Test(
-    linear_testing_utils.BaseLinearRegressorEvaluationTest, test.TestCase):
+    linear_testing_utils.BaseLinearRegressorEvaluationTest, tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
+    tf.test.TestCase.__init__(self, methodName)
     linear_testing_utils.BaseLinearRegressorEvaluationTest.__init__(
         self, _linear_regressor_fn, fc_lib=feature_column_v2)
 
 
 class LinearRegressorPredictV2Test(
-    linear_testing_utils.BaseLinearRegressorPredictTest, test.TestCase):
+    linear_testing_utils.BaseLinearRegressorPredictTest, tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
+    tf.test.TestCase.__init__(self, methodName)
     linear_testing_utils.BaseLinearRegressorPredictTest.__init__(
         self, _linear_regressor_fn, fc_lib=feature_column_v2)
 
 
 class LinearRegressorIntegrationV2Test(
-    linear_testing_utils.BaseLinearRegressorIntegrationTest, test.TestCase):
+    linear_testing_utils.BaseLinearRegressorIntegrationTest, tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
+    tf.test.TestCase.__init__(self, methodName)
     linear_testing_utils.BaseLinearRegressorIntegrationTest.__init__(
         self, _linear_regressor_fn, fc_lib=feature_column_v2)
 
 
 class LinearRegressorTrainingV2Test(
-    linear_testing_utils.BaseLinearRegressorTrainingTest, test.TestCase):
+    linear_testing_utils.BaseLinearRegressorTrainingTest, tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
+    tf.test.TestCase.__init__(self, methodName)
     linear_testing_utils.BaseLinearRegressorTrainingTest.__init__(
         self, _linear_regressor_fn, fc_lib=feature_column_v2)
 
@@ -80,10 +77,10 @@ class LinearRegressorTrainingV2Test(
 
 
 class LinearClassifierTrainingV2Test(
-    linear_testing_utils.BaseLinearClassifierTrainingTest, test.TestCase):
+    linear_testing_utils.BaseLinearClassifierTrainingTest, tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
+    tf.test.TestCase.__init__(self, methodName)
     linear_testing_utils.BaseLinearClassifierTrainingTest.__init__(
         self,
         linear_classifier_fn=_linear_classifier_fn,
@@ -91,10 +88,10 @@ class LinearClassifierTrainingV2Test(
 
 
 class LinearClassifierEvaluationV2Test(
-    linear_testing_utils.BaseLinearClassifierEvaluationTest, test.TestCase):
+    linear_testing_utils.BaseLinearClassifierEvaluationTest, tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
+    tf.test.TestCase.__init__(self, methodName)
     linear_testing_utils.BaseLinearClassifierEvaluationTest.__init__(
         self,
         linear_classifier_fn=_linear_classifier_fn,
@@ -102,10 +99,10 @@ class LinearClassifierEvaluationV2Test(
 
 
 class LinearClassifierPredictV2Test(
-    linear_testing_utils.BaseLinearClassifierPredictTest, test.TestCase):
+    linear_testing_utils.BaseLinearClassifierPredictTest, tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
+    tf.test.TestCase.__init__(self, methodName)
     linear_testing_utils.BaseLinearClassifierPredictTest.__init__(
         self,
         linear_classifier_fn=_linear_classifier_fn,
@@ -113,10 +110,10 @@ class LinearClassifierPredictV2Test(
 
 
 class LinearClassifierIntegrationV2Test(
-    linear_testing_utils.BaseLinearClassifierIntegrationTest, test.TestCase):
+    linear_testing_utils.BaseLinearClassifierIntegrationTest, tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
+    tf.test.TestCase.__init__(self, methodName)
     linear_testing_utils.BaseLinearClassifierIntegrationTest.__init__(
         self,
         linear_classifier_fn=_linear_classifier_fn,
@@ -127,10 +124,10 @@ class LinearClassifierIntegrationV2Test(
 
 
 class LinearLogitFnV2Test(linear_testing_utils.BaseLinearLogitFnTest,
-                          test.TestCase):
+                          tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
+    tf.test.TestCase.__init__(self, methodName)
     linear_testing_utils.BaseLinearLogitFnTest.__init__(
         self, fc_lib=feature_column_v2)
 
@@ -139,10 +136,10 @@ class LinearLogitFnV2Test(linear_testing_utils.BaseLinearLogitFnTest,
 
 
 class LinearWarmStartingV2Test(linear_testing_utils.BaseLinearWarmStartingTest,
-                               test.TestCase):
+                               tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
+    tf.test.TestCase.__init__(self, methodName)
     linear_testing_utils.BaseLinearWarmStartingTest.__init__(
         self,
         _linear_classifier_fn,
@@ -150,7 +147,7 @@ class LinearWarmStartingV2Test(linear_testing_utils.BaseLinearWarmStartingTest,
         fc_lib=feature_column_v2)
 
 
-class ComputeFractionOfZeroTest(test.TestCase):
+class ComputeFractionOfZeroTest(tf.test.TestCase):
 
   def _assertSparsity(self, expected_sparsity, tensor):
     sparsity = linear._compute_fraction_of_zero([tensor])
@@ -158,32 +155,26 @@ class ComputeFractionOfZeroTest(test.TestCase):
 
   def test_small_float32(self):
     self._assertSparsity(
-        0.75,
-        ops.convert_to_tensor([0, 0, 0, 1], dtype=dtypes.float32))
+        0.75, ops.convert_to_tensor([0, 0, 0, 1], dtype=tf.dtypes.float32))
     self._assertSparsity(
-        0.5,
-        ops.convert_to_tensor([0, 1, 0, 1], dtype=dtypes.float32))
+        0.5, ops.convert_to_tensor([0, 1, 0, 1], dtype=tf.dtypes.float32))
 
   def test_small_int32(self):
     self._assertSparsity(
-        0.75,
-        ops.convert_to_tensor([0, 0, 0, 1], dtype=dtypes.int32))
+        0.75, ops.convert_to_tensor([0, 0, 0, 1], dtype=tf.dtypes.int32))
 
   def test_small_float64(self):
     self._assertSparsity(
-        0.75,
-        ops.convert_to_tensor([0, 0, 0, 1], dtype=dtypes.float64))
+        0.75, ops.convert_to_tensor([0, 0, 0, 1], dtype=tf.dtypes.float64))
 
   def test_small_int64(self):
     self._assertSparsity(
-        0.75,
-        ops.convert_to_tensor([0, 0, 0, 1], dtype=dtypes.int64))
+        0.75, ops.convert_to_tensor([0, 0, 0, 1], dtype=tf.dtypes.int64))
 
   def test_nested(self):
     self._assertSparsity(
-        0.75,
-        [ops.convert_to_tensor([0, 0]),
-         ops.convert_to_tensor([0, 1])])
+        0.75, [ops.convert_to_tensor([0, 0]),
+               ops.convert_to_tensor([0, 1])])
 
   def test_none(self):
     with self.assertRaises(ValueError):
@@ -192,7 +183,7 @@ class ComputeFractionOfZeroTest(test.TestCase):
   def test_empty(self):
     sparsity = linear._compute_fraction_of_zero([ops.convert_to_tensor([])])
     self.assertTrue(
-        self.evaluate(gen_math_ops.is_nan(sparsity)),
+        self.evaluate(tf.math.is_nan(sparsity)),
         'Expected sparsity=nan, got %s' % sparsity)
 
   def test_multiple_empty(self):
@@ -201,38 +192,31 @@ class ComputeFractionOfZeroTest(test.TestCase):
         ops.convert_to_tensor([]),
     ])
     self.assertTrue(
-        self.evaluate(gen_math_ops.is_nan(sparsity)),
+        self.evaluate(tf.math.is_nan(sparsity)),
         'Expected sparsity=nan, got %s' % sparsity)
 
   def test_some_empty(self):
     with self.test_session():
-      self._assertSparsity(
-          0.5,
-          [
-              ops.convert_to_tensor([]),
-              ops.convert_to_tensor([0.]),
-              ops.convert_to_tensor([1.]),
-          ])
+      self._assertSparsity(0.5, [
+          ops.convert_to_tensor([]),
+          ops.convert_to_tensor([0.]),
+          ops.convert_to_tensor([1.]),
+      ])
 
   def test_mixed_types(self):
     with self.test_session():
-      self._assertSparsity(
-          0.6,
-          [
-              ops.convert_to_tensor([0, 0, 1, 1, 1], dtype=dtypes.float32),
-              ops.convert_to_tensor([0, 0, 0, 0, 1], dtype=dtypes.int32),
-          ])
+      self._assertSparsity(0.6, [
+          ops.convert_to_tensor([0, 0, 1, 1, 1], dtype=tf.dtypes.float32),
+          ops.convert_to_tensor([0, 0, 0, 0, 1], dtype=tf.dtypes.int32),
+      ])
 
   def test_2_27_zeros__using_512_MiB_of_ram(self):
-    self._assertSparsity(
-        1.,
-        array_ops.zeros([int(2**27 * 1.01)], dtype=dtypes.int8))
+    self._assertSparsity(1., tf.zeros([int(2**27 * 1.01)],
+                                      dtype=tf.dtypes.int8))
 
   def test_2_27_ones__using_512_MiB_of_ram(self):
-    self._assertSparsity(
-        0.,
-        array_ops.ones([int(2**27 * 1.01)], dtype=dtypes.int8))
+    self._assertSparsity(0., tf.ones([int(2**27 * 1.01)], dtype=tf.dtypes.int8))
 
 
 if __name__ == '__main__':
-  test.main()
+  tf.test.main()

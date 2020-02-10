@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-
 """Utilities for Estimators."""
 
 from __future__ import absolute_import
@@ -20,10 +19,8 @@ from __future__ import division
 from __future__ import print_function
 
 import time
-
+import tensorflow as tf
 from tensorflow.python.data.ops import dataset_ops
-from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.training import training
 from tensorflow.python.util import function_utils
 
 fn_args = function_utils.fn_args
@@ -41,14 +38,13 @@ def parse_input_fn_result(result):
 
   Args:
     result: output of an input_fn to an estimator, which should be one of:
-
-      * A 'tf.data.Dataset' object: Outputs of `Dataset` object must be a
-          tuple (features, labels) with same constraints as below.
+      * A 'tf.data.Dataset' object: Outputs of `Dataset` object must be a tuple
+        (features, labels) with same constraints as below.
       * A tuple (features, labels): Where `features` is a `Tensor` or a
-        dictionary of string feature name to `Tensor` and `labels` is a
-        `Tensor` or a dictionary of string label name to `Tensor`. Both
-        `features` and `labels` are consumed by `model_fn`. They should
-        satisfy the expectation of `model_fn` from inputs.
+        dictionary of string feature name to `Tensor` and `labels` is a `Tensor`
+        or a dictionary of string label name to `Tensor`. Both `features` and
+        `labels` are consumed by `model_fn`. They should satisfy the expectation
+        of `model_fn` from inputs.
 
   Returns:
     Tuple of features, labels, and input_hooks, where features are as described
@@ -76,7 +72,7 @@ def parse_iterator_result(result):
   return result, None
 
 
-class _DatasetInitializerHook(training.SessionRunHook):
+class _DatasetInitializerHook(tf.compat.v1.train.SessionRunHook):
   """Creates a SessionRunHook that initializes the passed iterator."""
 
   def __init__(self, iterator):
@@ -90,7 +86,7 @@ class _DatasetInitializerHook(training.SessionRunHook):
     session.run(self._initializer)
 
 
-class DistributedIteratorInitializerHook(training.SessionRunHook):
+class DistributedIteratorInitializerHook(tf.compat.v1.train.SessionRunHook):
   """Creates a SessionRunHook that initializes the passed iterator."""
 
   def __init__(self, iterator):
@@ -104,7 +100,7 @@ class DistributedIteratorInitializerHook(training.SessionRunHook):
     session.run(self._initializer)
 
 
-class MultiHostDatasetInitializerHook(training.SessionRunHook):
+class MultiHostDatasetInitializerHook(tf.compat.v1.train.SessionRunHook):
   """Creates a SessionRunHook that initializes all passed iterators."""
 
   def __init__(self, dataset_initializers):
@@ -114,5 +110,5 @@ class MultiHostDatasetInitializerHook(training.SessionRunHook):
     del coord
     start = time.time()
     session.run(self._initializers)
-    logging.info('Initialized dataset iterators in %d seconds',
-                 time.time() - start)
+    tf.compat.v1.logging.info('Initialized dataset iterators in %d seconds',
+                              time.time() - start)

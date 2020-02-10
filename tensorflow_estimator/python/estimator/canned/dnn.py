@@ -19,23 +19,16 @@ from __future__ import division
 from __future__ import print_function
 
 import six
-
+import tensorflow as tf
+from tensorflow.python.feature_column import dense_features
+from tensorflow.python.feature_column import dense_features_v2
 from tensorflow.python.feature_column import feature_column
 from tensorflow.python.feature_column import feature_column_lib
 from tensorflow.python.framework import ops
 from tensorflow.python.keras.engine import training
 from tensorflow.python.keras.layers import core as keras_core
-from tensorflow.python.keras.layers import normalization_v2 as keras_norm
+from tensorflow.python.keras.layers import normalization as keras_norm
 from tensorflow.python.keras.utils import losses_utils
-from tensorflow.python.layers import core as core_layers
-from tensorflow.python.layers import normalization
-from tensorflow.python.ops import init_ops
-from tensorflow.python.ops import nn
-from tensorflow.python.ops import partitioned_variables
-from tensorflow.python.ops import variable_scope
-from tensorflow.python.ops.losses import losses
-from tensorflow.python.summary import summary
-from tensorflow.python.training import training_util
 from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator import estimator
 from tensorflow_estimator.python.estimator.canned import head as head_lib
@@ -50,8 +43,9 @@ _LEARNING_RATE = 0.05
 
 
 def _add_hidden_layer_summary(value, tag):
-  summary.scalar('%s/fraction_of_zero_values' % tag, nn.zero_fraction(value))
-  summary.histogram('%s/activation' % tag, value)
+  tf.compat.v1.summary.scalar('%s/fraction_of_zero_values' % tag,
+                              tf.math.zero_fraction(value))
+  tf.compat.v1.summary.histogram('%s/activation' % tag, value)
 
 
 @estimator_export(v1=['estimator.experimental.dnn_logit_fn_builder'])
@@ -60,9 +54,8 @@ def dnn_logit_fn_builder(units, hidden_units, feature_columns, activation_fn,
   """Function builder for a dnn logit_fn.
 
   Args:
-    units: An int indicating the dimension of the logit layer.  In the
-      MultiHead case, this should be the sum of all component Heads' logit
-      dimensions.
+    units: An int indicating the dimension of the logit layer.  In the MultiHead
+      case, this should be the sum of all component Heads' logit dimensions.
     hidden_units: Iterable of integer number of hidden units per layer.
     feature_columns: Iterable of `feature_column._FeatureColumn` model inputs.
     activation_fn: Activation function applied to each layer.
@@ -85,11 +78,11 @@ def dnn_logit_fn_builder(units, hidden_units, feature_columns, activation_fn,
     """Deep Neural Network logit_fn.
 
     Args:
-      features: This is the first item returned from the `input_fn`
-                passed to `train`, `evaluate`, and `predict`. This should be a
-                single `Tensor` or `dict` of same.
+      features: This is the first item returned from the `input_fn` passed to
+        `train`, `evaluate`, and `predict`. This should be a single `Tensor` or
+        `dict` of same.
       mode: Optional. Specifies if this training, evaluation or prediction. See
-            `ModeKeys`.
+        `ModeKeys`.
 
     Returns:
       A `Tensor` representing the logits, or a list of `Tensor`'s representing
@@ -180,7 +173,7 @@ class _DNNModel(training.Model):
                **kwargs):
     super(_DNNModel, self).__init__(name=name, **kwargs)
     if feature_column_lib.is_feature_column_v2(feature_columns):
-      self._input_layer = feature_column_lib.DenseFeatures(
+      self._input_layer = dense_features.DenseFeatures(
           feature_columns=feature_columns, name='input_layer')
     else:
       self._input_layer = feature_column.InputLayer(
@@ -198,23 +191,23 @@ class _DNNModel(training.Model):
     self._batch_norm_layers = []
     self._hidden_layer_scope_names = []
     for layer_id, num_hidden_units in enumerate(hidden_units):
-      with variable_scope.variable_scope(
-          'hiddenlayer_%d' % layer_id) as hidden_layer_scope:
-        hidden_layer = core_layers.Dense(
+      with tf.compat.v1.variable_scope('hiddenlayer_%d' %
+                                       layer_id) as hidden_layer_scope:
+        hidden_layer = tf.compat.v1.layers.Dense(
             units=num_hidden_units,
             activation=activation_fn,
-            kernel_initializer=init_ops.glorot_uniform_initializer(),
+            kernel_initializer=tf.compat.v1.glorot_uniform_initializer(),
             name=hidden_layer_scope,
             _scope=hidden_layer_scope)
         self._add_layer(hidden_layer, hidden_layer_scope.name)
         self._hidden_layer_scope_names.append(hidden_layer_scope.name)
         self._hidden_layers.append(hidden_layer)
         if self._dropout is not None:
-          dropout_layer = core_layers.Dropout(rate=self._dropout)
+          dropout_layer = tf.compat.v1.layers.Dropout(rate=self._dropout)
           self._add_layer(dropout_layer, dropout_layer.name)
           self._dropout_layers.append(dropout_layer)
         if self._batch_norm:
-          batch_norm_layer = normalization.BatchNormalization(
+          batch_norm_layer = tf.compat.v1.layers.BatchNormalization(
               # The default momentum 0.99 actually crashes on certain
               # problem, so here we use 0.999, which is the default of
               # tf.contrib.layers.batch_norm.
@@ -225,11 +218,11 @@ class _DNNModel(training.Model):
           self._add_layer(batch_norm_layer, batch_norm_layer.name)
           self._batch_norm_layers.append(batch_norm_layer)
 
-    with variable_scope.variable_scope('logits') as logits_scope:
-      self._logits_layer = core_layers.Dense(
+    with tf.compat.v1.variable_scope('logits') as logits_scope:
+      self._logits_layer = tf.compat.v1.layers.Dense(
           units=units,
           activation=None,
-          kernel_initializer=init_ops.glorot_uniform_initializer(),
+          kernel_initializer=tf.compat.v1.glorot_uniform_initializer(),
           name=logits_scope,
           _scope=logits_scope)
       self._add_layer(self._logits_layer, logits_scope.name)
@@ -244,7 +237,7 @@ class _DNNModel(training.Model):
     # TODO(rohanj): Remove this in TF 2.0 (b/116728605)
     with ops.name_scope(name=_get_previous_name_scope()):
       # TODO(rohanj): Remove dependence on variable scope for partitioning.
-      with variable_scope.variable_scope(
+      with tf.compat.v1.variable_scope(
           'input_from_feature_columns',
           partitioner=self._input_layer_partitioner):
         net = self._input_layer(features)
@@ -292,15 +285,11 @@ class _DNNModelV2(training.Model):
                name=None,
                **kwargs):
     super(_DNNModelV2, self).__init__(name=name, **kwargs)
-
-    # Current DenseFeatures is not a pure Keras layer, as it still relies on
-    # variable_scope and get_variables. Here we need to manually add 'dnn' (the
-    # Keras model name) as prefix for backward compatibility.
     with ops.name_scope(
-        'dnn/input_from_feature_columns') as input_feature_column_scope:
+        'input_from_feature_columns') as input_feature_column_scope:
       layer_name = input_feature_column_scope + 'input_layer'
       if feature_column_lib.is_feature_column_v2(feature_columns):
-        self._input_layer = feature_column_lib.DenseFeatures(
+        self._input_layer = dense_features_v2.DenseFeatures(
             feature_columns=feature_columns, name=layer_name)
       else:
         raise ValueError(
@@ -325,7 +314,7 @@ class _DNNModelV2(training.Model):
         hidden_layer = keras_core.Dense(
             units=num_hidden_units,
             activation=activation_fn,
-            kernel_initializer=init_ops.glorot_uniform_initializer(),
+            kernel_initializer=tf.compat.v1.glorot_uniform_initializer(),
             name=hidden_shared_name)
         self._hidden_layer_scope_names.append(hidden_shared_name)
         self._hidden_layers.append(hidden_layer)
@@ -334,7 +323,9 @@ class _DNNModelV2(training.Model):
           self._dropout_layers.append(dropout_layer)
         if self._batch_norm:
           batch_norm_name = hidden_shared_name + '/batchnorm_%d' % layer_id
-          batch_norm_layer = keras_norm.BatchNormalization(
+          # TODO(scottzhu): Change back to use BatchNormalization when the
+          # cleanup is done.
+          batch_norm_layer = keras_norm.BatchNormalizationBase(
               # The default momentum 0.99 actually crashes on certain
               # problem, so here we use 0.999, which is the default of
               # tf.contrib.layers.batch_norm.
@@ -348,7 +339,7 @@ class _DNNModelV2(training.Model):
       self._logits_layer = keras_core.Dense(
           units=units,
           activation=None,
-          kernel_initializer=init_ops.glorot_uniform_initializer(),
+          kernel_initializer=tf.compat.v1.glorot_uniform_initializer(),
           name=logits_shared_name)
       self._logits_scope_name = logits_shared_name
 
@@ -400,7 +391,7 @@ def _dnn_model_fn(features,
                   hidden_units,
                   feature_columns,
                   optimizer='Adagrad',
-                  activation_fn=nn.relu,
+                  activation_fn=tf.nn.relu,
                   dropout=None,
                   input_layer_partitioner=None,
                   config=None,
@@ -444,13 +435,12 @@ def _dnn_model_fn(features,
 
   num_ps_replicas = config.num_ps_replicas if config else 0
 
-  partitioner = (None if use_tpu else
-                 partitioned_variables.min_max_variable_partitioner(
-                     max_partitions=num_ps_replicas))
-  with variable_scope.variable_scope(
+  partitioner = (None if use_tpu else tf.compat.v1.min_max_variable_partitioner(
+      max_partitions=num_ps_replicas))
+  with tf.compat.v1.variable_scope(
       'dnn', values=tuple(six.itervalues(features)), partitioner=partitioner):
     input_layer_partitioner = input_layer_partitioner or (
-        None if use_tpu else partitioned_variables.min_max_variable_partitioner(
+        None if use_tpu else tf.compat.v1.min_max_variable_partitioner(
             max_partitions=num_ps_replicas, min_slice_size=64 << 20))
 
     logit_fn = dnn_logit_fn_builder(
@@ -468,8 +458,8 @@ def _dnn_model_fn(features,
 
 
 def _dnn_model_fn_builder_v2(units, hidden_units, feature_columns,
-                             activation_fn, dropout, batch_norm,
-                             features, mode):
+                             activation_fn, dropout, batch_norm, features,
+                             mode):
   """Function builder for dnn logits, trainable variables and update ops.
 
   Args:
@@ -521,7 +511,7 @@ def dnn_model_fn_v2(features,
                     hidden_units,
                     feature_columns,
                     optimizer='Adagrad',
-                    activation_fn=nn.relu,
+                    activation_fn=tf.nn.relu,
                     dropout=None,
                     config=None,
                     use_tpu=False,
@@ -578,7 +568,7 @@ def dnn_model_fn_v2(features,
   # relies on global step as step counter.
   if mode == ModeKeys.TRAIN:
     optimizer = optimizers.get_optimizer_instance_v2(optimizer)
-    optimizer.iterations = training_util.get_or_create_global_step()
+    optimizer.iterations = tf.compat.v1.train.get_or_create_global_step()
 
   # Create EstimatorSpec.
   if use_tpu:
@@ -611,33 +601,33 @@ class DNNClassifierV2(estimator.EstimatorV2):
   categorical_feature_b_emb = embedding_column(
       categorical_column=categorical_feature_b, ...)
 
-  estimator = DNNClassifier(
+  estimator = tf.estimator.DNNClassifier(
       feature_columns=[categorical_feature_a_emb, categorical_feature_b_emb],
       hidden_units=[1024, 512, 256])
 
   # Or estimator using the ProximalAdagradOptimizer optimizer with
   # regularization.
-  estimator = DNNClassifier(
+  estimator = tf.estimator.DNNClassifier(
       feature_columns=[categorical_feature_a_emb, categorical_feature_b_emb],
       hidden_units=[1024, 512, 256],
-      optimizer=tf.train.ProximalAdagradOptimizer(
+      optimizer=tf.compat.v1.train.ProximalAdagradOptimizer(
         learning_rate=0.1,
         l1_regularization_strength=0.001
       ))
 
   # Or estimator using an optimizer with a learning rate decay.
-  estimator = DNNClassifier(
+  estimator = tf.estimator.DNNClassifier(
       feature_columns=[categorical_feature_a_emb, categorical_feature_b_emb],
       hidden_units=[1024, 512, 256],
-      optimizer=lambda: tf.AdamOptimizer(
-          learning_rate=tf.exponential_decay(
+      optimizer=lambda: tf.keras.optimizers.Adam(
+          learning_rate=tf.compat.v1.train.exponential_decay(
               learning_rate=0.1,
-              global_step=tf.get_global_step(),
+              global_step=tf.compat.v1.train.get_global_step(),
               decay_steps=10000,
               decay_rate=0.96))
 
   # Or estimator with warm-starting from a previous checkpoint.
-  estimator = DNNClassifier(
+  estimator = tf.estimator.DNNClassifier(
       feature_columns=[categorical_feature_a_emb, categorical_feature_b_emb],
       hidden_units=[1024, 512, 256],
       warm_start_from="/path/to/checkpoint/dir")
@@ -665,12 +655,12 @@ class DNNClassifierV2(estimator.EstimatorV2):
   * if `weight_column` is not `None`, a feature with `key=weight_column` whose
     value is a `Tensor`.
   * for each `column` in `feature_columns`:
-    - if `column` is a `_CategoricalColumn`, a feature with `key=column.name`
+    - if `column` is a `CategoricalColumn`, a feature with `key=column.name`
       whose `value` is a `SparseTensor`.
-    - if `column` is a `_WeightedCategoricalColumn`, two features: the first
+    - if `column` is a `WeightedCategoricalColumn`, two features: the first
       with `key` the id column name, the second with `key` the weight column
       name. Both features' `value` must be a `SparseTensor`.
-    - if `column` is a `_DenseColumn`, a feature with `key=column.name`
+    - if `column` is a `DenseColumn`, a feature with `key=column.name`
       whose `value` is a `Tensor`.
 
   Loss is calculated by using softmax cross entropy.
@@ -692,7 +682,7 @@ class DNNClassifierV2(estimator.EstimatorV2):
       weight_column=None,
       label_vocabulary=None,
       optimizer='Adagrad',
-      activation_fn=nn.relu,
+      activation_fn=tf.nn.relu,
       dropout=None,
       config=None,
       warm_start_from=None,
@@ -713,23 +703,23 @@ class DNNClassifierV2(estimator.EstimatorV2):
         continue training a previously saved model.
       n_classes: Number of label classes. Defaults to 2, namely binary
         classification. Must be > 1.
-      weight_column: A string or a `_NumericColumn` created by
+      weight_column: A string or a `NumericColumn` created by
         `tf.feature_column.numeric_column` defining feature column representing
         weights. It is used to down weight or boost examples during training. It
         will be multiplied by the loss of the example. If it is a string, it is
         used as a key to fetch weight tensor from the `features`. If it is a
-        `_NumericColumn`, raw tensor is fetched by key `weight_column.key`,
-        then weight_column.normalizer_fn is applied on it to get weight tensor.
+        `_NumericColumn`, raw tensor is fetched by key `weight_column.key`, then
+        weight_column.normalizer_fn is applied on it to get weight tensor.
       label_vocabulary: A list of strings represents possible label values. If
         given, labels must be string type and have any value in
-        `label_vocabulary`. If it is not given, that means labels are
-        already encoded as integer or float within [0, 1] for `n_classes=2` and
-        encoded as integer values in {0, 1,..., n_classes-1} for `n_classes`>2 .
-        Also there will be errors if vocabulary is not provided and labels are
+        `label_vocabulary`. If it is not given, that means labels are already
+        encoded as integer or float within [0, 1] for `n_classes=2` and encoded
+        as integer values in {0, 1,..., n_classes-1} for `n_classes`>2 . Also
+        there will be errors if vocabulary is not provided and labels are
         string.
-      optimizer: An instance of `tf.Optimizer` used to train the model. Can also
-        be a string (one of 'Adagrad', 'Adam', 'Ftrl', 'RMSProp', 'SGD'), or
-        callable. Defaults to Adagrad optimizer.
+      optimizer: An instance of `tf.keras.optimizers.*` used to train the model.
+        Can also be a string (one of 'Adagrad', 'Adam', 'Ftrl', 'RMSProp',
+        SGD'), or callable. Defaults to Adagrad optimizer.
       activation_fn: Activation function applied to each layer. If `None`, will
         use `tf.nn.relu`.
       dropout: When not `None`, the probability we will drop out a given
@@ -745,9 +735,11 @@ class DNNClassifierV2(estimator.EstimatorV2):
       batch_norm: Whether to use batch normalization after each hidden layer.
     """
     head = head_utils.binary_or_multi_class_head(
-        n_classes, weight_column=weight_column,
+        n_classes,
+        weight_column=weight_column,
         label_vocabulary=label_vocabulary,
         loss_reduction=loss_reduction)
+    estimator._canned_estimator_api_gauge.get_cell('Classifier').set('DNN')
 
     def _model_fn(features, labels, mode, config):
       """Call the defined shared dnn_model_fn_v2."""
@@ -784,16 +776,17 @@ class DNNClassifier(estimator.Estimator):
       weight_column=None,
       label_vocabulary=None,
       optimizer='Adagrad',
-      activation_fn=nn.relu,
+      activation_fn=tf.nn.relu,
       dropout=None,
       input_layer_partitioner=None,
       config=None,
       warm_start_from=None,
-      loss_reduction=losses.Reduction.SUM,
+      loss_reduction=tf.compat.v1.losses.Reduction.SUM,
       batch_norm=False,
   ):
     head = head_lib._binary_logistic_or_multi_class_head(  # pylint: disable=protected-access
         n_classes, weight_column, label_vocabulary, loss_reduction)
+    estimator._canned_estimator_api_gauge.get_cell('Classifier').set('DNN')
 
     def _model_fn(features, labels, mode, config):
       """Call the defined shared dnn_model_fn."""
@@ -818,8 +811,6 @@ class DNNClassifier(estimator.Estimator):
         warm_start_from=warm_start_from)
 
 
-# TODO(b/117517419): Update these contrib references once head moves to core.
-# Also references to the "_Head" class need to be replaced with "Head".
 @estimator_export('estimator.DNNEstimator', v1=[])
 class DNNEstimatorV2(estimator.EstimatorV2):
   """An estimator for TensorFlow DNN models with user-specified head.
@@ -835,37 +826,37 @@ class DNNEstimatorV2(estimator.EstimatorV2):
   sparse_feature_b_emb = embedding_column(sparse_id_column=sparse_feature_b,
                                           ...)
 
-  estimator = DNNEstimator(
-      head=tf.contrib.estimator.multi_label_head(n_classes=3),
+  estimator = tf.estimator.DNNEstimator(
+      head=tf.estimator.MultiLabelHead(n_classes=3),
       feature_columns=[sparse_feature_a_emb, sparse_feature_b_emb],
       hidden_units=[1024, 512, 256])
 
   # Or estimator using the ProximalAdagradOptimizer optimizer with
   # regularization.
-  estimator = DNNEstimator(
-      head=tf.contrib.estimator.multi_label_head(n_classes=3),
+  estimator = tf.estimator.DNNEstimator(
+      head=tf.estimator.MultiLabelHead(n_classes=3),
       feature_columns=[sparse_feature_a_emb, sparse_feature_b_emb],
       hidden_units=[1024, 512, 256],
-      optimizer=tf.train.ProximalAdagradOptimizer(
+      optimizer=tf.compat.v1.train.ProximalAdagradOptimizer(
         learning_rate=0.1,
         l1_regularization_strength=0.001
       ))
 
   # Or estimator using an optimizer with a learning rate decay.
-  estimator = DNNEstimator(
-      head=tf.contrib.estimator.multi_label_head(n_classes=3),
+  estimator = tf.estimator.DNNEstimator(
+      head=tf.estimator.MultiLabelHead(n_classes=3),
       feature_columns=[sparse_feature_a_emb, sparse_feature_b_emb],
       hidden_units=[1024, 512, 256],
-      optimizer=lambda: tf.AdamOptimizer(
-          learning_rate=tf.exponential_decay(
+      optimizer=lambda: tf.keras.optimizers.Adam(
+          learning_rate=tf.compat.v1.train.exponential_decay(
               learning_rate=0.1,
-              global_step=tf.get_global_step(),
+              global_step=tf.compat.v1.train.get_global_step(),
               decay_steps=10000,
               decay_rate=0.96))
 
   # Or estimator with warm-starting from a previous checkpoint.
-  estimator = DNNEstimator(
-      head=tf.contrib.estimator.multi_label_head(n_classes=3),
+  estimator = tf.estimator.DNNEstimator(
+      head=tf.estimator.MultiLabelHead(n_classes=3),
       feature_columns=[sparse_feature_a_emb, sparse_feature_b_emb],
       hidden_units=[1024, 512, 256],
       warm_start_from="/path/to/checkpoint/dir")
@@ -893,12 +884,12 @@ class DNNEstimatorV2(estimator.EstimatorV2):
   * if `weight_column` is not `None`, a feature with `key=weight_column` whose
     value is a `Tensor`.
   * for each `column` in `feature_columns`:
-    - if `column` is a `_CategoricalColumn`, a feature with `key=column.name`
+    - if `column` is a `CategoricalColumn`, a feature with `key=column.name`
       whose `value` is a `SparseTensor`.
-    - if `column` is a `_WeightedCategoricalColumn`, two features: the first
+    - if `column` is a `WeightedCategoricalColumn`, two features: the first
       with `key` the id column name, the second with `key` the weight column
       name. Both features' `value` must be a `SparseTensor`.
-    - if `column` is a `_DenseColumn`, a feature with `key=column.name`
+    - if `column` is a `DenseColumn`, a feature with `key=column.name`
       whose `value` is a `Tensor`.
 
   Loss and predicted output are determined by the specified head.
@@ -917,7 +908,7 @@ class DNNEstimatorV2(estimator.EstimatorV2):
                feature_columns,
                model_dir=None,
                optimizer='Adagrad',
-               activation_fn=nn.relu,
+               activation_fn=tf.nn.relu,
                dropout=None,
                config=None,
                warm_start_from=None,
@@ -936,9 +927,9 @@ class DNNEstimatorV2(estimator.EstimatorV2):
       model_dir: Directory to save model parameters, graph and etc. This can
         also be used to load checkpoints from the directory into a estimator to
         continue training a previously saved model.
-      optimizer: An instance of `tf.Optimizer` used to train the model. Can also
-        be a string (one of 'Adagrad', 'Adam', 'Ftrl', 'RMSProp', 'SGD'), or
-        callable. Defaults to Adagrad optimizer.
+      optimizer: An instance of `tf.keras.optimizers.*` used to train the model.
+        Can also be a string (one of 'Adagrad', 'Adam', 'Ftrl', 'RMSProp',
+        SGD'), or callable. Defaults to Adagrad optimizer.
       activation_fn: Activation function applied to each layer. If `None`, will
         use `tf.nn.relu`.
       dropout: When not `None`, the probability we will drop out a given
@@ -951,6 +942,7 @@ class DNNEstimatorV2(estimator.EstimatorV2):
         names are unchanged.
       batch_norm: Whether to use batch normalization after each hidden layer.
     """
+
     def _model_fn(features, labels, mode, config):
       """Call the defined shared dnn_model_fn_v2."""
       return dnn_model_fn_v2(
@@ -965,8 +957,12 @@ class DNNEstimatorV2(estimator.EstimatorV2):
           dropout=dropout,
           config=config,
           batch_norm=batch_norm)
+
+    estimator._canned_estimator_api_gauge.get_cell('Estimator').set('DNN')  # pylint: disable=protected-access
     super(DNNEstimatorV2, self).__init__(
-        model_fn=_model_fn, model_dir=model_dir, config=config,
+        model_fn=_model_fn,
+        model_dir=model_dir,
+        config=config,
         warm_start_from=warm_start_from)
 
 
@@ -980,12 +976,13 @@ class DNNEstimator(estimator.Estimator):
                feature_columns,
                model_dir=None,
                optimizer='Adagrad',
-               activation_fn=nn.relu,
+               activation_fn=tf.nn.relu,
                dropout=None,
                input_layer_partitioner=None,
                config=None,
                warm_start_from=None,
                batch_norm=False):
+
     def _model_fn(features, labels, mode, config):
       """Call the defined shared _dnn_model_fn."""
       return _dnn_model_fn(
@@ -1001,8 +998,12 @@ class DNNEstimator(estimator.Estimator):
           input_layer_partitioner=input_layer_partitioner,
           config=config,
           batch_norm=batch_norm)
+
+    estimator._canned_estimator_api_gauge.get_cell('Estimator').set('DNN')  # pylint: disable=protected-access
     super(DNNEstimator, self).__init__(
-        model_fn=_model_fn, model_dir=model_dir, config=config,
+        model_fn=_model_fn,
+        model_dir=model_dir,
+        config=config,
         warm_start_from=warm_start_from)
 
 
@@ -1021,33 +1022,33 @@ class DNNRegressorV2(estimator.EstimatorV2):
   categorical_feature_b_emb = embedding_column(
       categorical_column=categorical_feature_b, ...)
 
-  estimator = DNNRegressor(
+  estimator = tf.estimator.DNNRegressor(
       feature_columns=[categorical_feature_a_emb, categorical_feature_b_emb],
       hidden_units=[1024, 512, 256])
 
   # Or estimator using the ProximalAdagradOptimizer optimizer with
   # regularization.
-  estimator = DNNRegressor(
+  estimator = tf.estimator.DNNRegressor(
       feature_columns=[categorical_feature_a_emb, categorical_feature_b_emb],
       hidden_units=[1024, 512, 256],
-      optimizer=tf.train.ProximalAdagradOptimizer(
+      optimizer=tf.compat.v1.train.ProximalAdagradOptimizer(
         learning_rate=0.1,
         l1_regularization_strength=0.001
       ))
 
   # Or estimator using an optimizer with a learning rate decay.
-  estimator = DNNRegressor(
+  estimator = tf.estimator.DNNRegressor(
       feature_columns=[categorical_feature_a_emb, categorical_feature_b_emb],
       hidden_units=[1024, 512, 256],
-      optimizer=lambda: tf.AdamOptimizer(
-          learning_rate=tf.exponential_decay(
+      optimizer=lambda: tf.keras.optimizers.Adam(
+          learning_rate=tf.compat.v1.train.exponential_decay(
               learning_rate=0.1,
-              global_step=tf.get_global_step(),
+              global_step=tf.compat.v1.train.get_global_step(),
               decay_steps=10000,
               decay_rate=0.96))
 
   # Or estimator with warm-starting from a previous checkpoint.
-  estimator = DNNRegressor(
+  estimator = tf.estimator.DNNRegressor(
       feature_columns=[categorical_feature_a_emb, categorical_feature_b_emb],
       hidden_units=[1024, 512, 256],
       warm_start_from="/path/to/checkpoint/dir")
@@ -1075,12 +1076,12 @@ class DNNRegressorV2(estimator.EstimatorV2):
   * if `weight_column` is not `None`, a feature with `key=weight_column` whose
     value is a `Tensor`.
   * for each `column` in `feature_columns`:
-    - if `column` is a `_CategoricalColumn`, a feature with `key=column.name`
+    - if `column` is a `CategoricalColumn`, a feature with `key=column.name`
       whose `value` is a `SparseTensor`.
-    - if `column` is a `_WeightedCategoricalColumn`, two features: the first
+    - if `column` is a `WeightedCategoricalColumn`, two features: the first
       with `key` the id column name, the second with `key` the weight column
       name. Both features' `value` must be a `SparseTensor`.
-    - if `column` is a `_DenseColumn`, a feature with `key=column.name`
+    - if `column` is a `DenseColumn`, a feature with `key=column.name`
       whose `value` is a `Tensor`.
 
   Loss is calculated by using mean squared error.
@@ -1101,7 +1102,7 @@ class DNNRegressorV2(estimator.EstimatorV2):
       label_dimension=1,
       weight_column=None,
       optimizer='Adagrad',
-      activation_fn=nn.relu,
+      activation_fn=tf.nn.relu,
       dropout=None,
       config=None,
       warm_start_from=None,
@@ -1116,23 +1117,23 @@ class DNNRegressorV2(estimator.EstimatorV2):
         second one has 32.
       feature_columns: An iterable containing all the feature columns used by
         the model. All items in the set should be instances of classes derived
-        from `_FeatureColumn`.
+        from `FeatureColumn`.
       model_dir: Directory to save model parameters, graph and etc. This can
         also be used to load checkpoints from the directory into a estimator to
         continue training a previously saved model.
       label_dimension: Number of regression targets per example. This is the
         size of the last dimension of the labels and logits `Tensor` objects
         (typically, these have shape `[batch_size, label_dimension]`).
-      weight_column: A string or a `_NumericColumn` created by
+      weight_column: A string or a `NumericColumn` created by
         `tf.feature_column.numeric_column` defining feature column representing
         weights. It is used to down weight or boost examples during training. It
         will be multiplied by the loss of the example. If it is a string, it is
         used as a key to fetch weight tensor from the `features`. If it is a
-        `_NumericColumn`, raw tensor is fetched by key `weight_column.key`,
-        then weight_column.normalizer_fn is applied on it to get weight tensor.
-      optimizer: An instance of `tf.keras.optimizers.Optimizer` used to train
-        the model. Can also be a string (one of 'Adagrad', 'Adam', 'Ftrl',
-        'RMSProp', 'SGD'), or callable. Defaults to Adagrad optimizer.
+        `NumericColumn`, raw tensor is fetched by key `weight_column.key`, then
+        weight_column.normalizer_fn is applied on it to get weight tensor.
+      optimizer: An instance of `tf.keras.optimizers.*` used to train the model.
+        Can also be a string (one of 'Adagrad', 'Adam', 'Ftrl', 'RMSProp',
+        SGD'), or callable. Defaults to Adagrad optimizer.
       activation_fn: Activation function applied to each layer. If `None`, will
         use `tf.nn.relu`.
       dropout: When not `None`, the probability we will drop out a given
@@ -1151,6 +1152,8 @@ class DNNRegressorV2(estimator.EstimatorV2):
         label_dimension=label_dimension,
         weight_column=weight_column,
         loss_reduction=loss_reduction)
+    estimator._canned_estimator_api_gauge.get_cell('Regressor').set('DNN')  # pylint: disable=protected-access
+
     def _model_fn(features, labels, mode, config):
       """Call the defined shared dnn_model_fn_v2."""
       return dnn_model_fn_v2(
@@ -1185,18 +1188,19 @@ class DNNRegressor(estimator.Estimator):
       label_dimension=1,
       weight_column=None,
       optimizer='Adagrad',
-      activation_fn=nn.relu,
+      activation_fn=tf.nn.relu,
       dropout=None,
       input_layer_partitioner=None,
       config=None,
       warm_start_from=None,
-      loss_reduction=losses.Reduction.SUM,
+      loss_reduction=tf.compat.v1.losses.Reduction.SUM,
       batch_norm=False,
   ):
     head = head_lib._regression_head(  # pylint: disable=protected-access
         label_dimension=label_dimension,
         weight_column=weight_column,
         loss_reduction=loss_reduction)
+    estimator._canned_estimator_api_gauge.get_cell('Regressor').set('DNN')  # pylint: disable=protected-access
 
     def _model_fn(features, labels, mode, config):
       """Call the defined shared _dnn_model_fn."""

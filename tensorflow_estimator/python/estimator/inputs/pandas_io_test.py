@@ -19,12 +19,8 @@ from __future__ import division
 from __future__ import print_function
 
 import numpy as np
-
-from tensorflow.python.framework import errors
+import tensorflow as tf
 from tensorflow.python.framework import test_util
-from tensorflow.python.platform import test
-from tensorflow.python.training import coordinator
-from tensorflow.python.training import queue_runner_impl
 from tensorflow_estimator.python.estimator.inputs import pandas_io
 
 try:
@@ -39,7 +35,7 @@ except ImportError:
 
 
 @test_util.run_v1_only('Tests v1 only symbols')
-class PandasIoTest(test.TestCase):
+class PandasIoTest(tf.test.TestCase):
 
   def makeTestDataFrame(self):
     index = np.arange(100, 104)
@@ -61,8 +57,9 @@ class PandasIoTest(test.TestCase):
 
   def callInputFnOnce(self, input_fn, session):
     results = input_fn()
-    coord = coordinator.Coordinator()
-    threads = queue_runner_impl.start_queue_runners(session, coord=coord)
+    coord = tf.train.Coordinator()
+    threads = tf.compat.v1.train.queue_runner.start_queue_runners(
+        session, coord=coord)
     result_values = session.run(results)
     coord.request_stop()
     coord.join(threads)
@@ -85,19 +82,22 @@ class PandasIoTest(test.TestCase):
 
     with self.assertRaisesRegexp(TypeError,
                                  'target_column must be a string type'):
-      pandas_io.pandas_input_fn(x, y, batch_size=2,
-                                shuffle=False,
-                                num_epochs=1,
-                                target_column=['one', 'two'])
+      pandas_io.pandas_input_fn(
+          x,
+          y,
+          batch_size=2,
+          shuffle=False,
+          num_epochs=1,
+          target_column=['one', 'two'])
 
   def testPandasInputFn_NonBoolShuffle(self):
     if not HAS_PANDAS:
       return
     x, _ = self.makeTestDataFrame()
     y_noindex = pd.Series(np.arange(-32, -28))
-    with self.assertRaisesRegexp(ValueError,
-                                 'shuffle must be provided and explicitly '
-                                 'set as boolean'):
+    with self.assertRaisesRegexp(
+        ValueError, 'shuffle must be provided and explicitly '
+        'set as boolean'):
       # Default shuffle is None
       pandas_io.pandas_input_fn(x, y_noindex)
 
@@ -176,15 +176,16 @@ class PandasIoTest(test.TestCase):
 
       results = input_fn()
 
-      coord = coordinator.Coordinator()
-      threads = queue_runner_impl.start_queue_runners(session, coord=coord)
+      coord = tf.train.Coordinator()
+      threads = tf.compat.v1.train.queue_runner.start_queue_runners(
+          session, coord=coord)
 
       features, target = session.run(results)
       self.assertAllEqual(features['a'], [0, 1, 0, 1])
       self.assertAllEqual(features['b'], [32, 33, 32, 33])
       self.assertAllEqual(target, [-32, -31, -32, -31])
 
-      with self.assertRaises(errors.OutOfRangeError):
+      with self.assertRaises(tf.errors.OutOfRangeError):
         session.run(results)
 
       coord.request_stop()
@@ -205,8 +206,9 @@ class PandasIoTest(test.TestCase):
 
       results = input_fn()
 
-      coord = coordinator.Coordinator()
-      threads = queue_runner_impl.start_queue_runners(session, coord=coord)
+      coord = tf.train.Coordinator()
+      threads = tf.compat.v1.train.queue_runner.start_queue_runners(
+          session, coord=coord)
 
       features, target = session.run(results)
       self.assertAllEqual(features['a'], [0, 1])
@@ -223,7 +225,7 @@ class PandasIoTest(test.TestCase):
       self.assertAllEqual(features['b'], [36])
       self.assertAllEqual(target, [-28])
 
-      with self.assertRaises(errors.OutOfRangeError):
+      with self.assertRaises(tf.errors.OutOfRangeError):
         session.run(results)
 
       coord.request_stop()
@@ -256,11 +258,12 @@ class PandasIoTest(test.TestCase):
 
   def assertInputsCallableNTimes(self, input_fn, session, n):
     inputs = input_fn()
-    coord = coordinator.Coordinator()
-    threads = queue_runner_impl.start_queue_runners(session, coord=coord)
+    coord = tf.train.Coordinator()
+    threads = tf.compat.v1.train.queue_runner.start_queue_runners(
+        session, coord=coord)
     for _ in range(n):
       session.run(inputs)
-    with self.assertRaises(errors.OutOfRangeError):
+    with self.assertRaises(tf.errors.OutOfRangeError):
       session.run(inputs)
     coord.request_stop()
     coord.join(threads)
@@ -319,4 +322,4 @@ class PandasIoTest(test.TestCase):
 
 
 if __name__ == '__main__':
-  test.main()
+  tf.test.main()

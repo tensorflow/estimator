@@ -18,19 +18,12 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from tensorflow.python.framework import dtypes
-from tensorflow.python.framework import ops
-from tensorflow.python.ops import array_ops
-from tensorflow.python.ops import math_ops
-from tensorflow.python.ops import variables
-from tensorflow.python.platform import test
-from tensorflow.python.training import coordinator as coordinator_lib
-from tensorflow.python.training import queue_runner_impl
+import tensorflow as tf
 from tensorflow_estimator.python.estimator.canned.timeseries import math_utils
 from tensorflow_estimator.python.estimator.canned.timeseries.feature_keys import TrainEvalFeatures
 
 
-class InputStatisticsTests(test.TestCase):
+class InputStatisticsTests(tf.test.TestCase):
 
   def _input_statistics_test_template(self,
                                       stat_object,
@@ -39,44 +32,45 @@ class InputStatisticsTests(test.TestCase):
                                       warmup_iterations=0,
                                       rtol=1e-6,
                                       data_length=4):
-    graph = ops.Graph()
+    graph = tf.Graph()
     with graph.as_default():
-      data_length_range = math_ops.range(data_length, dtype=dtype)
-      num_features_range = math_ops.range(num_features, dtype=dtype)
+      data_length_range = tf.range(data_length, dtype=dtype)
+      num_features_range = tf.range(num_features, dtype=dtype)
       times = 2 * data_length_range[None, :] - 3
-      values = (
-          data_length_range[:, None] + num_features_range[None, :])[None, ...]
+      values = (data_length_range[:, None] + num_features_range[None, :])[None,
+                                                                          ...]
       features = {
           TrainEvalFeatures.TIMES: times,
           TrainEvalFeatures.VALUES: values,
       }
       statistics = stat_object.initialize_graph(features=features)
       with self.session(graph=graph) as session:
-        variables.global_variables_initializer().run()
-        coordinator = coordinator_lib.Coordinator()
-        queue_runner_impl.start_queue_runners(session, coord=coordinator)
+        tf.compat.v1.initializers.global_variables().run()
+        coordinator = tf.train.Coordinator()
+        tf.compat.v1.train.queue_runner.start_queue_runners(
+            session, coord=coordinator)
         for _ in range(warmup_iterations):
           # A control dependency should ensure that, for queue-based statistics,
           # a use of any statistic is preceded by an update of all adaptive
           # statistics.
           self.evaluate(statistics.total_observation_count)
         self.assertAllClose(
-            math_ops.range(num_features, dtype=dtype) +
-            math_ops.reduce_mean(data_length_range)[None],
+            tf.range(num_features, dtype=dtype) +
+            tf.math.reduce_mean(data_length_range)[None],
             self.evaluate(statistics.series_start_moments.mean),
             rtol=rtol)
         self.assertAllClose(
-            array_ops.tile(
-                math_ops.reduce_variance(data_length_range)[None],
+            tf.tile(
+                tf.math.reduce_variance(data_length_range)[None],
                 [num_features]),
             self.evaluate(statistics.series_start_moments.variance),
             rtol=rtol)
         self.assertAllClose(
-            math_ops.reduce_mean(values[0], axis=0),
+            tf.math.reduce_mean(values[0], axis=0),
             self.evaluate(statistics.overall_feature_moments.mean),
             rtol=rtol)
         self.assertAllClose(
-            math_ops.reduce_variance(values[0], axis=0),
+            tf.math.reduce_variance(values[0], axis=0),
             self.evaluate(statistics.overall_feature_moments.variance),
             rtol=rtol)
         self.assertAllClose(-3, self.evaluate(statistics.start_time), rtol=rtol)
@@ -88,7 +82,7 @@ class InputStatisticsTests(test.TestCase):
         coordinator.join()
 
   def test_queue(self):
-    for dtype in [dtypes.float32, dtypes.float64]:
+    for dtype in [tf.dtypes.float32, tf.dtypes.float64]:
       for num_features in [1, 2, 3]:
         self._input_statistics_test_template(
             math_utils.InputStatisticsFromMiniBatch(
@@ -100,4 +94,4 @@ class InputStatisticsTests(test.TestCase):
 
 
 if __name__ == "__main__":
-  test.main()
+  tf.test.main()

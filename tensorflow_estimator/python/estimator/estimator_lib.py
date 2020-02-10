@@ -38,6 +38,8 @@ from tensorflow_estimator.python.estimator.canned.linear import LinearEstimator
 from tensorflow_estimator.python.estimator.canned.linear import LinearRegressor
 from tensorflow_estimator.python.estimator.canned.parsing_utils import classifier_parse_example_spec
 from tensorflow_estimator.python.estimator.canned.parsing_utils import regressor_parse_example_spec
+from tensorflow_estimator.python.estimator.canned.rnn import RNNClassifier
+from tensorflow_estimator.python.estimator.canned.rnn import RNNEstimator
 from tensorflow_estimator.python.estimator.early_stopping import *
 from tensorflow_estimator.python.estimator.estimator import Estimator
 from tensorflow_estimator.python.estimator.estimator import VocabInfo
@@ -47,6 +49,14 @@ from tensorflow_estimator.python.estimator.exporter import Exporter
 from tensorflow_estimator.python.estimator.exporter import FinalExporter
 from tensorflow_estimator.python.estimator.exporter import LatestExporter
 from tensorflow_estimator.python.estimator.extenders import add_metrics
+from tensorflow_estimator.python.estimator.head.base_head import Head
+from tensorflow_estimator.python.estimator.head.binary_class_head import BinaryClassHead
+from tensorflow_estimator.python.estimator.head.multi_class_head import MultiClassHead
+from tensorflow_estimator.python.estimator.head.multi_head import MultiHead
+from tensorflow_estimator.python.estimator.head.multi_label_head import MultiLabelHead
+from tensorflow_estimator.python.estimator.head.regression_head import LogisticRegressionHead
+from tensorflow_estimator.python.estimator.head.regression_head import PoissonRegressionHead
+from tensorflow_estimator.python.estimator.head.regression_head import RegressionHead
 from tensorflow_estimator.python.estimator.hooks import basic_session_run_hooks
 from tensorflow_estimator.python.estimator.hooks import hooks
 from tensorflow_estimator.python.estimator.hooks import session_run_hook

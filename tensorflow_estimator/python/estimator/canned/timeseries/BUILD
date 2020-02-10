@@ -62,7 +62,7 @@ py_test(
     srcs = [
         "estimators_test.py",
     ],
-    python_version = "PY2",
+    python_version = "PY3",
     srcs_version = "PY2AND3",
     tags = [
         "notap",  # TODO(b/132129465): Re-enable.
@@ -95,7 +95,7 @@ py_test(
     srcs = [
         "head_test.py",
     ],
-    python_version = "PY2",
+    python_version = "PY3",
     shard_count = 4,
     srcs_version = "PY2AND3",
     deps = [
@@ -158,7 +158,7 @@ py_test(
     srcs = [
         "ar_model_test.py",
     ],
-    python_version = "PY2",
+    python_version = "PY3",
     shard_count = 4,
     srcs_version = "PY2AND3",
     deps = [
@@ -175,7 +175,7 @@ py_test(
     srcs = [
         "ar_model_training_test.py",
     ],
-    python_version = "PY2",
+    python_version = "PY3",
     shard_count = 4,
     srcs_version = "PY2AND3",
     deps = [
@@ -204,7 +204,7 @@ py_test(
     srcs = [
         "math_utils_test.py",
     ],
-    python_version = "PY2",
+    python_version = "PY3",
     srcs_version = "PY2AND3",
     deps = [
         ":feature_keys",

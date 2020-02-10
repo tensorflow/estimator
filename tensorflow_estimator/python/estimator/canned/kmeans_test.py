@@ -23,23 +23,10 @@ import time
 
 import numpy as np
 from sklearn.cluster import KMeans as SklearnKMeans
-
-# pylint: disable=g-import-not-at-top
-from tensorflow.python.feature_column import feature_column_lib as fc
-from tensorflow.python.framework import constant_op
-from tensorflow.python.framework import dtypes
-from tensorflow.python.framework import ops
+import tensorflow as tf
 from tensorflow.python.framework import test_util
-from tensorflow.python.ops import array_ops
-from tensorflow.python.ops import control_flow_ops
-from tensorflow.python.ops import data_flow_ops
-from tensorflow.python.ops import math_ops
-from tensorflow.python.ops import random_ops
 from tensorflow.python.platform import benchmark
 from tensorflow.python.platform import flags
-from tensorflow.python.platform import test
-from tensorflow.python.training import input as input_lib
-from tensorflow.python.training import queue_runner
 from tensorflow_estimator.python.estimator import run_config
 from tensorflow_estimator.python.estimator.canned import kmeans as kmeans_lib
 
@@ -64,11 +51,11 @@ def make_random_points(centers, num_points, max_offset=20):
   assignments = np.random.choice(num_centers, num_points)
   offsets = np.round(
       np.random.randn(num_points, num_dims).astype(np.float32) * max_offset)
-  return (centers[assignments] + offsets, assignments, np.add.reduce(
-      offsets * offsets, 1))
+  return (centers[assignments] + offsets, assignments,
+          np.add.reduce(offsets * offsets, 1))
 
 
-class KMeansTestBase(test.TestCase):
+class KMeansTestBase(tf.test.TestCase):
 
   def input_fn(self,
                batch_size=None,
@@ -80,39 +67,38 @@ class KMeansTestBase(test.TestCase):
     points = points if points is not None else self.points
     num_points = points.shape[0]
     if randomize is None:
-      randomize = (self.use_mini_batch and
-                   self.mini_batch_steps_per_iteration <= 1)
+      randomize = (
+          self.use_mini_batch and self.mini_batch_steps_per_iteration <= 1)
 
     def _fn():
-      x = constant_op.constant(points)
+      x = tf.constant(points)
       if batch_size == num_points:
-        return input_lib.limit_epochs(x, num_epochs=num_epochs), None
+        return tf.compat.v1.train.limit_epochs(x, num_epochs=num_epochs), None
       if randomize:
-        indices = random_ops.random_uniform(
-            constant_op.constant([batch_size]),
+        indices = tf.random.uniform(
+            tf.constant([batch_size]),
             minval=0,
             maxval=num_points - 1,
-            dtype=dtypes.int32,
+            dtype=tf.dtypes.int32,
             seed=10)
       else:
         # We need to cycle through the indices sequentially. We create a queue
         # to maintain the list of indices.
-        q = data_flow_ops.FIFOQueue(num_points, dtypes.int32, ())
+        q = tf.queue.FIFOQueue(num_points, tf.dtypes.int32, ())
 
         # Conditionally initialize the Queue.
         def _init_q():
-          with ops.control_dependencies(
-              [q.enqueue_many(math_ops.range(num_points))]):
-            return control_flow_ops.no_op()
+          with tf.control_dependencies([q.enqueue_many(tf.range(num_points))]):
+            return tf.no_op()
 
-        init_q = control_flow_ops.cond(q.size() <= 0, _init_q,
-                                       control_flow_ops.no_op)
-        with ops.control_dependencies([init_q]):
+        init_q = tf.compat.v1.cond(q.size() <= 0, _init_q, tf.no_op)
+        with tf.control_dependencies([init_q]):
           offsets = q.dequeue_many(batch_size)
-          with ops.control_dependencies([q.enqueue_many(offsets)]):
-            indices = array_ops.identity(offsets)
-      batch = array_ops.gather(x, indices)
-      return (input_lib.limit_epochs(batch, num_epochs=num_epochs), None)
+          with tf.control_dependencies([q.enqueue_many(offsets)]):
+            indices = tf.identity(offsets)
+      batch = tf.compat.v1.gather(x, indices)
+      return (tf.compat.v1.train.limit_epochs(batch,
+                                              num_epochs=num_epochs), None)
 
     return _fn
 
@@ -206,7 +192,7 @@ class KMeansTest(KMeansTestBase):
     self.assertAllEqual(assignments, true_assignments)
 
     # Test score
-    score = kmeans.score(input_fn=lambda: (constant_op.constant(points), None))
+    score = kmeans.score(input_fn=lambda: (tf.constant(points), None))
     self.assertNear(score, np.sum(true_offsets), 0.01 * score)
 
     # Test transform
@@ -243,7 +229,7 @@ class KMeansTest(KMeansTestBase):
     """Tests the various behaviours of kmeans._parse_features_if_necessary."""
 
     # No-op if a tensor is passed in.
-    features = constant_op.constant(self.points)
+    features = tf.constant(self.points)
     parsed_features = kmeans_lib._parse_features_if_necessary(features, None)
     self.assertAllEqual(features, parsed_features)
 
@@ -263,7 +249,10 @@ class KMeansTest(KMeansTestBase):
         'baz': {'fizz': 'buzz'},
         'y': [[point[1]] for point in self.points]
     }
-    feature_columns = [fc.numeric_column(key='x'), fc.numeric_column(key='y')]
+    feature_columns = [
+        tf.feature_column.numeric_column(key='x'),
+        tf.feature_column.numeric_column(key='y')
+    ]
     parsed_feature_dict = kmeans_lib._parse_features_if_necessary(
         feature_dict_with_extras, feature_columns)
     self._parse_feature_dict_helper(features, parsed_feature_dict)
@@ -273,8 +262,8 @@ class KMeansTest(KMeansTestBase):
 class KMeansTestMultiStageInit(KMeansTestBase):
 
   def test_random(self):
-    points = np.array(
-        [[1, 2], [3, 4], [5, 6], [7, 8], [9, 0]], dtype=np.float32)
+    points = np.array([[1, 2], [3, 4], [5, 6], [7, 8], [9, 0]],
+                      dtype=np.float32)
     kmeans = kmeans_lib.KMeansClustering(
         num_clusters=points.shape[0],
         initial_clusters=kmeans_lib.KMeansClustering.RANDOM_INIT,
@@ -306,8 +295,8 @@ class KMeansTestMultiStageInit(KMeansTestBase):
     self.assertAllEqual(points, clusters)
 
   def test_kmeans_plus_plus_batch_too_small(self):
-    points = np.array(
-        [[1, 2], [3, 4], [5, 6], [7, 8], [9, 0]], dtype=np.float32)
+    points = np.array([[1, 2], [3, 4], [5, 6], [7, 8], [9, 0]],
+                      dtype=np.float32)
     kmeans = kmeans_lib.KMeansClustering(
         num_clusters=points.shape[0],
         initial_clusters=kmeans_lib.KMeansClustering.KMEANS_PLUS_PLUS_INIT,
@@ -354,21 +343,17 @@ class FullBatchAsyncKMeansTest(KMeansTest):
 class KMeansCosineDistanceTest(KMeansTestBase):
 
   def setUp(self):
-    self.points = np.array(
-        [[2.5, 0.1], [2, 0.2], [3, 0.1], [4, 0.2], [0.1, 2.5], [0.2, 2],
-         [0.1, 3], [0.2, 4]],
-        dtype=np.float32)
+    self.points = np.array([[2.5, 0.1], [2, 0.2], [3, 0.1], [4, 0.2],
+                            [0.1, 2.5], [0.2, 2], [0.1, 3], [0.2, 4]],
+                           dtype=np.float32)
     self.num_points = self.points.shape[0]
-    self.true_centers = np.array(
-        [
-            normalize(
-                np.mean(normalize(self.points)[0:4, :], axis=0,
-                        keepdims=True))[0],
-            normalize(
-                np.mean(normalize(self.points)[4:, :], axis=0,
-                        keepdims=True))[0]
-        ],
-        dtype=np.float32)
+    self.true_centers = np.array([
+        normalize(
+            np.mean(normalize(self.points)[0:4, :], axis=0, keepdims=True))[0],
+        normalize(
+            np.mean(normalize(self.points)[4:, :], axis=0, keepdims=True))[0]
+    ],
+                                 dtype=np.float32)
     self.true_assignments = np.array([0] * 4 + [1] * 4)
     self.true_score = len(self.points) - np.tensordot(
         normalize(self.points), self.true_centers[self.true_assignments])
@@ -422,21 +407,16 @@ class KMeansCosineDistanceTest(KMeansTestBase):
   def test_predict_kmeans_plus_plus(self):
     # Most points are concentrated near one center. KMeans++ is likely to find
     # the less populated centers.
-    points = np.array(
-        [[2.5, 3.5], [2.5, 3.5], [-2, 3], [-2, 3], [-3, -3], [-3.1, -3.2],
-         [-2.8, -3.], [-2.9, -3.1], [-3., -3.1], [-3., -3.1], [-3.2, -3.],
-         [-3., -3.]],
-        dtype=np.float32)
-    true_centers = np.array(
-        [
-            normalize(
-                np.mean(normalize(points)[0:2, :], axis=0, keepdims=True))[0],
-            normalize(
-                np.mean(normalize(points)[2:4, :], axis=0, keepdims=True))[0],
-            normalize(np.mean(normalize(points)[4:, :], axis=0,
-                              keepdims=True))[0]
-        ],
-        dtype=np.float32)
+    points = np.array([[2.5, 3.5], [2.5, 3.5], [-2, 3], [-2, 3], [-3, -3],
+                       [-3.1, -3.2], [-2.8, -3.], [-2.9, -3.1], [-3., -3.1],
+                       [-3., -3.1], [-3.2, -3.], [-3., -3.]],
+                      dtype=np.float32)
+    true_centers = np.array([
+        normalize(np.mean(normalize(points)[0:2, :], axis=0, keepdims=True))[0],
+        normalize(np.mean(normalize(points)[2:4, :], axis=0, keepdims=True))[0],
+        normalize(np.mean(normalize(points)[4:, :], axis=0, keepdims=True))[0]
+    ],
+                            dtype=np.float32)
     true_assignments = [0] * 2 + [1] * 2 + [2] * 8
     true_score = len(points) - np.tensordot(
         normalize(points), true_centers[true_assignments])
@@ -447,22 +427,21 @@ class KMeansCosineDistanceTest(KMeansTestBase):
         use_mini_batch=self.use_mini_batch,
         mini_batch_steps_per_iteration=self.mini_batch_steps_per_iteration,
         config=self.config(3))
-    kmeans.train(
-        input_fn=lambda: (constant_op.constant(points), None), steps=30)
+    kmeans.train(input_fn=lambda: (tf.constant(points), None), steps=30)
 
     centers = normalize(kmeans.cluster_centers())
     self.assertAllClose(
         sorted(centers.tolist()), sorted(true_centers.tolist()), atol=1e-2)
 
     def _input_fn():
-      return (input_lib.limit_epochs(
-          constant_op.constant(points), num_epochs=1), None)
+      return (tf.compat.v1.train.limit_epochs(
+          tf.constant(points), num_epochs=1), None)
 
     assignments = list(kmeans.predict_cluster_index(input_fn=_input_fn))
     self.assertAllClose(
         centers[assignments], true_centers[true_assignments], atol=1e-2)
 
-    score = kmeans.score(input_fn=lambda: (constant_op.constant(points), None))
+    score = kmeans.score(input_fn=lambda: (tf.constant(points), None))
     self.assertAllClose(score, true_score, atol=1e-2)
 
 
@@ -517,8 +496,10 @@ class KMeansBenchmark(benchmark.Benchmark):
     self.report_benchmark(
         iters=num_iters,
         wall_time=(end - start) / num_iters,
-        extras={'true_sum_squared_distances': self.score,
-                'fit_scores': scores})
+        extras={
+            'true_sum_squared_distances': self.score,
+            'fit_scores': scores
+        })
 
   def _fit(self, num_iters=10):
     pass
@@ -571,11 +552,10 @@ class TensorflowKMeansBenchmark(KMeansBenchmark):
           relative_tolerance=1e-6,
           config=self.config(3))
       tf_kmeans.train(
-          input_fn=lambda: (constant_op.constant(self.points), None), steps=50)
+          input_fn=lambda: (tf.constant(self.points), None), steps=50)
       _ = tf_kmeans.cluster_centers()
       scores.append(
-          tf_kmeans.score(
-              input_fn=lambda: (constant_op.constant(self.points), None)))
+          tf_kmeans.score(input_fn=lambda: (tf.constant(self.points), None)))
     self._report(num_iters, start, time.time(), scores)
 
 
@@ -599,16 +579,16 @@ class SklearnKMeansBenchmark(KMeansBenchmark):
 
 
 @test_util.run_all_in_graph_and_eager_modes
-class KMeansTestQueues(test.TestCase):
+class KMeansTestQueues(tf.test.TestCase):
 
   def input_fn(self):
 
     def _fn():
-      queue = data_flow_ops.FIFOQueue(
-          capacity=10, dtypes=dtypes.float32, shapes=[10, 3])
-      enqueue_op = queue.enqueue(array_ops.zeros([10, 3], dtype=dtypes.float32))
-      queue_runner.add_queue_runner(
-          queue_runner.QueueRunner(queue, [enqueue_op]))
+      queue = tf.queue.FIFOQueue(
+          capacity=10, dtypes=tf.dtypes.float32, shapes=[10, 3])
+      enqueue_op = queue.enqueue(tf.zeros([10, 3], dtype=tf.dtypes.float32))
+      tf.compat.v1.train.queue_runner.add_queue_runner(
+          tf.compat.v1.train.queue_runner.QueueRunner(queue, [enqueue_op]))
       return queue.dequeue(), None
 
     return _fn
@@ -623,4 +603,4 @@ class KMeansTestQueues(test.TestCase):
 
 
 if __name__ == '__main__':
-  test.main()
+  tf.test.main()

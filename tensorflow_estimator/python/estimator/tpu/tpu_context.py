@@ -20,14 +20,14 @@ from __future__ import print_function
 
 from contextlib import contextmanager
 import copy
-
-from tensorflow.python.platform import tf_logging as logging
+import tensorflow as tf
+from tensorflow.python.distribute import distribution_strategy_context
+from tensorflow.python.ops import summary_ops_v2
 from tensorflow.python.tpu import device_assignment as tpu_device_assignment
 from tensorflow.python.tpu import tpu_system_metadata as tpu_system_metadata_lib
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
 from tensorflow_estimator.python.estimator.tpu import _tpu_estimator_embedding
 from tensorflow_estimator.python.estimator.tpu import tpu_config
-
 
 _DEFAULT_JOB_NAME = 'tpu_worker'
 _DEFAULT_COORDINATOR_JOB_NAME = 'coordinator'
@@ -38,6 +38,9 @@ _NUM_CORES_TO_COMPUTATION_SHAPE = {
     4: [1, 2, 2],
     8: [2, 2, 2],
     16: [4, 2, 2],
+    32: [4, 4, 2],
+    64: [8, 4, 2],
+    128: [8, 8, 2],
 }
 
 
@@ -79,7 +82,7 @@ class TPUContext(object):
            current invocation is 1. For per-host v2 input pipeline deployment,
            total invocation count is equal to the number of hosts in the system
            and num replicas consumed by current invocation is equal to number of
-           cores per host.
+           replicas per host.
 
     Raises:
       RuntimeError: If this method must not be called from input_fn.
@@ -89,17 +92,21 @@ class TPUContext(object):
                          ' model_fn.')
 
     if self._internal_ctx.is_input_sharded_per_core():
-      total_invocation_count = (self._internal_ctx.num_hosts
-                                * self._internal_ctx.num_of_replicas_per_host)
+      total_invocation_count = (
+          self._internal_ctx.num_hosts *
+          self._internal_ctx.num_of_replicas_per_host)
       replicas_consumed = 1
     elif self._internal_ctx.is_input_broadcast_with_iterators():
       total_invocation_count = 1
       replicas_consumed = self._internal_ctx.num_replicas
+    elif self._internal_ctx.is_replica_across_hosts():
+      total_invocation_count = self._internal_ctx.num_replicas
+      replicas_consumed = 1
     else:
       total_invocation_count = self._internal_ctx.num_hosts
       replicas_consumed = self._internal_ctx.num_of_replicas_per_host
-    return (self._input_device, self._invocation_index,
-            total_invocation_count, replicas_consumed)
+    return (self._input_device, self._invocation_index, total_invocation_count,
+            replicas_consumed)
 
   @property
   def num_replicas(self):
@@ -206,9 +213,9 @@ class _InternalTPUContext(object):
     self._eval_batch_size = eval_batch_size
     self._predict_batch_size = predict_batch_size
     self._use_tpu = use_tpu
-    logging.info('_TPUContext: eval_on_tpu %s', eval_on_tpu)
+    tf.compat.v1.logging.info('_TPUContext: eval_on_tpu %s', eval_on_tpu)
     if not use_tpu and eval_on_tpu:
-      logging.warning('eval_on_tpu ignored because use_tpu is False.')
+      tf.compat.v1.logging.warn('eval_on_tpu ignored because use_tpu is False.')
 
     self._eval_on_tpu = eval_on_tpu
     self._model_parallelism_enabled = (
@@ -290,14 +297,17 @@ class _InternalTPUContext(object):
         computation_shape=self._computation_shape,
         num_replicas=self.num_replicas)
 
-    logging.info('num_cores_per_replica: %s',
-                 str(self._config.tpu_config.num_cores_per_replica))
-    logging.info('computation_shape: %s', str(self._computation_shape))
-    logging.info('num_replicas: %d', self.num_replicas)
-    logging.info('device_assignment.topology.device_coordinates: %s',
-                 str(device_assignment.topology.device_coordinates))
-    logging.info('device_assignment.core_assignment: %s',
-                 str(device_assignment.core_assignment))
+    tf.compat.v1.logging.info(
+        'num_cores_per_replica: %s',
+        str(self._config.tpu_config.num_cores_per_replica))
+    tf.compat.v1.logging.info('computation_shape: %s',
+                              str(self._computation_shape))
+    tf.compat.v1.logging.info('num_replicas: %d', self.num_replicas)
+    tf.compat.v1.logging.info(
+        'device_assignment.topology.device_coordinates: %s',
+        str(device_assignment.topology.device_coordinates))
+    tf.compat.v1.logging.info('device_assignment.core_assignment: %s',
+                              str(device_assignment.core_assignment))
 
     self._lazy_device_assignment_dict[master] = device_assignment
     return device_assignment
@@ -353,12 +363,14 @@ class _InternalTPUContext(object):
   def num_of_replicas_per_host(self):
     """Return the number of replicas per host."""
     if self.model_parallelism_enabled:
+      # There can be fewer replicas. This might return 0!
       return self.num_replicas // self.num_hosts
     else:
       return self.num_of_cores_per_host
 
   @property
   def num_replicas(self):
+    """Compute the total number of replicas."""
     num_cores_in_system = self.num_cores
 
     if self.model_parallelism_enabled:
@@ -405,7 +417,6 @@ class _InternalTPUContext(object):
 
   def is_input_broadcast_with_iterators(self):
     """Return true if input_fn should be run in the full_replicae config."""
-    mode = self._assert_mode()
     return ((self._config.tpu_config.per_host_input_for_training is
              tpu_config.InputPipelineConfig.BROADCAST) or
             (self.is_input_slice_broadcast_to_all_cores()))
@@ -417,6 +428,14 @@ class _InternalTPUContext(object):
             self._config.tpu_config.eval_training_input_configuration is
             tpu_config.InputPipelineConfig.SLICED)
 
+  def is_replica_across_hosts(self):
+    """Return true if single replica is across multiple hosts."""
+    # For example, when num_cores_per_replica > num_cores_per_host.
+    num_cores_per_replica = self._config.tpu_config.num_cores_per_replica
+    num_cores_per_host = self._get_tpu_system_metadata().num_of_cores_per_host
+    return (num_cores_per_replica is not None and
+            num_cores_per_replica > num_cores_per_host)
+
   def is_running_on_cpu(self, is_export_mode=False):
     """Determines whether the input_fn and model_fn should be invoked on CPU.
 
@@ -425,10 +444,10 @@ class _InternalTPUContext(object):
 
     Args:
       is_export_mode: Indicates whether the current mode is for exporting the
-        model, when mode == PREDICT. Only with this bool, we could
-        tell whether user is calling the Estimator.predict or
-        Estimator.export_savedmodel, which are running on TPU and CPU
-        respectively. Parent class Estimator does not distinguish these two.
+        model, when mode == PREDICT. Only with this bool, we could tell whether
+        user is calling the Estimator.predict or Estimator.export_savedmodel,
+        which are running on TPU and CPU respectively. Parent class Estimator
+        does not distinguish these two.
 
     Returns:
       bool, whether current input_fn or model_fn should be running on CPU.
@@ -450,7 +469,7 @@ class _InternalTPUContext(object):
       return True
 
     if mode == model_fn_lib.ModeKeys.EVAL and not self._eval_on_tpu:
-      logging.info('_is_running_on_cpu: eval_on_tpu disabled')
+      tf.compat.v1.logging.info('_is_running_on_cpu: eval_on_tpu disabled')
       return True
 
     if is_export_mode:
@@ -474,14 +493,13 @@ class _InternalTPUContext(object):
   def batch_size_for_input_fn(self):
     """Returns the shard batch size for `input_fn`."""
     global_batch_size = self.global_batch_size
-    if (self.is_running_on_cpu() or self.is_input_broadcast_with_iterators()
-        and not self.is_input_slice_broadcast_to_all_cores()):
+    if (self.is_running_on_cpu() or self.is_input_broadcast_with_iterators()):
       return global_batch_size
 
     # On TPU
     if self.is_input_sharded_per_core() or (
         self.is_input_per_host_with_iterators()) or (
-            self.is_input_slice_broadcast_to_all_cores()):
+            self.is_replica_across_hosts()):
       return global_batch_size // self.num_replicas
     else:
       return global_batch_size // self.num_hosts
@@ -521,10 +539,17 @@ class _InternalTPUContext(object):
     master = (
         run_config.evaluation_master
         if mode == model_fn_lib.ModeKeys.EVAL else run_config.master)
-    cluster_def = (run_config.session_config.cluster_def
-                   if run_config.session_config else None)
+    cluster_def = (
+        run_config.session_config.cluster_def
+        if run_config.session_config else None)
 
-    return tpu_system_metadata_lib.master_job(master, cluster_def)
+    try:
+      master_job = tpu_system_metadata_lib.master_job(master, cluster_def)
+    except ValueError as e:
+      raise ValueError(
+          str(e) + ' Please specify a tpu_job_name as part of '
+          'your TPUConfig.')
+    return master_job
 
   @property
   def tpu_host_placement_function(self):
@@ -628,16 +653,17 @@ class _InternalTPUContext(object):
 
         raise ValueError(message)
 
-    if self._config.tpu_config.num_cores_per_replica:
+    if self._config.tpu_config.num_cores_per_replica and (
+        not self.is_input_per_host_with_iterators()):
       num_cores_per_replica = self._config.tpu_config.num_cores_per_replica
       num_cores_per_host = self._get_tpu_system_metadata().num_of_cores_per_host
       if num_cores_per_replica > num_cores_per_host:
         raise ValueError(
-            'The num of cores required by the model parallelism, specified by '
-            'TPUConfig.num_cores_per_replica, is larger than the '
-            'num_cores_per_host. num_cores_per_replica: {}, '
-            'num_cores_per_host: {}'.format(num_cores_per_replica,
-                                            num_cores_per_host))
+            'Except the PER_HOST_V2 mode, the num of cores required by '
+            'model parallelism specified by TPUConfig.num_cores_per_replica '
+            'should be less than or equal to the num_cores_per_host. '
+            'num_cores_per_replica: {}, num_cores_per_host: {}'.format(
+                num_cores_per_replica, num_cores_per_host))
 
     if mode == model_fn_lib.ModeKeys.TRAIN:
       if (self._train_batch_size % num_replicas != 0 and
@@ -649,32 +675,44 @@ class _InternalTPUContext(object):
     elif mode == model_fn_lib.ModeKeys.EVAL:
       if self._eval_batch_size is None:
         raise ValueError(
-            'eval_batch_size in TPUEstimator constructor cannot be `None`'
+            'eval_batch_size in TPUEstimator constructor cannot be `None` '
             'if .evaluate is running on TPU.')
       if (self._eval_batch_size % num_replicas != 0 and
           not self.is_input_broadcast_with_iterators()):
         raise ValueError(
             'eval batch size {} must be divisible by number of replicas {}'
             .format(self._eval_batch_size, num_replicas))
-      if num_hosts > 1 and not self.is_input_broadcast_with_iterators():
+      if num_hosts != 1 and not (
+          self.is_input_broadcast_with_iterators()) and not (
+              num_replicas == 1 and self.is_input_per_host_with_iterators()):
         raise ValueError(
-            'TPUEstimator.evaluate should be running on single TPU'
-            ' instead of a Pod.')
+            'TPUEstimator.evaluate is only supported under three conditions: '
+            '1. num_hosts=1; 2. BROADCAST mode; '
+            '3. PER_HOST_V2 mode with num_replicas=1. '
+            'mode: {}; num_hosts: {}; num_replicas=1:{}'.format(
+                self._config.tpu_config.per_host_input_for_training, num_hosts,
+                num_replicas))
     else:
       assert mode == model_fn_lib.ModeKeys.PREDICT
       if self._predict_batch_size is None:
         raise ValueError(
-            'predict_batch_size in TPUEstimator constructor should not be '
-            '`None` if .predict is running on TPU.')
+            'predict_batch_size in TPUEstimator constructor cannot be `None` '
+            'if .predict is running on TPU.')
       if (self._predict_batch_size % num_replicas != 0 and
           not self.is_input_broadcast_with_iterators()):
         raise ValueError(
             'predict batch size {} must be divisible by number of replicas {}'
             .format(self._predict_batch_size, num_replicas))
-      if num_hosts > 1 and not self.is_input_broadcast_with_iterators():
+      if num_hosts != 1 and not (
+          self.is_input_broadcast_with_iterators()) and not (
+              num_replicas == 1 and self.is_input_per_host_with_iterators()):
         raise ValueError(
-            'TPUEstimator.predict should be running on single TPU worker. '
-            'got {}.'.format(num_hosts))
+            'TPUEstimator.predict is only supported under three conditions: '
+            '1. num_hosts=1; 2. BROADCAST mode; '
+            '3. PER_HOST_V2 mode with num_replicas=1. '
+            'mode: {}; num_hosts: {}; num_replicas=1:{}'.format(
+                self._config.tpu_config.per_host_input_for_training, num_hosts,
+                num_replicas))
 
     # Record the state "validated" into lazy dictionary.
     self._lazy_validation_dict[mode] = True
@@ -694,12 +732,14 @@ class _InternalTPUContext(object):
 
     if self.model_parallelism_enabled:
       return (self.device_assignment.host_device(
-          replica=replica_id, job=master),
-              self.device_assignment.tpu_ordinal(replica=replica_id))
+          replica=replica_id,
+          job=master), self.device_assignment.tpu_ordinal(replica=replica_id))
 
     job_device = '' if master is None else ('/job:%s' % master)
 
     num_of_replicas_per_host = self.num_of_replicas_per_host
+    assert num_of_replicas_per_host > 0, (
+        'Got num_of_replicas_per_host: {}'.format(num_of_replicas_per_host))
     host_id = replica_id / num_of_replicas_per_host
     ordinal_id = replica_id % num_of_replicas_per_host
 
@@ -713,9 +753,9 @@ class _OneCoreTPUContext(_InternalTPUContext):
   def __init__(self, config, train_batch_size, eval_batch_size,
                predict_batch_size, use_tpu):
 
-    super(_OneCoreTPUContext, self).__init__(
-        config, train_batch_size, eval_batch_size,
-        predict_batch_size, use_tpu)
+    super(_OneCoreTPUContext,
+          self).__init__(config, train_batch_size, eval_batch_size,
+                         predict_batch_size, use_tpu)
 
   def _get_tpu_system_metadata(self):
     """Gets the (maybe cached) TPU system metadata."""
@@ -736,6 +776,47 @@ class _OneCoreTPUContext(_InternalTPUContext):
     return tpu_system_metadata
 
 
+class _TPUEstimatorReplicaContext(tf.distribute.ReplicaContext):
+  """Internal context for storing replica id.
+
+  This is to set eager.context.Context() so that only summary ops from
+  0th replica is executed.
+  """
+
+  def __init__(self, replica_id_in_sync):
+    """Creates internal replica context for TPUEstimator.
+
+    Args:
+      replica_id_in_sync: Zero indexed integer id of replica that is running the
+        TPU compuation.
+    """
+    super(_TPUEstimatorReplicaContext, self).__init__(None, replica_id_in_sync)
+    # Use default strategy and replica context when variables are
+    # accessed/watched for backpropagation.
+    # pylint: disable=protected-access
+    self._thread_context = distribution_strategy_context._DefaultReplicaThreadMode(
+    )
+    self._strategy = self._thread_context.strategy
+    # pylint: enable=protected-access
+
+  def __enter__(self):
+
+    def replica_id_is_zero():
+      return tf.math.equal(self._replica_id_in_sync_group, tf.constant(0))
+
+    if hasattr(summary_ops_v2, '_summary_state'):
+      summary_state = summary_ops_v2._summary_state  # pylint: disable=protected-access
+      self._summary_recording_distribution_strategy = (
+          summary_state.is_recording_distribution_strategy)
+      summary_state.is_recording_distribution_strategy = replica_id_is_zero
+
+  def __exit__(self, exception_type, exception_value, traceback):
+    if hasattr(summary_ops_v2, '_summary_state'):
+      summary_state = summary_ops_v2._summary_state  # pylint: disable=protected-access
+      summary_state.is_recording_distribution_strategy = (
+          self._summary_recording_distribution_strategy)
+
+
 def _get_tpu_context(config, train_batch_size, eval_batch_size,
                      predict_batch_size, use_tpu, eval_on_tpu,
                      embedding_config_spec):
@@ -746,7 +827,7 @@ def _get_tpu_context(config, train_batch_size, eval_batch_size,
     if embedding_config_spec is not None:
       raise ValueError('Setting TPUConfig.num_shards==1 is unsupported '
                        'when embedding_config_spec is not None.')
-    logging.warning(
+    tf.compat.v1.logging.warn(
         'Setting TPUConfig.num_shards==1 is an unsupported behavior. '
         'Please fix as soon as possible (leaving num_shards as None.)')
     return _OneCoreTPUContext(config, train_batch_size, eval_batch_size,

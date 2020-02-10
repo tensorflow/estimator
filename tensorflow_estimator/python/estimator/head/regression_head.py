@@ -18,12 +18,12 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import tensorflow as tf
+
 from tensorflow.python.framework import ops
 from tensorflow.python.keras import metrics
 from tensorflow.python.keras.utils import losses_utils
-from tensorflow.python.ops import math_ops
-from tensorflow.python.ops import nn
-from tensorflow.python.ops.losses import losses
+from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator import model_fn
 from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.canned import prediction_keys
@@ -32,6 +32,7 @@ from tensorflow_estimator.python.estimator.head import base_head
 from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 
 
+@estimator_export('estimator.RegressionHead')
 class RegressionHead(base_head.Head):
   """Creates a `Head` for regression using the `mean_squared_error` loss.
 
@@ -61,7 +62,32 @@ class RegressionHead(base_head.Head):
   https://en.wikipedia.org/wiki/Generalized_linear_model#Link_function
   Namely, for poisson regression, set `inverse_link_fn=tf.exp`.
 
-  The head can be used with a canned estimator. Example:
+  Usage:
+
+  >>> head = tf.estimator.RegressionHead()
+  >>> logits = np.array(((45,), (41,),), dtype=np.float32)
+  >>> labels = np.array(((43,), (44,),), dtype=np.int32)
+  >>> features = {'x': np.array(((42,),), dtype=np.float32)}
+  >>> # expected_loss = weighted_loss / batch_size
+  >>> #               = (43-45)^2 + (44-41)^2 / 2 = 6.50
+  >>> loss = head.loss(labels, logits, features=features)
+  >>> print('{:.2f}'.format(loss.numpy()))
+  6.50
+  >>> eval_metrics = head.metrics()
+  >>> updated_metrics = head.update_metrics(
+  ...   eval_metrics, features, logits, labels)
+  >>> for k in sorted(updated_metrics):
+  ...  print('{} : {:.2f}'.format(k, updated_metrics[k].result().numpy()))
+    average_loss : 6.50
+    label/mean : 43.50
+    prediction/mean : 43.00
+  >>> preds = head.predictions(logits)
+  >>> print(preds['predictions'])
+  tf.Tensor(
+    [[45.]
+     [41.]], shape=(2, 1), dtype=float32)
+
+  Usage with a canned estimator:
 
   ```python
   my_head = tf.estimator.RegressionHead()
@@ -82,7 +108,7 @@ class RegressionHead(base_head.Head):
         features=features,
         mode=mode,
         labels=labels,
-        optimizer=tf.AdagradOptimizer(learning_rate=0.1),
+        optimizer=tf.keras.optimizers.Adagrad(lr=0.1),
         logits=logits)
 
   my_estimator = tf.estimator.Estimator(model_fn=_my_model_fn)
@@ -99,7 +125,7 @@ class RegressionHead(base_head.Head):
     loss_reduction: One of `tf.losses.Reduction` except `NONE`. Decides how to
       reduce training loss over batch and label dimension. Defaults to
       `SUM_OVER_BATCH_SIZE`, namely weighted sum of losses divided by
-      `batch size * label_dimension`.
+      `batch_size * label_dimension`.
     loss_fn: Optional loss function. Defaults to `mean_squared_error`.
     inverse_link_fn: Optional inverse link function, also known as 'mean
       function'. Defaults to identity.
@@ -149,31 +175,43 @@ class RegressionHead(base_head.Head):
 
   def _processed_labels(self, logits, labels):
     labels = base_head.check_dense_labels_match_logits_and_reshape(
-        labels=labels, logits=logits,
+        labels=labels,
+        logits=logits,
         expected_labels_dimension=self._logits_dimension)
-    labels = math_ops.to_float(labels)
+    labels = tf.cast(labels, dtype=tf.dtypes.float32)
     return labels
 
   def _unweighted_loss_and_weights(self, logits, labels, features):
     """Computes unweighted loss and weights."""
     if self._loss_fn:
       unweighted_loss = base_head.call_loss_fn(
-          loss_fn=self._loss_fn, labels=labels, logits=logits,
-          features=features, expected_loss_dim=self._logits_dimension)
+          loss_fn=self._loss_fn,
+          labels=labels,
+          logits=logits,
+          features=features,
+          expected_loss_dim=self._logits_dimension)
     else:
-      unweighted_loss = losses.mean_squared_error(
-          labels=labels, predictions=logits, reduction=losses.Reduction.NONE)
+      unweighted_loss = tf.compat.v1.losses.mean_squared_error(
+          labels=labels,
+          predictions=logits,
+          reduction=tf.compat.v1.losses.Reduction.NONE)
     weights = base_head.get_weights_and_check_match_logits(
-        features=features, weight_column=self._weight_column, logits=logits,
+        features=features,
+        weight_column=self._weight_column,
+        logits=logits,
         allow_per_logit_weights=True)
     return unweighted_loss, weights
 
-  def loss(self, logits, labels, features=None, mode=None,
+  def loss(self,
+           labels,
+           logits,
+           features=None,
+           mode=None,
            regularization_losses=None):
     """Return predictions based on keys. See `base_head.Head` for details."""
     del mode  # Unused for this head.
-    with ops.name_scope('losses', values=(logits, labels, regularization_losses,
-                                          features)):
+    with ops.name_scope(
+        'losses', values=(logits, labels, regularization_losses, features)):
       logits = base_head.check_logits_final_dim(logits, self._logits_dimension)
       labels = self._processed_labels(logits, labels)
       unweighted_loss, weights = self._unweighted_loss_and_weights(
@@ -182,15 +220,17 @@ class RegressionHead(base_head.Head):
           unweighted_loss,
           sample_weight=weights,
           reduction=self._loss_reduction)
-      regularization_loss = math_ops.add_n(
+      regularization_loss = tf.math.add_n(
           regularization_losses) if regularization_losses is not None else None
       regularized_training_loss = (
-          training_loss + regularization_loss if regularization_loss is not None
-          else training_loss)
+          training_loss + regularization_loss
+          if regularization_loss is not None else training_loss)
     return regularized_training_loss
 
   def predictions(self, logits):
-    """Return predictions based on keys.  See `base_head.Head` for details.
+    """Return predictions based on keys.
+
+    See `base_head.Head` for details.
 
     Args:
       logits: logits `Tensor` with shape `[D0, D1, ... DN, logits_dimension]`.
@@ -210,8 +250,7 @@ class RegressionHead(base_head.Head):
         }
       else:
         predicted_value = logits
-        predictions = {
-            pred_keys.PREDICTIONS: predicted_value}
+        predictions = {pred_keys.PREDICTIONS: predicted_value}
     return predictions
 
   def metrics(self, regularization_losses=None):
@@ -229,7 +268,11 @@ class RegressionHead(base_head.Head):
             name=keys.LOSS_REGULARIZATION)
     return eval_metrics
 
-  def update_metrics(self, eval_metrics, features, logits, labels,
+  def update_metrics(self,
+                     eval_metrics,
+                     features,
+                     logits,
+                     labels,
                      regularization_losses=None):
     """Updates eval metrics. See `base_head.Head` for details."""
     # Compute predictions.
@@ -248,15 +291,21 @@ class RegressionHead(base_head.Head):
     base_head.update_metric_with_broadcast_weights(
         eval_metrics[self._prediction_mean_key], predicted_value, weights)
     if regularization_losses is not None:
-      regularization_loss = math_ops.add_n(regularization_losses)
+      regularization_loss = tf.math.add_n(regularization_losses)
       eval_metrics[self._loss_regularization_key].update_state(
           values=regularization_loss)
     return eval_metrics
 
-  def _create_tpu_estimator_spec(
-      self, features, mode, logits, labels=None, optimizer=None,
-      trainable_variables=None, train_op_fn=None, update_ops=None,
-      regularization_losses=None):
+  def _create_tpu_estimator_spec(self,
+                                 features,
+                                 mode,
+                                 logits,
+                                 labels=None,
+                                 optimizer=None,
+                                 trainable_variables=None,
+                                 train_op_fn=None,
+                                 update_ops=None,
+                                 regularization_losses=None):
     """Returns an `EstimatorSpec`.
 
     Args:
@@ -266,14 +315,13 @@ class RegressionHead(base_head.Head):
       mode: Estimator's `ModeKeys`.
       logits: logits `Tensor` with shape `[D0, D1, ... DN, logits_dimension]`.
         For many applications, the shape is `[batch_size, logits_dimension]`.
-      labels: Labels `Tensor` with shape matching `logits`, namely
-        `[D0, D1, ... DN, logits_dimension]`. When `logits_dimension=1`, shape
-        `[D0, D1, ... DN]` is also supported. `labels` is a required argument
-        when `mode` equals `TRAIN` or `EVAL`.
+      labels: Labels `Tensor` with shape matching `logits`, namely `[D0, D1, ...
+        DN, logits_dimension]`. When `logits_dimension=1`, shape `[D0, D1, ...
+        DN]` is also supported. `labels` is a required argument when `mode`
+        equals `TRAIN` or `EVAL`.
       optimizer: An `tf.keras.optimizers.Optimizer` instance to optimize the
-         loss in TRAIN mode. Namely, sets
-        `train_op = optimizer.get_updates(loss, trainable_variables)`,
-        which updates variables to minimize `loss`.
+        loss in TRAIN mode. Namely, sets `train_op = optimizer.get_updates(loss,
+        trainable_variables)`, which updates variables to minimize `loss`.
       trainable_variables: A list or tuple of `Variable` objects to update to
         minimize `loss`. In Tensorflow 1.x, by default these are the list of
         variables collected in the graph under the key
@@ -290,8 +338,8 @@ class RegressionHead(base_head.Head):
       regularization_losses: A list of additional scalar losses to be added to
         the training loss, such as regularization losses. These losses are
         usually expressed as a batch average, so for best results users need to
-        set `loss_reduction=SUM_OVER_BATCH_SIZE` when creating the head to
-        avoid scaling errors.
+        set `loss_reduction=SUM_OVER_BATCH_SIZE` when creating the head to avoid
+        scaling errors.
 
     Returns:
       A `model_fn._TPUEstimatorSpec` instance.
@@ -317,7 +365,10 @@ class RegressionHead(base_head.Head):
                     predictions)
             })
       regularized_training_loss = self.loss(
-          logits=logits, labels=labels, features=features, mode=mode,
+          logits=logits,
+          labels=labels,
+          features=features,
+          mode=mode,
           regularization_losses=regularization_losses)
       # Eval.
       if mode == ModeKeys.EVAL:
@@ -336,10 +387,13 @@ class RegressionHead(base_head.Head):
                 }))
       # Train.
       train_op = base_head.create_estimator_spec_train_op(
-          head_name=self._name, optimizer=optimizer, train_op_fn=train_op_fn,
+          head_name=self._name,
+          optimizer=optimizer,
+          train_op_fn=train_op_fn,
           update_ops=update_ops,
           trainable_variables=trainable_variables,
-          regularized_training_loss=regularized_training_loss)
+          regularized_training_loss=regularized_training_loss,
+          loss_reduction=self._loss_reduction)
     # Create summary.
     base_head.create_estimator_spec_summary(
         regularized_training_loss=regularized_training_loss,
@@ -352,6 +406,7 @@ class RegressionHead(base_head.Head):
         train_op=train_op)
 
 
+@estimator_export('estimator.PoissonRegressionHead')
 class PoissonRegressionHead(RegressionHead):
   """Creates a `Head` for poisson regression using `tf.nn.log_poisson_loss`.
 
@@ -394,7 +449,7 @@ class PoissonRegressionHead(RegressionHead):
         features=features,
         mode=mode,
         labels=labels,
-        optimizer=tf.AdagradOptimizer(learning_rate=0.1),
+        optimizer=tf.keras.optimizers.Adagrad(lr=0.1),
         logits=logits)
 
   my_estimator = tf.estimator.Estimator(model_fn=_my_model_fn)
@@ -410,8 +465,8 @@ class PoissonRegressionHead(RegressionHead):
       `[batch_size, label_dimension]`).
     loss_reduction: One of `tf.losses.Reduction` except `NONE`. Decides how to
       reduce training loss over batch and label dimension. Defaults to
-      `SUM_OVER_BATCH_SIZE`, namely weighted sum of losses divided by
-      `batch size * label_dimension`.
+      `SUM_OVER_BATCH_SIZE`, namely weighted sum of losses divided by `batch
+      size * label_dimension`.
     compute_full_loss: Whether to include the constant `log(z!)` term in
       computing the poisson loss. See `tf.nn.log_poisson_loss` for the full
       documentation.
@@ -431,15 +486,17 @@ class PoissonRegressionHead(RegressionHead):
         weight_column=weight_column,
         loss_reduction=loss_reduction,
         loss_fn=self._poisson_loss,
-        inverse_link_fn=math_ops.exp,
+        inverse_link_fn=tf.math.exp,
         name=name)
 
   def _poisson_loss(self, labels, logits):
-    return nn.log_poisson_loss(
-        targets=labels, log_input=logits,
+    return tf.nn.log_poisson_loss(
+        targets=labels,
+        log_input=logits,
         compute_full_loss=self._compute_full_loss)
 
 
+@estimator_export('estimator.LogisticRegressionHead')
 class LogisticRegressionHead(RegressionHead):
   """Creates a `Head` for logistic regression.
 
@@ -488,7 +545,7 @@ class LogisticRegressionHead(RegressionHead):
         features=features,
         mode=mode,
         labels=labels,
-        optimizer=tf.AdagradOptimizer(learning_rate=0.1),
+        optimizer=tf.keras.optimizers.Adagrad(lr=0.1),
         logits=logits)
 
   my_estimator = tf.estimator.Estimator(model_fn=_my_model_fn)
@@ -501,8 +558,8 @@ class LogisticRegressionHead(RegressionHead):
       will be multiplied by the loss of the example.
     loss_reduction: One of `tf.losses.Reduction` except `NONE`. Decides how to
       reduce training loss over batch and label dimension. Defaults to
-      `SUM_OVER_BATCH_SIZE`, namely weighted sum of losses divided by
-      `batch size * label_dimension`.
+      `SUM_OVER_BATCH_SIZE`, namely weighted sum of losses divided by `batch
+      size * label_dimension`.
     name: name of the head. If provided, summary and metrics keys will be
       suffixed by `"/" + name`. Also used as `name_scope` when creating ops.
   """
@@ -510,7 +567,7 @@ class LogisticRegressionHead(RegressionHead):
   def _logistic_loss(self, labels, logits):
     labels = base_head.check_label_range(
         labels, n_classes=2, message='Labels must be in range [0, 1]')
-    return nn.sigmoid_cross_entropy_with_logits(
+    return tf.compat.v1.nn.sigmoid_cross_entropy_with_logits(
         labels=labels, logits=logits)
 
   def __init__(self,
@@ -522,5 +579,5 @@ class LogisticRegressionHead(RegressionHead):
         weight_column=weight_column,
         loss_reduction=loss_reduction,
         loss_fn=self._logistic_loss,
-        inverse_link_fn=math_ops.sigmoid,
+        inverse_link_fn=tf.math.sigmoid,
         name=name)

@@ -18,18 +18,14 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import tensorflow as tf
+
 from google.protobuf import text_format
 
 from tensorflow.core.example import example_pb2
-from tensorflow.python.framework import constant_op
-from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
-from tensorflow.python.framework import sparse_tensor
 from tensorflow.python.framework import tensor_shape
 from tensorflow.python.framework import test_util
-from tensorflow.python.ops import array_ops
-from tensorflow.python.ops import parsing_ops
-from tensorflow.python.platform import test
 from tensorflow_estimator.python.estimator.export import export
 
 
@@ -37,86 +33,82 @@ class LabeledTensorMock(object):
   """Mock class emulating LabeledTensor."""
 
   def __init__(self):
-    self.tensor = constant_op.constant([1])
+    self.tensor = tf.constant([1])
 
 
 def _convert_labeled_tensor_mock_to_tensor(value, *args, **kwargs):
   return ops.internal_convert_to_tensor(value.tensor, *args, **kwargs)
 
 
-ops.register_tensor_conversion_function(LabeledTensorMock,
-                                        _convert_labeled_tensor_mock_to_tensor)
+tf.register_tensor_conversion_function(LabeledTensorMock,
+                                       _convert_labeled_tensor_mock_to_tensor)
 
 
-class ServingInputReceiverTest(test_util.TensorFlowTestCase):
+class ServingInputReceiverTest(tf.test.TestCase):
 
   def test_serving_input_receiver_constructor(self):
     """Tests that no errors are raised when input is expected."""
     features = {
-        "feature0": constant_op.constant([0]),
-        u"feature1": constant_op.constant([1]),
-        "feature2": sparse_tensor.SparseTensor(
+        "feature0": tf.constant([0]),
+        u"feature1": tf.constant([1]),
+        "feature2": tf.sparse.SparseTensor(
             indices=[[0, 0]], values=[1], dense_shape=[1, 1]),
+        # ints are allowed only in the `features` dict
+        42: tf.constant([3]),
     }
     receiver_tensors = {
-        "example0": constant_op.constant(["test0"], name="example0"),
-        u"example1": constant_op.constant(["test1"], name="example1"),
+        "example0": tf.constant(["test0"], name="example0"),
+        u"example1": tf.constant(["test1"], name="example1"),
     }
     export.ServingInputReceiver(features, receiver_tensors)
 
   def test_serving_input_receiver_features_invalid(self):
     receiver_tensors = {
-        "example0": constant_op.constant(["test0"], name="example0"),
-        u"example1": constant_op.constant(["test1"], name="example1"),
+        "example0": tf.constant(["test0"], name="example0"),
+        u"example1": tf.constant(["test1"], name="example1"),
     }
 
     with self.assertRaisesRegexp(ValueError, "features must be defined"):
       export.ServingInputReceiver(
-          features=None,
-          receiver_tensors=receiver_tensors)
+          features=None, receiver_tensors=receiver_tensors)
 
-    with self.assertRaisesRegexp(ValueError, "feature keys must be strings"):
+    with self.assertRaisesRegexp(ValueError,
+                                 "feature keys must be strings or ints"):
       export.ServingInputReceiver(
-          features={1: constant_op.constant([1])},
-          receiver_tensors=receiver_tensors)
+          features={42.2: tf.constant([1])}, receiver_tensors=receiver_tensors)
 
     with self.assertRaisesRegexp(
         ValueError, "feature feature1 must be a Tensor or SparseTensor"):
       export.ServingInputReceiver(
-          features={"feature1": [1]},
-          receiver_tensors=receiver_tensors)
+          features={"feature1": [1]}, receiver_tensors=receiver_tensors)
 
   def test_serving_input_receiver_receiver_tensors_invalid(self):
     features = {
-        "feature0": constant_op.constant([0]),
-        u"feature1": constant_op.constant([1]),
-        "feature2": sparse_tensor.SparseTensor(
+        "feature0": tf.constant([0]),
+        u"feature1": tf.constant([1]),
+        "feature2": tf.sparse.SparseTensor(
             indices=[[0, 0]], values=[1], dense_shape=[1, 1]),
     }
 
-    with self.assertRaisesRegexp(
-        ValueError, "receiver_tensors must be defined"):
-      export.ServingInputReceiver(
-          features=features,
-          receiver_tensors=None)
+    with self.assertRaisesRegexp(ValueError,
+                                 "receiver_tensors must be defined"):
+      export.ServingInputReceiver(features=features, receiver_tensors=None)
 
-    with self.assertRaisesRegexp(
-        ValueError, "receiver_tensor keys must be strings"):
+    with self.assertRaisesRegexp(ValueError,
+                                 "receiver_tensor keys must be strings"):
       export.ServingInputReceiver(
           features=features,
-          receiver_tensors={1: constant_op.constant(["test"], name="example0")})
+          receiver_tensors={1: tf.constant(["test"], name="example0")})
 
-    with self.assertRaisesRegexp(
-        ValueError, "receiver_tensor example1 must be a Tensor"):
+    with self.assertRaisesRegexp(ValueError,
+                                 "receiver_tensor example1 must be a Tensor"):
       export.ServingInputReceiver(
-          features=features,
-          receiver_tensors={"example1": [1]})
+          features=features, receiver_tensors={"example1": [1]})
 
   def test_single_feature_single_receiver(self):
-    feature = constant_op.constant(5)
-    receiver_tensor = constant_op.constant(["test"])
-    input_receiver = export.ServingInputReceiver(
-        feature, receiver_tensor)
+    feature = tf.constant(5)
+    receiver_tensor = tf.constant(["test"])
+    input_receiver = export.ServingInputReceiver(feature, receiver_tensor)
     # single feature is automatically named
     feature_key, = input_receiver.features.keys()
     self.assertEqual("feature", feature_key)
@@ -125,39 +117,34 @@ class ServingInputReceiverTest(test_util.TensorFlowTestCase):
     self.assertEqual("input", receiver_key)
 
   def test_multi_feature_single_receiver(self):
-    features = {"foo": constant_op.constant(5),
-                "bar": constant_op.constant(6)}
-    receiver_tensor = constant_op.constant(["test"])
+    features = {"foo": tf.constant(5), "bar": tf.constant(6)}
+    receiver_tensor = tf.constant(["test"])
     _ = export.ServingInputReceiver(features, receiver_tensor)
 
   def test_multi_feature_multi_receiver(self):
-    features = {"foo": constant_op.constant(5),
-                "bar": constant_op.constant(6)}
-    receiver_tensors = {
-        "baz": constant_op.constant(5),
-        "qux": constant_op.constant(6)
-    }
+    features = {"foo": tf.constant(5), "bar": tf.constant(6)}
+    receiver_tensors = {"baz": tf.constant(5), "qux": tf.constant(6)}
     _ = export.ServingInputReceiver(features, receiver_tensors)
 
   def test_feature_wrong_type(self):
     feature = "not a tensor"
-    receiver_tensor = constant_op.constant(["test"])
+    receiver_tensor = tf.constant(["test"])
     with self.assertRaises(ValueError):
       _ = export.ServingInputReceiver(feature, receiver_tensor)
 
   def test_feature_labeled_tensor(self):
     feature = LabeledTensorMock()
-    receiver_tensor = constant_op.constant(["test"])
+    receiver_tensor = tf.constant(["test"])
     _ = export.ServingInputReceiver(feature, receiver_tensor)
 
   def test_receiver_wrong_type(self):
-    feature = constant_op.constant(5)
+    feature = tf.constant(5)
     receiver_tensor = "not a tensor"
     with self.assertRaises(ValueError):
       _ = export.ServingInputReceiver(feature, receiver_tensor)
 
 
-class UnsupervisedInputReceiverTest(test_util.TensorFlowTestCase):
+class UnsupervisedInputReceiverTest(tf.test.TestCase):
 
   # Since this is basically a wrapper around ServingInputReceiver, we only
   # have a simple sanity check to ensure that it works.
@@ -166,89 +153,105 @@ class UnsupervisedInputReceiverTest(test_util.TensorFlowTestCase):
     """Tests that no errors are raised when input is expected."""
     features = {
         "feature0":
-            constant_op.constant([0]),
+            tf.constant([0]),
         u"feature1":
-            constant_op.constant([1]),
+            tf.constant([1]),
         "feature2":
-            sparse_tensor.SparseTensor(
+            tf.sparse.SparseTensor(
                 indices=[[0, 0]], values=[1], dense_shape=[1, 1]),
+        42:  # ints are allowed only in the `features` dict
+            tf.constant([3]),
     }
     receiver_tensors = {
-        "example0": constant_op.constant(["test0"], name="example0"),
-        u"example1": constant_op.constant(["test1"], name="example1"),
+        "example0": tf.constant(["test0"], name="example0"),
+        u"example1": tf.constant(["test1"], name="example1"),
     }
     export.UnsupervisedInputReceiver(features, receiver_tensors)
 
 
-class SupervisedInputReceiverTest(test_util.TensorFlowTestCase):
+class SupervisedInputReceiverTest(tf.test.TestCase):
 
   def test_input_receiver_constructor(self):
     """Tests that no errors are raised when input is expected."""
     features = {
-        "feature0": constant_op.constant([0]),
-        u"feature1": constant_op.constant([1]),
-        "feature2": sparse_tensor.SparseTensor(
-            indices=[[0, 0]], values=[1], dense_shape=[1, 1]),
+        "feature0":
+            tf.constant([0]),
+        u"feature1":
+            tf.constant([1]),
+        "feature2":
+            tf.sparse.SparseTensor(
+                indices=[[0, 0]], values=[1], dense_shape=[1, 1]),
+        42:  # ints are allowed in the `features` dict
+            tf.constant([3]),
     }
     labels = {
-        "classes": constant_op.constant([0] * 100),
+        "classes": tf.constant([0] * 100),
+        43:  # ints are allowed in the `labels` dict
+            tf.constant([3]),
     }
 
     receiver_tensors = {
-        "example0": constant_op.constant(["test0"], name="example0"),
-        u"example1": constant_op.constant(["test1"], name="example1"),
+        "example0": tf.constant(["test0"], name="example0"),
+        u"example1": tf.constant(["test1"], name="example1"),
     }
     export.SupervisedInputReceiver(features, labels, receiver_tensors)
 
   def test_input_receiver_raw_values(self):
     """Tests that no errors are raised when input is expected."""
     features = {
-        "feature0": constant_op.constant([0]),
-        u"feature1": constant_op.constant([1]),
-        "feature2": sparse_tensor.SparseTensor(
-            indices=[[0, 0]], values=[1], dense_shape=[1, 1]),
+        "feature0":
+            tf.constant([0]),
+        u"feature1":
+            tf.constant([1]),
+        "feature2":
+            tf.sparse.SparseTensor(
+                indices=[[0, 0]], values=[1], dense_shape=[1, 1]),
+        42:  # ints are allowed in the `features` dict
+            tf.constant([3]),
     }
 
     labels = {
-        "classes": constant_op.constant([0] * 100),
+        "classes": tf.constant([0] * 100),
+        43:  # ints are allowed in the `labels` dict
+            tf.constant([3]),
     }
 
     receiver_tensors = {
-        "example0": constant_op.constant(["test0"], name="example0"),
-        u"example1": constant_op.constant(["test1"], name="example1"),
+        "example0": tf.constant(["test0"], name="example0"),
+        u"example1": tf.constant(["test1"], name="example1"),
     }
-    rec = export.SupervisedInputReceiver(
-        features["feature2"], labels, receiver_tensors)
-    self.assertIsInstance(rec.features, sparse_tensor.SparseTensor)
+    rec = export.SupervisedInputReceiver(features["feature2"], labels,
+                                         receiver_tensors)
+    self.assertIsInstance(rec.features, tf.sparse.SparseTensor)
 
-    rec = export.SupervisedInputReceiver(
-        features, labels["classes"], receiver_tensors)
-    self.assertIsInstance(rec.labels, ops.Tensor)
+    rec = export.SupervisedInputReceiver(features, labels["classes"],
+                                         receiver_tensors)
+    self.assertIsInstance(rec.labels, tf.Tensor)
 
   def test_input_receiver_features_invalid(self):
-    features = constant_op.constant([0] * 100)
-    labels = constant_op.constant([0])
+    features = tf.constant([0] * 100)
+    labels = tf.constant([0])
     receiver_tensors = {
-        "example0": constant_op.constant(["test0"], name="example0"),
-        u"example1": constant_op.constant(["test1"], name="example1"),
+        "example0": tf.constant(["test0"], name="example0"),
+        u"example1": tf.constant(["test1"], name="example1"),
     }
 
     with self.assertRaisesRegexp(ValueError, "features must be defined"):
       export.SupervisedInputReceiver(
-          features=None,
-          labels=labels,
-          receiver_tensors=receiver_tensors)
+          features=None, labels=labels, receiver_tensors=receiver_tensors)
 
-    with self.assertRaisesRegexp(ValueError, "feature keys must be strings"):
+    with self.assertRaisesRegexp(ValueError,
+                                 "feature keys must be strings or ints"):
       export.SupervisedInputReceiver(
-          features={1: constant_op.constant([1])},
+          features={1.11: tf.constant([1])},
           labels=labels,
           receiver_tensors=receiver_tensors)
 
-    with self.assertRaisesRegexp(ValueError, "label keys must be strings"):
+    with self.assertRaisesRegexp(ValueError,
+                                 "label keys must be strings or ints"):
       export.SupervisedInputReceiver(
           features=features,
-          labels={1: constant_op.constant([1])},
+          labels={1.11: tf.constant([1])},
           receiver_tensors=receiver_tensors)
 
     with self.assertRaisesRegexp(
@@ -258,134 +261,129 @@ class SupervisedInputReceiverTest(test_util.TensorFlowTestCase):
           labels=labels,
           receiver_tensors=receiver_tensors)
 
-    with self.assertRaisesRegexp(
-        ValueError, "feature must be a Tensor or SparseTensor"):
+    with self.assertRaisesRegexp(ValueError,
+                                 "feature must be a Tensor or SparseTensor"):
       export.SupervisedInputReceiver(
-          features=[1],
-          labels=labels,
-          receiver_tensors=receiver_tensors)
+          features=[1], labels=labels, receiver_tensors=receiver_tensors)
 
-    with self.assertRaisesRegexp(
-        ValueError, "label must be a Tensor or SparseTensor"):
+    with self.assertRaisesRegexp(ValueError,
+                                 "label must be a Tensor or SparseTensor"):
       export.SupervisedInputReceiver(
-          features=features,
-          labels=100,
-          receiver_tensors=receiver_tensors)
+          features=features, labels=100, receiver_tensors=receiver_tensors)
 
   def test_input_receiver_receiver_tensors_invalid(self):
     features = {
-        "feature0": constant_op.constant([0]),
-        u"feature1": constant_op.constant([1]),
-        "feature2": sparse_tensor.SparseTensor(
-            indices=[[0, 0]], values=[1], dense_shape=[1, 1]),
+        "feature0":
+            tf.constant([0]),
+        u"feature1":
+            tf.constant([1]),
+        "feature2":
+            tf.sparse.SparseTensor(
+                indices=[[0, 0]], values=[1], dense_shape=[1, 1]),
     }
-    labels = constant_op.constant([0])
+    labels = tf.constant([0])
 
-    with self.assertRaisesRegexp(
-        ValueError, "receiver_tensors must be defined"):
+    with self.assertRaisesRegexp(ValueError,
+                                 "receiver_tensors must be defined"):
+      export.SupervisedInputReceiver(
+          features=features, labels=labels, receiver_tensors=None)
+
+    with self.assertRaisesRegexp(ValueError,
+                                 "receiver_tensor keys must be strings"):
       export.SupervisedInputReceiver(
           features=features,
           labels=labels,
-          receiver_tensors=None)
+          receiver_tensors={1: tf.constant(["test"], name="example0")})
 
-    with self.assertRaisesRegexp(
-        ValueError, "receiver_tensor keys must be strings"):
+    with self.assertRaisesRegexp(ValueError,
+                                 "receiver_tensor example1 must be a Tensor"):
       export.SupervisedInputReceiver(
-          features=features,
-          labels=labels,
-          receiver_tensors={
-              1: constant_op.constant(["test"], name="example0")})
-
-    with self.assertRaisesRegexp(
-        ValueError, "receiver_tensor example1 must be a Tensor"):
-      export.SupervisedInputReceiver(
-          features=features,
-          labels=labels,
-          receiver_tensors={"example1": [1]})
+          features=features, labels=labels, receiver_tensors={"example1": [1]})
 
   def test_single_feature_single_receiver(self):
-    feature = constant_op.constant(5)
-    label = constant_op.constant(5)
-    receiver_tensor = constant_op.constant(["test"])
-    input_receiver = export.SupervisedInputReceiver(
-        feature, label, receiver_tensor)
+    feature = tf.constant(5)
+    label = tf.constant(5)
+    receiver_tensor = tf.constant(["test"])
+    input_receiver = export.SupervisedInputReceiver(feature, label,
+                                                    receiver_tensor)
 
     # single receiver is automatically named
     receiver_key, = input_receiver.receiver_tensors.keys()
     self.assertEqual("input", receiver_key)
 
   def test_multi_feature_single_receiver(self):
-    features = {"foo": constant_op.constant(5),
-                "bar": constant_op.constant(6)}
-    labels = {"value": constant_op.constant(5)}
-    receiver_tensor = constant_op.constant(["test"])
+    features = {"foo": tf.constant(5), "bar": tf.constant(6)}
+    labels = {"value": tf.constant(5)}
+    receiver_tensor = tf.constant(["test"])
     _ = export.SupervisedInputReceiver(features, labels, receiver_tensor)
 
   def test_multi_feature_multi_receiver(self):
-    features = {"foo": constant_op.constant(5),
-                "bar": constant_op.constant(6)}
-    labels = {"value": constant_op.constant(5)}
-    receiver_tensors = {"baz": constant_op.constant(5),
-                        "qux": constant_op.constant(6)}
+    features = {"foo": tf.constant(5), "bar": tf.constant(6)}
+    labels = {"value": tf.constant(5)}
+    receiver_tensors = {"baz": tf.constant(5), "qux": tf.constant(6)}
     _ = export.SupervisedInputReceiver(features, labels, receiver_tensors)
 
   def test_feature_labeled_tensor(self):
     feature = LabeledTensorMock()
-    label = constant_op.constant(5)
-    receiver_tensor = constant_op.constant(["test"])
+    label = tf.constant(5)
+    receiver_tensor = tf.constant(["test"])
     _ = export.SupervisedInputReceiver(feature, label, receiver_tensor)
 
 
-class ExportTest(test_util.TensorFlowTestCase):
+class ExportTest(tf.test.TestCase):
 
   # Calling serving_input_receiver_fn requires graph mode.
   @test_util.deprecated_graph_mode_only
   def test_build_parsing_serving_input_receiver_fn(self):
-    feature_spec = {"int_feature": parsing_ops.VarLenFeature(dtypes.int64),
-                    "float_feature": parsing_ops.VarLenFeature(dtypes.float32)}
+    feature_spec = {
+        "int_feature": tf.io.VarLenFeature(tf.dtypes.int64),
+        "float_feature": tf.io.VarLenFeature(tf.dtypes.float32)
+    }
     serving_input_receiver_fn = export.build_parsing_serving_input_receiver_fn(
         feature_spec)
-    with ops.Graph().as_default():
+    with tf.Graph().as_default():
       serving_input_receiver = serving_input_receiver_fn()
-      self.assertEqual(set(["int_feature", "float_feature"]),
-                       set(serving_input_receiver.features.keys()))
-      self.assertEqual(set(["examples"]),
-                       set(serving_input_receiver.receiver_tensors.keys()))
+      self.assertEqual(
+          set(["int_feature", "float_feature"]),
+          set(serving_input_receiver.features.keys()))
+      self.assertEqual(
+          set(["examples"]),
+          set(serving_input_receiver.receiver_tensors.keys()))
 
       example = example_pb2.Example()
-      text_format.Parse("features: { "
-                        "  feature: { "
-                        "    key: 'int_feature' "
-                        "    value: { "
-                        "      int64_list: { "
-                        "        value: [ 21, 2, 5 ] "
-                        "      } "
-                        "    } "
-                        "  } "
-                        "  feature: { "
-                        "    key: 'float_feature' "
-                        "    value: { "
-                        "      float_list: { "
-                        "        value: [ 525.25 ] "
-                        "      } "
-                        "    } "
-                        "  } "
-                        "} ", example)
+      text_format.Parse(
+          "features: { "
+          "  feature: { "
+          "    key: 'int_feature' "
+          "    value: { "
+          "      int64_list: { "
+          "        value: [ 21, 2, 5 ] "
+          "      } "
+          "    } "
+          "  } "
+          "  feature: { "
+          "    key: 'float_feature' "
+          "    value: { "
+          "      float_list: { "
+          "        value: [ 525.25 ] "
+          "      } "
+          "    } "
+          "  } "
+          "} ", example)
 
       with self.cached_session() as sess:
         sparse_result = sess.run(
             serving_input_receiver.features,
             feed_dict={
-                serving_input_receiver.receiver_tensors["examples"].name:
-                [example.SerializeToString()]})
+                serving_input_receiver.receiver_tensors["examples"].name: [
+                    example.SerializeToString()
+                ]
+            })
         self.assertAllEqual([[0, 0], [0, 1], [0, 2]],
                             sparse_result["int_feature"].indices)
-        self.assertAllEqual([21, 2, 5],
-                            sparse_result["int_feature"].values)
-        self.assertAllEqual([[0, 0]],
-                            sparse_result["float_feature"].indices)
-        self.assertAllEqual([525.25],
-                            sparse_result["float_feature"].values)
+        self.assertAllEqual([21, 2, 5], sparse_result["int_feature"].values)
+        self.assertAllEqual([[0, 0]], sparse_result["float_feature"].indices)
+        self.assertAllEqual([525.25], sparse_result["float_feature"].values)
 
   # Calling serving_input_receiver_fn requires graph mode.
   @test_util.deprecated_graph_mode_only
@@ -393,207 +391,214 @@ class ExportTest(test_util.TensorFlowTestCase):
     """Test case for issue #12755."""
     f = {
         "feature":
-            array_ops.placeholder(
-                name="feature", shape=[32], dtype=dtypes.float32)
+            tf.compat.v1.placeholder(
+                name="feature", shape=[32], dtype=tf.dtypes.float32)
     }
     serving_input_receiver_fn = export.build_raw_serving_input_receiver_fn(f)
     v = serving_input_receiver_fn()
-    self.assertTrue(isinstance(v, export.ServingInputReceiver))
+    self.assertIsInstance(v, export.ServingInputReceiver)
 
   # Calling serving_input_receiver_fn requires graph mode.
   @test_util.deprecated_graph_mode_only
   def test_build_raw_serving_input_receiver_fn_without_shape(self):
     """Test case for issue #21178."""
-    f = {"feature_1": array_ops.placeholder(dtypes.float32),
-         "feature_2": array_ops.placeholder(dtypes.int32)}
+    f = {
+        "feature_1": tf.compat.v1.placeholder(tf.dtypes.float32),
+        "feature_2": tf.compat.v1.placeholder(tf.dtypes.int32)
+    }
     serving_input_receiver_fn = export.build_raw_serving_input_receiver_fn(f)
     v = serving_input_receiver_fn()
-    self.assertTrue(isinstance(v, export.ServingInputReceiver))
-    self.assertEqual(
-        tensor_shape.unknown_shape(),
-        v.receiver_tensors["feature_1"].shape)
-    self.assertEqual(
-        tensor_shape.unknown_shape(),
-        v.receiver_tensors["feature_2"].shape)
+    self.assertIsInstance(v, export.ServingInputReceiver)
+    self.assertEqual(tensor_shape.unknown_shape(),
+                     v.receiver_tensors["feature_1"].shape)
+    self.assertEqual(tensor_shape.unknown_shape(),
+                     v.receiver_tensors["feature_2"].shape)
 
   def test_build_raw_serving_input_receiver_fn(self):
-    features = {"feature_1": constant_op.constant(["hello"]),
-                "feature_2": constant_op.constant([42])}
+    features = {
+        "feature_1": tf.constant(["hello"]),
+        "feature_2": tf.constant([42])
+    }
     serving_input_receiver_fn = export.build_raw_serving_input_receiver_fn(
         features)
-    with ops.Graph().as_default():
+    with tf.Graph().as_default():
       serving_input_receiver = serving_input_receiver_fn()
-      self.assertEqual(set(["feature_1", "feature_2"]),
-                       set(serving_input_receiver.features.keys()))
-      self.assertEqual(set(["feature_1", "feature_2"]),
-                       set(serving_input_receiver.receiver_tensors.keys()))
       self.assertEqual(
-          dtypes.string,
+          set(["feature_1", "feature_2"]),
+          set(serving_input_receiver.features.keys()))
+      self.assertEqual(
+          set(["feature_1", "feature_2"]),
+          set(serving_input_receiver.receiver_tensors.keys()))
+      self.assertEqual(
+          tf.dtypes.string,
           serving_input_receiver.receiver_tensors["feature_1"].dtype)
       self.assertEqual(
-          dtypes.int32,
+          tf.dtypes.int32,
           serving_input_receiver.receiver_tensors["feature_2"].dtype)
 
   def test_build_raw_supervised_input_receiver_fn(self):
-    features = {"feature_1": constant_op.constant(["hello"]),
-                "feature_2": constant_op.constant([42])}
-    labels = {"foo": constant_op.constant([5]),
-              "bar": constant_op.constant([6])}
+    features = {
+        "feature_1": tf.constant(["hello"]),
+        "feature_2": tf.constant([42])
+    }
+    labels = {"foo": tf.constant([5]), "bar": tf.constant([6])}
     input_receiver_fn = export.build_raw_supervised_input_receiver_fn(
         features, labels)
-    with ops.Graph().as_default():
+    with tf.Graph().as_default():
       input_receiver = input_receiver_fn()
-      self.assertEqual(set(["feature_1", "feature_2"]),
-                       set(input_receiver.features.keys()))
-      self.assertEqual(set(["foo", "bar"]),
-                       set(input_receiver.labels.keys()))
-      self.assertEqual(set(["feature_1", "feature_2", "foo", "bar"]),
-                       set(input_receiver.receiver_tensors.keys()))
       self.assertEqual(
-          dtypes.string, input_receiver.receiver_tensors["feature_1"].dtype)
+          set(["feature_1", "feature_2"]), set(input_receiver.features.keys()))
+      self.assertEqual(set(["foo", "bar"]), set(input_receiver.labels.keys()))
       self.assertEqual(
-          dtypes.int32, input_receiver.receiver_tensors["feature_2"].dtype)
+          set(["feature_1", "feature_2", "foo", "bar"]),
+          set(input_receiver.receiver_tensors.keys()))
+      self.assertEqual(tf.dtypes.string,
+                       input_receiver.receiver_tensors["feature_1"].dtype)
+      self.assertEqual(tf.dtypes.int32,
+                       input_receiver.receiver_tensors["feature_2"].dtype)
 
   def test_build_raw_supervised_input_receiver_fn_raw_tensors(self):
-    features = {"feature_1": constant_op.constant(["hello"]),
-                "feature_2": constant_op.constant([42])}
-    labels = {"foo": constant_op.constant([5]),
-              "bar": constant_op.constant([6])}
+    features = {
+        "feature_1": tf.constant(["hello"]),
+        "feature_2": tf.constant([42])
+    }
+    labels = {"foo": tf.constant([5]), "bar": tf.constant([6])}
     input_receiver_fn1 = export.build_raw_supervised_input_receiver_fn(
         features["feature_1"], labels)
     input_receiver_fn2 = export.build_raw_supervised_input_receiver_fn(
         features["feature_1"], labels["foo"])
-    with ops.Graph().as_default():
+    with tf.Graph().as_default():
       input_receiver = input_receiver_fn1()
-      self.assertIsInstance(input_receiver.features, ops.Tensor)
-      self.assertEqual(set(["foo", "bar"]),
-                       set(input_receiver.labels.keys()))
-      self.assertEqual(set(["input", "foo", "bar"]),
-                       set(input_receiver.receiver_tensors.keys()))
+      self.assertIsInstance(input_receiver.features, tf.Tensor)
+      self.assertEqual(set(["foo", "bar"]), set(input_receiver.labels.keys()))
+      self.assertEqual(
+          set(["input", "foo", "bar"]),
+          set(input_receiver.receiver_tensors.keys()))
 
       input_receiver = input_receiver_fn2()
-      self.assertIsInstance(input_receiver.features, ops.Tensor)
-      self.assertIsInstance(input_receiver.labels, ops.Tensor)
-      self.assertEqual(set(["input", "label"]),
-                       set(input_receiver.receiver_tensors.keys()))
+      self.assertIsInstance(input_receiver.features, tf.Tensor)
+      self.assertIsInstance(input_receiver.labels, tf.Tensor)
+      self.assertEqual(
+          set(["input", "label"]), set(input_receiver.receiver_tensors.keys()))
 
   def test_build_raw_supervised_input_receiver_fn_batch_size(self):
-    features = {"feature_1": constant_op.constant(["hello"]),
-                "feature_2": constant_op.constant([42])}
-    labels = {"foo": constant_op.constant([5]),
-              "bar": constant_op.constant([6])}
+    features = {
+        "feature_1": tf.constant(["hello"]),
+        "feature_2": tf.constant([42])
+    }
+    labels = {"foo": tf.constant([5]), "bar": tf.constant([6])}
     input_receiver_fn = export.build_raw_supervised_input_receiver_fn(
         features, labels, default_batch_size=10)
-    with ops.Graph().as_default():
+    with tf.Graph().as_default():
       input_receiver = input_receiver_fn()
       self.assertEqual([10], input_receiver.receiver_tensors["feature_1"].shape)
       self.assertEqual([10], input_receiver.features["feature_1"].shape)
 
   def test_build_raw_supervised_input_receiver_fn_overlapping_keys(self):
-    features = {"feature_1": constant_op.constant(["hello"]),
-                "feature_2": constant_op.constant([42])}
-    labels = {"feature_1": constant_op.constant([5]),
-              "bar": constant_op.constant([6])}
+    features = {
+        "feature_1": tf.constant(["hello"]),
+        "feature_2": tf.constant([42])
+    }
+    labels = {"feature_1": tf.constant([5]), "bar": tf.constant([6])}
     with self.assertRaises(ValueError):
       export.build_raw_supervised_input_receiver_fn(features, labels)
 
   def test_build_supervised_input_receiver_fn_from_input_fn(self):
+
     def dummy_input_fn():
-      return ({"x": constant_op.constant([[1], [1]]),
-               "y": constant_op.constant(["hello", "goodbye"])},
-              constant_op.constant([[1], [1]]))
+      return ({
+          "x": tf.constant([[1], [1]]),
+          "y": tf.constant(["hello", "goodbye"])
+      }, tf.constant([[1], [1]]))
 
     input_receiver_fn = export.build_supervised_input_receiver_fn_from_input_fn(
         dummy_input_fn)
 
-    with ops.Graph().as_default():
+    with tf.Graph().as_default():
       input_receiver = input_receiver_fn()
-      self.assertEqual(set(["x", "y"]),
-                       set(input_receiver.features.keys()))
-      self.assertIsInstance(input_receiver.labels, ops.Tensor)
-      self.assertEqual(set(["x", "y", "label"]),
-                       set(input_receiver.receiver_tensors.keys()))
+      self.assertEqual(set(["x", "y"]), set(input_receiver.features.keys()))
+      self.assertIsInstance(input_receiver.labels, tf.Tensor)
+      self.assertEqual(
+          set(["x", "y", "label"]), set(input_receiver.receiver_tensors.keys()))
 
   def test_build_supervised_input_receiver_fn_from_input_fn_args(self):
+
     def dummy_input_fn(feature_key="x"):
-      return ({feature_key: constant_op.constant([[1], [1]]),
-               "y": constant_op.constant(["hello", "goodbye"])},
-              {"my_label": constant_op.constant([[1], [1]])})
+      return ({
+          feature_key: tf.constant([[1], [1]]),
+          "y": tf.constant(["hello", "goodbye"])
+      }, {
+          "my_label": tf.constant([[1], [1]])
+      })
 
     input_receiver_fn = export.build_supervised_input_receiver_fn_from_input_fn(
         dummy_input_fn, feature_key="z")
 
-    with ops.Graph().as_default():
+    with tf.Graph().as_default():
       input_receiver = input_receiver_fn()
-      self.assertEqual(set(["z", "y"]),
-                       set(input_receiver.features.keys()))
-      self.assertEqual(set(["my_label"]),
-                       set(input_receiver.labels.keys()))
-      self.assertEqual(set(["z", "y", "my_label"]),
-                       set(input_receiver.receiver_tensors.keys()))
+      self.assertEqual(set(["z", "y"]), set(input_receiver.features.keys()))
+      self.assertEqual(set(["my_label"]), set(input_receiver.labels.keys()))
+      self.assertEqual(
+          set(["z", "y", "my_label"]),
+          set(input_receiver.receiver_tensors.keys()))
 
 
-class TensorServingReceiverTest(test_util.TensorFlowTestCase):
+class TensorServingReceiverTest(tf.test.TestCase):
 
   def test_tensor_serving_input_receiver_constructor(self):
-    features = constant_op.constant([0])
+    features = tf.constant([0])
     receiver_tensors = {
-        "example0": constant_op.constant(["test0"], name="example0"),
-        u"example1": constant_op.constant(["test1"], name="example1"),
+        "example0": tf.constant(["test0"], name="example0"),
+        u"example1": tf.constant(["test1"], name="example1"),
     }
     r = export.TensorServingInputReceiver(features, receiver_tensors)
-    self.assertTrue(isinstance(r.features, ops.Tensor))
-    self.assertTrue(isinstance(r.receiver_tensors, dict))
+    self.assertIsInstance(r.features, tf.Tensor)
+    self.assertIsInstance(r.receiver_tensors, dict)
 
   def test_tensor_serving_input_receiver_sparse(self):
-    features = sparse_tensor.SparseTensor(
+    features = tf.sparse.SparseTensor(
         indices=[[0, 0]], values=[1], dense_shape=[1, 1])
     receiver_tensors = {
-        "example0": constant_op.constant(["test0"], name="example0"),
-        u"example1": constant_op.constant(["test1"], name="example1"),
+        "example0": tf.constant(["test0"], name="example0"),
+        u"example1": tf.constant(["test1"], name="example1"),
     }
     r = export.TensorServingInputReceiver(features, receiver_tensors)
-    self.assertTrue(isinstance(r.features, sparse_tensor.SparseTensor))
-    self.assertTrue(isinstance(r.receiver_tensors, dict))
+    self.assertIsInstance(r.features, tf.sparse.SparseTensor)
+    self.assertIsInstance(r.receiver_tensors, dict)
 
   def test_serving_input_receiver_features_invalid(self):
     receiver_tensors = {
-        "example0": constant_op.constant(["test0"], name="example0"),
-        u"example1": constant_op.constant(["test1"], name="example1"),
+        "example0": tf.constant(["test0"], name="example0"),
+        u"example1": tf.constant(["test1"], name="example1"),
     }
 
     with self.assertRaisesRegexp(ValueError, "features must be defined"):
       export.TensorServingInputReceiver(
-          features=None,
-          receiver_tensors=receiver_tensors)
+          features=None, receiver_tensors=receiver_tensors)
 
     with self.assertRaisesRegexp(ValueError, "feature must be a Tensor"):
       export.TensorServingInputReceiver(
-          features={"1": constant_op.constant([1])},
-          receiver_tensors=receiver_tensors)
+          features={"1": tf.constant([1])}, receiver_tensors=receiver_tensors)
 
   def test_serving_input_receiver_receiver_tensors_invalid(self):
-    features = constant_op.constant([0])
+    features = tf.constant([0])
 
-    with self.assertRaisesRegexp(
-        ValueError, "receiver_tensors must be defined"):
+    with self.assertRaisesRegexp(ValueError,
+                                 "receiver_tensors must be defined"):
+      export.TensorServingInputReceiver(
+          features=features, receiver_tensors=None)
+
+    with self.assertRaisesRegexp(ValueError,
+                                 "receiver_tensor keys must be strings"):
       export.TensorServingInputReceiver(
           features=features,
-          receiver_tensors=None)
+          receiver_tensors={1: tf.constant(["test"], name="example0")})
 
-    with self.assertRaisesRegexp(
-        ValueError, "receiver_tensor keys must be strings"):
+    with self.assertRaisesRegexp(ValueError,
+                                 "receiver_tensor example1 must be a Tensor"):
       export.TensorServingInputReceiver(
-          features=features,
-          receiver_tensors={
-              1: constant_op.constant(["test"], name="example0")})
-
-    with self.assertRaisesRegexp(
-        ValueError, "receiver_tensor example1 must be a Tensor"):
-      export.TensorServingInputReceiver(
-          features=features,
-          receiver_tensors={"example1": [1]})
+          features=features, receiver_tensors={"example1": [1]})
 
 
 if __name__ == "__main__":
-  test.main()
+  tf.test.main()

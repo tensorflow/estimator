@@ -21,16 +21,10 @@ from __future__ import print_function
 import functools
 
 from six.moves import range
-
-from tensorflow.python.eager import context
-from tensorflow.python.framework import dtypes
+import tensorflow as tf
 from tensorflow.python.framework import ops
-from tensorflow.python.ops import array_ops
-from tensorflow.python.ops import control_flow_ops
-from tensorflow.python.ops import data_flow_ops
 from tensorflow.python.ops import gen_lookup_ops
 from tensorflow.python.ops import lookup_ops
-from tensorflow.python.ops import math_ops
 from tensorflow.python.training.saver import BaseSaverBuilder
 
 
@@ -63,8 +57,8 @@ class _MutableDenseHashTable(lookup_ops.LookupInterface):
         not be used in insert, remove or lookup operations and be different from
         the empty_key.
       initial_num_buckets: the initial number of buckets.
-      shared_name: If non-empty, this table will be shared under
-        the given name across multiple sessions.
+      shared_name: If non-empty, this table will be shared under the given name
+        across multiple sessions.
       name: A name for the operation (optional).
       checkpoint: if True, the contents of the table are saved to and restored
         from checkpoints. If `shared_name` is empty for a checkpointed table, it
@@ -89,7 +83,7 @@ class _MutableDenseHashTable(lookup_ops.LookupInterface):
         empty_key, dtype=key_dtype, name="empty_key")
     self._deleted_key = ops.convert_to_tensor(
         deleted_key, dtype=key_dtype, name="deleted_key")
-    if context.executing_eagerly() and shared_name is None:
+    if tf.executing_eagerly() and shared_name is None:
       # TODO(allenl): This will leak memory due to kernel caching by the
       # shared_name attribute value (but is better than the alternative of
       # sharing everything by default when executing eagerly; hopefully creating
@@ -101,8 +95,9 @@ class _MutableDenseHashTable(lookup_ops.LookupInterface):
     self._resource_handle = self._create_resource()
     if checkpoint:
       saveable = _MutableDenseHashTable._Saveable(self, name)
-      if not context.executing_eagerly():
-        ops.add_to_collection(ops.GraphKeys.SAVEABLE_OBJECTS, saveable)
+      if not tf.executing_eagerly():
+        tf.compat.v1.add_to_collection(tf.compat.v1.GraphKeys.SAVEABLE_OBJECTS,
+                                       saveable)
 
   def _create_resource(self):
     # The table must be shared if checkpointing is requested for multi-worker
@@ -118,7 +113,7 @@ class _MutableDenseHashTable(lookup_ops.LookupInterface):
         value_shape=self._value_shape,
         initial_num_buckets=self._initial_num_buckets,
         name=self._name)
-    if context.executing_eagerly():
+    if tf.executing_eagerly():
       self._table_name = None
     else:
       self._table_name = table_ref.op.name.split("/")[-1]
@@ -173,8 +168,8 @@ class _MutableDenseHashTable(lookup_ops.LookupInterface):
     """Associates `keys` with `values`.
 
     Args:
-      keys: Keys to insert. Can be a tensor of any shape. Must match the
-        table's key type.
+      keys: Keys to insert. Can be a tensor of any shape. Must match the table's
+        key type.
       values: Values to be associated with keys. Must be a tensor of the same
         shape as `keys` and match the table's value type.
       name: A name for the operation (optional).
@@ -216,8 +211,10 @@ class _MutableDenseHashTable(lookup_ops.LookupInterface):
 
   def _gather_saveables_for_checkpoint(self):
     """For object-based checkpointing."""
-    return {"table": functools.partial(
-        _MutableDenseHashTable._Saveable, table=self)}
+    return {
+        "table": functools.partial(
+            _MutableDenseHashTable._Saveable, table=self)
+    }
 
   class _Saveable(BaseSaverBuilder.SaveableObject):
     """SaveableObject implementation for _MutableDenseHashTable."""
@@ -235,8 +232,9 @@ class _MutableDenseHashTable(lookup_ops.LookupInterface):
       del restored_shapes  # unused
       # pylint: disable=protected-access
       with ops.colocate_with(self.op.resource_handle):
-        return gen_lookup_ops.lookup_table_import_v2(
-            self.op.resource_handle, restored_tensors[0], restored_tensors[1])
+        return gen_lookup_ops.lookup_table_import_v2(self.op.resource_handle,
+                                                     restored_tensors[0],
+                                                     restored_tensors[1])
 
 
 # TODO(rohanj): This should subclass Checkpointable and implement
@@ -296,19 +294,17 @@ class _ShardedMutableDenseHashTable(object):
 
   def size(self, name=None):
     with ops.name_scope(name, "sharded_mutable_hash_table_size"):
-      sizes = [
-          self._table_shards[i].size() for i in range(self._num_shards)
-      ]
-      return math_ops.add_n(sizes)
+      sizes = [self._table_shards[i].size() for i in range(self._num_shards)]
+      return tf.math.add_n(sizes)
 
   def _shard_indices(self, keys):
     key_shape = keys.get_shape()
     if key_shape.ndims > 1:
       # If keys are a matrix (i.e. a single key is a vector), we use the first
       # element of each key vector to determine the shard.
-      keys = array_ops.reshape(array_ops.slice(keys, [0, 0], [-1, 1]), [-1])
-    indices = math_ops.mod(math_ops.abs(keys), self._num_shards)
-    return math_ops.cast(indices, dtypes.int32)
+      keys = tf.reshape(tf.slice(keys, [0, 0], [-1, 1]), [-1])
+    indices = tf.math.floormod(tf.math.abs(keys), self._num_shards)
+    return tf.cast(indices, tf.dtypes.int32)
 
   def _check_keys(self, keys):
     if keys.get_shape().ndims != 1 and keys.get_shape().ndims != 2:
@@ -326,19 +322,17 @@ class _ShardedMutableDenseHashTable(object):
       return self._table_shards[0].lookup(keys, name=name)
 
     shard_indices = self._shard_indices(keys)
-    key_shards = data_flow_ops.dynamic_partition(keys, shard_indices,
-                                                 num_shards)
+    key_shards = tf.dynamic_partition(keys, shard_indices, num_shards)
     value_shards = [
         self._table_shards[i].lookup(key_shards[i], name=name)
         for i in range(num_shards)
     ]
 
-    num_keys = array_ops.shape(keys)[0]
-    original_indices = math_ops.range(num_keys)
-    partitioned_indices = data_flow_ops.dynamic_partition(original_indices,
-                                                          shard_indices,
-                                                          num_shards)
-    return data_flow_ops.dynamic_stitch(partitioned_indices, value_shards)
+    num_keys = tf.compat.v1.shape(keys)[0]
+    original_indices = tf.range(num_keys)
+    partitioned_indices = tf.dynamic_partition(original_indices, shard_indices,
+                                               num_shards)
+    return tf.dynamic_stitch(partitioned_indices, value_shards)
 
   def insert(self, keys, values, name=None):
     """Inserts `keys` in a table."""
@@ -348,16 +342,14 @@ class _ShardedMutableDenseHashTable(object):
       return self._table_shards[0].insert(keys, values, name=name)
 
     shard_indices = self._shard_indices(keys)
-    key_shards = data_flow_ops.dynamic_partition(keys, shard_indices,
-                                                 num_shards)
-    value_shards = data_flow_ops.dynamic_partition(values, shard_indices,
-                                                   num_shards)
+    key_shards = tf.dynamic_partition(keys, shard_indices, num_shards)
+    value_shards = tf.dynamic_partition(values, shard_indices, num_shards)
     return_values = [
         self._table_shards[i].insert(key_shards[i], value_shards[i], name=name)
         for i in range(num_shards)
     ]
 
-    return control_flow_ops.group(*return_values)
+    return tf.group(*return_values)
 
   def export_sharded(self, name=None):
     """Returns lists of the keys and values tensors in the sharded table.

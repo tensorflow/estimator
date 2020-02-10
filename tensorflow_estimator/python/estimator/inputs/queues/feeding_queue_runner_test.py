@@ -19,13 +19,8 @@ from __future__ import division
 from __future__ import print_function
 
 import numpy as np
-
-from tensorflow.python.client import session
-from tensorflow.python.framework import ops
+import tensorflow as tf
 from tensorflow.python.framework import test_util
-from tensorflow.python.platform import test
-from tensorflow.python.training import coordinator
-from tensorflow.python.training import queue_runner_impl
 from tensorflow_estimator.python.estimator.inputs.queues import feeding_functions as ff
 
 try:
@@ -45,18 +40,19 @@ def get_rows(array, row_indices):
 
 
 @test_util.deprecated_graph_mode_only
-class FeedingQueueRunnerTestCase(test.TestCase):
+class FeedingQueueRunnerTestCase(tf.test.TestCase):
   """Tests for `FeedingQueueRunner`."""
 
   def testArrayFeeding(self):
-    with ops.Graph().as_default():
+    with tf.Graph().as_default():
       array = np.arange(32).reshape([16, 2])
       q = ff._enqueue_data(array, capacity=100)
       batch_size = 3
       dq_op = q.dequeue_many(batch_size)
-      with session.Session() as sess:
-        coord = coordinator.Coordinator()
-        threads = queue_runner_impl.start_queue_runners(sess=sess, coord=coord)
+      with tf.compat.v1.Session() as sess:
+        coord = tf.train.Coordinator()
+        threads = tf.compat.v1.train.queue_runner.start_queue_runners(
+            sess=sess, coord=coord)
         for i in range(100):
           indices = [
               j % array.shape[0]
@@ -70,14 +66,15 @@ class FeedingQueueRunnerTestCase(test.TestCase):
         coord.join(threads)
 
   def testArrayFeedingMultiThread(self):
-    with ops.Graph().as_default():
+    with tf.Graph().as_default():
       array = np.arange(256).reshape([128, 2])
       q = ff._enqueue_data(array, capacity=128, num_threads=8, shuffle=True)
       batch_size = 3
       dq_op = q.dequeue_many(batch_size)
-      with session.Session() as sess:
-        coord = coordinator.Coordinator()
-        threads = queue_runner_impl.start_queue_runners(sess=sess, coord=coord)
+      with tf.compat.v1.Session() as sess:
+        coord = tf.train.Coordinator()
+        threads = tf.compat.v1.train.queue_runner.start_queue_runners(
+            sess=sess, coord=coord)
         for _ in range(100):
           dq = sess.run(dq_op)
           indices = dq[0]
@@ -89,16 +86,17 @@ class FeedingQueueRunnerTestCase(test.TestCase):
   def testPandasFeeding(self):
     if not HAS_PANDAS:
       return
-    with ops.Graph().as_default():
+    with tf.Graph().as_default():
       array1 = np.arange(32)
       array2 = np.arange(32, 64)
       df = pd.DataFrame({"a": array1, "b": array2}, index=np.arange(64, 96))
       q = ff._enqueue_data(df, capacity=100)
       batch_size = 5
       dq_op = q.dequeue_many(5)
-      with session.Session() as sess:
-        coord = coordinator.Coordinator()
-        threads = queue_runner_impl.start_queue_runners(sess=sess, coord=coord)
+      with tf.compat.v1.Session() as sess:
+        coord = tf.train.Coordinator()
+        threads = tf.compat.v1.train.queue_runner.start_queue_runners(
+            sess=sess, coord=coord)
         for i in range(100):
           indices = [
               j % array1.shape[0]
@@ -117,16 +115,17 @@ class FeedingQueueRunnerTestCase(test.TestCase):
   def testPandasFeedingMultiThread(self):
     if not HAS_PANDAS:
       return
-    with ops.Graph().as_default():
+    with tf.Graph().as_default():
       array1 = np.arange(128, 256)
       array2 = 2 * array1
       df = pd.DataFrame({"a": array1, "b": array2}, index=np.arange(128))
       q = ff._enqueue_data(df, capacity=128, num_threads=8, shuffle=True)
       batch_size = 5
       dq_op = q.dequeue_many(batch_size)
-      with session.Session() as sess:
-        coord = coordinator.Coordinator()
-        threads = queue_runner_impl.start_queue_runners(sess=sess, coord=coord)
+      with tf.compat.v1.Session() as sess:
+        coord = tf.train.Coordinator()
+        threads = tf.compat.v1.train.queue_runner.start_queue_runners(
+            sess=sess, coord=coord)
         for _ in range(100):
           dq = sess.run(dq_op)
           indices = dq[0]
@@ -139,4 +138,4 @@ class FeedingQueueRunnerTestCase(test.TestCase):
 
 
 if __name__ == "__main__":
-  test.main()
+  tf.test.main()

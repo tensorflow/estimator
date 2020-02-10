@@ -16,6 +16,7 @@ ESTIMATOR_API_INIT_FILES_V1 = [
     "estimator/export/__init__.py",
     "estimator/inputs/__init__.py",
     "estimator/tpu/__init__.py",
+    "estimator/tpu/experimental/__init__.py",
 ]
 
 ESTIMATOR_API_INIT_FILES_V2 = [
@@ -85,6 +86,7 @@ def gen_api_init_files(
         name = api_gen_binary_target,
         srcs = ["//tensorflow_estimator/python/estimator/api:create_python_api_wrapper.py"],
         main = "//tensorflow_estimator/python/estimator/api:create_python_api_wrapper.py",
+        python_version = "PY3",
         srcs_version = "PY2AND3",
         visibility = ["//visibility:public"],
         deps = package_deps,

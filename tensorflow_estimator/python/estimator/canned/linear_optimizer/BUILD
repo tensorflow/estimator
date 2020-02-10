@@ -8,7 +8,7 @@ py_test(
     name = "sdca_test",
     size = "medium",
     srcs = ["python/sdca_test.py"],
-    python_version = "PY2",
+    python_version = "PY3",
     shard_count = 4,
     srcs_version = "PY2AND3",
     deps = [
@@ -37,7 +37,7 @@ py_test(
     name = "sdca_ops_test",
     size = "medium",
     srcs = ["python/utils/sdca_ops_test.py"],
-    python_version = "PY2",
+    python_version = "PY3",
     shard_count = 4,
     srcs_version = "PY2AND3",
     tags = [
@@ -65,7 +65,7 @@ py_test(
     name = "sharded_mutable_dense_hashtable_test",
     size = "small",
     srcs = ["python/utils/sharded_mutable_dense_hashtable_test.py"],
-    python_version = "PY2",
+    python_version = "PY3",
     srcs_version = "PY2AND3",
     deps = [
         ":sharded_mutable_dense_hashtable_py",

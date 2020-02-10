@@ -19,15 +19,10 @@ from __future__ import division
 from __future__ import print_function
 
 import six
-
-from tensorflow.python.eager import context
+import tensorflow as tf
 from tensorflow.python.framework import ops
 from tensorflow.python.keras import metrics
-from tensorflow.python.keras.optimizer_v2 import optimizer_v2
-from tensorflow.python.ops import array_ops
-from tensorflow.python.ops import control_flow_ops
-from tensorflow.python.ops import math_ops
-from tensorflow.python.training import training_util
+from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator import model_fn
 from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.export import export_output
@@ -37,7 +32,7 @@ from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 
 def _no_op_train_fn(loss):
   del loss
-  return control_flow_ops.no_op()
+  return tf.no_op()
 
 
 def _default_export_output(export_outputs, head_name):
@@ -51,10 +46,11 @@ def _default_export_output(export_outputs, head_name):
         '{} did not specify default export_outputs. '
         'Given: {} '
         'Suggested fix: Use one of the heads in tf.estimator, or include '
-        'key {} in export_outputs.'.format(
-            head_name, export_outputs, base_head.DEFAULT_SERVING_KEY))
+        'key {} in export_outputs.'.format(head_name, export_outputs,
+                                           base_head.DEFAULT_SERVING_KEY))
 
 
+@estimator_export('estimator.MultiHead')
 class MultiHead(base_head.Head):
   """Creates a `Head` for multi-objective learning.
 
@@ -69,6 +65,49 @@ class MultiHead(base_head.Head):
     by default the first head is served.
 
   Usage:
+
+  >>> head1 = tf.estimator.MultiLabelHead(n_classes=2, name='head1')
+  >>> head2 = tf.estimator.MultiLabelHead(n_classes=3, name='head2')
+  >>> multi_head = tf.estimator.MultiHead([head1, head2])
+  >>> logits = {
+  ...    'head1': np.array([[-10., 10.], [-15., 10.]], dtype=np.float32),
+  ...    'head2': np.array([[20., -20., 20.], [-30., 20., -20.]],
+  ...    dtype=np.float32),}
+  >>> labels = {
+  ...    'head1': np.array([[1, 0], [1, 1]], dtype=np.int64),
+  ...    'head2': np.array([[0, 1, 0], [1, 1, 0]], dtype=np.int64),}
+  >>> features = {'x': np.array(((42,),), dtype=np.float32)}
+  >>> # For large logits, sigmoid cross entropy loss is approximated as:
+  >>> # loss = labels * (logits < 0) * (-logits) +
+  >>> #        (1 - labels) * (logits > 0) * logits =>
+  >>> # head1: expected_unweighted_loss = [[10., 10.], [15., 0.]]
+  >>> # loss1 = ((10 + 10) / 2 + (15 + 0) / 2) / 2 = 8.75
+  >>> # head2: expected_unweighted_loss = [[20., 20., 20.], [30., 0., 0]]
+  >>> # loss2 = ((20 + 20 + 20) / 3 + (30 + 0 + 0) / 3) / 2 = 15.00
+  >>> # loss = loss1 + loss2 = 8.75 + 15.00 = 23.75
+  >>> loss = multi_head.loss(labels, logits, features=features)
+  >>> print('{:.2f}'.format(loss.numpy()))
+  23.75
+  >>> eval_metrics = multi_head.metrics()
+  >>> updated_metrics = multi_head.update_metrics(
+  ...   eval_metrics, features, logits, labels)
+  >>> for k in sorted(updated_metrics):
+  ...  print('{} : {:.2f}'.format(k, updated_metrics[k].result().numpy()))
+  auc/head1 : 0.17
+  auc/head2 : 0.33
+  auc_precision_recall/head1 : 0.60
+  auc_precision_recall/head2 : 0.40
+  average_loss/head1 : 8.75
+  average_loss/head2 : 15.00
+  loss/head1 : 8.75
+  loss/head2 : 15.00
+  >>> preds = multi_head.predictions(logits)
+  >>> print(preds[('head1', 'logits')])
+  tf.Tensor(
+    [[-10.  10.]
+     [-15.  10.]], shape=(2, 2), dtype=float32)
+
+  Usage with a canned estimator:
 
   ```python
   # In `input_fn`, specify labels as a dict keyed by head name:
@@ -99,13 +138,19 @@ class MultiHead(base_head.Head):
   Also supports `logits` as a `Tensor` of shape
   `[D0, D1, ... DN, logits_dimension]`. It will split the `Tensor` along the
   last dimension and distribute it appropriately among the heads. E.g.:
+
+  ```python
   # Input logits.
-  # logits = np.array([[-1., 1., 2., -2., 2.], [-1.5, 1., -3., 2., -2.]],
-                      dtype=np.float32)
-  # Suppose head1.logits_dimension = 2 and head2.logits_dimension = 3. After
-  # splitting, the result is:
-  # logits_dict = {'head1_name': [[-1., 1.], [-1.5, 1.]],
-                   'head2_name':  [[2., -2., 2.], [-3., 2., -2.]]}
+  logits = np.array([[-1., 1., 2., -2., 2.], [-1.5, 1., -3., 2., -2.]],
+                    dtype=np.float32)
+  # Suppose head1 and head2 have the following logits dimension.
+  head1.logits_dimension = 2
+  head2.logits_dimension = 3
+  # After splitting, the result will be:
+  logits_dict = {'head1_name': [[-1., 1.], [-1.5, 1.]],
+                 'head2_name':  [[2., -2., 2.], [-3., 2., -2.]]}
+  ```
+
   Usage:
 
   ```python
@@ -167,7 +212,12 @@ class MultiHead(base_head.Head):
   @property
   def loss_reduction(self):
     """See `base_head.Head` for details."""
-    return None
+    loss_reductions = [head.loss_reduction for head in self._heads]
+    if len(set(loss_reductions)) > 1:
+      raise ValueError(
+          'The loss_reduction must be the same for different heads. '
+          'Given: {}'.format(loss_reductions))
+    return loss_reductions[0]
 
   def _split_logits(self, logits):
     """Splits logits along the last dimension and returns a dict.
@@ -214,20 +264,19 @@ class MultiHead(base_head.Head):
                 total_logits_dimension)))
 
       # TODO(b/119617064): unify eager and graph implementations
-      if context.executing_eagerly():
+      if tf.executing_eagerly():
         logits_shape = logits._shape_tuple()  # pylint: disable=protected-access
         batch_shape = logits_shape[:-1]
       else:
-        batch_shape = array_ops.shape(logits)[:-1]
-      zeros_like_batch_shape = array_ops.zeros_like(batch_shape)
-      minus_ones_like_batch_shape = -1 * array_ops.ones_like(batch_shape)
+        batch_shape = tf.compat.v1.shape(logits)[:-1]
+      zeros_like_batch_shape = tf.compat.v1.zeros_like(batch_shape)
+      minus_ones_like_batch_shape = -1 * tf.compat.v1.ones_like(batch_shape)
       begin_idx = 0
       for head in self._heads:
-        begin_tensor = array_ops.concat(
-            [zeros_like_batch_shape, [begin_idx]], axis=0)
-        size_tensor = array_ops.concat(
+        begin_tensor = tf.concat([zeros_like_batch_shape, [begin_idx]], axis=0)
+        size_tensor = tf.concat(
             [minus_ones_like_batch_shape, [head.logits_dimension]], axis=0)
-        logits_dict[head.name] = array_ops.slice(
+        logits_dict[head.name] = tf.slice(
             logits, begin=begin_tensor, size=size_tensor)
         begin_idx += head.logits_dimension
     return logits_dict
@@ -256,15 +305,21 @@ class MultiHead(base_head.Head):
             labels_missing_names))
     return logits_dict
 
-  def loss(self, logits, labels, features=None, mode=None,
+  def loss(self,
+           labels,
+           logits,
+           features=None,
+           mode=None,
            regularization_losses=None):
     """Returns regularized training loss. See `base_head.Head` for details."""
     logits_dict = self._check_logits_and_labels(logits, labels)
     training_losses = []
     for head in self._heads:
       training_loss = head.loss(
-          logits=logits_dict[head.name], labels=labels[head.name],
-          features=features, mode=mode)
+          logits=logits_dict[head.name],
+          labels=labels[head.name],
+          features=features,
+          mode=mode)
       training_losses.append(training_loss)
 
     training_losses = tuple(training_losses)
@@ -273,17 +328,17 @@ class MultiHead(base_head.Head):
         values=training_losses + (self._head_weights or tuple())):
       if self._head_weights:
         head_weighted_training_losses = []
-        for training_loss, head_weight in zip(
-            training_losses, self._head_weights):
+        for training_loss, head_weight in zip(training_losses,
+                                              self._head_weights):
           head_weighted_training_losses.append(
-              math_ops.multiply(training_loss, head_weight))
+              tf.math.multiply(training_loss, head_weight))
         training_losses = head_weighted_training_losses
-      merged_training_loss = math_ops.add_n(training_losses)
-      regularization_loss = math_ops.add_n(
+      merged_training_loss = tf.math.add_n(training_losses)
+      regularization_loss = tf.math.add_n(
           regularization_losses) if regularization_losses is not None else None
-      regularized_training_loss = (merged_training_loss + regularization_loss
-                                   if regularization_loss is not None
-                                   else merged_training_loss)
+      regularized_training_loss = (
+          merged_training_loss + regularization_loss
+          if regularization_loss is not None else merged_training_loss)
     return regularized_training_loss
 
   def predictions(self, logits, keys=None):
@@ -311,13 +366,17 @@ class MultiHead(base_head.Head):
         eval_metrics[loss_key] = metrics.Mean(name=loss_key)
     return eval_metrics
 
-  def update_metrics(self, eval_metrics, features, logits, labels,
+  def update_metrics(self,
+                     eval_metrics,
+                     features,
+                     logits,
+                     labels,
                      regularization_losses=None):
     """Updates eval metrics. See `base_head.Head` for details."""
     logits_dict = self._check_logits_and_labels(logits, labels)
     # Update regularization loss metric
     if regularization_losses is not None:
-      regularization_loss = math_ops.add_n(regularization_losses)
+      regularization_loss = tf.math.add_n(regularization_losses)
       eval_metrics[self._loss_regularization_key].update_state(
           values=regularization_loss)
     # Update metrics for each head
@@ -330,15 +389,21 @@ class MultiHead(base_head.Head):
       eval_metrics[self._loss_keys[i]].update_state(values=training_loss)
       # Update existing metrics in each head
       head_metrics = head.metrics()
-      updated_metrics = head.update_metrics(
-          head_metrics, features, head_logits, head_labels)
+      updated_metrics = head.update_metrics(head_metrics, features, head_logits,
+                                            head_labels)
       eval_metrics.update(updated_metrics or {})
     return eval_metrics
 
-  def create_estimator_spec(
-      self, features, mode, logits, labels=None, optimizer=None,
-      trainable_variables=None, train_op_fn=None, update_ops=None,
-      regularization_losses=None):
+  def create_estimator_spec(self,
+                            features,
+                            mode,
+                            logits,
+                            labels=None,
+                            optimizer=None,
+                            trainable_variables=None,
+                            train_op_fn=None,
+                            update_ops=None,
+                            regularization_losses=None):
     """Returns a `model_fn.EstimatorSpec`.
 
     Args:
@@ -406,12 +471,15 @@ class MultiHead(base_head.Head):
             mode=ModeKeys.PREDICT,
             predictions=predictions,
             export_outputs=export_outputs)
-      loss = self.loss(logits, labels, features, mode, regularization_losses)
+      loss = self.loss(labels, logits, features, mode, regularization_losses)
       # Eval.
       if mode == ModeKeys.EVAL:
         eval_metrics = self.metrics(regularization_losses=regularization_losses)
         updated_metrics = self.update_metrics(
-            eval_metrics, features, logits, labels,
+            eval_metrics,
+            features,
+            logits,
+            labels,
             regularization_losses=regularization_losses)
         return model_fn.EstimatorSpec(
             mode=ModeKeys.EVAL,
@@ -420,24 +488,14 @@ class MultiHead(base_head.Head):
             eval_metric_ops=updated_metrics)
       # Train.
       if mode == ModeKeys.TRAIN:
-        # train_op.
-        if optimizer is not None:
-          if train_op_fn is not None:
-            raise ValueError('train_op_fn and optimizer cannot both be set.')
-          if isinstance(optimizer, optimizer_v2.OptimizerV2):
-            base_head.validate_trainable_variables(trainable_variables)
-            # optimizer_v2.get_updates always returns a list, and the first
-            # element is the train_op.
-            train_op = optimizer.get_updates(
-                loss, trainable_variables)[0]
-          else:
-            train_op = optimizer.minimize(
-                loss,
-                global_step=training_util.get_global_step())
-        elif train_op_fn is not None:
-          train_op = train_op_fn(loss)
-        else:
-          raise ValueError('train_op_fn and optimizer cannot both be None.')
+        train_op = base_head.create_estimator_spec_train_op(
+            head_name=self.name,
+            optimizer=optimizer,
+            train_op_fn=train_op_fn,
+            update_ops=update_ops,
+            trainable_variables=trainable_variables,
+            regularized_training_loss=loss,
+            loss_reduction=self.loss_reduction)
         # Create summary.
         base_head.create_estimator_spec_summary(loss, regularization_losses)
         # eval_metrics.
@@ -468,16 +526,17 @@ class MultiHead(base_head.Head):
     """
     # The first head is used for serving by default.
     export_outputs = {
-        base_head.DEFAULT_SERVING_KEY: _default_export_output(
-            all_estimator_spec[0].export_outputs,
-            self._heads[0].name),
+        base_head.DEFAULT_SERVING_KEY:
+            _default_export_output(all_estimator_spec[0].export_outputs,
+                                   self._heads[0].name),
     }
     merged_predict_outputs = {}
     for head, spec in zip(self._heads, all_estimator_spec):
       for k, v in six.iteritems(spec.export_outputs):
         # Collect default serving key for export_outputs
-        key = (head.name if k == base_head.DEFAULT_SERVING_KEY
-               else '{}/{}'.format(head.name, k))
+        key = (
+            head.name if k == base_head.DEFAULT_SERVING_KEY else '{}/{}'.format(
+                head.name, k))
         export_outputs[key] = v
         # Collect predict serving key for merged_predict_outputs
         if (k == base_head.PREDICT_SERVING_KEY and

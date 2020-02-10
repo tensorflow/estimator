@@ -24,11 +24,16 @@ import threading
 import time
 
 import six
+import tensorflow as tf
+from tensorflow_estimator.python.estimator.tools import analytics
 
-from tensorflow.python.framework import errors
-from tensorflow.python.platform import tf_logging as logging
+_UNINTERESTING_ERRORS = (tf.errors.CancelledError,)
+_IGNORED_ERRORS = (
+    tf.errors.AbortedError,
+    tf.errors.UnavailableError,
+)
 
-_UNINTERESTING_ERRORS = (errors.CancelledError,)
+_CHECK_NUMERIC_OP_NAME = 'CheckNumerics'
 
 
 class ErrorRendezvous(object):
@@ -66,18 +71,32 @@ class ErrorRendezvous(object):
       session: Session to close after delay.
     """
     _, value, _ = exc_info
+    # Ignore errors already handled by MonitoredSession
+    if isinstance(value, _IGNORED_ERRORS):
+      return
+
     self._errors[source] = exc_info
-    logging.error('Error recorded from %s: %s', source, value)
+
+    # If the error is a numeric type, e.g., NaN error, we can assume that the
+    # loop execution completed successfully. In this case, we can skip the
+    # `session.close()` logic and wait for the infeed/outfeed threads to
+    # complete as normal.
+    try:
+      if value.op.type == _CHECK_NUMERIC_OP_NAME:
+        analytics.track_numerical_issues(exc_info)
+        return
+    except AttributeError as _:
+      pass
 
     if session is not None and self._session_cancel_timer is None:
 
       def _cancel_session():
         time.sleep(5)
-        logging.error('Closing session due to error %s' % value)
+        tf.compat.v1.logging.error('Closing session due to error %s' % value)
         try:
           session.close()
         except:  # pylint: disable=bare-except
-          logging.error(
+          tf.compat.v1.logging.error(
               '\n\n\nFailed to close session after error.'
               'Other threads may hang.\n\n\n')
 
@@ -93,7 +112,7 @@ class ErrorRendezvous(object):
     Args:
       source: `str`, source being recorded
     """
-    logging.info('%s marked as finished', source)
+    tf.compat.v1.logging.info('%s marked as finished', source)
     if source not in self._errors:
       self._errors[source] = None
 
@@ -127,9 +146,9 @@ class ErrorRendezvous(object):
       if isinstance(value, _UNINTERESTING_ERRORS):
         continue
       else:
-        logging.warn('Reraising captured error')
+        tf.compat.v1.logging.warn('Reraising captured error')
         six.reraise(typ, value, traceback)
 
     for k, (typ, value, traceback) in kept_errors:
-      logging.warn('Reraising captured error')
+      tf.compat.v1.logging.warn('Reraising captured error')
       six.reraise(typ, value, traceback)

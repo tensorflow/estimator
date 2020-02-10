@@ -23,27 +23,17 @@ from __future__ import print_function
 import time
 
 import numpy as np
-
-from tensorflow.python.feature_column import feature_column_lib as fc
+import tensorflow as tf
 from tensorflow.python.framework import ops
-from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import clustering_ops
 from tensorflow.python.ops import control_flow_ops
-from tensorflow.python.ops import math_ops
-from tensorflow.python.ops import metrics
-from tensorflow.python.ops import state_ops
-from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.saved_model import signature_constants
-from tensorflow.python.summary import summary
-from tensorflow.python.training import session_run_hook
-from tensorflow.python.training import training_util
 from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator import estimator
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
 from tensorflow_estimator.python.estimator.export import export_output
 
 
-class _LossRelativeChangeHook(session_run_hook.SessionRunHook):
+class _LossRelativeChangeHook(tf.compat.v1.train.SessionRunHook):
   """Stops when the change in loss goes below a tolerance."""
 
   def __init__(self, loss_tensor, tolerance):
@@ -59,7 +49,7 @@ class _LossRelativeChangeHook(session_run_hook.SessionRunHook):
 
   def before_run(self, run_context):
     del run_context  # unused
-    return session_run_hook.SessionRunArgs(self._loss_tensor)
+    return tf.compat.v1.train.SessionRunArgs(self._loss_tensor)
 
   def after_run(self, run_context, run_values):
     loss = run_values.results
@@ -72,7 +62,7 @@ class _LossRelativeChangeHook(session_run_hook.SessionRunHook):
     self._prev_loss = loss
 
 
-class _InitializeClustersHook(session_run_hook.SessionRunHook):
+class _InitializeClustersHook(tf.compat.v1.train.SessionRunHook):
   """Initializes the cluster centers.
 
   The chief repeatedly invokes an initialization op until all cluster centers
@@ -84,9 +74,9 @@ class _InitializeClustersHook(session_run_hook.SessionRunHook):
 
     Args:
       init_op: An op that, when run, will choose some initial cluster centers.
-          This op may need to be run multiple times to choose all the centers.
+        This op may need to be run multiple times to choose all the centers.
       is_initialized_var: A boolean variable reporting whether all initial
-          centers have been chosen.
+        centers have been chosen.
       is_chief: A boolean specifying whether this task is the chief.
     """
     self._init_op = init_op
@@ -95,7 +85,7 @@ class _InitializeClustersHook(session_run_hook.SessionRunHook):
 
   def after_create_session(self, session, coord):
     del coord  # unused
-    assert self._init_op.graph is ops.get_default_graph()
+    assert self._init_op.graph is tf.compat.v1.get_default_graph()
     assert self._is_initialized_var.graph is self._init_op.graph
     while True:
       try:
@@ -106,7 +96,7 @@ class _InitializeClustersHook(session_run_hook.SessionRunHook):
         else:
           time.sleep(1)
       except RuntimeError as e:
-        logging.info(e)
+        tf.compat.v1.logging.info(e)
 
 
 def _parse_features_if_necessary(features, feature_columns):
@@ -130,11 +120,11 @@ def _parse_features_if_necessary(features, feature_columns):
     return features
 
   if feature_columns:
-    return fc.input_layer(features, feature_columns)
+    return tf.compat.v1.feature_column.input_layer(features, feature_columns)
 
   keys = sorted(features.keys())
   with ops.colocate_with(features[keys[0]]):
-    return array_ops.concat([features[k] for k in keys], axis=1)
+    return tf.concat([features[k] for k in keys], axis=1)
 
 
 class _ModelFn(object):
@@ -208,10 +198,10 @@ class _ModelFn(object):
          kmeans_plus_plus_num_retries=self._kmeans_plus_plus_num_retries
      ).training_graph()
 
-    loss = math_ops.reduce_sum(losses)
-    summary.scalar('loss/raw', loss)
+    loss = tf.math.reduce_sum(losses)
+    tf.compat.v1.summary.scalar('loss/raw', loss)
 
-    incr_step = state_ops.assign_add(training_util.get_global_step(), 1)
+    incr_step = tf.compat.v1.assign_add(tf.compat.v1.train.get_global_step(), 1)
     training_op = control_flow_ops.with_dependencies([training_op, incr_step],
                                                      loss)
 
@@ -227,7 +217,7 @@ class _ModelFn(object):
             export_output.PredictOutput(all_distances[0]),
         KMeansClustering.CLUSTER_INDEX:
             export_output.PredictOutput(model_predictions[0]),
-        signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY:
+        tf.saved_model.DEFAULT_SERVING_SIGNATURE_DEF_KEY:
             export_output.PredictOutput(model_predictions[0])
     }
 
@@ -239,7 +229,9 @@ class _ModelFn(object):
         },
         loss=loss,
         train_op=training_op,
-        eval_metric_ops={KMeansClustering.SCORE: metrics.mean(loss)},
+        eval_metric_ops={
+            KMeansClustering.SCORE: tf.compat.v1.metrics.mean(loss)
+        },
         training_hooks=training_hooks,
         export_outputs=export_outputs)
 
@@ -259,11 +251,11 @@ class KMeansClustering(estimator.Estimator):
   points = np.random.uniform(0, 1000, [num_points, dimensions])
 
   def input_fn():
-    return tf.train.limit_epochs(
+    return tf.compat.v1.train.limit_epochs(
         tf.convert_to_tensor(points, dtype=tf.float32), num_epochs=1)
 
   num_clusters = 5
-  kmeans = tf.estimator.experimental.KMeans(
+  kmeans = tf.compat.v1.estimator.experimental.KMeans(
       num_clusters=num_clusters, use_mini_batch=False)
 
   # train
@@ -412,8 +404,8 @@ class KMeansClustering(estimator.Estimator):
     if isinstance(initial_clusters, str) and initial_clusters not in [
         KMeansClustering.RANDOM_INIT, KMeansClustering.KMEANS_PLUS_PLUS_INIT
     ]:
-      raise ValueError(
-          "Unsupported initialization algorithm '%s'" % initial_clusters)
+      raise ValueError("Unsupported initialization algorithm '%s'" %
+                       initial_clusters)
     if distance_metric not in [
         KMeansClustering.SQUARED_EUCLIDEAN_DISTANCE,
         KMeansClustering.COSINE_DISTANCE
@@ -453,7 +445,7 @@ class KMeansClustering(estimator.Estimator):
 
     Args:
       input_fn: Input points. See `tf.estimator.Estimator.evaluate`. Only one
-          batch is retrieved.
+        batch is retrieved.
 
     Returns:
       The sum of the squared distance from each point in the first batch of

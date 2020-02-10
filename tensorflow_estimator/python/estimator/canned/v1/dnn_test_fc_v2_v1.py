@@ -24,20 +24,11 @@ import tempfile
 from absl.testing import parameterized
 import numpy as np
 import six
-
+import tensorflow as tf
 from tensorflow.core.example import example_pb2
 from tensorflow.core.example import feature_pb2
 from tensorflow.python.feature_column import feature_column_v2
-from tensorflow.python.framework import dtypes
-from tensorflow.python.framework import ops
 from tensorflow.python.framework import test_util
-from tensorflow.python.ops import data_flow_ops
-from tensorflow.python.ops import parsing_ops
-from tensorflow.python.platform import gfile
-from tensorflow.python.platform import test
-from tensorflow.python.summary.writer import writer_cache
-from tensorflow.python.training import input as input_lib
-from tensorflow.python.training import queue_runner
 from tensorflow_estimator.python.estimator.canned import dnn
 from tensorflow_estimator.python.estimator.canned import prediction_keys
 from tensorflow_estimator.python.estimator.canned.v1 import dnn_testing_utils_v1
@@ -60,60 +51,62 @@ def _dnn_classifier_fn(*args, **kwargs):
   return dnn.DNNClassifier(*args, **kwargs)
 
 
-@test_util.run_v1_only("Tests v1 only symbols")
-class DNNModelFnV2Test(dnn_testing_utils_v1.BaseDNNModelFnTest, test.TestCase):
+@test_util.run_v1_only('Tests v1 only symbols')
+class DNNModelFnV2Test(dnn_testing_utils_v1.BaseDNNModelFnTest,
+                       tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
+    tf.test.TestCase.__init__(self, methodName)
     dnn_testing_utils_v1.BaseDNNModelFnTest.__init__(
         self, dnn._dnn_model_fn, fc_impl=feature_column_v2)
 
 
-@test_util.run_v1_only("Tests v1 only symbols")
-class DNNLogitFnV2Test(dnn_testing_utils_v1.BaseDNNLogitFnTest, test.TestCase):
+@test_util.run_v1_only('Tests v1 only symbols')
+class DNNLogitFnV2Test(dnn_testing_utils_v1.BaseDNNLogitFnTest,
+                       tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
+    tf.test.TestCase.__init__(self, methodName)
     dnn_testing_utils_v1.BaseDNNLogitFnTest.__init__(
         self, dnn.dnn_logit_fn_builder, fc_impl=feature_column_v2)
 
 
-@test_util.run_v1_only("Tests v1 only symbols")
+@test_util.run_v1_only('Tests v1 only symbols')
 class DNNWarmStartingV2Test(dnn_testing_utils_v1.BaseDNNWarmStartingTest,
-                            test.TestCase):
+                            tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
+    tf.test.TestCase.__init__(self, methodName)
     dnn_testing_utils_v1.BaseDNNWarmStartingTest.__init__(
         self, _dnn_classifier_fn, _dnn_regressor_fn, fc_impl=feature_column_v2)
 
 
-@test_util.run_v1_only("Tests v1 only symbols")
+@test_util.run_v1_only('Tests v1 only symbols')
 class DNNClassifierEvaluateV2Test(
-    dnn_testing_utils_v1.BaseDNNClassifierEvaluateTest, test.TestCase):
+    dnn_testing_utils_v1.BaseDNNClassifierEvaluateTest, tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
+    tf.test.TestCase.__init__(self, methodName)
     dnn_testing_utils_v1.BaseDNNClassifierEvaluateTest.__init__(
         self, _dnn_classifier_fn, fc_impl=feature_column_v2)
 
 
-@test_util.run_v1_only("Tests v1 only symbols")
+@test_util.run_v1_only('Tests v1 only symbols')
 class DNNClassifierPredictV2Test(
-    dnn_testing_utils_v1.BaseDNNClassifierPredictTest, test.TestCase):
+    dnn_testing_utils_v1.BaseDNNClassifierPredictTest, tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
+    tf.test.TestCase.__init__(self, methodName)
     dnn_testing_utils_v1.BaseDNNClassifierPredictTest.__init__(
         self, _dnn_classifier_fn, fc_impl=feature_column_v2)
 
 
-@test_util.run_v1_only("Tests v1 only symbols")
+@test_util.run_v1_only('Tests v1 only symbols')
 class DNNClassifierTrainV2Test(dnn_testing_utils_v1.BaseDNNClassifierTrainTest,
-                               test.TestCase):
+                               tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
+    tf.test.TestCase.__init__(self, methodName)
     dnn_testing_utils_v1.BaseDNNClassifierTrainTest.__init__(
         self, _dnn_classifier_fn, fc_impl=feature_column_v2)
 
@@ -122,32 +115,32 @@ def _dnn_regressor_fn(*args, **kwargs):
   return dnn.DNNRegressor(*args, **kwargs)
 
 
-@test_util.run_v1_only("Tests v1 only symbols")
+@test_util.run_v1_only('Tests v1 only symbols')
 class DNNRegressorEvaluateV2Test(
-    dnn_testing_utils_v1.BaseDNNRegressorEvaluateTest, test.TestCase):
+    dnn_testing_utils_v1.BaseDNNRegressorEvaluateTest, tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
+    tf.test.TestCase.__init__(self, methodName)
     dnn_testing_utils_v1.BaseDNNRegressorEvaluateTest.__init__(
         self, _dnn_regressor_fn, fc_impl=feature_column_v2)
 
 
-@test_util.run_v1_only("Tests v1 only symbols")
+@test_util.run_v1_only('Tests v1 only symbols')
 class DNNRegressorPredictV2Test(
-    dnn_testing_utils_v1.BaseDNNRegressorPredictTest, test.TestCase):
+    dnn_testing_utils_v1.BaseDNNRegressorPredictTest, tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
+    tf.test.TestCase.__init__(self, methodName)
     dnn_testing_utils_v1.BaseDNNRegressorPredictTest.__init__(
         self, _dnn_regressor_fn, fc_impl=feature_column_v2)
 
 
-@test_util.run_v1_only("Tests v1 only symbols")
+@test_util.run_v1_only('Tests v1 only symbols')
 class DNNRegressorTrainV2Test(dnn_testing_utils_v1.BaseDNNRegressorTrainTest,
-                              test.TestCase):
+                              tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
+    tf.test.TestCase.__init__(self, methodName)
     dnn_testing_utils_v1.BaseDNNRegressorTrainTest.__init__(
         self, _dnn_regressor_fn, fc_impl=feature_column_v2)
 
@@ -159,29 +152,30 @@ def _queue_parsed_features(feature_map):
     keys.append(key)
     tensors_to_enqueue.append(tensor)
   queue_dtypes = [x.dtype for x in tensors_to_enqueue]
-  input_queue = data_flow_ops.FIFOQueue(capacity=100, dtypes=queue_dtypes)
-  queue_runner.add_queue_runner(
-      queue_runner.QueueRunner(
-          input_queue,
-          [input_queue.enqueue(tensors_to_enqueue)]))
+  input_queue = tf.queue.FIFOQueue(capacity=100, dtypes=queue_dtypes)
+  tf.compat.v1.train.queue_runner.add_queue_runner(
+      tf.compat.v1.train.queue_runner.QueueRunner(
+          input_queue, [input_queue.enqueue(tensors_to_enqueue)]))
   dequeued_tensors = input_queue.dequeue()
   return {keys[i]: dequeued_tensors[i] for i in range(len(dequeued_tensors))}
 
 
-@test_util.run_v1_only("Tests v1 only symbols")
-class DNNRegressorIntegrationTest(test.TestCase, parameterized.TestCase):
+@test_util.run_v1_only('Tests v1 only symbols')
+class DNNRegressorIntegrationTest(tf.test.TestCase, parameterized.TestCase):
 
   def setUp(self):
     self._model_dir = tempfile.mkdtemp()
 
   def tearDown(self):
     if self._model_dir:
-      writer_cache.FileWriterCache.clear()
+      tf.compat.v1.summary.FileWriterCache.clear()
       shutil.rmtree(self._model_dir)
 
   def _test_complete_flow(self, train_input_fn, eval_input_fn, predict_input_fn,
                           input_dimension, label_dimension, batch_size):
-    feature_columns = [feature_column_v2.numeric_column('x', shape=(input_dimension,))]
+    feature_columns = [
+        tf.feature_column.numeric_column('x', shape=(input_dimension,))
+    ]
 
     est = dnn.DNNRegressor(
         hidden_units=(2, 2),
@@ -195,7 +189,7 @@ class DNNRegressorIntegrationTest(test.TestCase, parameterized.TestCase):
 
     # EVALUATE
     scores = est.evaluate(eval_input_fn)
-    self.assertEqual(num_steps, scores[ops.GraphKeys.GLOBAL_STEP])
+    self.assertEqual(num_steps, scores[tf.compat.v1.GraphKeys.GLOBAL_STEP])
     self.assertIn('loss', six.iterkeys(scores))
 
     # PREDICT
@@ -206,12 +200,12 @@ class DNNRegressorIntegrationTest(test.TestCase, parameterized.TestCase):
     self.assertAllEqual((batch_size, label_dimension), predictions.shape)
 
     # EXPORT
-    feature_spec = feature_column_v2.make_parse_example_spec_v2(feature_columns)
+    feature_spec = tf.feature_column.make_parse_example_spec(feature_columns)
     serving_input_receiver_fn = export.build_parsing_serving_input_receiver_fn(
         feature_spec)
     export_dir = est.export_saved_model(tempfile.mkdtemp(),
                                         serving_input_receiver_fn)
-    self.assertTrue(gfile.Exists(export_dir))
+    self.assertTrue(tf.compat.v1.gfile.Exists(export_dir))
 
   def test_numpy_input_fn(self):
     """Tests complete flow with numpy_input_fn."""
@@ -227,14 +221,9 @@ class DNNRegressorIntegrationTest(test.TestCase, parameterized.TestCase):
         num_epochs=None,
         shuffle=True)
     eval_input_fn = numpy_io.numpy_input_fn(
-        x={'x': data},
-        y=data,
-        batch_size=batch_size,
-        shuffle=False)
+        x={'x': data}, y=data, batch_size=batch_size, shuffle=False)
     predict_input_fn = numpy_io.numpy_input_fn(
-        x={'x': data},
-        batch_size=batch_size,
-        shuffle=False)
+        x={'x': data}, batch_size=batch_size, shuffle=False)
 
     self._test_complete_flow(
         train_input_fn=train_input_fn,
@@ -254,20 +243,11 @@ class DNNRegressorIntegrationTest(test.TestCase, parameterized.TestCase):
     x = pd.DataFrame({'x': data})
     y = pd.Series(data)
     train_input_fn = pandas_io.pandas_input_fn(
-        x=x,
-        y=y,
-        batch_size=batch_size,
-        num_epochs=None,
-        shuffle=True)
+        x=x, y=y, batch_size=batch_size, num_epochs=None, shuffle=True)
     eval_input_fn = pandas_io.pandas_input_fn(
-        x=x,
-        y=y,
-        batch_size=batch_size,
-        shuffle=False)
+        x=x, y=y, batch_size=batch_size, shuffle=False)
     predict_input_fn = pandas_io.pandas_input_fn(
-        x=x,
-        batch_size=batch_size,
-        shuffle=False)
+        x=x, batch_size=batch_size, shuffle=False)
 
     self._test_complete_flow(
         train_input_fn=train_input_fn,
@@ -286,34 +266,41 @@ class DNNRegressorIntegrationTest(test.TestCase, parameterized.TestCase):
 
     serialized_examples = []
     for datum in data:
-      example = example_pb2.Example(features=feature_pb2.Features(
-          feature={
-              'x': feature_pb2.Feature(
-                  float_list=feature_pb2.FloatList(value=datum)),
-              'y': feature_pb2.Feature(
-                  float_list=feature_pb2.FloatList(value=datum)),
-          }))
+      example = example_pb2.Example(
+          features=feature_pb2.Features(
+              feature={
+                  'x':
+                      feature_pb2.Feature(
+                          float_list=feature_pb2.FloatList(value=datum)),
+                  'y':
+                      feature_pb2.Feature(
+                          float_list=feature_pb2.FloatList(value=datum)),
+              }))
       serialized_examples.append(example.SerializeToString())
 
     feature_spec = {
-        'x': parsing_ops.FixedLenFeature([label_dimension], dtypes.float32),
-        'y': parsing_ops.FixedLenFeature([label_dimension], dtypes.float32),
+        'x': tf.io.FixedLenFeature([label_dimension], tf.dtypes.float32),
+        'y': tf.io.FixedLenFeature([label_dimension], tf.dtypes.float32),
     }
+
     def _train_input_fn():
-      feature_map = parsing_ops.parse_example(serialized_examples, feature_spec)
+      feature_map = tf.compat.v1.io.parse_example(serialized_examples,
+                                                  feature_spec)
       features = _queue_parsed_features(feature_map)
       labels = features.pop('y')
       return features, labels
+
     def _eval_input_fn():
-      feature_map = parsing_ops.parse_example(
-          input_lib.limit_epochs(serialized_examples, num_epochs=1),
+      feature_map = tf.compat.v1.io.parse_example(
+          tf.compat.v1.train.limit_epochs(serialized_examples, num_epochs=1),
           feature_spec)
       features = _queue_parsed_features(feature_map)
       labels = features.pop('y')
       return features, labels
+
     def _predict_input_fn():
-      feature_map = parsing_ops.parse_example(
-          input_lib.limit_epochs(serialized_examples, num_epochs=1),
+      feature_map = tf.compat.v1.io.parse_example(
+          tf.compat.v1.train.limit_epochs(serialized_examples, num_epochs=1),
           feature_spec)
       features = _queue_parsed_features(feature_map)
       features.pop('y')
@@ -328,15 +315,15 @@ class DNNRegressorIntegrationTest(test.TestCase, parameterized.TestCase):
         batch_size=batch_size)
 
 
-@test_util.run_v1_only("Tests v1 only symbols")
-class DNNClassifierIntegrationTest(test.TestCase):
+@test_util.run_v1_only('Tests v1 only symbols')
+class DNNClassifierIntegrationTest(tf.test.TestCase):
 
   def setUp(self):
     self._model_dir = tempfile.mkdtemp()
 
   def tearDown(self):
     if self._model_dir:
-      writer_cache.FileWriterCache.clear()
+      tf.compat.v1.summary.FileWriterCache.clear()
       shutil.rmtree(self._model_dir)
 
   def _as_label(self, data_in_float):
@@ -344,7 +331,9 @@ class DNNClassifierIntegrationTest(test.TestCase):
 
   def _test_complete_flow(self, train_input_fn, eval_input_fn, predict_input_fn,
                           input_dimension, n_classes, batch_size):
-    feature_columns = [feature_column_v2.numeric_column('x', shape=(input_dimension,))]
+    feature_columns = [
+        tf.feature_column.numeric_column('x', shape=(input_dimension,))
+    ]
 
     est = dnn.DNNClassifier(
         hidden_units=(2, 2),
@@ -358,7 +347,7 @@ class DNNClassifierIntegrationTest(test.TestCase):
 
     # EVALUATE
     scores = est.evaluate(eval_input_fn)
-    self.assertEqual(num_steps, scores[ops.GraphKeys.GLOBAL_STEP])
+    self.assertEqual(num_steps, scores[tf.compat.v1.GraphKeys.GLOBAL_STEP])
     self.assertIn('loss', six.iterkeys(scores))
 
     # PREDICT
@@ -369,12 +358,12 @@ class DNNClassifierIntegrationTest(test.TestCase):
     self.assertAllEqual((batch_size, n_classes), predicted_proba.shape)
 
     # EXPORT
-    feature_spec = feature_column_v2.make_parse_example_spec_v2(feature_columns)
+    feature_spec = tf.feature_column.make_parse_example_spec(feature_columns)
     serving_input_receiver_fn = export.build_parsing_serving_input_receiver_fn(
         feature_spec)
     export_dir = est.export_saved_model(tempfile.mkdtemp(),
                                         serving_input_receiver_fn)
-    self.assertTrue(gfile.Exists(export_dir))
+    self.assertTrue(tf.compat.v1.gfile.Exists(export_dir))
 
   def test_numpy_input_fn(self):
     """Tests complete flow with numpy_input_fn."""
@@ -393,14 +382,9 @@ class DNNClassifierIntegrationTest(test.TestCase):
         num_epochs=None,
         shuffle=True)
     eval_input_fn = numpy_io.numpy_input_fn(
-        x={'x': x_data},
-        y=y_data,
-        batch_size=batch_size,
-        shuffle=False)
+        x={'x': x_data}, y=y_data, batch_size=batch_size, shuffle=False)
     predict_input_fn = numpy_io.numpy_input_fn(
-        x={'x': x_data},
-        batch_size=batch_size,
-        shuffle=False)
+        x={'x': x_data}, batch_size=batch_size, shuffle=False)
 
     self._test_complete_flow(
         train_input_fn=train_input_fn,
@@ -421,20 +405,11 @@ class DNNClassifierIntegrationTest(test.TestCase):
     x = pd.DataFrame({'x': data})
     y = pd.Series(self._as_label(data))
     train_input_fn = pandas_io.pandas_input_fn(
-        x=x,
-        y=y,
-        batch_size=batch_size,
-        num_epochs=None,
-        shuffle=True)
+        x=x, y=y, batch_size=batch_size, num_epochs=None, shuffle=True)
     eval_input_fn = pandas_io.pandas_input_fn(
-        x=x,
-        y=y,
-        batch_size=batch_size,
-        shuffle=False)
+        x=x, y=y, batch_size=batch_size, shuffle=False)
     predict_input_fn = pandas_io.pandas_input_fn(
-        x=x,
-        batch_size=batch_size,
-        shuffle=False)
+        x=x, batch_size=batch_size, shuffle=False)
 
     self._test_complete_flow(
         train_input_fn=train_input_fn,
@@ -455,36 +430,42 @@ class DNNClassifierIntegrationTest(test.TestCase):
 
     serialized_examples = []
     for datum in data:
-      example = example_pb2.Example(features=feature_pb2.Features(
-          feature={
-              'x':
-                  feature_pb2.Feature(float_list=feature_pb2.FloatList(
-                      value=datum)),
-              'y':
-                  feature_pb2.Feature(int64_list=feature_pb2.Int64List(
-                      value=self._as_label(datum[:1]))),
-          }))
+      example = example_pb2.Example(
+          features=feature_pb2.Features(
+              feature={
+                  'x':
+                      feature_pb2.Feature(
+                          float_list=feature_pb2.FloatList(value=datum)),
+                  'y':
+                      feature_pb2.Feature(
+                          int64_list=feature_pb2.Int64List(
+                              value=self._as_label(datum[:1]))),
+              }))
       serialized_examples.append(example.SerializeToString())
 
     feature_spec = {
-        'x': parsing_ops.FixedLenFeature([input_dimension], dtypes.float32),
-        'y': parsing_ops.FixedLenFeature([1], dtypes.int64),
+        'x': tf.io.FixedLenFeature([input_dimension], tf.dtypes.float32),
+        'y': tf.io.FixedLenFeature([1], tf.dtypes.int64),
     }
+
     def _train_input_fn():
-      feature_map = parsing_ops.parse_example(serialized_examples, feature_spec)
+      feature_map = tf.compat.v1.io.parse_example(serialized_examples,
+                                                  feature_spec)
       features = _queue_parsed_features(feature_map)
       labels = features.pop('y')
       return features, labels
+
     def _eval_input_fn():
-      feature_map = parsing_ops.parse_example(
-          input_lib.limit_epochs(serialized_examples, num_epochs=1),
+      feature_map = tf.compat.v1.io.parse_example(
+          tf.compat.v1.train.limit_epochs(serialized_examples, num_epochs=1),
           feature_spec)
       features = _queue_parsed_features(feature_map)
       labels = features.pop('y')
       return features, labels
+
     def _predict_input_fn():
-      feature_map = parsing_ops.parse_example(
-          input_lib.limit_epochs(serialized_examples, num_epochs=1),
+      feature_map = tf.compat.v1.io.parse_example(
+          tf.compat.v1.train.limit_epochs(serialized_examples, num_epochs=1),
           feature_spec)
       features = _queue_parsed_features(feature_map)
       features.pop('y')
@@ -500,4 +481,4 @@ class DNNClassifierIntegrationTest(test.TestCase):
 
 
 if __name__ == '__main__':
-  test.main()
+  tf.test.main()
