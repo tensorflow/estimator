@@ -4432,7 +4432,8 @@ def inference_on_tpu(computation,
     inputs_to_tpu: a list of tensors as input to computation.
     num_batch_threads: Number of scheduling threads for processing batches of
       work. Determines the number of batches processed in parallel.
-    max_batch_size: Batch sizes will never be bigger than this.
+    max_batch_size: Batch sizes will never be bigger than this. If None or 0,
+      no batching will done.
     batch_timeout_micros: Maximum number of microseconds to wait before
       outputting an incomplete batch.
     allowed_batch_sizes: Optional list of allowed batch sizes. If left empty,
@@ -4445,20 +4446,31 @@ def inference_on_tpu(computation,
     The unbatched computation output Tensors.
   """
 
-  @tf.nondifferentiable_batch_function(num_batch_threads, max_batch_size,
-                                       batch_timeout_micros,
-                                       allowed_batch_sizes,
-                                       max_enqueued_batches)
-  def batched_tpu_computation(*args):
+  def _tpu_call(args):
+    """Function to either call or feed into BatchFunction."""
 
     @function.Defun(capture_resource_var_by_value=False)
     def tpu_computation():
-      return tf.compat.v1.tpu.rewrite(computation, args)
+      """Function to feed into the TPUPartitionedCallOp."""
+      tensors_on_cpu = tf.compat.v1.tpu.rewrite(computation, args)
+      tpu.prune_unconnected_ops_from_xla(ops.get_default_graph())
+      return tensors_on_cpu
 
     return tpu_functional.TPUPartitionedCall(
         args=tpu_computation.captured_inputs,
         device_ordinal=tpu_ops.tpu_ordinal_selector(),
         Tout=[o.type for o in tpu_computation.definition.signature.output_arg],
         f=tpu_computation)
+
+  if not max_batch_size:
+    return _tpu_call(inputs_to_tpu)
+
+  @tf.nondifferentiable_batch_function(num_batch_threads, max_batch_size,
+                                       batch_timeout_micros,
+                                       allowed_batch_sizes,
+                                       max_enqueued_batches)
+  def batched_tpu_computation(*args):
+    """Function to feed into the BatchOp."""
+    return _tpu_call(args)
 
   return batched_tpu_computation(*inputs_to_tpu)
