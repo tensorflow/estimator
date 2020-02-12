@@ -420,8 +420,7 @@ class BinaryClassHead(base_head.Head):
     """
     label_mean_metric = eval_metrics[self._label_mean_key]
     accuracy_baseline_metric = eval_metrics[self._accuracy_baseline_key]
-    # Mimic the call of accuracy_baseline_metric.update_state()
-    accuracy_baseline_metric._updates = [tf.no_op()]  # pylint: disable=protected-access
+    accuracy_baseline_metric.add_update(tf.no_op())
     accuracy_baseline_metric.total = tf.math.maximum(
         label_mean_metric.total,
         label_mean_metric.count - label_mean_metric.total)
