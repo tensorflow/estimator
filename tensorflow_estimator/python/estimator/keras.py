@@ -460,14 +460,15 @@ def model_to_estimator(keras_model=None,
   [Creating estimators from Keras
   Models](https://www.tensorflow.org/guide/estimators#creating_estimators_from_keras_models).
 
-  __Sample Weights__
-  Estimators returned by `model_to_estimator` are configured to handle sample
-  weights (similar to `keras_model.fit(x, y, sample_weights)`). To pass sample
-  weights when training or evaluating the Estimator, the first item returned by
-  the input function should be a dictionary with keys `features` and
-  `sample_weights`. Example below:
+  Sample Weights:
+  Estimators returned by `model_to_estimator` are configured so that they can
+  handle sample weights (similar to `keras_model.fit(x, y, sample_weights)`).
 
-  ```
+  To pass sample weights when training or evaluating the Estimator, the first
+  item returned by the input function should be a dictionary with keys
+  `features` and `sample_weights`. Example below:
+
+  ```python
   keras_model = tf.keras.Model(...)
   keras_model.compile(...)
 
@@ -483,14 +484,24 @@ def model_to_estimator(keras_model=None,
 
   Args:
     keras_model: A compiled Keras model object. This argument is mutually
-      exclusive with `keras_model_path`.
+      exclusive with `keras_model_path`. Estimator's `model_fn` uses the
+      structure of the model to clone the model. Defaults to `None`.
     keras_model_path: Path to a compiled Keras model saved on disk, in HDF5
       format, which can be generated with the `save()` method of a Keras model.
       This argument is mutually exclusive with `keras_model`.
-    custom_objects: Dictionary for custom objects.
+      Defaults to `None`.
+    custom_objects: Dictionary for cloning customized objects. This is
+      used with classes that is not part of this pip package. For example, if
+      user maintains a `relu6` class that inherits from `tf.keras.layers.Layer`,
+      then pass `custom_objects={'relu6': relu6}`. Defaults to `None`.
     model_dir: Directory to save `Estimator` model parameters, graph, summary
-      files for TensorBoard, etc.
-    config: `RunConfig` to config `Estimator`.
+      files for TensorBoard, etc. If unset a directory will be created with
+      `tempfile.mkdtemp`
+    config: `RunConfig` to config `Estimator`. Allows setting up things in
+      `model_fn` based on configuration such as `num_ps_replicas`, or
+      `model_dir`. Defaults to `None`. If both `config.model_dir` and the
+      `model_dir` argument (above) are specified the `model_dir` **argument**
+      takes precedence.
     checkpoint_format: Sets the format of the checkpoint saved by the estimator
       when training. May be `saver` or `checkpoint`, depending on whether to
       save checkpoints from `tf.compat.v1.train.Saver` or `tf.train.Checkpoint`.
@@ -500,18 +511,19 @@ def model_to_estimator(keras_model=None,
       `model_to_estimator` is only supported by Functional and Sequential
       models.
     use_v2_estimator: Whether to convert the model to a V2 Estimator or V1
-      Estimator.
+      Estimator. Defaults to `False`.
 
   Returns:
     An Estimator from given keras model.
 
   Raises:
-    ValueError: if neither keras_model nor keras_model_path was given.
-    ValueError: if both keras_model and keras_model_path was given.
-    ValueError: if the keras_model_path is a GCS URI.
-    ValueError: if keras_model has not been compiled.
-    ValueError: if an invalid checkpoint_format was given.
+    ValueError: If neither keras_model nor keras_model_path was given.
+    ValueError: If both keras_model and keras_model_path was given.
+    ValueError: If the keras_model_path is a GCS URI.
+    ValueError: If keras_model has not been compiled.
+    ValueError: If an invalid checkpoint_format was given.
   """
+
   if not (keras_model or keras_model_path):
     raise ValueError(
         'Either `keras_model` or `keras_model_path` needs to be provided.')
