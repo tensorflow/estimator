@@ -147,11 +147,14 @@ def _convert_estimator_io_to_keras(keras_model, features, labels):
                                         len(labels) + 1)])
 
   if isinstance(keras_model.inputs, dict):
-    # convert input tensors into dict if keras_model is built with dict input.
+    # Keep input tensors as a dict if keras_model is built with dict input.
     input_tensors = {
         k: _convert_tensor(features[k])
         for (k, v) in keras_model.inputs.items()
     }
+  elif keras_model.inputs is None and isinstance(features, dict):
+    # Keep input tensors as a dict if keras_model input structure is unknown.
+    input_tensors = {k: _convert_tensor(v) for (k, v) in features.items()}
   else:
     # converting input tensors into sorted list.
     input_tensors = _to_ordered_tensor_list(features, input_names, 'features',
@@ -532,6 +535,9 @@ def model_to_estimator(keras_model=None,
         'Please specity either `keras_model` or `keras_model_path`, '
         'but not both.')
 
+  if keras_model:
+    _assert_valid_model(keras_model, custom_objects)
+
   config = estimator_lib.maybe_overwrite_model_dir_and_session_config(
       config, model_dir)
   if not keras_model:
@@ -602,3 +608,17 @@ def model_to_estimator(keras_model=None,
       keras_model_fn, config=config, warm_start_from=warm_start_path)
 
   return estimator
+
+
+def _assert_valid_model(model, custom_objects=None):
+  is_subclass = (not model._is_graph_network and
+                 not isinstance(model, models.Sequential))
+  if is_subclass:
+    try:
+      custom_objects = custom_objects or {}
+      with tf.keras.utils.CustomObjectScope(custom_objects):
+        model.__class__.from_config(model.get_config())
+    except NotImplementedError:
+      raise ValueError(
+          'Subclassed `Model`s passed to `model_to_estimator` must '
+          'implement `Model.get_config` and `Model.from_config`.')

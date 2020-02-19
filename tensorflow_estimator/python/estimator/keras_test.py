@@ -89,6 +89,13 @@ def simple_subclassed_model():
       x = self.dp(x)
       return self.dense2(x)
 
+    def get_config(self):
+      return {}
+
+    @classmethod
+    def from_config(cls, config):
+      return cls()
+
   return SimpleModel()
 
 
