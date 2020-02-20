@@ -706,7 +706,7 @@ class Estimator(object):
         be exported. Note that this feature is experimental.
 
     Returns:
-      The string path to the exported directory.
+      The path to the exported directory as a bytes object.
 
     Raises:
       ValueError: if no `serving_input_receiver_fn` is provided, no
@@ -790,7 +790,7 @@ class Estimator(object):
         the most recent checkpoint found within the model directory is chosen.
 
     Returns:
-      The string path to the exported directory.
+      The path to the exported directory as a bytes object.
 
     Raises:
       ValueError: if any `input_receiver_fn` is `None`, no `export_outputs`
@@ -1724,7 +1724,7 @@ class Estimator(object):
         https://github.com/tensorflow/tensorflow/blob/master/tensorflow/python/saved_model/README.md#stripping-default-valued-attributes).
 
     Returns:
-      The string path to the exported directory.
+      The path to the exported directory as a bytes object.
 
     Raises:
       ValueError: if no `serving_input_receiver_fn` is provided, no
