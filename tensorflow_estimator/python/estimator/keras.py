@@ -116,17 +116,20 @@ def _convert_estimator_io_to_keras(keras_model, features, labels):
       different_keys = set(key_order) - set(obj.keys())
 
       if different_keys:
-        raise KeyError(
-            'The dictionary passed into {obj_name} does not cover requested '
-            '{order_name} keys defined in the keras model.'
-            '\n\tExpected keys: {order_keys}'
-            '\n\t{obj_name} keys: {obj_keys}'
-            '\n\tMissed keys: {different_keys}'.format(
-                order_name=order_name,
-                order_keys=set(key_order),
-                obj_name=obj_name,
-                obj_keys=set(obj.keys()),
-                different_keys=different_keys))
+        try:
+          raise KeyError(
+              'The dictionary passed into {obj_name} does not cover requested '
+              '{order_name} keys defined in the keras model.'
+              '\n\tExpected keys: {order_keys}'
+              '\n\t{obj_name} keys: {obj_keys}'
+              '\n\tMissed keys: {different_keys}'.format(
+                  order_name=order_name,
+                  order_keys=set(key_order),
+                  obj_name=obj_name,
+                  obj_keys=set(obj.keys()),
+                  different_keys=different_keys))
+        except KeyError as e:
+          print(e.args[0])
 
       return [_convert_tensor(obj[key]) for key in key_order]
     else:  # Assume obj is a tensor.
