@@ -130,6 +130,7 @@ def _convert_estimator_io_to_keras(keras_model, features, labels):
                   different_keys=different_keys))
         except KeyError as e:
           print(e.args[0])
+          return None
 
       return [_convert_tensor(obj[key]) for key in key_order]
     else:  # Assume obj is a tensor.
