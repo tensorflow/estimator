@@ -1989,7 +1989,7 @@ py_test(
         "cuda",
         "gpu",
         "multi_and_single_gpu",
-        "requires-gpu-sm35",
+        "requires-gpu-nvidia",
         "tf_integration_test",
     ],
     deps = [
@@ -2036,7 +2036,7 @@ py_test(
         "nomsan",
         "notsan",
         "cuda",
-        "requires-gpu-sm35",
+        "requires-gpu-nvidia",
         "gpu",
         "multi_and_single_gpu",
     ],
@@ -2071,7 +2071,7 @@ py_test(
         "cuda",
         "gpu",
         "multi_and_single_gpu",
-        "requires-gpu-sm35",
+        "requires-gpu-nvidia",
         "tf_integration_test",
     ],
     deps = [
