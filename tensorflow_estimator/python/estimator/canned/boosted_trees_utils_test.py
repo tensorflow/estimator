@@ -17,12 +17,12 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from tensorflow.python.framework import test_util
+import tensorflow as tf
 from tensorflow.python.platform import googletest
 from tensorflow_estimator.python.estimator.canned import boosted_trees_utils
 
 
-class BoostedTreesDFCTest(test_util.TensorFlowTestCase):
+class BoostedTreesDFCTest(tf.test.TestCase):
   """Test directional feature contributions (DFC) helper functions."""
 
   def testDirectionalFeatureContributionsCompute(self):

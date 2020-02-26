@@ -43,10 +43,11 @@ class PassthroughStateManager(object):
       model: The model (inheriting from TimeSeriesModel) to manage state for.
       features: A dictionary with the following key/value pairs:
         feature_keys.TrainEvalFeatures.TIMES: A [batch size x window size]
-            Tensor with times for each observation.
+          Tensor with times for each observation.
         feature_keys.TrainEvalFeatures.VALUES: A [batch size x window size x num
-            features] Tensor with values for each observation.
+          features] Tensor with values for each observation.
       mode: The tf.estimator.ModeKeys mode to use (TRAIN or EVAL).
+
     Returns:
       A ModelOutputs object.
     Raises:

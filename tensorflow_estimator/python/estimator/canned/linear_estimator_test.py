@@ -23,14 +23,9 @@ import tempfile
 
 import numpy as np
 import six
-
-from tensorflow.python.feature_column import feature_column_lib as feature_column
-from tensorflow.python.framework import ops
+import tensorflow as tf
 from tensorflow.python.keras.optimizer_v2 import ftrl as ftrl_v2
 from tensorflow.python.keras.utils import losses_utils
-from tensorflow.python.platform import gfile
-from tensorflow.python.platform import test
-from tensorflow.python.summary.writer import writer_cache
 from tensorflow_estimator.python.estimator.canned import linear
 from tensorflow_estimator.python.estimator.canned import linear_testing_utils
 from tensorflow_estimator.python.estimator.canned import prediction_keys
@@ -39,8 +34,7 @@ from tensorflow_estimator.python.estimator.head import regression_head
 from tensorflow_estimator.python.estimator.inputs import numpy_io
 
 
-def _linear_estimator_fn(
-    weight_column=None, label_dimension=1, **kwargs):
+def _linear_estimator_fn(weight_column=None, label_dimension=1, **kwargs):
   """Returns a LinearEstimator that uses regression_head."""
   return linear.LinearEstimatorV2(
       head=regression_head.RegressionHead(
@@ -52,47 +46,53 @@ def _linear_estimator_fn(
 
 
 class LinearEstimatorEvaluateTest(
-    linear_testing_utils.BaseLinearRegressorEvaluationTest, test.TestCase):
+    linear_testing_utils.BaseLinearRegressorEvaluationTest, tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
+    tf.test.TestCase.__init__(self, methodName)
     linear_testing_utils.BaseLinearRegressorEvaluationTest.__init__(
         self, _linear_estimator_fn)
 
 
 class LinearEstimatorPredictTest(
-    linear_testing_utils.BaseLinearRegressorPredictTest, test.TestCase):
+    linear_testing_utils.BaseLinearRegressorPredictTest, tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
+    tf.test.TestCase.__init__(self, methodName)
     linear_testing_utils.BaseLinearRegressorPredictTest.__init__(
         self, _linear_estimator_fn)
 
 
 class LinearEstimatorTrainTest(
-    linear_testing_utils.BaseLinearRegressorTrainingTest, test.TestCase):
+    linear_testing_utils.BaseLinearRegressorTrainingTest, tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
+    tf.test.TestCase.__init__(self, methodName)
     linear_testing_utils.BaseLinearRegressorTrainingTest.__init__(
         self, _linear_estimator_fn)
 
 
-class LinearEstimatorIntegrationTest(test.TestCase):
+class LinearEstimatorIntegrationTest(tf.test.TestCase):
 
   def setUp(self):
     self._model_dir = tempfile.mkdtemp()
 
   def tearDown(self):
     if self._model_dir:
-      writer_cache.FileWriterCache.clear()
+      tf.compat.v1.summary.FileWriterCache.clear()
       shutil.rmtree(self._model_dir)
 
-  def _test_complete_flow(
-      self, train_input_fn, eval_input_fn, predict_input_fn, input_dimension,
-      label_dimension, batch_size, optimizer='Ftrl'):
+  def _test_complete_flow(self,
+                          train_input_fn,
+                          eval_input_fn,
+                          predict_input_fn,
+                          input_dimension,
+                          label_dimension,
+                          batch_size,
+                          optimizer='Ftrl'):
     feature_columns = [
-        feature_column.numeric_column('x', shape=(input_dimension,))]
+        tf.feature_column.numeric_column('x', shape=(input_dimension,))
+    ]
     est = linear.LinearEstimatorV2(
         head=regression_head.RegressionHead(label_dimension=label_dimension),
         feature_columns=feature_columns,
@@ -105,7 +105,7 @@ class LinearEstimatorIntegrationTest(test.TestCase):
 
     # Evaluate
     scores = est.evaluate(eval_input_fn)
-    self.assertEqual(num_steps, scores[ops.GraphKeys.GLOBAL_STEP])
+    self.assertEqual(num_steps, scores[tf.compat.v1.GraphKeys.GLOBAL_STEP])
     self.assertIn('loss', six.iterkeys(scores))
 
     # Predict
@@ -116,12 +116,13 @@ class LinearEstimatorIntegrationTest(test.TestCase):
     self.assertAllEqual((batch_size, label_dimension), predictions.shape)
 
     # Export
-    feature_spec = feature_column.make_parse_example_spec(feature_columns)
+    feature_spec = tf.compat.v1.feature_column.make_parse_example_spec(
+        feature_columns)
     serving_input_receiver_fn = export.build_parsing_serving_input_receiver_fn(
         feature_spec)
     export_dir = est.export_saved_model(tempfile.mkdtemp(),
                                         serving_input_receiver_fn)
-    self.assertTrue(gfile.Exists(export_dir))
+    self.assertTrue(tf.compat.v1.gfile.Exists(export_dir))
 
   def _create_input_fn(self, label_dimension, batch_size):
     """Creates input_fn for integration test."""
@@ -135,14 +136,9 @@ class LinearEstimatorIntegrationTest(test.TestCase):
         num_epochs=None,
         shuffle=True)
     eval_input_fn = numpy_io.numpy_input_fn(
-        x={'x': data},
-        y=data,
-        batch_size=batch_size,
-        shuffle=False)
+        x={'x': data}, y=data, batch_size=batch_size, shuffle=False)
     predict_input_fn = numpy_io.numpy_input_fn(
-        x={'x': data},
-        batch_size=batch_size,
-        shuffle=False)
+        x={'x': data}, batch_size=batch_size, shuffle=False)
 
     return train_input_fn, eval_input_fn, predict_input_fn
 
@@ -178,4 +174,4 @@ class LinearEstimatorIntegrationTest(test.TestCase):
 
 
 if __name__ == '__main__':
-  test.main()
+  tf.test.main()

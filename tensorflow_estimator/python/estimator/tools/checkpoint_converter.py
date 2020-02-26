@@ -54,24 +54,14 @@ from __future__ import print_function
 
 import argparse
 import sys
-
+import tensorflow as tf
 from google.protobuf import text_format
 from tensorflow.core.framework import graph_pb2
-from tensorflow.python.client import session
-from tensorflow.python.framework import ops
 from tensorflow.python.keras.optimizer_v2 import adagrad
 from tensorflow.python.keras.optimizer_v2 import adam
 from tensorflow.python.keras.optimizer_v2 import ftrl
 from tensorflow.python.keras.optimizer_v2 import gradient_descent
 from tensorflow.python.keras.optimizer_v2 import rmsprop
-from tensorflow.python.ops import math_ops
-from tensorflow.python.ops import variables
-from tensorflow.python.platform import app
-from tensorflow.python.platform import gfile
-from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.training import saver as saver_lib
-from tensorflow.python.training import training
-
 
 # Optimizer name mapping from v1 to v2.
 OPT_NAME_V1_TO_V2 = {
@@ -134,7 +124,7 @@ OPT_V2_INSTANCE = {
 def _add_new_variable(initial_value, var_name_v2, var_name_v1, var_map,
                       var_names_map):
   """Creates a new variable and add it to the variable maps."""
-  var = variables.Variable(initial_value, name=var_name_v2)
+  var = tf.Variable(initial_value, name=var_name_v2)
   var_map[var_name_v2] = var
   var_names_map[var_name_v2] = var_name_v1
 
@@ -175,7 +165,7 @@ def _convert_variables_in_ckpt(opt_name_v1, reader, variable_names, var_map,
           # new checkpoint are beta_1 and beta_2, and
           # beta_1 = pow(beta1_power, 1/global_step)
           # beta_2 = pow(beta2_power, 1/global_step)
-          tensor = math_ops.pow(tensor, 1.0 / global_step)
+          tensor = tf.math.pow(tensor, 1.0 / global_step)
           _add_new_variable(tensor, var_name_v2, var_name, var_map,
                             var_names_map)
           break
@@ -213,7 +203,7 @@ def _convert_variables_in_ckpt(opt_name_v1, reader, variable_names, var_map,
 def _convert_hyper_params_in_graph(graph_from_path, opt_name_v1, var_map,
                                    var_names_map):
   """Generates hyper parameters for optimizer v2 from graph.pbtxt."""
-  with gfile.GFile(graph_from_path) as f:
+  with tf.io.gfile.GFile(graph_from_path) as f:
     graph_def = text_format.Parse(f.read(), graph_pb2.GraphDef())
 
   # In keras optimizer, the hyper parameters are also stored in the checkpoint,
@@ -228,7 +218,7 @@ def _convert_hyper_params_in_graph(graph_from_path, opt_name_v1, var_map,
   nodes_full = HP_IN_GRAPH[opt_name_v1]
   nodes_in_graph = []
   opt_name_v2 = OPT_NAME_V1_TO_V2[opt_name_v1]
-  logging.info('For hyper parameter variables that are in Graph:')
+  tf.compat.v1.logging.info('For hyper parameter variables that are in Graph:')
   for node in graph_def.node:
     node_name = node.name.rsplit('/')[-1]
     # For case 1), if the hyper parameter of the keras optimizer can be found
@@ -237,8 +227,9 @@ def _convert_hyper_params_in_graph(graph_from_path, opt_name_v1, var_map,
     if opt_name_v1 + '/' + node_name in nodes_full:
       hp_value = node.attr.get('value').tensor.float_val[0]
       hp_name_v2 = 'training/' + opt_name_v2 + '/' + node_name
-      logging.info('Hyper parameter {} with value {} found in Graph.'.format(
-          hp_name_v2, hp_value))
+      tf.compat.v1.logging.info(
+          'Hyper parameter {} with value {} found in Graph.'.format(
+              hp_name_v2, hp_value))
       _add_new_variable(hp_value, hp_name_v2, node_name, var_map, var_names_map)
       # Adds this node to nodes_in_graph
       nodes_in_graph.append(node_name)
@@ -247,11 +238,13 @@ def _convert_hyper_params_in_graph(graph_from_path, opt_name_v1, var_map,
   # manually. The tensor value is its default value from optimizer v2 config.
   nodes_not_in_graph = sorted(list(set(nodes_full) - set(nodes_in_graph)))
   opt_v2_config = OPT_V2_INSTANCE[opt_name_v1].get_config()
-  logging.info('For hyper parameter variables that are NOT in Graph:')
+  tf.compat.v1.logging.info(
+      'For hyper parameter variables that are NOT in Graph:')
   for node_name in nodes_not_in_graph:
     hp_name_v2 = 'training/' + opt_name_v2 + '/' + node_name
-    logging.info('Hyper parameter {} with default value {} is added.'.format(
-        hp_name_v2, opt_v2_config[node_name]))
+    tf.compat.v1.logging.info(
+        'Hyper parameter {} with default value {} is added.'.format(
+            hp_name_v2, opt_v2_config[node_name]))
     _add_new_variable(opt_v2_config[node_name], hp_name_v2, node_name, var_map,
                       var_names_map)
 
@@ -267,9 +260,9 @@ def convert_checkpoint(estimator_type, source_checkpoint, source_graph,
     source_graph: Path to the source graph file to be read in.
     target_checkpoint: Path to the target checkpoint to be written out.
   """
-  with ops.Graph().as_default():
+  with tf.Graph().as_default():
     # Get v1 optimizer names and it's corresponding variable name
-    reader = training.NewCheckpointReader(source_checkpoint)
+    reader = tf.compat.v1.train.NewCheckpointReader(source_checkpoint)
     variable_names = sorted(reader.get_variable_to_shape_map())
     opt_names_v1 = {}
     for var_name in variable_names:
@@ -329,15 +322,17 @@ def convert_checkpoint(estimator_type, source_checkpoint, source_graph,
                                      var_names_map)
 
     # Log the variable mapping from opt v1 to v2.
-    logging.info('<----- Variable names converted (v1 --> v2): ----->')
+    tf.compat.v1.logging.info(
+        '<----- Variable names converted (v1 --> v2): ----->')
     for name_v2 in var_names_map:
-      logging.info('%s --> %s' % (var_names_map[name_v2], name_v2))
+      tf.compat.v1.logging.info('%s --> %s' % (var_names_map[name_v2], name_v2))
 
     # Save to checkpoint v2.
-    saver = saver_lib.Saver(var_list=var_map)
-    with session.Session() as sess:
-      sess.run(variables.global_variables_initializer())
-      logging.info('Writing checkpoint_to_path %s' % target_checkpoint)
+    saver = tf.compat.v1.train.Saver(var_list=var_map)
+    with tf.compat.v1.Session() as sess:
+      sess.run(tf.compat.v1.initializers.global_variables())
+      tf.compat.v1.logging.info('Writing checkpoint_to_path %s' %
+                                target_checkpoint)
       saver.save(sess, target_checkpoint)
 
 
@@ -357,8 +352,8 @@ if __name__ == '__main__':
       type=str,
       choices=['dnn', 'linear', 'combined'],
       help='The type of estimator to be converted. So far, the checkpoint '
-           'converter only supports Canned Estimator. So the allowed types '
-           'include linear, dnn and combined.')
+      'converter only supports Canned Estimator. So the allowed types '
+      'include linear, dnn and combined.')
   parser.add_argument(
       'source_checkpoint',
       type=str,
@@ -370,4 +365,4 @@ if __name__ == '__main__':
       type=str,
       help='Path to checkpoint file to be written out.')
   FLAGS, unparsed = parser.parse_known_args()
-  app.run(main=main, argv=[sys.argv[0]] + unparsed)
+  tf.compat.v1.app.run(main=main, argv=[sys.argv[0]] + unparsed)

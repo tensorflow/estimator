@@ -26,6 +26,5 @@ from __future__ import print_function
 from tensorflow_estimator.python.estimator import estimator_lib  # pylint: disable=unused-import
 from tensorflow.python.tools.api.generator import create_python_api
 
-
 if __name__ == '__main__':
   create_python_api.main()

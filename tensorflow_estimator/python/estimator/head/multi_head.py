@@ -19,13 +19,9 @@ from __future__ import division
 from __future__ import print_function
 
 import six
-
-from tensorflow.python.eager import context
+import tensorflow as tf
 from tensorflow.python.framework import ops
 from tensorflow.python.keras import metrics
-from tensorflow.python.ops import array_ops
-from tensorflow.python.ops import control_flow_ops
-from tensorflow.python.ops import math_ops
 from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator import model_fn
 from tensorflow_estimator.python.estimator.canned import metric_keys
@@ -36,7 +32,7 @@ from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 
 def _no_op_train_fn(loss):
   del loss
-  return control_flow_ops.no_op()
+  return tf.no_op()
 
 
 def _default_export_output(export_outputs, head_name):
@@ -50,8 +46,8 @@ def _default_export_output(export_outputs, head_name):
         '{} did not specify default export_outputs. '
         'Given: {} '
         'Suggested fix: Use one of the heads in tf.estimator, or include '
-        'key {} in export_outputs.'.format(
-            head_name, export_outputs, base_head.DEFAULT_SERVING_KEY))
+        'key {} in export_outputs.'.format(head_name, export_outputs,
+                                           base_head.DEFAULT_SERVING_KEY))
 
 
 @estimator_export('estimator.MultiHead')
@@ -268,20 +264,19 @@ class MultiHead(base_head.Head):
                 total_logits_dimension)))
 
       # TODO(b/119617064): unify eager and graph implementations
-      if context.executing_eagerly():
+      if tf.executing_eagerly():
         logits_shape = logits._shape_tuple()  # pylint: disable=protected-access
         batch_shape = logits_shape[:-1]
       else:
-        batch_shape = array_ops.shape(logits)[:-1]
-      zeros_like_batch_shape = array_ops.zeros_like(batch_shape)
-      minus_ones_like_batch_shape = -1 * array_ops.ones_like(batch_shape)
+        batch_shape = tf.compat.v1.shape(logits)[:-1]
+      zeros_like_batch_shape = tf.compat.v1.zeros_like(batch_shape)
+      minus_ones_like_batch_shape = -1 * tf.compat.v1.ones_like(batch_shape)
       begin_idx = 0
       for head in self._heads:
-        begin_tensor = array_ops.concat(
-            [zeros_like_batch_shape, [begin_idx]], axis=0)
-        size_tensor = array_ops.concat(
+        begin_tensor = tf.concat([zeros_like_batch_shape, [begin_idx]], axis=0)
+        size_tensor = tf.concat(
             [minus_ones_like_batch_shape, [head.logits_dimension]], axis=0)
-        logits_dict[head.name] = array_ops.slice(
+        logits_dict[head.name] = tf.slice(
             logits, begin=begin_tensor, size=size_tensor)
         begin_idx += head.logits_dimension
     return logits_dict
@@ -310,15 +305,21 @@ class MultiHead(base_head.Head):
             labels_missing_names))
     return logits_dict
 
-  def loss(self, labels, logits, features=None, mode=None,
+  def loss(self,
+           labels,
+           logits,
+           features=None,
+           mode=None,
            regularization_losses=None):
     """Returns regularized training loss. See `base_head.Head` for details."""
     logits_dict = self._check_logits_and_labels(logits, labels)
     training_losses = []
     for head in self._heads:
       training_loss = head.loss(
-          logits=logits_dict[head.name], labels=labels[head.name],
-          features=features, mode=mode)
+          logits=logits_dict[head.name],
+          labels=labels[head.name],
+          features=features,
+          mode=mode)
       training_losses.append(training_loss)
 
     training_losses = tuple(training_losses)
@@ -327,17 +328,17 @@ class MultiHead(base_head.Head):
         values=training_losses + (self._head_weights or tuple())):
       if self._head_weights:
         head_weighted_training_losses = []
-        for training_loss, head_weight in zip(
-            training_losses, self._head_weights):
+        for training_loss, head_weight in zip(training_losses,
+                                              self._head_weights):
           head_weighted_training_losses.append(
-              math_ops.multiply(training_loss, head_weight))
+              tf.math.multiply(training_loss, head_weight))
         training_losses = head_weighted_training_losses
-      merged_training_loss = math_ops.add_n(training_losses)
-      regularization_loss = math_ops.add_n(
+      merged_training_loss = tf.math.add_n(training_losses)
+      regularization_loss = tf.math.add_n(
           regularization_losses) if regularization_losses is not None else None
-      regularized_training_loss = (merged_training_loss + regularization_loss
-                                   if regularization_loss is not None
-                                   else merged_training_loss)
+      regularized_training_loss = (
+          merged_training_loss + regularization_loss
+          if regularization_loss is not None else merged_training_loss)
     return regularized_training_loss
 
   def predictions(self, logits, keys=None):
@@ -365,13 +366,17 @@ class MultiHead(base_head.Head):
         eval_metrics[loss_key] = metrics.Mean(name=loss_key)
     return eval_metrics
 
-  def update_metrics(self, eval_metrics, features, logits, labels,
+  def update_metrics(self,
+                     eval_metrics,
+                     features,
+                     logits,
+                     labels,
                      regularization_losses=None):
     """Updates eval metrics. See `base_head.Head` for details."""
     logits_dict = self._check_logits_and_labels(logits, labels)
     # Update regularization loss metric
     if regularization_losses is not None:
-      regularization_loss = math_ops.add_n(regularization_losses)
+      regularization_loss = tf.math.add_n(regularization_losses)
       eval_metrics[self._loss_regularization_key].update_state(
           values=regularization_loss)
     # Update metrics for each head
@@ -384,15 +389,21 @@ class MultiHead(base_head.Head):
       eval_metrics[self._loss_keys[i]].update_state(values=training_loss)
       # Update existing metrics in each head
       head_metrics = head.metrics()
-      updated_metrics = head.update_metrics(
-          head_metrics, features, head_logits, head_labels)
+      updated_metrics = head.update_metrics(head_metrics, features, head_logits,
+                                            head_labels)
       eval_metrics.update(updated_metrics or {})
     return eval_metrics
 
-  def create_estimator_spec(
-      self, features, mode, logits, labels=None, optimizer=None,
-      trainable_variables=None, train_op_fn=None, update_ops=None,
-      regularization_losses=None):
+  def create_estimator_spec(self,
+                            features,
+                            mode,
+                            logits,
+                            labels=None,
+                            optimizer=None,
+                            trainable_variables=None,
+                            train_op_fn=None,
+                            update_ops=None,
+                            regularization_losses=None):
     """Returns a `model_fn.EstimatorSpec`.
 
     Args:
@@ -465,7 +476,10 @@ class MultiHead(base_head.Head):
       if mode == ModeKeys.EVAL:
         eval_metrics = self.metrics(regularization_losses=regularization_losses)
         updated_metrics = self.update_metrics(
-            eval_metrics, features, logits, labels,
+            eval_metrics,
+            features,
+            logits,
+            labels,
             regularization_losses=regularization_losses)
         return model_fn.EstimatorSpec(
             mode=ModeKeys.EVAL,
@@ -512,16 +526,17 @@ class MultiHead(base_head.Head):
     """
     # The first head is used for serving by default.
     export_outputs = {
-        base_head.DEFAULT_SERVING_KEY: _default_export_output(
-            all_estimator_spec[0].export_outputs,
-            self._heads[0].name),
+        base_head.DEFAULT_SERVING_KEY:
+            _default_export_output(all_estimator_spec[0].export_outputs,
+                                   self._heads[0].name),
     }
     merged_predict_outputs = {}
     for head, spec in zip(self._heads, all_estimator_spec):
       for k, v in six.iteritems(spec.export_outputs):
         # Collect default serving key for export_outputs
-        key = (head.name if k == base_head.DEFAULT_SERVING_KEY
-               else '{}/{}'.format(head.name, k))
+        key = (
+            head.name if k == base_head.DEFAULT_SERVING_KEY else '{}/{}'.format(
+                head.name, k))
         export_outputs[key] = v
         # Collect predict serving key for merged_predict_outputs
         if (k == base_head.PREDICT_SERVING_KEY and

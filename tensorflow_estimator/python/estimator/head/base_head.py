@@ -21,32 +21,22 @@ from __future__ import print_function
 import abc
 
 import six
-
-from tensorflow.python.eager import context
+import tensorflow as tf
 from tensorflow.python.feature_column import feature_column_lib
 from tensorflow.python.feature_column.feature_column import _LazyBuilder
 from tensorflow.python.feature_column.feature_column import _NumericColumn
 from tensorflow.python.framework import dtypes
-from tensorflow.python.framework import ops
 from tensorflow.python.framework import dtypes
-from tensorflow.python.framework import sparse_tensor
-from tensorflow.python.framework import tensor_util
+from tensorflow.python.framework import ops
 from tensorflow.python.keras.optimizer_v2 import optimizer_v2
 from tensorflow.python.keras.utils import losses_utils
-from tensorflow.python.ops import array_ops
-from tensorflow.python.ops import check_ops
-from tensorflow.python.ops import control_flow_ops
-from tensorflow.python.ops import math_ops
-from tensorflow.python.ops import string_ops
 from tensorflow.python.ops import weights_broadcast_ops
-from tensorflow.python.saved_model import signature_constants
-from tensorflow.python.summary import summary
 from tensorflow.python.util import function_utils
 from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.export import export_output
 
-DEFAULT_SERVING_KEY = signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY
+DEFAULT_SERVING_KEY = tf.saved_model.DEFAULT_SERVING_SIGNATURE_DEF_KEY
 
 # The above default is defined by TF Serving, but these next three are just
 # a local convention without any special meaning.
@@ -143,7 +133,11 @@ class Head(object):
     raise NotImplementedError('Calling an abstract method.')
 
   @abc.abstractmethod
-  def loss(self, labels, logits, features=None, mode=None,
+  def loss(self,
+           labels,
+           logits,
+           features=None,
+           mode=None,
            regularization_losses=None):
     """Returns a loss `Tensor` from provided arguments.
 
@@ -198,8 +192,13 @@ class Head(object):
     raise NotImplementedError('Calling an abstract method.')
 
   @abc.abstractmethod
-  def update_metrics(self, eval_metrics, features, logits, labels,
-                     mode=None, regularization_losses=None):
+  def update_metrics(self,
+                     eval_metrics,
+                     features,
+                     logits,
+                     labels,
+                     mode=None,
+                     regularization_losses=None):
     """Updates metric objects and returns a `dict` of the updated metrics.
 
     Args:
@@ -213,11 +212,10 @@ class Head(object):
       mode: Estimator's `ModeKeys`. In most cases, this arg is not used and can
         be removed in the method implementation.
       regularization_losses: A list of additional scalar losses to be added to
-        the training and evaluation loss, such as regularization losses.
-
-    Note that, the `mode` arg is not used in the `tf.estimator.*Head`. If the
-    update of the metrics doesn't rely on `mode`, it can be safely ignored in
-    the method signature.
+        the training and evaluation loss, such as regularization losses.  Note
+        that, the `mode` arg is not used in the `tf.estimator.*Head`. If the
+        update of the metrics doesn't rely on `mode`, it can be safely ignored
+        in the method signature.
 
     Returns:
        A `dict` of updated metrics keyed by name. The value is an instance of
@@ -228,10 +226,16 @@ class Head(object):
   def _summary_key(self, key):
     return '{}/{}'.format(key, self.name) if self.name else key
 
-  def create_estimator_spec(
-      self, features, mode, logits, labels=None, optimizer=None,
-      trainable_variables=None, train_op_fn=None, update_ops=None,
-      regularization_losses=None):
+  def create_estimator_spec(self,
+                            features,
+                            mode,
+                            logits,
+                            labels=None,
+                            optimizer=None,
+                            trainable_variables=None,
+                            train_op_fn=None,
+                            update_ops=None,
+                            regularization_losses=None):
     """Returns `EstimatorSpec` that a model_fn can return.
 
     It is recommended to pass all args via name.
@@ -258,7 +262,7 @@ class Head(object):
         is `None`. Exactly one of `train_op_fn` and `optimizer` must be set in
         TRAIN mode. By default, it is `None` in other modes. If you want to
         optimize loss yourself, you can pass `lambda _: tf.no_op()` and then use
-        `EstimatorSpec.loss` to compute and apply gradients.
+          `EstimatorSpec.loss` to compute and apply gradients.
       update_ops: A list or tuple of update ops to be run at training time. For
         example, layers such as BatchNormalization create mean and variance
         update ops that need to be run at training time. In Tensorflow 1.x,
@@ -277,9 +281,14 @@ class Head(object):
     try:
       tpu_estimator_spec = (
           self._create_tpu_estimator_spec(
-              features=features, mode=mode, logits=logits, labels=labels,
-              optimizer=optimizer, trainable_variables=trainable_variables,
-              train_op_fn=train_op_fn, update_ops=update_ops,
+              features=features,
+              mode=mode,
+              logits=logits,
+              labels=labels,
+              optimizer=optimizer,
+              trainable_variables=trainable_variables,
+              train_op_fn=train_op_fn,
+              update_ops=update_ops,
               regularization_losses=regularization_losses))
       return tpu_estimator_spec.as_estimator_spec()
     except NotImplementedError:
@@ -288,9 +297,17 @@ class Head(object):
           '_create_tpu_estimator_spec().')
 
   def _create_tpu_estimator_spec(
-      self, features, mode, logits, labels=None,
-      optimizer=None, trainable_variables=None, train_op_fn=None,
-      update_ops=None, regularization_losses=None,):
+      self,
+      features,
+      mode,
+      logits,
+      labels=None,
+      optimizer=None,
+      trainable_variables=None,
+      train_op_fn=None,
+      update_ops=None,
+      regularization_losses=None,
+  ):
     """Returns `model_fn._TPUEstimatorSpec` that a model_fn can return.
 
     Args:
@@ -315,7 +332,7 @@ class Head(object):
         is `None`. Exactly one of `train_op_fn` and `optimizer` must be set in
         TRAIN mode. By default, it is `None` in other modes. If you want to
         optimize loss yourself, you can pass `lambda _: tf.no_op()` and then use
-        `EstimatorSpec.loss` to compute and apply gradients.
+          `EstimatorSpec.loss` to compute and apply gradients.
       update_ops: A list or tuple of update ops to be run at training time. For
         example, layers such as BatchNormalization create mean and variance
         update ops that need to be run at training time. In Tensorflow 1.x,
@@ -329,6 +346,7 @@ class Head(object):
     """
     raise NotImplementedError(
         'TPUEstimatorSpec not available for this model head.')
+
 
 # TODO(b/119617064): unify eager and graph implementations
 # Note that, tensor shape checking is slow in Eager mode. To amend it, the
@@ -388,64 +406,73 @@ def check_dense_labels_match_logits_and_reshape(labels, logits,
   if labels is None:
     raise ValueError(_LABEL_NONE_ERR_MSG)
   with ops.name_scope('labels', values=(labels, logits)) as scope:
-    labels = sparse_tensor.convert_to_tensor_or_sparse_tensor(labels)
-    if isinstance(labels, sparse_tensor.SparseTensor):
-      raise ValueError(_SPARSE_LABEL_ERR_MSG.format(
-          expected_labels_dimension, expected_labels_dimension,
-          expected_labels_dimension))
+    labels = tf.compat.v1.convert_to_tensor_or_sparse_tensor(labels)
+    if isinstance(labels, tf.sparse.SparseTensor):
+      raise ValueError(
+          _SPARSE_LABEL_ERR_MSG.format(expected_labels_dimension,
+                                       expected_labels_dimension,
+                                       expected_labels_dimension))
     # Eager mode.
-    if context.executing_eagerly():
+    if tf.executing_eagerly():
       labels_rank = labels._rank()  # pylint: disable=protected-access
       logits_rank = logits._rank()  # pylint: disable=protected-access
-      if (labels_rank is not None and logits_rank is not None
-          and labels_rank == logits_rank - 1):
-        labels = array_ops.expand_dims(labels, -1)
+      if (labels_rank is not None and logits_rank is not None and
+          labels_rank == logits_rank - 1):
+        labels = tf.compat.v1.expand_dims(labels, -1)
         labels_rank += 1
       labels_shape = labels._shape_tuple()  # pylint: disable=protected-access
       if labels_rank < 2:
         raise ValueError('labels must have rank at least 2.  Received rank {}, '
                          'shape {}'.format(labels_rank, labels_shape))
       if labels_shape[-1] != expected_labels_dimension:
-        raise ValueError(_MISMATCHED_LABEL_DIM_ERR_MSG.format(
-            expected_labels_dimension, labels_shape[-1]))
+        raise ValueError(
+            _MISMATCHED_LABEL_DIM_ERR_MSG.format(expected_labels_dimension,
+                                                 labels_shape[-1]))
       logits_shape = logits._shape_tuple()  # pylint: disable=protected-access
       expected_labels_shape = logits_shape[:-1] + (expected_labels_dimension,)
       if expected_labels_shape != labels_shape:
         raise ValueError(
-            '{}, expected_labels_shape: {}. labels_shape: {}.'
-            .format(_LABEL_SHAPE_ERR_MSG.format(expected_labels_dimension),
-                    expected_labels_shape, labels_shape))
+            '{}, expected_labels_shape: {}. labels_shape: {}.'.format(
+                _LABEL_SHAPE_ERR_MSG.format(expected_labels_dimension),
+                expected_labels_shape, labels_shape))
       return labels
 
     # Graph mode.
     if (labels.shape.ndims is not None and logits.shape.ndims is not None and
         labels.shape.ndims == logits.shape.ndims - 1):
-      labels = array_ops.expand_dims(labels, -1)
-    assert_rank = check_ops.assert_rank_at_least(
-        labels, 2,
+      labels = tf.compat.v1.expand_dims(labels, -1)
+    assert_rank = tf.compat.v1.debugging.assert_rank_at_least(
+        labels,
+        2,
         message=_LABEL_SHAPE_ERR_MSG.format(expected_labels_dimension))
-    with ops.control_dependencies([assert_rank]):
+    with tf.control_dependencies([assert_rank]):
       static_shape = labels.shape
       if static_shape.ndims is not None:
         final_dim = static_shape[-1]
         if (final_dim is not None) and (final_dim != expected_labels_dimension):
-          raise ValueError(_MISMATCHED_LABEL_DIM_ERR_MSG.format(
-              expected_labels_dimension, final_dim))
-      logits_shape = array_ops.shape(logits)
-      expected_labels_shape = array_ops.concat(
+          raise ValueError(
+              _MISMATCHED_LABEL_DIM_ERR_MSG.format(expected_labels_dimension,
+                                                   final_dim))
+      logits_shape = tf.compat.v1.shape(logits)
+      expected_labels_shape = tf.concat(
           [logits_shape[:-1], [expected_labels_dimension]], axis=0)
-      labels_shape = array_ops.shape(labels)
-      assert_dimension = check_ops.assert_equal(
-          expected_labels_shape, labels_shape,
+      labels_shape = tf.compat.v1.shape(labels)
+      assert_dimension = tf.compat.v1.debugging.assert_equal(
+          expected_labels_shape,
+          labels_shape,
           message=_LABEL_SHAPE_ERR_MSG.format(expected_labels_dimension),
-          data=['expected_labels_shape: ', expected_labels_shape,
-                'labels_shape: ', labels_shape])
-      with ops.control_dependencies([assert_dimension]):
-        return array_ops.identity(labels, name=scope)
+          data=[
+              'expected_labels_shape: ', expected_labels_shape,
+              'labels_shape: ', labels_shape
+          ])
+      with tf.control_dependencies([assert_dimension]):
+        return tf.identity(labels, name=scope)
 
 
-def get_weights_and_check_match_logits(
-    features, weight_column, logits, allow_per_logit_weights=False):
+def get_weights_and_check_match_logits(features,
+                                       weight_column,
+                                       logits,
+                                       allow_per_logit_weights=False):
   """Fetches weights from features and checks that the shape matches logits.
 
   Consider logits of shape [D0, D1, ... DN, logits_dimension]. Weights shape
@@ -469,12 +496,10 @@ def get_weights_and_check_match_logits(
     ValueError: If the weights `Tensor` cannot be cast into float.
   """
   if allow_per_logit_weights:
-    err_msg = (
-        'weights shape must be [D0, D1, ... DN], [D0, D1, ... DN, 1] or '
-        '[D0, D1, ... DN, logits_dimension]')
+    err_msg = ('weights shape must be [D0, D1, ... DN], [D0, D1, ... DN, 1] or '
+               '[D0, D1, ... DN, logits_dimension]')
   else:
-    err_msg = (
-        'weights shape must be [D0, D1, ... DN] or [D0, D1, ... DN, 1]')
+    err_msg = ('weights shape must be [D0, D1, ... DN] or [D0, D1, ... DN, 1]')
   with ops.name_scope(
       'weights', values=tuple(six.itervalues(features)) + (logits,)) as scope:
     # Fetch the weights.
@@ -482,7 +507,7 @@ def get_weights_and_check_match_logits(
       return 1.
     # TODO(b/117839674): update feature_column
     if isinstance(weight_column, six.string_types):
-      weight_column = feature_column_lib.numeric_column(
+      weight_column = tf.feature_column.numeric_column(
           key=weight_column, shape=(1,))
     if not isinstance(weight_column,
                       (feature_column_lib.NumericColumn, _NumericColumn)):
@@ -493,71 +518,76 @@ def get_weights_and_check_match_logits(
     if not (weights.dtype.is_floating or weights.dtype.is_integer):
       raise ValueError('Weight column should be castable to float. '
                        'Given dtype: {}'.format(weights.dtype))
-    weights = math_ops.cast(weights, name='weights', dtype=dtypes.float32)
+    weights = tf.cast(weights, name='weights', dtype=tf.dtypes.float32)
     # Validate the weights shape.
     # Eager mode.
-    if context.executing_eagerly():
+    if tf.executing_eagerly():
       weights_shape = weights._shape_tuple()  # pylint: disable=protected-access
       logits_shape = logits._shape_tuple()  # pylint: disable=protected-access
       weights_rank = weights._rank()  # pylint: disable=protected-access
       logits_rank = logits._rank()  # pylint: disable=protected-access
-      if (weights_rank is not None and logits_rank is not None
-          and weights_rank == logits_rank - 1):
+      if (weights_rank is not None and logits_rank is not None and
+          weights_rank == logits_rank - 1):
         if logits_shape[:-1] != weights_shape:
-          raise ValueError(
-              '{}, logits_shape: {}. weights_shape: {}.'
-              .format(err_msg, logits_shape, weights_shape))
-        return array_ops.expand_dims(weights, -1, name=scope)
+          raise ValueError('{}, logits_shape: {}. weights_shape: {}.'.format(
+              err_msg, logits_shape, weights_shape))
+        return tf.compat.v1.expand_dims(weights, -1, name=scope)
       supported_weights_shape = logits_shape[:-1] + (1,)
       if allow_per_logit_weights:
-        if (logits_shape != weights_shape
-            and supported_weights_shape != weights_shape):
-          raise ValueError(
-              '{}, logits_shape: {}. weights_shape: {}.'
-              .format(err_msg, logits_shape, weights_shape))
+        if (logits_shape != weights_shape and
+            supported_weights_shape != weights_shape):
+          raise ValueError('{}, logits_shape: {}. weights_shape: {}.'.format(
+              err_msg, logits_shape, weights_shape))
       else:
         if supported_weights_shape != weights_shape:
-          raise ValueError(
-              '{}, logits_shape: {}. weights_shape: {}.'
-              .format(err_msg, logits_shape, weights_shape))
+          raise ValueError('{}, logits_shape: {}. weights_shape: {}.'.format(
+              err_msg, logits_shape, weights_shape))
       return weights
 
     # Graph mode.
-    weights_shape = array_ops.shape(weights, name='weights_shape')
-    logits_shape = array_ops.shape(logits, name='logits_shape')
+    weights_shape = tf.compat.v1.shape(weights, name='weights_shape')
+    logits_shape = tf.compat.v1.shape(logits, name='logits_shape')
     if (weights.shape.ndims is not None and logits.shape.ndims is not None and
         weights.shape.ndims == logits.shape.ndims - 1):
-      assert_dimension = check_ops.assert_equal(
-          logits_shape[:-1], weights_shape, message=err_msg,
-          data=['logits_shape: ', logits_shape,
-                'weights_shape: ', weights_shape])
-      with ops.control_dependencies([assert_dimension]):
-        return array_ops.expand_dims(weights, -1, name=scope)
-    supported_weights_shape = array_ops.concat([logits_shape[:-1], [1]], axis=0)
+      assert_dimension = tf.compat.v1.debugging.assert_equal(
+          logits_shape[:-1],
+          weights_shape,
+          message=err_msg,
+          data=[
+              'logits_shape: ', logits_shape, 'weights_shape: ', weights_shape
+          ])
+      with tf.control_dependencies([assert_dimension]):
+        return tf.compat.v1.expand_dims(weights, -1, name=scope)
+    supported_weights_shape = tf.concat([logits_shape[:-1], [1]], axis=0)
     if allow_per_logit_weights:
-      condition = math_ops.reduce_any(
-          [math_ops.reduce_all(math_ops.equal(logits_shape, weights_shape)),
-           math_ops.reduce_all(math_ops.equal(
-               supported_weights_shape, weights_shape))])
-      assert_dimension = control_flow_ops.Assert(
+      condition = tf.math.reduce_any([
+          tf.reduce_all(tf.math.equal(logits_shape, weights_shape)),
+          tf.reduce_all(tf.math.equal(supported_weights_shape, weights_shape))
+      ])
+      assert_dimension = tf.debugging.Assert(
           condition=condition,
-          data=[err_msg, 'logits_shape: ', logits_shape,
-                'weights_shape: ', weights_shape])
+          data=[
+              err_msg, 'logits_shape: ', logits_shape, 'weights_shape: ',
+              weights_shape
+          ])
     else:
-      assert_dimension = check_ops.assert_equal(
-          supported_weights_shape, weights_shape, message=err_msg,
-          data=['logits_shape: ', logits_shape,
-                'weights_shape: ', weights_shape])
-    with ops.control_dependencies([assert_dimension]):
-      return array_ops.identity(weights, name=scope)
+      assert_dimension = tf.compat.v1.debugging.assert_equal(
+          supported_weights_shape,
+          weights_shape,
+          message=err_msg,
+          data=[
+              'logits_shape: ', logits_shape, 'weights_shape: ', weights_shape
+          ])
+    with tf.control_dependencies([assert_dimension]):
+      return tf.identity(weights, name=scope)
 
 
 def check_logits_final_dim(logits, expected_logits_dimension):
   """Checks that logits shape is [D0, D1, ... DN, logits_dimension]."""
   with ops.name_scope('logits', values=(logits,)) as scope:
-    logits = math_ops.cast(logits, dtypes.float32)
+    logits = tf.cast(logits, tf.dtypes.float32)
     # Eager mode
-    if context.executing_eagerly():
+    if tf.executing_eagerly():
       logits_shape = logits._shape_tuple()  # pylint: disable=protected-access
       logits_rank = logits._rank()  # pylint: disable=protected-access
       if logits_rank < 2:
@@ -570,11 +600,13 @@ def check_logits_final_dim(logits, expected_logits_dimension):
             'got {}.'.format(logits_shape))
       return logits
     # Graph mode
-    logits_shape = array_ops.shape(logits)
-    assert_rank = check_ops.assert_rank_at_least(
-        logits, 2, data=[logits_shape],
+    logits_shape = tf.compat.v1.shape(logits)
+    assert_rank = tf.compat.v1.debugging.assert_rank_at_least(
+        logits,
+        2,
+        data=[logits_shape],
         message='logits shape must be [D0, D1, ... DN, logits_dimension]')
-    with ops.control_dependencies([assert_rank]):
+    with tf.control_dependencies([assert_rank]):
       static_shape = logits.shape
       if static_shape.ndims is not None and static_shape[-1] is not None:
         if (isinstance(expected_logits_dimension, int) and
@@ -583,11 +615,13 @@ def check_logits_final_dim(logits, expected_logits_dimension):
               'logits shape must be [D0, D1, ... DN, logits_dimension], '
               'got {}.'.format(static_shape))
         return logits
-      assert_dimension = check_ops.assert_equal(
-          expected_logits_dimension, logits_shape[-1], data=[logits_shape],
+      assert_dimension = tf.compat.v1.debugging.assert_equal(
+          expected_logits_dimension,
+          logits_shape[-1],
+          data=[logits_shape],
           message='logits shape must be [D0, D1, ... DN, logits_dimension]')
-      with ops.control_dependencies([assert_dimension]):
-        return array_ops.identity(logits, name=scope)
+      with tf.control_dependencies([assert_dimension]):
+        return tf.identity(logits, name=scope)
 
 
 def validate_loss_fn_args(loss_fn):
@@ -605,11 +639,11 @@ def validate_loss_fn_args(loss_fn):
   loss_fn_args = function_utils.fn_args(loss_fn)
   for required_arg in ['labels', 'logits']:
     if required_arg not in loss_fn_args:
-      raise ValueError(
-          'loss_fn must contain argument: {}. '
-          'Given arguments: {}'.format(required_arg, loss_fn_args))
-  invalid_args = list(set(loss_fn_args) - set(
-      ['labels', 'logits', 'features', 'loss_reduction']))
+      raise ValueError('loss_fn must contain argument: {}. '
+                       'Given arguments: {}'.format(required_arg, loss_fn_args))
+  invalid_args = list(
+      set(loss_fn_args) -
+      set(['labels', 'logits', 'features', 'loss_reduction']))
   if invalid_args:
     raise ValueError('loss_fn has unexpected args: {}'.format(invalid_args))
 
@@ -641,8 +675,8 @@ def validate_trainable_variables(trainable_variables=None):
         trainable_variables))
   if not isinstance(trainable_variables, (list, tuple)):
     raise ValueError(
-        _VALIDATION_ERROR_MSG.format(
-            'trainable_variables', type(trainable_variables)))
+        _VALIDATION_ERROR_MSG.format('trainable_variables',
+                                     type(trainable_variables)))
 
 
 def validate_n_classes(n_classes):
@@ -662,10 +696,10 @@ def validate_n_classes(n_classes):
     raise ValueError('n_classes must be > 2: %s.' % n_classes)
 
   n_classes_as_tensor = ops.convert_to_tensor(n_classes)
-  assert_n_classes = check_ops.assert_greater(
+  assert_n_classes = tf.compat.v1.debugging.assert_greater(
       n_classes_as_tensor, 2, message='n_classes must be greater than 2')
-  with ops.control_dependencies([assert_n_classes]):
-    control_flow_ops.no_op()
+  with tf.control_dependencies([assert_n_classes]):
+    tf.no_op()
   # Return n_classes in its original type, so that any code
   # using the accessor logits_dimension() has the original type.
   return n_classes
@@ -694,61 +728,61 @@ def call_loss_fn(loss_fn, labels, logits, features, expected_loss_dim=1):
   if 'features' in loss_fn_args:
     kwargs['features'] = features
   with ops.name_scope(
-      'call_loss_fn',
-      values=[labels, logits] + list(six.itervalues(features))):
+      'call_loss_fn', values=[labels, logits] + list(six.itervalues(features))):
     unweighted_loss = loss_fn(labels=labels, logits=logits, **kwargs)
     # Eager mode.
-    if context.executing_eagerly():
+    if tf.executing_eagerly():
       loss_shape = unweighted_loss._shape_tuple()  # pylint: disable=protected-access
       logits_shape = logits._shape_tuple()  # pylint: disable=protected-access
       expected_loss_shape = logits_shape[:-1] + (expected_loss_dim,)
       if loss_shape != expected_loss_shape:
-        raise ValueError('loss_fn must return Tensor of shape '
-                         '[D0, D1, ... DN, {}]. '.format(expected_loss_dim),
-                         'logits_shape: ', logits_shape,
-                         'loss_shape: ', loss_shape)
+        raise ValueError(
+            'loss_fn must return Tensor of shape '
+            '[D0, D1, ... DN, {}]. '.format(expected_loss_dim),
+            'logits_shape: ', logits_shape, 'loss_shape: ', loss_shape)
       return unweighted_loss
     # Graph mode.
-    logits_shape = array_ops.shape(logits, name='logits_shape')
-    expected_loss_shape = array_ops.concat(
-        [logits_shape[:-1], [expected_loss_dim]], axis=0,
-        name='expected_loss_shape')
-    loss_shape = array_ops.shape(unweighted_loss, name='loss_shape')
-    check_loss_shape_op = control_flow_ops.Assert(
-        math_ops.reduce_all(math_ops.equal(loss_shape, expected_loss_shape)),
+    logits_shape = tf.compat.v1.shape(logits, name='logits_shape')
+    expected_loss_shape = tf.concat([logits_shape[:-1], [expected_loss_dim]],
+                                    axis=0,
+                                    name='expected_loss_shape')
+    loss_shape = tf.compat.v1.shape(unweighted_loss, name='loss_shape')
+    check_loss_shape_op = tf.debugging.Assert(
+        tf.reduce_all(tf.math.equal(loss_shape, expected_loss_shape)),
         data=[
             'loss_fn must return Tensor of shape '
             '[D0, D1, ... DN, {}]. '.format(expected_loss_dim),
-            'logits_shape: ', logits_shape, 'loss_shape: ', loss_shape],
+            'logits_shape: ', logits_shape, 'loss_shape: ', loss_shape
+        ],
         name='check_loss_shape')
-    with ops.control_dependencies([check_loss_shape_op]):
-      return array_ops.identity(unweighted_loss)
+    with tf.control_dependencies([check_loss_shape_op]):
+      return tf.identity(unweighted_loss)
 
 
 def check_prediction_keys(pred_keys, valid_keys):
   for key in pred_keys:
     if key not in valid_keys:
-      raise ValueError(
-          'Prediction key must be in PredictionKeys, given: {}.'
-          'Valid prediction keys include {}.'.format(key, valid_keys))
+      raise ValueError('Prediction key must be in PredictionKeys, given: {}.'
+                       'Valid prediction keys include {}.'.format(
+                           key, valid_keys))
 
 
 def all_class_ids(logits, n_classes):
-  batch_size = array_ops.shape(logits)[0]
-  class_id_list = math_ops.range(n_classes)
-  return array_ops.tile(
-      input=array_ops.expand_dims(input=class_id_list, axis=0),
+  batch_size = tf.compat.v1.shape(logits)[0]
+  class_id_list = tf.range(n_classes)
+  return tf.tile(
+      input=tf.compat.v1.expand_dims(input=class_id_list, axis=0),
       multiples=[batch_size, 1])
 
 
 def all_classes(logits, n_classes, label_vocabulary=None):
-  batch_size = array_ops.shape(logits)[0]
+  batch_size = tf.compat.v1.shape(logits)[0]
   if label_vocabulary:
     classes_list = label_vocabulary
   else:
-    classes_list = string_ops.as_string(math_ops.range(n_classes))
-  return array_ops.tile(
-      input=array_ops.expand_dims(input=classes_list, axis=0),
+    classes_list = tf.strings.as_string(tf.range(n_classes))
+  return tf.tile(
+      input=tf.compat.v1.expand_dims(input=classes_list, axis=0),
       multiples=[batch_size, 1])
 
 
@@ -763,34 +797,31 @@ def check_label_range(labels, n_classes, message=None):
   """Check if labels are in the range of [0, n_classes)."""
   with ops.name_scope('check_label_range', values=(labels,)):
     # Eager mode
-    if context.executing_eagerly():
-      assert_less = math_ops.reduce_all(
-          math_ops.less_equal(labels, n_classes - 1))
+    if tf.executing_eagerly():
+      assert_less = tf.reduce_all(tf.math.less_equal(labels, n_classes - 1))
       if not assert_less:
-        raise ValueError(
-            message or 'Labels must be <= {} - 1'.format(n_classes))
-      assert_greater = math_ops.reduce_all(math_ops.greater_equal(labels, 0))
+        raise ValueError(message or
+                         'Labels must be <= {} - 1'.format(n_classes))
+      assert_greater = tf.reduce_all(tf.math.greater_equal(labels, 0))
       if not assert_greater:
         raise ValueError(message or 'Labels must be >= 0')
       return labels
     # Graph mode
-    assert_less = check_ops.assert_less_equal(
+    assert_less = tf.compat.v1.debugging.assert_less_equal(
         labels,
         ops.convert_to_tensor(n_classes - 1, dtype=labels.dtype),
         message=message or 'Labels must be <= n_classes - 1')
-    assert_greater = check_ops.assert_non_negative(
+    assert_greater = tf.compat.v1.debugging.assert_non_negative(
         labels, message=message or 'Labels must be >= 0')
-    with ops.control_dependencies((assert_less, assert_greater)):
-      return array_ops.identity(labels)
+    with tf.control_dependencies((assert_less, assert_greater)):
+      return tf.identity(labels)
 
 
 def update_metric_with_broadcast_weights(eval_metric, values, weights):
-  values = math_ops.cast(values, dtype=dtypes.float32)
+  values = tf.cast(values, dtype=tf.dtypes.float32)
   if weights is not None:
-    weights = weights_broadcast_ops.broadcast_weights(
-        weights, values)
-  eval_metric.update_state(
-      values=values, sample_weight=weights)
+    weights = weights_broadcast_ops.broadcast_weights(weights, values)
+  eval_metric.update_state(values=values, sample_weight=weights)
 
 
 def create_eval_metrics_tuple(fn, kwargs):
@@ -813,7 +844,7 @@ def create_eval_metrics_tuple(fn, kwargs):
   tensor_kwargs = {}
   nontensor_kwargs = {}
   for k, v in six.iteritems(kwargs):
-    if tensor_util.is_tensor(v):
+    if tf.is_tensor(v):
       tensor_kwargs[k] = v
     else:
       nontensor_kwargs[k] = v
@@ -836,10 +867,9 @@ def create_estimator_spec_train_op(
 
   Args:
     head_name: The name of the head.
-    optimizer: An `tf.keras.optimizers.Optimizer` instance to optimize the
-       loss in TRAIN mode. Namely, sets
-      `train_op = optimizer.get_updates(loss, trainable_variables)`,
-      which updates variables to minimize `loss`.
+    optimizer: An `tf.keras.optimizers.Optimizer` instance to optimize the loss
+      in TRAIN mode. Namely, sets `train_op = optimizer.get_updates(loss,
+      trainable_variables)`, which updates variables to minimize `loss`.
     trainable_variables: A list or tuple of `Variable` objects to update to
       minimize `loss`. In Tensorflow 1.x, by default these are the list of
       variables collected in the graph under the key
@@ -849,14 +879,14 @@ def create_estimator_spec_train_op(
     train_op_fn: Function that takes a scalar loss `Tensor` and returns
       `train_op`. Used if `optimizer` is `None`.
     update_ops: A list or tuple of update ops to be run at training time. For
-      example, layers such as BatchNormalization create mean and variance
-      update ops that need to be run at training time. In Tensorflow 1.x,
-      these are thrown into an UPDATE_OPS collection. As Tensorflow 2.x
-      doesn't have collections, update_ops need to be passed explicitly here.
+      example, layers such as BatchNormalization create mean and variance update
+      ops that need to be run at training time. In Tensorflow 1.x, these are
+      thrown into an UPDATE_OPS collection. As Tensorflow 2.x doesn't have
+      collections, update_ops need to be passed explicitly here.
     regularized_training_loss: A scalar for total training loss that includes
-      all regularization losses. If you're not using optimizer to generate
-      train op, make sure to scale the loss correctly before passing it in. The
-      loss typically needs to be scaled down by the number of workers.
+      all regularization losses. If you're not using optimizer to generate train
+      op, make sure to scale the loss correctly before passing it in. The loss
+      typically needs to be scaled down by the number of workers.
     loss_reduction: One of `tf.keras.losses.Reduction` except `NONE`. Describes
       how to reduce training loss over batch. Defaults to `SUM_OVER_BATCH_SIZE`.
 
@@ -884,20 +914,21 @@ def create_estimator_spec_train_op(
       else:
         raise ValueError('train_op_fn and optimizer cannot both be None.')
       if update_ops is not None:
-        train_op = control_flow_ops.group(train_op, *update_ops)
+        train_op = tf.group(train_op, *update_ops)
       return train_op
 
 
-def create_estimator_spec_summary(
-    regularized_training_loss, regularization_losses=None, summary_key_fn=None):
+def create_estimator_spec_summary(regularized_training_loss,
+                                  regularization_losses=None,
+                                  summary_key_fn=None):
   """Create summary for estimator_spec."""
   with ops.name_scope(''):
     keys = metric_keys.MetricKeys
     loss_key = summary_key_fn(keys.LOSS) if summary_key_fn else keys.LOSS
-    summary.scalar(loss_key, regularized_training_loss)
+    tf.compat.v1.summary.scalar(loss_key, regularized_training_loss)
     if regularization_losses is not None:
-      regularization_loss = math_ops.add_n(regularization_losses)
+      regularization_loss = tf.math.add_n(regularization_losses)
       regularization_loss_key = (
-          summary_key_fn(keys.LOSS_REGULARIZATION) if summary_key_fn
-          else keys.LOSS_REGULARIZATION)
-      summary.scalar(regularization_loss_key, regularization_loss)
+          summary_key_fn(keys.LOSS_REGULARIZATION)
+          if summary_key_fn else keys.LOSS_REGULARIZATION)
+      tf.compat.v1.summary.scalar(regularization_loss_key, regularization_loss)

@@ -20,19 +20,16 @@ from __future__ import print_function
 import os
 from absl.testing import parameterized
 import numpy as np
+import tensorflow as tf
 from tensorflow.python import keras
-from tensorflow.python.data.ops import dataset_ops
 from tensorflow.python.distribute import combinations
 from tensorflow.python.distribute import strategy_combinations
 from tensorflow.python.eager import test
-from tensorflow.python.framework import test_util
 from tensorflow.python.keras import testing_utils
 from tensorflow.python.keras.optimizer_v2 import gradient_descent as gradient_descent_keras
 from tensorflow.python.keras.optimizer_v2 import rmsprop as rmsprop_keras
 from tensorflow.python.keras.utils import np_utils
 from tensorflow.python.ops.parsing_ops import gen_parsing_ops
-from tensorflow.python.platform import gfile
-from tensorflow.python.summary.writer import writer_cache
 from tensorflow_estimator.python.estimator import keras as keras_lib
 from tensorflow_estimator.python.estimator import run_config as run_config_lib
 
@@ -94,7 +91,7 @@ def get_ds_train_input_fn():
       num_classes=_NUM_CLASS)
   y_train = np_utils.to_categorical(y_train)
 
-  dataset = dataset_ops.Dataset.from_tensor_slices((x_train, y_train))
+  dataset = tf.compat.v1.data.Dataset.from_tensor_slices((x_train, y_train))
   dataset = dataset.batch(32)
   return dataset
 
@@ -108,7 +105,7 @@ def get_ds_test_input_fn():
       num_classes=_NUM_CLASS)
   y_test = np_utils.to_categorical(y_test)
 
-  dataset = dataset_ops.Dataset.from_tensor_slices((x_test, y_test))
+  dataset = tf.compat.v1.data.Dataset.from_tensor_slices((x_test, y_test))
   dataset = dataset.batch(32)
   return dataset
 
@@ -156,7 +153,7 @@ def get_multi_inputs_multi_outputs_data():
   return (train_data, test_data)
 
 
-class TestEstimatorDistributionStrategy(test_util.TensorFlowTestCase,
+class TestEstimatorDistributionStrategy(tf.test.TestCase,
                                         parameterized.TestCase):
 
   def setUp(self):
@@ -164,15 +161,15 @@ class TestEstimatorDistributionStrategy(test_util.TensorFlowTestCase,
     strategy_combinations.set_virtual_cpus_to_at_least(3)
     self._base_dir = os.path.join(self.get_temp_dir(),
                                   'keras_to_estimator_strategy_test')
-    gfile.MakeDirs(self._base_dir)
+    tf.compat.v1.gfile.MakeDirs(self._base_dir)
     self._config = run_config_lib.RunConfig(
         tf_random_seed=_RANDOM_SEED, model_dir=self._base_dir)
 
   def tearDown(self):
     super(TestEstimatorDistributionStrategy, self).tearDown()
-    writer_cache.FileWriterCache.clear()
+    tf.compat.v1.summary.FileWriterCache.clear()
     if os.path.isdir(self._base_dir):
-      gfile.DeleteRecursively(self._base_dir)
+      tf.compat.v1.gfile.DeleteRecursively(self._base_dir)
 
   @combinations.generate(
       combinations.combine(
@@ -204,8 +201,8 @@ class TestEstimatorDistributionStrategy(test_util.TensorFlowTestCase,
           input_fn=get_ds_test_input_fn, steps=1)
       self.assertLess(after_eval_results['loss'], before_eval_results['loss'])
 
-    writer_cache.FileWriterCache.clear()
-    gfile.DeleteRecursively(self._config.model_dir)
+    tf.compat.v1.summary.FileWriterCache.clear()
+    tf.compat.v1.gfile.DeleteRecursively(self._config.model_dir)
 
   @combinations.generate(
       combinations.combine(
@@ -236,8 +233,8 @@ class TestEstimatorDistributionStrategy(test_util.TensorFlowTestCase,
           input_fn=get_ds_test_input_fn, steps=1)
       self.assertLess(after_eval_results['loss'], before_eval_results['loss'])
 
-    writer_cache.FileWriterCache.clear()
-    gfile.DeleteRecursively(self._config.model_dir)
+    tf.compat.v1.summary.FileWriterCache.clear()
+    tf.compat.v1.gfile.DeleteRecursively(self._config.model_dir)
 
   @combinations.generate(
       combinations.combine(
@@ -258,8 +255,8 @@ class TestEstimatorDistributionStrategy(test_util.TensorFlowTestCase,
           'dense_2': train_data['output_c'],
           'dense_3': train_data['output_d']
       }
-      return dataset_ops.Dataset.from_tensor_slices((input_dict,
-                                                     output_dict)).batch(16)
+      return tf.compat.v1.data.Dataset.from_tensor_slices(
+          (input_dict, output_dict)).batch(16)
 
     def eval_input_fn():
       input_dict = {
@@ -271,14 +268,15 @@ class TestEstimatorDistributionStrategy(test_util.TensorFlowTestCase,
           'dense_2': test_data['output_c'],
           'dense_3': test_data['output_d']
       }
-      return dataset_ops.Dataset.from_tensor_slices((input_dict,
-                                                     output_dict)).batch(16)
+      return tf.compat.v1.data.Dataset.from_tensor_slices(
+          (input_dict, output_dict)).batch(16)
 
     self.do_test_multi_inputs_multi_outputs_with_input_fn(
         distribution, train_input_fn, eval_input_fn)
 
-  def do_test_multi_inputs_multi_outputs_with_input_fn(
-      self, distribution, train_input_fn, eval_input_fn):
+  def do_test_multi_inputs_multi_outputs_with_input_fn(self, distribution,
+                                                       train_input_fn,
+                                                       eval_input_fn):
     config = run_config_lib.RunConfig(
         tf_random_seed=_RANDOM_SEED,
         model_dir=self._base_dir,

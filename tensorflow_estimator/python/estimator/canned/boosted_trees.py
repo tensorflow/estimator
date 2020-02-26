@@ -24,39 +24,22 @@ import functools
 
 import numpy as np
 import six
-
+import tensorflow as tf
 from tensorflow.core.kernels.boosted_trees import boosted_trees_pb2
-from tensorflow.python.compat import compat
 from tensorflow.python.feature_column import feature_column as fc_old
 from tensorflow.python.feature_column import feature_column_lib
 from tensorflow.python.feature_column import feature_column_v2
-from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
-from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import boosted_trees_ops
-from tensorflow.python.ops import control_flow_ops
-from tensorflow.python.ops import control_flow_v2_toggles
-from tensorflow.python.ops import data_flow_ops
-from tensorflow.python.ops import gradients_impl
+from tensorflow.python.ops import cond_v2
 from tensorflow.python.ops import lookup_ops
-from tensorflow.python.ops import math_ops
-from tensorflow.python.ops import sparse_ops
-from tensorflow.python.ops import state_ops
-from tensorflow.python.ops import variable_scope
 from tensorflow.python.ops.array_ops import identity as tf_identity
-from tensorflow.python.ops.losses import losses
 from tensorflow.python.ops.parallel_for import gradients as parallel_for_gradients
-from tensorflow.python.summary import summary
-from tensorflow.python.training import checkpoint_utils
-from tensorflow.python.training import session_run_hook
-from tensorflow.python.training import training_util
 from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator import estimator
 from tensorflow_estimator.python.estimator.canned import boosted_trees_utils
 from tensorflow_estimator.python.estimator.canned import head as head_lib
 from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
-from tensorflow.python.ops import cond_v2
-
 
 # TODO(nponomareva): Reveal pruning params here.
 _TreeHParams = collections.namedtuple('TreeHParams', [
@@ -237,7 +220,7 @@ def _get_transformed_features_and_merge_with_previously_transformed(
     elif isinstance(
         column, (feature_column_lib.IndicatorColumn, fc_old._IndicatorColumn)):
       source_name = column.categorical_column.name
-      tensor = math_ops.cast(transformed_features[column], dtype=dtypes.int32)
+      tensor = tf.cast(transformed_features[column], dtype=tf.dtypes.int32)
       if len(tensor.shape) > 2:
         raise ValueError('Rank of indicator column must be no more than 2, '
                          'but column `{}` got: {}'.format(
@@ -245,8 +228,8 @@ def _get_transformed_features_and_merge_with_previously_transformed(
       # TODO(nponomareva): consider treating as one, multi-dimensional feature
       # now that multi-dimensional features are supported.
       unstacked = [
-          array_ops.expand_dims(t, axis=1)
-          for t in array_ops.unstack(tensor, axis=1)
+          tf.compat.v1.expand_dims(t, axis=1)
+          for t in tf.unstack(tensor, axis=1)
       ]
       result_features.extend(unstacked)
     elif isinstance(column,
@@ -262,12 +245,12 @@ def _get_transformed_features_and_merge_with_previously_transformed(
       # now that multi-dimensional features are supported.
       if not bucket_boundaries_dict:
         unstacked = [
-            array_ops.expand_dims(t, axis=1)
-            for t in array_ops.unstack(tensor, axis=1)
+            tf.compat.v1.expand_dims(t, axis=1)
+            for t in tf.unstack(tensor, axis=1)
         ]
         result_features.extend(unstacked)
       else:
-        unstacked = array_ops.unstack(tensor, axis=1)
+        unstacked = tf.unstack(tensor, axis=1)
         assert source_name in bucket_boundaries_dict
         num_float_features = (
             _get_variable_shape(column)[0]
@@ -275,7 +258,7 @@ def _get_transformed_features_and_merge_with_previously_transformed(
         assert num_float_features == len(bucket_boundaries_dict[source_name])
         bucketized = boosted_trees_ops.boosted_trees_bucketize(
             unstacked, bucket_boundaries_dict[source_name])
-        expanded = [array_ops.expand_dims(t, axis=1) for t in bucketized]
+        expanded = [tf.compat.v1.expand_dims(t, axis=1) for t in bucketized]
         result_features.extend(expanded)
     elif isinstance(
         column,
@@ -283,8 +266,7 @@ def _get_transformed_features_and_merge_with_previously_transformed(
       # SparseTensor(indices=Tensor(..., shape= [?, 2]),
       # values=Tensor(..., shape=[?]), dense_shape=Tensor([batch_size, 1],...)))
       sparse_feature = transformed_features[column]
-      dense = math_ops.cast(
-          sparse_ops.sparse_tensor_to_dense(sparse_feature), dtypes.int32)
+      dense = tf.cast(tf.sparse.to_dense(sparse_feature), tf.dtypes.int32)
       result_features.append(dense)
     else:
       raise ValueError('Got unexpected feature column type'.format(column))
@@ -295,14 +277,14 @@ def _get_transformed_features_and_merge_with_previously_transformed(
 
 def _variable(initial_value, trainable=False, name=None):
   """Stores a tensor as a local Variable for faster read."""
-  if compat.forward_compatible(2019, 8, 8):
-    return variable_scope.variable(
+  if tf.compat.forward_compatible(2019, 8, 8):
+    return tf.compat.v1.Variable(
         initial_value=initial_value,
         trainable=trainable,
         validate_shape=False,
         name=name,
         use_resource=True)
-  return variable_scope.variable(
+  return tf.compat.v1.Variable(
       initial_value=initial_value,
       trainable=trainable,
       validate_shape=False,
@@ -491,28 +473,28 @@ def _generate_feature_col_name_mapping(sorted_feature_columns):
 
 
 def _cond(var, true_branch, false_branch, name=None):
-  if compat.forward_compatible(2019, 8, 8):
+  if tf.compat.forward_compatible(2019, 8, 8):
     # Always force to use cond v2 (even in v1 setting).
     return cond_v2.cond_v2(var, true_branch, false_branch, name=name)
 
   @contextlib.contextmanager
   def disable_control_flow_v2():
-    control_flow_v2_enabled = control_flow_v2_toggles.control_flow_v2_enabled()
-    control_flow_v2_toggles.disable_control_flow_v2()
+    control_flow_v2_enabled = tf.compat.v1.control_flow_v2_enabled()
+    tf.compat.v1.disable_control_flow_v2()
     yield
     if control_flow_v2_enabled:
-      control_flow_v2_toggles.enable_control_flow_v2()
+      tf.compat.v1.enable_control_flow_v2()
 
   with disable_control_flow_v2():
-    return control_flow_ops.cond(
-        math_ops.logical_and(var, array_ops.constant(True)),
+    return tf.compat.v1.cond(
+        tf.math.logical_and(var, tf.constant(True)),
         true_branch,
         false_branch,
         name=name)
 
 
 def _accumulator(dtype, shape, shared_name):
-  return data_flow_ops.ConditionalAccumulator(
+  return tf.compat.v1.ConditionalAccumulator(
       dtype=dtype, shape=shape, shared_name=shared_name)
 
 
@@ -527,7 +509,7 @@ def _cache_transformed_features(features, sorted_feature_columns, ind_columns,
   # hard coded as 1.
   cached_features = [
       _variable(
-          array_ops.zeros([batch_size, 1], dtype=dtypes.int32),
+          tf.zeros([batch_size, 1], dtype=tf.dtypes.int32),
           name='cached_feature_{}'.format(i)) for i in range(num_features)
   ]
   are_features_cached = _variable(False, name='are_features_cached')
@@ -546,7 +528,7 @@ def _cache_transformed_features(features, sorted_feature_columns, ind_columns,
         features, other_columns, sorted_feature_columns, bucket_boundaries_dict,
         ind_transformed)
 
-    return transformed_features, control_flow_ops.no_op()
+    return transformed_features, tf.no_op()
 
   def get_features_with_cache():
     """Either returns from cache or transforms and caches features."""
@@ -569,17 +551,16 @@ def _cache_transformed_features(features, sorted_feature_columns, ind_columns,
           bucket_boundaries_dict, ind_transformed)
 
       cached = [
-          state_ops.assign(cached_features[i], transformed_features[i])
+          tf.compat.v1.assign(cached_features[i], transformed_features[i])
           for i in range(num_features)
       ]
       # TODO(youngheek): Try other combination of dependencies so that the
       # function returns a single result, not a tuple.
-      with ops.control_dependencies(cached):
+      with tf.control_dependencies(cached):
         cache_flip_op = are_features_cached.assign(True)
       return cached, cache_flip_op
 
-    return _cond(are_features_cached, lambda: (cached_features,
-                                               control_flow_ops.no_op()),
+    return _cond(are_features_cached, lambda: (cached_features, tf.no_op()),
                  _cache_features_and_return)
 
   input_feature_list, cache_flip_op = _cond(are_boundaries_ready,
@@ -613,10 +594,12 @@ class _CacheTrainingStatesUsingHashTable(object):
     Raises:
       ValueError: if example_ids is other than int64 or string.
     """
-    if dtypes.as_dtype(dtypes.int64).is_compatible_with(example_ids.dtype):
+    if tf.dtypes.as_dtype(tf.dtypes.int64).is_compatible_with(
+        example_ids.dtype):
       empty_key = -1 << 62
       deleted_key = -1 << 61
-    elif dtypes.as_dtype(dtypes.string).is_compatible_with(example_ids.dtype):
+    elif tf.dtypes.as_dtype(tf.dtypes.string).is_compatible_with(
+        example_ids.dtype):
       empty_key = ''
       deleted_key = 'NEVER_USED_DELETED_KEY'
     else:
@@ -629,7 +612,7 @@ class _CacheTrainingStatesUsingHashTable(object):
     self._table_ref = lookup_ops.mutable_dense_hash_table_v2(
         empty_key=empty_key,
         deleted_key=deleted_key,
-        value_dtype=dtypes.float32,
+        value_dtype=tf.dtypes.float32,
         value_shape=[3])
     self._example_ids = ops.convert_to_tensor(example_ids)
     if self._example_ids.shape.ndims not in (None, 1):
@@ -639,17 +622,17 @@ class _CacheTrainingStatesUsingHashTable(object):
 
   def lookup(self):
     """Returns cached_tree_ids, cached_node_ids, cached_logits."""
-    cached_tree_ids, cached_node_ids, cached_logits = array_ops.split(
+    cached_tree_ids, cached_node_ids, cached_logits = tf.split(
         lookup_ops.lookup_table_find_v2(
             self._table_ref,
             self._example_ids,
             default_value=[0.0, _DUMMY_NODE_ID, 0.0]),
         [1, 1, self._logits_dimension],
         axis=1)
-    cached_tree_ids = array_ops.squeeze(
-        array_ops.bitcast(cached_tree_ids, dtypes.int32))
-    cached_node_ids = array_ops.squeeze(
-        array_ops.bitcast(cached_node_ids, dtypes.int32))
+    cached_tree_ids = tf.compat.v1.squeeze(
+        tf.bitcast(cached_tree_ids, tf.dtypes.int32))
+    cached_node_ids = tf.compat.v1.squeeze(
+        tf.bitcast(cached_node_ids, tf.dtypes.int32))
     if self._example_ids.shape.ndims is not None:
       cached_logits.set_shape(
           [self._example_ids.shape[0], self._logits_dimension])
@@ -659,15 +642,15 @@ class _CacheTrainingStatesUsingHashTable(object):
     """Inserts values and returns the op."""
     insert_op = lookup_ops.lookup_table_insert_v2(
         self._table_ref, self._example_ids,
-        array_ops.concat([
-            array_ops.expand_dims(
-                array_ops.bitcast(tree_ids, dtypes.float32), 1),
-            array_ops.expand_dims(
-                array_ops.bitcast(node_ids, dtypes.float32), 1),
+        tf.concat([
+            tf.compat.v1.expand_dims(
+                tf.bitcast(tree_ids, tf.dtypes.float32), 1),
+            tf.compat.v1.expand_dims(
+                tf.bitcast(node_ids, tf.dtypes.float32), 1),
             logits,
         ],
-                         axis=1,
-                         name='value_concat_for_cache_insert'))
+                  axis=1,
+                  name='value_concat_for_cache_insert'))
     return insert_op
 
 
@@ -690,13 +673,12 @@ class _CacheTrainingStatesUsingVariables(object):
     """
     self._logits_dimension = logits_dimension
     self._tree_ids = _variable(
-        array_ops.zeros([batch_size], dtype=dtypes.int32),
-        name='tree_ids_cache')
+        tf.zeros([batch_size], dtype=tf.dtypes.int32), name='tree_ids_cache')
     self._node_ids = _variable(
-        _DUMMY_NODE_ID * array_ops.ones([batch_size], dtype=dtypes.int32),
+        _DUMMY_NODE_ID * tf.ones([batch_size], dtype=tf.dtypes.int32),
         name='node_ids_cache')
     self._logits = _variable(
-        array_ops.zeros([batch_size, logits_dimension], dtype=dtypes.float32),
+        tf.zeros([batch_size, logits_dimension], dtype=tf.dtypes.float32),
         name='logits_cache')
 
   def lookup(self):
@@ -705,15 +687,15 @@ class _CacheTrainingStatesUsingVariables(object):
 
   def insert(self, tree_ids, node_ids, logits):
     """Inserts values and returns the op."""
-    return control_flow_ops.group([
+    return tf.group([
         self._tree_ids.assign(tree_ids),
         self._node_ids.assign(node_ids),
         self._logits.assign(logits)
     ],
-                                  name='cache_insert')
+                    name='cache_insert')
 
 
-class _StopAtAttemptsHook(session_run_hook.SessionRunHook):
+class _StopAtAttemptsHook(tf.compat.v1.train.SessionRunHook):
   """Hook that requests stop at the number of attempts."""
 
   def __init__(self, num_finalized_trees_tensor, num_attempted_layers_tensor,
@@ -724,7 +706,7 @@ class _StopAtAttemptsHook(session_run_hook.SessionRunHook):
     self._max_depth = max_depth
 
   def before_run(self, run_context):
-    return session_run_hook.SessionRunArgs(
+    return tf.compat.v1.train.SessionRunArgs(
         [self._num_finalized_trees_tensor, self._num_attempted_layers_tensor])
 
   def after_run(self, run_context, run_values):
@@ -839,7 +821,7 @@ class _EnsembleGrower(object):
 
   def chief_init_op(self):
     """Ops that chief needs to run to initialize the state."""
-    return control_flow_ops.no_op()
+    return tf.no_op()
 
   #  ============= Helper methods ===========
 
@@ -923,17 +905,18 @@ class _InMemoryEnsembleGrower(_EnsembleGrower):
   def accumulate_quantiles(self, float_features, weights, are_boundaries_ready):
     summary_op = self._quantile_accumulator.add_summaries(
         float_features, weights)
-    with ops.control_dependencies([summary_op]):
+    with tf.control_dependencies([summary_op]):
       flush = self._quantile_accumulator.flush()
-      with ops.control_dependencies([flush]):
+      with tf.control_dependencies([flush]):
         return are_boundaries_ready.assign(True).op
 
   def center_bias(self, center_bias_var, gradients, hessians):
     # For in memory, we already have a full batch of gradients and hessians,
     # so just take a mean and proceed with centering.
-    mean_gradients = array_ops.expand_dims(
-        math_ops.reduce_mean(gradients, 0), 0)
-    mean_heassians = array_ops.expand_dims(math_ops.reduce_mean(hessians, 0), 0)
+    mean_gradients = tf.compat.v1.expand_dims(
+        tf.math.reduce_mean(gradients, 0), 0)
+    mean_heassians = tf.compat.v1.expand_dims(
+        tf.math.reduce_mean(hessians, 0), 0)
     return self._center_bias_fn(center_bias_var, mean_gradients, mean_heassians)
 
   def grow_tree(self, stats_summaries_list, last_layer_nodes_range,
@@ -974,7 +957,7 @@ class _AccumulatorEnsembleGrower(_EnsembleGrower):
       grad_size = logits_dimension
       hessian_size = logits_dimension * logits_dimension
       accumulator = _accumulator(
-          dtype=dtypes.float32,
+          dtype=tf.dtypes.float32,
           # The stats consist of grads and hessians (the last dimension).
           shape=[
               len(feature_ids),
@@ -991,7 +974,7 @@ class _AccumulatorEnsembleGrower(_EnsembleGrower):
     self._center_bias = center_bias
     if center_bias:
       self._bias_accumulator = _accumulator(
-          dtype=dtypes.float32,
+          dtype=tf.dtypes.float32,
           # The stats consist of grads and hessians means only.
           # TODO(nponomareva): this will change for a multiclass
           shape=[2, 1],
@@ -1003,28 +986,26 @@ class _AccumulatorEnsembleGrower(_EnsembleGrower):
     summary_op = self._quantile_accumulator.add_summaries(
         float_features, weights)
     cond_accum = _accumulator(
-        dtype=dtypes.float32, shape={}, shared_name='quantile_summary_accum')
+        dtype=tf.dtypes.float32, shape={}, shared_name='quantile_summary_accum')
     cond_accum_step = cond_accum.set_global_step(self._stamp_token)
-    apply_grad = cond_accum.apply_grad(
-        array_ops.constant(0.), self._stamp_token)
-    update_quantile_op = control_flow_ops.group(summary_op, cond_accum_step,
-                                                apply_grad)
+    apply_grad = cond_accum.apply_grad(tf.constant(0.), self._stamp_token)
+    update_quantile_op = tf.group(summary_op, cond_accum_step, apply_grad)
     if not self._is_chief:
       return update_quantile_op
 
-    with ops.control_dependencies([update_quantile_op]):
+    with tf.control_dependencies([update_quantile_op]):
 
       def flush_fn():
         grad = cond_accum.take_grad(1)
         flush_op = self._quantile_accumulator.flush()
         boundaries_ready_op = are_boundaries_ready.assign(True).op
-        return control_flow_ops.group(flush_op, grad, boundaries_ready_op)
+        return tf.group(flush_op, grad, boundaries_ready_op)
 
       finalize_quantile_op = _cond(
-          math_ops.greater_equal(cond_accum.num_accumulated(),
-                                 self._n_batches_per_layer),
+          tf.math.greater_equal(cond_accum.num_accumulated(),
+                                self._n_batches_per_layer),
           flush_fn,
-          control_flow_ops.no_op,
+          tf.no_op,
           name='wait_until_quaniles_accumulated')
     return finalize_quantile_op
 
@@ -1036,39 +1017,37 @@ class _AccumulatorEnsembleGrower(_EnsembleGrower):
     if not self._center_bias:
       raise RuntimeError('center_bias called but bias centering is disabled.')
     bias_dependencies = []
-    grads_and_hess = array_ops.stack([gradients, hessians], axis=0)
-    grads_and_hess = math_ops.reduce_mean(grads_and_hess, axis=1)
+    grads_and_hess = tf.stack([gradients, hessians], axis=0)
+    grads_and_hess = tf.math.reduce_mean(grads_and_hess, axis=1)
 
     apply_grad = self._bias_accumulator.apply_grad(grads_and_hess,
                                                    self._stamp_token)
     bias_dependencies.append(apply_grad)
 
     # Center bias if enough batches were processed.
-    with ops.control_dependencies(bias_dependencies):
+    with tf.control_dependencies(bias_dependencies):
       if not self._is_chief:
-        return control_flow_ops.no_op()
+        return tf.no_op()
 
       def _set_accumulators_stamp():
-        return control_flow_ops.group([
+        return tf.group([
             acc.set_global_step(self._stamp_token + 1)
             for acc in self._growing_accumulators
         ])
 
       def center_bias_from_accumulator():
-        accumulated = array_ops.unstack(
-            self._bias_accumulator.take_grad(1), axis=0)
+        accumulated = tf.unstack(self._bias_accumulator.take_grad(1), axis=0)
         center_bias_op = self._center_bias_fn(
-            center_bias_var, array_ops.expand_dims(accumulated[0], 0),
-            array_ops.expand_dims(accumulated[1], 0))
-        with ops.control_dependencies([center_bias_op]):
-          return _cond(center_bias_var, control_flow_ops.no_op,
-                       _set_accumulators_stamp)
+            center_bias_var, tf.compat.v1.expand_dims(accumulated[0], 0),
+            tf.compat.v1.expand_dims(accumulated[1], 0))
+        with tf.control_dependencies([center_bias_op]):
+          return _cond(center_bias_var, tf.no_op, _set_accumulators_stamp)
 
       center_bias_op = _cond(
-          math_ops.greater_equal(self._bias_accumulator.num_accumulated(),
-                                 self._n_batches_per_layer),
+          tf.math.greater_equal(self._bias_accumulator.num_accumulated(),
+                                self._n_batches_per_layer),
           center_bias_from_accumulator,
-          control_flow_ops.no_op,
+          tf.no_op,
           name='wait_until_n_batches_for_bias_accumulated')
       return center_bias_op
 
@@ -1078,23 +1057,23 @@ class _AccumulatorEnsembleGrower(_EnsembleGrower):
     for i in range(len(self._feature_ids_list)):
       stats_summaries = stats_summaries_list[i]
       apply_grad = self._growing_accumulators[i].apply_grad(
-          array_ops.stack(stats_summaries, axis=0), self._stamp_token)
+          tf.stack(stats_summaries, axis=0), self._stamp_token)
       dependencies.append(apply_grad)
 
     # Grow the tree if enough batches is accumulated.
-    with ops.control_dependencies(dependencies):
+    with tf.control_dependencies(dependencies):
       if not self._is_chief:
-        return control_flow_ops.no_op()
+        return tf.no_op()
 
-      min_accumulated = math_ops.reduce_min(
-          array_ops.stack(
+      min_accumulated = tf.math.reduce_min(
+          tf.stack(
               [acc.num_accumulated() for acc in self._growing_accumulators]))
 
       def grow_tree_from_accumulated_summaries_fn():
         """Updates tree with the best layer from accumulated summaries."""
         # Take out the accumulated summaries from the accumulator and grow.
         accumulated_summaries_list = [
-            array_ops.unstack(accumulator.take_grad(1), axis=0)
+            tf.unstack(accumulator.take_grad(1), axis=0)
             for accumulator in self._growing_accumulators
         ]
         grow_op = self._grow_tree_from_stats_summaries(
@@ -1103,15 +1082,15 @@ class _AccumulatorEnsembleGrower(_EnsembleGrower):
         return grow_op
 
       grow_model = _cond(
-          math_ops.greater_equal(min_accumulated, self._n_batches_per_layer),
+          tf.math.greater_equal(min_accumulated, self._n_batches_per_layer),
           grow_tree_from_accumulated_summaries_fn,
-          control_flow_ops.no_op,
+          tf.no_op,
           name='wait_until_n_batches_accumulated')
       return grow_model
 
   def chief_init_op(self):
     """Ops that chief needs to run to initialize the state."""
-    return control_flow_ops.group(self._chief_init_ops)
+    return tf.group(self._chief_init_ops)
 
 
 def _bt_model_fn(features,
@@ -1171,7 +1150,7 @@ def _bt_model_fn(features,
 
   with ops.name_scope(name) as name:
     # Prepare.
-    global_step = training_util.get_or_create_global_step()
+    global_step = tf.compat.v1.train.get_or_create_global_step()
     # Create Ensemble resources.
     tree_ensemble = boosted_trees_ops.TreeEnsemble(name=name)
 
@@ -1213,7 +1192,7 @@ def _bt_model_fn(features,
           features=features,
           mode=mode,
           labels=labels,
-          train_op_fn=control_flow_ops.no_op,
+          train_op_fn=tf.no_op,
           logits=logits)
 
     # ============== Training graph ==============
@@ -1229,7 +1208,7 @@ def _bt_model_fn(features,
           config.num_ps_replicas > 0):
         raise ValueError('train_in_memory is supported only for '
                          'non-distributed training.')
-    worker_device = control_flow_ops.no_op().device
+    worker_device = tf.no_op().device
     # Extract input features and set up cache for training.
     training_state_cache = None
 
@@ -1240,7 +1219,7 @@ def _bt_model_fn(features,
 
     if train_in_memory:
       # Cache transformed features as well for in-memory training.
-      batch_size = array_ops.shape(labels)[0]
+      batch_size = tf.compat.v1.shape(labels)[0]
 
       def _split_into_indicator_and_other_columns():
         indicator_columns = []
@@ -1277,24 +1256,24 @@ def _bt_model_fn(features,
           training_state_cache.lookup())
     else:
       # Always start from the beginning when no cache is set up.
-      batch_size = array_ops.shape(labels)[0]
+      batch_size = tf.compat.v1.shape(labels)[0]
       cached_tree_ids, cached_node_ids, cached_logits = (
-          array_ops.zeros([batch_size], dtype=dtypes.int32),
-          _DUMMY_NODE_ID * array_ops.ones([batch_size], dtype=dtypes.int32),
-          array_ops.zeros([batch_size, logits_dimension], dtype=dtypes.float32))
+          tf.zeros([batch_size], dtype=tf.dtypes.int32),
+          _DUMMY_NODE_ID * tf.ones([batch_size], dtype=tf.dtypes.int32),
+          tf.zeros([batch_size, logits_dimension], dtype=tf.dtypes.float32))
 
     if is_single_machine:
       local_tree_ensemble = tree_ensemble
-      ensemble_reload = control_flow_ops.no_op()
+      ensemble_reload = tf.no_op()
     else:
       # Have a local copy of ensemble for the distributed setting.
-      with ops.device(worker_device):
+      with tf.compat.v1.device(worker_device):
         local_tree_ensemble = boosted_trees_ops.TreeEnsemble(
             name=name + '_local', is_local=True)
       # TODO(soroush): Do partial updates if this becomes a bottleneck.
       ensemble_reload = local_tree_ensemble.deserialize(
           *tree_ensemble.serialize())
-    with ops.control_dependencies([ensemble_reload]):
+    with tf.control_dependencies([ensemble_reload]):
       (stamp_token, num_trees, num_finalized_trees, num_attempted_layers,
        last_layer_nodes_range) = local_tree_ensemble.get_states()
       partial_logits, tree_ids, node_ids = boosted_trees_ops.training_predict(
@@ -1318,20 +1297,22 @@ def _bt_model_fn(features,
                                           feature_ids_list, logits_dimension,
                                           feature_dimensions)
 
-    summary.scalar('ensemble/num_trees', num_trees)
-    summary.scalar('ensemble/num_finalized_trees', num_finalized_trees)
-    summary.scalar('ensemble/num_attempted_layers', num_attempted_layers)
+    tf.compat.v1.summary.scalar('ensemble/num_trees', num_trees)
+    tf.compat.v1.summary.scalar('ensemble/num_finalized_trees',
+                                num_finalized_trees)
+    tf.compat.v1.summary.scalar('ensemble/num_attempted_layers',
+                                num_attempted_layers)
 
     # Variable that determines whether bias centering is needed.
     center_bias_var = _variable(
         initial_value=center_bias, name='center_bias_needed', trainable=False)
     if weight_column is None:
-      weights = array_ops.constant(1., shape=[1])
+      weights = tf.constant(1., shape=[1])
     else:
       if isinstance(weight_column, six.string_types):
-        weight_column = feature_column_lib.numeric_column(
+        weight_column = tf.feature_column.numeric_column(
             key=weight_column, shape=(1,))
-      weights = array_ops.squeeze(
+      weights = tf.compat.v1.squeeze(
           _get_transformed_features(features, [weight_column])[0], axis=1)
 
     # Create training graph.
@@ -1342,7 +1323,7 @@ def _bt_model_fn(features,
         """Accumulates quantiles."""
         with ops.name_scope('UpdateQuantile'):
           float_features = _get_transformed_features(features, float_columns)
-          squeezed = [array_ops.squeeze(f, axis=1) for f in float_features]
+          squeezed = [tf.compat.v1.squeeze(f, axis=1) for f in float_features]
           return grower.accumulate_quantiles(squeezed, weights,
                                              are_boundaries_ready)
 
@@ -1355,20 +1336,18 @@ def _bt_model_fn(features,
           def insert_fn():
             return training_state_cache.insert(tree_ids, node_ids, logits)
 
-          grow_op.append(
-              _cond(center_bias_var, control_flow_ops.no_op, insert_fn))
+          grow_op.append(_cond(center_bias_var, tf.no_op, insert_fn))
 
         if logits_dimension == 1 and closed_form_grad_and_hess_fn:
           gradients, hessians = closed_form_grad_and_hess_fn(logits, labels)
         else:
-          gradients = gradients_impl.gradients(
-              loss, logits, name='Gradients')[0]
+          gradients = tf.compat.v1.gradients(loss, logits, name='Gradients')[0]
           if logits_dimension == 1:
-            hessians = gradients_impl.gradients(
+            hessians = tf.compat.v1.gradients(
                 gradients, logits, name='Hessians')[0]
           else:
             # TODO(crawles): support diagonal hessian.
-            hessians = array_ops.reshape(
+            hessians = tf.reshape(
                 parallel_for_gradients.batch_jacobian(gradients, logits),
                 [-1, logits_dimension * logits_dimension])
         # TODO(youngheek): perhaps storage could be optimized by storing stats
@@ -1401,11 +1380,11 @@ def _bt_model_fn(features,
                                           split_types_list)
         grow_op.append(update_model)
 
-        with ops.control_dependencies([update_model]):
-          increment_global = state_ops.assign_add(global_step, 1).op
+        with tf.control_dependencies([update_model]):
+          increment_global = tf.compat.v1.assign_add(global_step, 1).op
           grow_op.append(increment_global)
 
-        return control_flow_ops.group(grow_op, name='grow_op')
+        return tf.group(grow_op, name='grow_op')
 
       if not float_columns:
         return _grow_tree_fn()
@@ -1428,7 +1407,7 @@ def _bt_model_fn(features,
   return estimator_spec
 
 
-class GrowerInitializationHook(session_run_hook.SessionRunHook):
+class GrowerInitializationHook(tf.compat.v1.train.SessionRunHook):
   """A SessionRunHook handles initialization of `_EnsembleGrower`."""
 
   def __init__(self, init_op):
@@ -1458,50 +1437,53 @@ def per_example_maxent_loss(labels, weights, logits, num_classes, eps=1e-15):
     loss: A Rank 2 (N, 1) tensor of per-example maxent loss
     update_op: An update operation to update the loss's internal state.
   """
-  labels = math_ops.cast(labels, dtypes.int64)
+  labels = tf.cast(labels, tf.dtypes.int64)
   # If labels are of rank 1, make them rank 2.
   labels_shape = labels.get_shape()
   if len(labels_shape) != 2:
-    labels = array_ops.expand_dims(labels, 1)
+    labels = tf.compat.v1.expand_dims(labels, 1)
   # Labels are indices of classes, convert them to one hot encodings.
-  target_one_hot = array_ops.one_hot(indices=labels, depth=num_classes)
-  labels = math_ops.reduce_sum(input_tensor=target_one_hot, axis=[1])
-  labels = math_ops.cast(labels, dtypes.float32)
+  target_one_hot = tf.one_hot(indices=labels, depth=num_classes)
+  labels = tf.math.reduce_sum(input_tensor=target_one_hot, axis=[1])
+  labels = tf.cast(labels, tf.dtypes.float32)
 
   # Calculate softmax probabilities for each class.
-  unnormalized_probs = math_ops.exp(logits)
-  normalizers = math_ops.reduce_sum(unnormalized_probs, 1, keepdims=True)
-  softmax_predictions = math_ops.divide(unnormalized_probs,
-                                        math_ops.add(normalizers, eps))
+  unnormalized_probs = tf.math.exp(logits)
+  normalizers = tf.math.reduce_sum(unnormalized_probs, 1, keepdims=True)
+  softmax_predictions = tf.math.divide(unnormalized_probs,
+                                       tf.math.add(normalizers, eps))
 
   # Pull out the probabilities for real label.
-  probs_for_real_class = math_ops.reduce_sum(labels * softmax_predictions, 1)
+  probs_for_real_class = tf.math.reduce_sum(labels * softmax_predictions, 1)
 
   # Add handling for values near 0 and 1.
-  zeros = array_ops.zeros_like(probs_for_real_class, dtype=logits.dtype) + eps
-  one_minus_eps = array_ops.ones_like(
+  zeros = tf.compat.v1.zeros_like(
+      probs_for_real_class, dtype=logits.dtype) + eps
+  one_minus_eps = tf.compat.v1.ones_like(
       probs_for_real_class, dtype=logits.dtype) - eps
 
   # Take maximum(eps, pred)
   cond = (probs_for_real_class >= eps)
-  probs_for_real_class = array_ops.where(cond, probs_for_real_class, zeros)
+  probs_for_real_class = tf.compat.v1.where(cond, probs_for_real_class, zeros)
 
   # Take minimum(1-eps, pred)
   cond = (probs_for_real_class <= 1 - eps)
-  probs_for_real_class = array_ops.where(cond, probs_for_real_class,
-                                         one_minus_eps)
+  probs_for_real_class = tf.compat.v1.where(cond, probs_for_real_class,
+                                            one_minus_eps)
 
-  unweighted_loss = array_ops.expand_dims(-math_ops.log(probs_for_real_class),
-                                          1)
+  unweighted_loss = tf.compat.v1.expand_dims(-tf.math.log(probs_for_real_class),
+                                             1)
   if weights is None:
-    return unweighted_loss, control_flow_ops.no_op()
+    return unweighted_loss, tf.no_op()
   else:
-    return unweighted_loss * weights, control_flow_ops.no_op()
+    return unweighted_loss * weights, tf.no_op()
 
 
-def _multiclass_head(n_classes,
-                     weight_column=None,
-                     loss_reduction=losses.Reduction.SUM_OVER_NONZERO_WEIGHTS):
+def _multiclass_head(
+    n_classes,
+    weight_column=None,
+    label_vocabulary=None,
+    loss_reduction=tf.compat.v1.losses.Reduction.SUM_OVER_NONZERO_WEIGHTS):
   """Core head for multiclass problems."""
 
   def loss_fn(labels, logits):
@@ -1517,6 +1499,7 @@ def _multiclass_head(n_classes,
       n_classes=n_classes,
       loss_fn=loss_fn,
       loss_reduction=loss_reduction,
+      label_vocabulary=label_vocabulary,
       weight_column=weight_column)
   # pylint:enable=protected-access
 
@@ -1532,13 +1515,14 @@ def _create_classification_head(n_classes,
     return head_lib._binary_logistic_head_with_sigmoid_cross_entropy_loss(
         weight_column=weight_column,
         label_vocabulary=label_vocabulary,
-        loss_reduction=losses.Reduction.SUM_OVER_BATCH_SIZE)
+        loss_reduction=tf.compat.v1.losses.Reduction.SUM_OVER_BATCH_SIZE)
     # pylint: enable=protected-access
   else:
     return _multiclass_head(
         n_classes,
         weight_column,
-        loss_reduction=losses.Reduction.SUM_OVER_NONZERO_WEIGHTS)
+        label_vocabulary=label_vocabulary,
+        loss_reduction=tf.compat.v1.losses.Reduction.SUM_OVER_NONZERO_WEIGHTS)
 
 
 def _create_classification_head_and_closed_form(n_classes, weight_column,
@@ -1551,10 +1535,10 @@ def _create_classification_head_and_closed_form(n_classes, weight_column,
     def _grad_and_hess_for_logloss(logits, labels):
       """A closed form gradient and hessian for logistic loss."""
       # TODO(youngheek): add weights handling.
-      predictions = math_ops.reciprocal(math_ops.exp(-logits) + 1.0)
-      normalizer = math_ops.reciprocal(
-          math_ops.cast(array_ops.size(predictions), dtypes.float32))
-      labels = math_ops.cast(labels, dtypes.float32)
+      predictions = tf.math.reciprocal(tf.math.exp(-logits) + 1.0)
+      normalizer = tf.math.reciprocal(
+          tf.cast(tf.compat.v1.size(predictions), tf.dtypes.float32))
+      labels = tf.cast(labels, tf.dtypes.float32)
       labels = head_lib._check_dense_labels_match_logits_and_reshape(  # pylint: disable=protected-access
           labels, logits, head.logits_dimension)
       gradients = (predictions - labels) * normalizer
@@ -1572,7 +1556,7 @@ def _create_regression_head(label_dimension, weight_column=None):
   return head_lib._regression_head(
       label_dimension=label_dimension,
       weight_column=weight_column,
-      loss_reduction=losses.Reduction.SUM_OVER_BATCH_SIZE)
+      loss_reduction=tf.compat.v1.losses.Reduction.SUM_OVER_BATCH_SIZE)
   # pylint: enable=protected-access
 
 
@@ -1691,7 +1675,7 @@ def _bt_explanations_fn(features,
         features=features,
         mode=mode,
         labels=None,
-        train_op_fn=control_flow_ops.no_op,
+        train_op_fn=tf.no_op,
         logits=logits)
 
     debug_op = boosted_trees_ops.example_debug_outputs(
@@ -1752,7 +1736,7 @@ class _BoostedTreesBase(estimator.Estimator):
         of buckets generated per float feature is 1/quantile_sketch_epsilon.
     """
     # We need it so the global step is also a resource var.
-    variable_scope.enable_resource_variables()
+    tf.compat.v1.enable_resource_variables()
 
     super(_BoostedTreesBase, self).__init__(
         model_fn=model_fn, model_dir=model_dir, config=config)
@@ -1783,7 +1767,7 @@ class _BoostedTreesBase(estimator.Estimator):
         or an ensemble of trees which have no splits. Or when attempting
         to normalize and feature importances have negative values.
     """
-    reader = checkpoint_utils.load_checkpoint(self._model_dir)
+    reader = tf.train.load_checkpoint(self._model_dir)
     serialized = reader.get_tensor('boosted_trees:0_serialized')
     if not serialized:
       raise ValueError('Found empty serialized string for TreeEnsemble.'
@@ -2007,13 +1991,13 @@ class BoostedTreesClassifier(_BoostedTreesBase):
         multiplied by the loss of the example. If it is a string, it is used as
         a key to fetch weight tensor from the `features`. If it is a
         `NumericColumn`, raw tensor is fetched by key `weight_column.key`, then
-        weight_column.normalizer_fn is applied on it to get weight tensor.
+        `weight_column.normalizer_fn` is applied on it to get weight tensor.
       label_vocabulary: A list of strings represents possible label values. If
         given, labels must be string type and have any value in
         `label_vocabulary`. If it is not given, that means labels are already
-        encoded as integer or float within [0, 1] for `n_classes=2` and encoded
-        as integer values in {0, 1,..., n_classes-1} for `n_classes`>2 . Also
-        there will be errors if vocabulary is not provided and labels are
+        encoded as integer or float within `[0, 1]` for `n_classes=2` and
+        encoded as integer values in {0, 1,..., n_classes-1} for `n_classes>2`.
+        Also, there will be errors if vocabulary is not provided and labels are
         string.
       n_trees: number trees to be created.
       max_depth: maximum depth of the tree to grow.
@@ -2026,7 +2010,7 @@ class BoostedTreesClassifier(_BoostedTreesBase):
       tree_complexity: regularization factor to penalize trees with more leaves.
       min_node_weight: min_node_weight: minimum hessian a node must have for a
         split to be considered. The value will be compared with
-        sum(leaf_hessian)/(batch_size * n_batches_per_layer).
+        `sum(leaf_hessian)/(batch_size * n_batches_per_layer)`.
       config: `RunConfig` object to configure the runtime settings.
       center_bias: Whether bias centering needs to occur. Bias centering refers
         to the first node in the very first tree returning the prediction that
@@ -2034,18 +2018,18 @@ class BoostedTreesClassifier(_BoostedTreesBase):
         regression problems, the first node will return the mean of the labels.
         For binary classification problems, it will return a logit for a prior
         probability of label 1.
-      pruning_mode: one of 'none', 'pre', 'post' to indicate no pruning, pre-
+      pruning_mode: one of `none`, `pre`, `post` to indicate no pruning, pre-
         pruning (do not split a node if not enough gain is observed) and post
         pruning (build the tree up to a max depth and then prune branches with
         negative gain). For pre and post pruning, you MUST provide
-        tree_complexity >0.
+        `tree_complexity >0`.
       quantile_sketch_epsilon: float between 0 and 1. Error bound for quantile
         computation. This is only used for float feature columns, and the number
-        of buckets generated per float feature is 1/quantile_sketch_epsilon.
+        of buckets generated per float feature is `1/quantile_sketch_epsilon`.
       train_in_memory: `bool`, when true, it assumes the dataset is in memory,
-        i.e., input_fn should return the entire dataset as a single batch,
-        n_batches_per_layer should be set as 1, num_worker_replicas should be 1,
-        and num_ps_replicas should be 0 in `tf.Estimator.RunConfig`.
+        i.e., `input_fn` should return the entire dataset as a single batch,
+        `n_batches_per_layer` should be set as 1, `num_worker_replicas` should
+        be 1, and `num_ps_replicas` should be 0 in `tf.Estimator.RunConfig`.
 
     Raises:
       ValueError: when wrong arguments are given or unsupported functionalities
@@ -2166,7 +2150,7 @@ class BoostedTreesRegressor(_BoostedTreesBase):
         multiplied by the loss of the example. If it is a string, it is used as
         a key to fetch weight tensor from the `features`. If it is a
         `NumericColumn`, raw tensor is fetched by key `weight_column.key`, then
-        weight_column.normalizer_fn is applied on it to get weight tensor.
+        `weight_column.normalizer_fn` is applied on it to get weight tensor.
       n_trees: number trees to be created.
       max_depth: maximum depth of the tree to grow.
       learning_rate: shrinkage parameter to be used when a tree added to the
@@ -2178,7 +2162,7 @@ class BoostedTreesRegressor(_BoostedTreesBase):
       tree_complexity: regularization factor to penalize trees with more leaves.
       min_node_weight: min_node_weight: minimum hessian a node must have for a
         split to be considered. The value will be compared with
-        sum(leaf_hessian)/(batch_size * n_batches_per_layer).
+        `sum(leaf_hessian)/(batch_size * n_batches_per_layer)`.
       config: `RunConfig` object to configure the runtime settings.
       center_bias: Whether bias centering needs to occur. Bias centering refers
         to the first node in the very first tree returning the prediction that
@@ -2186,18 +2170,18 @@ class BoostedTreesRegressor(_BoostedTreesBase):
         regression problems, the first node will return the mean of the labels.
         For binary classification problems, it will return a logit for a prior
         probability of label 1.
-      pruning_mode: one of 'none', 'pre', 'post' to indicate no pruning, pre-
+      pruning_mode: one of `none`, `pre`, `post` to indicate no pruning, pre-
         pruning (do not split a node if not enough gain is observed) and post
         pruning (build the tree up to a max depth and then prune branches with
         negative gain). For pre and post pruning, you MUST provide
-        tree_complexity >0.
+        `tree_complexity>0`.
       quantile_sketch_epsilon: float between 0 and 1. Error bound for quantile
         computation. This is only used for float feature columns, and the number
-        of buckets generated per float feature is 1/quantile_sketch_epsilon.
+        of buckets generated per float feature is `1/quantile_sketch_epsilon`.
       train_in_memory: `bool`, when true, it assumes the dataset is in memory,
-        i.e., input_fn should return the entire dataset as a single batch,
-        n_batches_per_layer should be set as 1, num_worker_replicas should be 1,
-        and num_ps_replicas should be 0 in `tf.Estimator.RunConfig`.
+        i.e., `input_fn` should return the entire dataset as a single batch,
+        `n_batches_per_layer` should be set as 1, `num_worker_replicas` should
+        be 1, and `num_ps_replicas` should be 0 in `tf.Estimator.RunConfig`.
 
     Raises:
       ValueError: when wrong arguments are given or unsupported functionalities
@@ -2304,8 +2288,8 @@ class BoostedTreesEstimator(_BoostedTreesBase):  # pylint: disable=protected-acc
         of the tree leafs.
       tree_complexity: regularization factor to penalize trees with more leaves.
       min_node_weight: minimum hessian a node must have for a split to be
-        considered. The value will be compared with sum(leaf_hessian)/
-        (batch_size * n_batches_per_layer).
+        considered. The value will be compared with `sum(leaf_hessian)/
+        (batch_size * n_batches_per_layer)`.
       config: `RunConfig` object to configure the runtime settings.
       center_bias: Whether bias centering needs to occur. Bias centering refers
         to the first node in the very first tree returning the prediction that
@@ -2313,14 +2297,14 @@ class BoostedTreesEstimator(_BoostedTreesBase):  # pylint: disable=protected-acc
         regression problems, the first node will return the mean of the labels.
         For binary classification problems, it will return a logit for a prior
         probability of label 1.
-      pruning_mode: one of 'none', 'pre', 'post' to indicate no pruning, pre-
+      pruning_mode: one of `none`, `pre`, `post` to indicate no pruning, pre-
         pruning (do not split a node if not enough gain is observed) and post
         pruning (build the tree up to a max depth and then prune branches with
         negative gain). For pre and post pruning, you MUST provide
-        tree_complexity >0.
+        `tree_complexity>0`.
       quantile_sketch_epsilon: float between 0 and 1. Error bound for quantile
         computation. This is only used for float feature columns, and the number
-        of buckets generated per float feature is 1/quantile_sketch_epsilon.
+        of buckets generated per float feature is `1/quantile_sketch_epsilon`.
 
     Raises:
       ValueError: when wrong arguments are given or unsupported functionalities

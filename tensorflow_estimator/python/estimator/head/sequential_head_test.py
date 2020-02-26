@@ -22,18 +22,11 @@ import collections
 
 from absl.testing import parameterized
 import numpy as np
-
-from tensorflow.python.eager import context
-from tensorflow.python.framework import constant_op
-from tensorflow.python.framework import dtypes
-from tensorflow.python.framework import errors_impl
+import tensorflow as tf
 from tensorflow.python.framework import ops
-from tensorflow.python.framework import sparse_tensor
 from tensorflow.python.framework import test_util
 from tensorflow.python.keras.optimizer_v2 import optimizer_v2
 from tensorflow.python.keras.utils import losses_utils
-from tensorflow.python.ops import variables
-from tensorflow.python.platform import test
 from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.canned import prediction_keys
 from tensorflow_estimator.python.estimator.head import binary_class_head as binary_head_lib
@@ -48,7 +41,7 @@ def _convert_to_tensor(features):
   """Converts an arrays or dict of arrays to tensors or dict of tensors."""
   if isinstance(features, dict):
     if set(features.keys()) == set(['indices', 'values', 'dense_shape']):
-      return sparse_tensor.SparseTensor(**features)
+      return tf.sparse.SparseTensor(**features)
     for col in features:
       features[col] = _convert_to_tensor(features[col])
     return features
@@ -56,39 +49,43 @@ def _convert_to_tensor(features):
 
 
 @test_util.run_all_in_graph_and_eager_modes
-class TestFlatten(test.TestCase, parameterized.TestCase):
+class TestFlatten(tf.test.TestCase, parameterized.TestCase):
   """Tests flatten functions."""
 
   @parameterized.named_parameters(
-      {'testcase_name': 'one_dim_sparse_tensor',
-       'tensor': {
-           'indices': ((0, 0), (0, 1), (1, 0)),
-           'values': (1, 2, 3),
-           'dense_shape': (2, 2)},
-       'expected': [[1], [2], [3]]
-      },
-      {'testcase_name': 'multi_dim_sparse_tensor',
-       'tensor': {
-           'indices': ((0, 0, 0), (0, 0, 1), (0, 1, 0), (0, 1, 1),
-                       (1, 0, 0), (1, 0, 1)),
-           'values': (1, 2, 3, 4, 5, 6),
-           'dense_shape': (2, 2, 2)},
-       'expected': [[1, 2], [3, 4], [5, 6]]
-      },
-      {'testcase_name': 'one_dim_dense_tensor',
-       'tensor': [[1, 2], [3, 4]],
-       'expected': [[1], [2], [3]]
-      },
-      {'testcase_name': 'multi_dim_dense_tensor',
-       'tensor': [[[1, 2], [3, 4]], [[5, 6], [7, 8]]],
-       'expected': [[1, 2], [3, 4], [5, 6]]
-      },
-      {'testcase_name': 'unsorted_sparse_indices',
-       'tensor': {
-           'indices': ((0, 0), (1, 0), (0, 1)),
-           'values': (1, 3, 2),
-           'dense_shape': (2, 2)},
-       'expected': [[1], [2], [3]]
+      {
+          'testcase_name': 'one_dim_sparse_tensor',
+          'tensor': {
+              'indices': ((0, 0), (0, 1), (1, 0)),
+              'values': (1, 2, 3),
+              'dense_shape': (2, 2)
+          },
+          'expected': [[1], [2], [3]]
+      }, {
+          'testcase_name': 'multi_dim_sparse_tensor',
+          'tensor': {
+              'indices': ((0, 0, 0), (0, 0, 1), (0, 1, 0), (0, 1, 1), (1, 0, 0),
+                          (1, 0, 1)),
+              'values': (1, 2, 3, 4, 5, 6),
+              'dense_shape': (2, 2, 2)
+          },
+          'expected': [[1, 2], [3, 4], [5, 6]]
+      }, {
+          'testcase_name': 'one_dim_dense_tensor',
+          'tensor': [[1, 2], [3, 4]],
+          'expected': [[1], [2], [3]]
+      }, {
+          'testcase_name': 'multi_dim_dense_tensor',
+          'tensor': [[[1, 2], [3, 4]], [[5, 6], [7, 8]]],
+          'expected': [[1, 2], [3, 4], [5, 6]]
+      }, {
+          'testcase_name': 'unsorted_sparse_indices',
+          'tensor': {
+              'indices': ((0, 0), (1, 0), (0, 1)),
+              'values': (1, 3, 2),
+              'dense_shape': (2, 2)
+          },
+          'expected': [[1], [2], [3]]
       })
   def test_flatten_tensor(self, tensor, expected):
     """Tests the output of the `_flatten_tensor` function.
@@ -101,7 +98,7 @@ class TestFlatten(test.TestCase, parameterized.TestCase):
     tensor = _convert_to_tensor(tensor)
     flat_tensor = seq_head_lib._flatten_tensor(
         tensor, sequence_mask, expected_length=sequence_mask.sum())
-    if context.executing_eagerly():
+    if tf.executing_eagerly():
       self.assertAllEqual(flat_tensor, expected)
       return
     with self.cached_session() as sess:
@@ -110,19 +107,21 @@ class TestFlatten(test.TestCase, parameterized.TestCase):
   def _test_flatten_method(self, features, feature_columns):
     """Runs seq head's `_flatten` method and returns output for testing."""
     head = seq_head_lib.SequentialHeadWrapper(
-        static_head=None, sequence_length_mask='sequence_mask',
+        static_head=None,
+        sequence_length_mask='sequence_mask',
         feature_columns=feature_columns)
     labels = {
         'indices': ((0, 0), (0, 1), (1, 0)),
         'values': (1, 2, 3),
-        'dense_shape': (2, 2)}
+        'dense_shape': (2, 2)
+    }
     logits = np.array([[[10], [11]], [[12], [13]]])
 
     features = _convert_to_tensor(features)
-    labels = sparse_tensor.SparseTensor(**labels)
+    labels = tf.sparse.SparseTensor(**labels)
     logits = ops.convert_to_tensor(logits)
     output = head._flatten(labels, logits, features)
-    if context.executing_eagerly():
+    if tf.executing_eagerly():
       return output
     with self.cached_session() as sess:
       return sess.run(output)
@@ -138,9 +137,11 @@ class TestFlatten(test.TestCase, parameterized.TestCase):
     """Tests output of `_flatten` method with one feature column provided."""
     features = {
         'sequence_mask': np.array([[1, 1], [1, 0]]),
-        'weights': np.array([[0.5, 0.5], [1., 0]])}
-    expected_output = ([[1], [2], [3]], [[10], [11], [12]],
-                       {'weights': np.array([[0.5], [0.5], [1.]])})
+        'weights': np.array([[0.5, 0.5], [1., 0]])
+    }
+    expected_output = ([[1], [2], [3]], [[10], [11], [12]], {
+        'weights': np.array([[0.5], [0.5], [1.]])
+    })
     output = self._test_flatten_method(features, feature_columns='weights')
     self.assertAllClose(expected_output, output)
 
@@ -151,9 +152,10 @@ class TestFlatten(test.TestCase, parameterized.TestCase):
         'a': np.array([[0.5, 0.5], [1., 0]]),
         'b': np.array([[1.5, 1.5], [2., 0]])
     }
-    expected_output = ([[1], [2], [3]], [[10], [11], [12]],
-                       {'a': np.array([[0.5], [0.5], [1.]]),
-                        'b': np.array([[1.5], [1.5], [2.]])})
+    expected_output = ([[1], [2], [3]], [[10], [11], [12]], {
+        'a': np.array([[0.5], [0.5], [1.]]),
+        'b': np.array([[1.5], [1.5], [2.]])
+    })
     output = self._test_flatten_method(features, feature_columns=['a', 'b'])
     self.assertAllClose(expected_output, output)
 
@@ -174,8 +176,10 @@ class TestFlatten(test.TestCase, parameterized.TestCase):
 
   def test_flatten_tensor_wrong_feature_dim(self):
     """Tests `_flatten` method when feature has wrong dimension."""
-    features = {'sequence_mask': np.array([[1, 1], [1, 0]]),
-                'weights': np.array([0.5, 0.5, 1., 0])}
+    features = {
+        'sequence_mask': np.array([[1, 1], [1, 0]]),
+        'weights': np.array([0.5, 0.5, 1., 0])
+    }
     with self.assertRaisesRegexp(
         ValueError, 'Input tensor expected to have at least 2 dimensions.'):
       _ = self._test_flatten_method(features, feature_columns=['weights'])
@@ -183,8 +187,9 @@ class TestFlatten(test.TestCase, parameterized.TestCase):
   def test_flatten_tensor_wrong_feature_mask(self):
     """Tests `_flatten` with feature mask different from provided mask."""
     features = {'sequence_mask': np.array([[1, 1], [1, 1]])}
-    error = (ValueError if context.executing_eagerly()
-             else errors_impl.InvalidArgumentError)
+    error = (
+        ValueError
+        if tf.executing_eagerly() else tf.errors.InvalidArgumentError)
     with self.assertRaisesRegexp(
         error, 'Tensor shape is incompatible with provided mask.'):
       _ = self._test_flatten_method(features, feature_columns=[])
@@ -212,7 +217,7 @@ class _MockHead(object):
 
 
 @test_util.run_all_in_graph_and_eager_modes
-class TestSequentialHead(test.TestCase):
+class TestSequentialHead(tf.test.TestCase):
   """Tests sequential head methods."""
 
   def _assert_equal(self, d, dref, session=None):
@@ -232,9 +237,9 @@ class TestSequentialHead(test.TestCase):
     for key, ref_item in dref.items():
       if isinstance(ref_item, dict):
         self._assert_equal(d[key], dref=ref_item, session=session)
-      elif isinstance(d[key], ops.Tensor):
-        self.assertAllClose(session.run(d[key]) if session else d[key],
-                            ref_item)
+      elif isinstance(d[key], tf.Tensor):
+        self.assertAllClose(
+            session.run(d[key]) if session else d[key], ref_item)
       else:
         self.assertEqual(d[key], ref_item)
 
@@ -248,17 +253,18 @@ class TestSequentialHead(test.TestCase):
     logistics = 1 / (1 + exp(-logits))
               = [[0.57, 0.40], [0.55, 0.55]]
     """
-    head = seq_head_lib.SequentialHeadWrapper(
-        binary_head_lib.BinaryClassHead(), 'sequence_mask')
+    head = seq_head_lib.SequentialHeadWrapper(binary_head_lib.BinaryClassHead(),
+                                              'sequence_mask')
 
     logits = [[[0.3], [-0.4]], [[0.2], [0.2]]]
     expected_logistics = [[[0.574443], [0.401312]], [[0.549834], [0.549834]]]
 
-    features = {'sequence_mask':
-                    ops.convert_to_tensor(np.array([[1, 1], [1, 0]]))}
+    features = {
+        'sequence_mask': ops.convert_to_tensor(np.array([[1, 1], [1, 0]]))
+    }
 
     keys = prediction_keys.PredictionKeys
-    if context.executing_eagerly():
+    if tf.executing_eagerly():
       predictions = head.predictions(
           logits=logits, keys=[keys.LOGITS, keys.LOGISTIC])
       self.assertItemsEqual(predictions.keys(), [keys.LOGITS, keys.LOGISTIC])
@@ -267,13 +273,15 @@ class TestSequentialHead(test.TestCase):
       return
 
     spec = head.create_estimator_spec(
-        features=features, mode=ModeKeys.PREDICT, logits=logits,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        features=features,
+        mode=ModeKeys.PREDICT,
+        logits=logits,
+        trainable_variables=[tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
     self.assertIn('sequence_mask', spec.predictions)
     with self.cached_session() as sess:
-      self.assertAllEqual(sess.run(spec.predictions['sequence_mask']),
-                          features['sequence_mask'])
+      self.assertAllEqual(
+          sess.run(spec.predictions['sequence_mask']),
+          features['sequence_mask'])
       self.assertAllClose(logits, sess.run(spec.predictions[keys.LOGITS]))
       self.assertAllClose(expected_logistics,
                           sess.run(spec.predictions[keys.LOGISTIC]))
@@ -286,8 +294,8 @@ class TestSequentialHead(test.TestCase):
     - `regularization_losses` argument is properly passed to the static head's
       method.
     """
-    head = seq_head_lib.SequentialHeadWrapper(
-        binary_head_lib.BinaryClassHead(), 'mask')
+    head = seq_head_lib.SequentialHeadWrapper(binary_head_lib.BinaryClassHead(),
+                                              'mask')
     metrics = head.metrics(regularization_losses=2.5)
     keys = metric_keys.MetricKeys
     self.assertIn(keys.ACCURACY, metrics)
@@ -297,13 +305,14 @@ class TestSequentialHead(test.TestCase):
     """Tests that variables are flattened and passed to static head's method."""
     logits = [[1, 2], [3, 4]]
     labels = [[0, 1], [0, 2]]
-    features = {'weights': [[0.3, 0.2], [0.5, 100]],
-                'mask': [[1, 1], [1, 0]]}
+    features = {'weights': [[0.3, 0.2], [0.5, 100]], 'mask': [[1, 1], [1, 0]]}
     head = seq_head_lib.SequentialHeadWrapper(_MockHead(), 'mask', 'weights')
     expected_output = {
         'logits': [[1], [2], [3]],
         'labels': [[0], [1], [0]],
-        'features': {'weights': [[0.3], [0.2], [0.5]]},
+        'features': {
+            'weights': [[0.3], [0.2], [0.5]]
+        },
         'mode': 'my-mode',
         'regularization_losses': 123
     }
@@ -320,16 +329,17 @@ class TestSequentialHead(test.TestCase):
     """Tests that variables are flattened and passed to static head's method."""
     logits = [[1, 2], [3, 4]]
     labels = [[0, 1], [0, 2]]
-    features = {'weights': [[0.3, 0.2], [0.5, 100]],
-                'mask': [[1, 1], [1, 0]]}
+    features = {'weights': [[0.3, 0.2], [0.5, 100]], 'mask': [[1, 1], [1, 0]]}
     head = seq_head_lib.SequentialHeadWrapper(_MockHead(), 'mask', 'weights')
-    w = variables.Variable(1)
+    w = tf.Variable(1)
     update_op = w.assign_add(1)
-    trainable_variables = [variables.Variable([1.0, 2.0], dtype=dtypes.float32)]
+    trainable_variables = [tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)]
     expected_output = {
         'logits': [[1], [2], [3]],
         'labels': [[0], [1], [0]],
-        'features': {'weights': [[0.3], [0.2], [0.5]]},
+        'features': {
+            'weights': [[0.3], [0.2], [0.5]]
+        },
         'mode': ModeKeys.TRAIN,
         'regularization_losses': 123,
         'optimizer': 'my-opt',
@@ -355,8 +365,8 @@ class TestSequentialHead(test.TestCase):
     """Tests that the head's properties are correcly implemented."""
     static_head = binary_head_lib.BinaryClassHead(
         loss_reduction=losses_utils.ReductionV2.SUM, name='a_static_head')
-    head = seq_head_lib.SequentialHeadWrapper(
-        static_head, 'a_sequence_mask_col')
+    head = seq_head_lib.SequentialHeadWrapper(static_head,
+                                              'a_sequence_mask_col')
     self.assertEqual(head.name, 'a_static_head_sequential')
     self.assertEqual(head.logits_dimension, 1)
     self.assertEqual(head.loss_reduction, losses_utils.ReductionV2.SUM)
@@ -379,41 +389,45 @@ class TestSequentialHead(test.TestCase):
     """
     static_head = multi_head_lib.MultiClassHead(
         n_classes=3, weight_column='weights')
-    head = seq_head_lib.SequentialHeadWrapper(
-        static_head, 'sequence_mask', 'weights')
+    head = seq_head_lib.SequentialHeadWrapper(static_head, 'sequence_mask',
+                                              'weights')
     expected_loss = 0.942783
     features = {
-        'weights': sparse_tensor.SparseTensor(
-            indices=((0, 0), (0, 1), (1, 0)),
-            values=(0.5, 0.2, 0.3),
-            dense_shape=(2, 2)),
-        'sequence_mask': ops.convert_to_tensor([[1, 1], [1, 0]])}
-    logits = ops.convert_to_tensor(
-        [[[2., 3., 4.], [5., -0.5, 0.]],
-         [[-1.0, 2.0, 0.5], [1.0, 0.5, 2.0]]])
-    labels = sparse_tensor.SparseTensor(
-        indices=((0, 0), (0, 1), (1, 0)),
-        values=(0, 1, 2),
-        dense_shape=(2, 2))
+        'weights':
+            tf.sparse.SparseTensor(
+                indices=((0, 0), (0, 1), (1, 0)),
+                values=(0.5, 0.2, 0.3),
+                dense_shape=(2, 2)),
+        'sequence_mask':
+            ops.convert_to_tensor([[1, 1], [1, 0]])
+    }
+    logits = ops.convert_to_tensor([[[2., 3., 4.], [5., -0.5, 0.]],
+                                    [[-1.0, 2.0, 0.5], [1.0, 0.5, 2.0]]])
+    labels = tf.sparse.SparseTensor(
+        indices=((0, 0), (0, 1), (1, 0)), values=(0, 1, 2), dense_shape=(2, 2))
 
     class _Optimizer(optimizer_v2.OptimizerV2):
 
       def get_updates(self, loss, params):
         del params, loss
-        return [constant_op.constant('op')]
+        return [tf.constant('op')]
 
       def get_config(self):
         config = super(_Optimizer, self).get_config()
         return config
 
-    if context.executing_eagerly():
+    if tf.executing_eagerly():
       loss = head.loss(logits=logits, labels=labels, features=features)
     else:
       spec = head.create_estimator_spec(
-          features, ModeKeys.TRAIN, logits, labels=labels,
+          features,
+          ModeKeys.TRAIN,
+          logits,
+          labels=labels,
           optimizer=_Optimizer('my_optimizer'),
           trainable_variables=[
-              variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+              tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)
+          ])
       with self.cached_session() as sess:
         loss = sess.run(spec.loss)
     self.assertAllClose(loss, expected_loss, atol=1e-4)
@@ -436,15 +450,18 @@ class TestSequentialHead(test.TestCase):
     recall = (5 + 2) / (2 + 5 + 1 + 2) = 0.7
     """
     static_head = binary_head_lib.BinaryClassHead(weight_column='weights')
-    head = seq_head_lib.SequentialHeadWrapper(
-        static_head, 'sequence_mask', 'weights')
+    head = seq_head_lib.SequentialHeadWrapper(static_head, 'sequence_mask',
+                                              'weights')
 
-    features = {'sequence_mask': np.array([[1, 1, 1], [1, 0, 0]]),
-                'weights': np.array([[2, 5, 1], [2, 100, 100]])}
+    features = {
+        'sequence_mask': np.array([[1, 1, 1], [1, 0, 0]]),
+        'weights': np.array([[2, 5, 1], [2, 100, 100]])
+    }
     regularization_losses = [100.]
     logits = _convert_to_tensor([[-101, 102, -103], [104, 100, 100]])
-    labels = sparse_tensor.SparseTensor(
-        values=[1, 1, 1, 1], indices=((0, 0), (0, 1), (0, 2), (1, 0)),
+    labels = tf.sparse.SparseTensor(
+        values=[1, 1, 1, 1],
+        indices=((0, 0), (0, 1), (0, 2), (1, 0)),
         dense_shape=(2, 3))
     features = _convert_to_tensor(features)
     expected_loss = 30.5
@@ -462,10 +479,10 @@ class TestSequentialHead(test.TestCase):
         keys.AUC_PR: 1.0
     }
 
-    if context.executing_eagerly():
+    if tf.executing_eagerly():
       eval_metrics = head.metrics(regularization_losses=regularization_losses)
-      updated_metrics = head.update_metrics(
-          eval_metrics, features, logits, labels, regularization_losses)
+      updated_metrics = head.update_metrics(eval_metrics, features, logits,
+                                            labels, regularization_losses)
       self.assertItemsEqual(expected_metrics.keys(), updated_metrics.keys())
       self.assertAllClose(
           expected_metrics,
@@ -473,10 +490,12 @@ class TestSequentialHead(test.TestCase):
       return
 
     spec = head.create_estimator_spec(
-        features=features, mode=ModeKeys.EVAL, logits=logits,
-        labels=labels, regularization_losses=regularization_losses,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        features=features,
+        mode=ModeKeys.EVAL,
+        logits=logits,
+        labels=labels,
+        regularization_losses=regularization_losses,
+        trainable_variables=[tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
 
     with self.cached_session() as sess:
       test_lib._initialize_variables(self, spec.scaffold)
@@ -484,28 +503,26 @@ class TestSequentialHead(test.TestCase):
       value_ops = {k: spec.eval_metric_ops[k][0] for k in spec.eval_metric_ops}
       update_ops = {k: spec.eval_metric_ops[k][1] for k in spec.eval_metric_ops}
       _ = sess.run(update_ops)
-      self.assertAllClose(
-          expected_metrics, {k: value_ops[k].eval() for k in value_ops})
+      self.assertAllClose(expected_metrics,
+                          {k: value_ops[k].eval() for k in value_ops})
 
   def test_wrong_mask_type(self):
     """Tests error raised when the mask doesn't have proper type."""
-    with self.assertRaisesRegexp(
-        TypeError, '`sequence_mask` column must be a string.'):
+    with self.assertRaisesRegexp(TypeError,
+                                 '`sequence_mask` column must be a string.'):
       _ = seq_head_lib.SequentialHeadWrapper(None, sequence_length_mask=1)
 
   def test_wrong_feature_column_type(self):
     """Tests error raised when the feature column doesn't have proper type."""
     with self.assertRaisesRegexp(
         TypeError, '`feature_columns` must be either a string or an iterable'):
-      _ = seq_head_lib.SequentialHeadWrapper(
-          None, 'mask', feature_columns=1)
+      _ = seq_head_lib.SequentialHeadWrapper(None, 'mask', feature_columns=1)
 
   def test_wrong_feature_column_type_in_iterable(self):
     """Tests error raised when the feature column doesn't have proper type."""
-    with self.assertRaisesRegexp(
-        TypeError, 'Column must a string. Given type: .*.'):
-      _ = seq_head_lib.SequentialHeadWrapper(
-          None, 'mask', feature_columns=[1])
+    with self.assertRaisesRegexp(TypeError,
+                                 'Column must a string. Given type: .*.'):
+      _ = seq_head_lib.SequentialHeadWrapper(None, 'mask', feature_columns=[1])
 
   def test_multi_head_provided(self):
     """Tests error raised when a multi-head is provided."""
@@ -516,5 +533,6 @@ class TestSequentialHead(test.TestCase):
           multi_head.MultiHead(
               [binary_head_lib.BinaryClassHead(name='test-head')]))
 
+
 if __name__ == '__main__':
-  test.main()
+  tf.test.main()

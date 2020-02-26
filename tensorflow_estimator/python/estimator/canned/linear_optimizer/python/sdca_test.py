@@ -19,32 +19,25 @@ from __future__ import division
 from __future__ import print_function
 
 import numpy as np
-
-from tensorflow.python.feature_column import feature_column_lib
-from tensorflow.python.framework import constant_op
-from tensorflow.python.framework import sparse_tensor
-from tensorflow.python.framework import test_util
-from tensorflow.python.ops import array_ops
-from tensorflow.python.ops import partitioned_variables
-from tensorflow.python.platform import test
+import tensorflow as tf
 from tensorflow_estimator.python.estimator.canned import linear
 
 
-class SDCAClassifierTest(test.TestCase):
+class SDCAClassifierTest(tf.test.TestCase):
 
   def testRealValuedFeatures(self):
     """Tests LinearClassifier with LinearSDCA and real valued features."""
 
     def input_fn():
       return {
-          'example_id': constant_op.constant(['1', '2']),
-          'maintenance_cost': constant_op.constant([[500.0], [200.0]]),
-          'sq_footage': constant_op.constant([[800.0], [600.0]]),
-          'weights': constant_op.constant([[1.0], [1.0]])
-      }, constant_op.constant([[0], [1]])
+          'example_id': tf.constant(['1', '2']),
+          'maintenance_cost': tf.constant([[500.0], [200.0]]),
+          'sq_footage': tf.constant([[800.0], [600.0]]),
+          'weights': tf.constant([[1.0], [1.0]])
+      }, tf.constant([[0], [1]])
 
-    maintenance_cost = feature_column_lib.numeric_column('maintenance_cost')
-    sq_footage = feature_column_lib.numeric_column('sq_footage')
+    maintenance_cost = tf.feature_column.numeric_column('maintenance_cost')
+    sq_footage = tf.feature_column.numeric_column('sq_footage')
     optimizer = linear.LinearSDCA(example_id_column='example_id')
     classifier = linear.LinearClassifierV2(
         feature_columns=[maintenance_cost, sq_footage],
@@ -62,13 +55,11 @@ class SDCAClassifierTest(test.TestCase):
     # feature.
     def input_fn():
       return {
-          'example_id':
-              constant_op.constant(['1', '2']),
-          'dense_feature':
-              constant_op.constant([[500.0, 800.0], [200.0, 600.0]])
-      }, constant_op.constant([[0], [1]])
+          'example_id': tf.constant(['1', '2']),
+          'dense_feature': tf.constant([[500.0, 800.0], [200.0, 600.0]])
+      }, tf.constant([[0], [1]])
 
-    dense_feature = feature_column_lib.numeric_column('dense_feature', shape=2)
+    dense_feature = tf.feature_column.numeric_column('dense_feature', shape=2)
     optimizer = linear.LinearSDCA(example_id_column='example_id')
     classifier = linear.LinearClassifierV2(
         feature_columns=[dense_feature], optimizer=optimizer)
@@ -81,16 +72,16 @@ class SDCAClassifierTest(test.TestCase):
 
     def input_fn():
       return {
-          'example_id': constant_op.constant(['1', '2', '3']),
-          'price': constant_op.constant([[600.0], [1000.0], [400.0]]),
-          'sq_footage': constant_op.constant([[1000.0], [600.0], [700.0]]),
-          'weights': constant_op.constant([[1.0], [1.0], [1.0]])
-      }, constant_op.constant([[1], [0], [1]])
+          'example_id': tf.constant(['1', '2', '3']),
+          'price': tf.constant([[600.0], [1000.0], [400.0]]),
+          'sq_footage': tf.constant([[1000.0], [600.0], [700.0]]),
+          'weights': tf.constant([[1.0], [1.0], [1.0]])
+      }, tf.constant([[1], [0], [1]])
 
-    price_bucket = feature_column_lib.bucketized_column(
-        feature_column_lib.numeric_column('price'), boundaries=[500.0, 700.0])
-    sq_footage_bucket = feature_column_lib.bucketized_column(
-        feature_column_lib.numeric_column('sq_footage'), boundaries=[650.0])
+    price_bucket = tf.feature_column.bucketized_column(
+        tf.feature_column.numeric_column('price'), boundaries=[500.0, 700.0])
+    sq_footage_bucket = tf.feature_column.bucketized_column(
+        tf.feature_column.numeric_column('sq_footage'), boundaries=[650.0])
     optimizer = linear.LinearSDCA(
         example_id_column='example_id', symmetric_l2_regularization=0.01)
     classifier = linear.LinearClassifierV2(
@@ -107,17 +98,17 @@ class SDCAClassifierTest(test.TestCase):
     def input_fn():
       return {
           'example_id':
-              constant_op.constant(['1', '2', '3']),
+              tf.constant(['1', '2', '3']),
           'country':
-              sparse_tensor.SparseTensor(
+              tf.sparse.SparseTensor(
                   values=['IT', 'US', 'GB'],
                   indices=[[0, 0], [1, 0], [2, 0]],
                   dense_shape=[3, 5]),
           'weights':
-              constant_op.constant([[1.0], [1.0], [1.0]])
-      }, constant_op.constant([[1], [0], [1]])
+              tf.constant([[1.0], [1.0], [1.0]])
+      }, tf.constant([[1], [0], [1]])
 
-    country = feature_column_lib.categorical_column_with_hash_bucket(
+    country = tf.feature_column.categorical_column_with_hash_bucket(
         'country', hash_bucket_size=5)
     optimizer = linear.LinearSDCA(
         example_id_column='example_id', symmetric_l2_regularization=0.01)
@@ -133,23 +124,23 @@ class SDCAClassifierTest(test.TestCase):
     def input_fn():
       return {
           'example_id':
-              constant_op.constant(['1', '2', '3']),
+              tf.constant(['1', '2', '3']),
           'price':
-              sparse_tensor.SparseTensor(
+              tf.sparse.SparseTensor(
                   values=[2., 3., 1.],
                   indices=[[0, 0], [1, 0], [2, 0]],
                   dense_shape=[3, 5]),
           'country':
-              sparse_tensor.SparseTensor(
+              tf.sparse.SparseTensor(
                   values=['IT', 'US', 'GB'],
                   indices=[[0, 0], [1, 0], [2, 0]],
                   dense_shape=[3, 5])
-      }, constant_op.constant([[1], [0], [1]])
+      }, tf.constant([[1], [0], [1]])
 
-    country = feature_column_lib.categorical_column_with_hash_bucket(
+    country = tf.feature_column.categorical_column_with_hash_bucket(
         'country', hash_bucket_size=5)
     country_weighted_by_price = (
-        feature_column_lib.weighted_categorical_column(country, 'price'))
+        tf.feature_column.weighted_categorical_column(country, 'price'))
     optimizer = linear.LinearSDCA(
         example_id_column='example_id', symmetric_l2_regularization=0.01)
     classifier = linear.LinearClassifierV2(
@@ -164,24 +155,24 @@ class SDCAClassifierTest(test.TestCase):
     def input_fn():
       return {
           'example_id':
-              constant_op.constant(['1', '2', '3']),
+              tf.constant(['1', '2', '3']),
           'price':
-              sparse_tensor.SparseTensor(
+              tf.sparse.SparseTensor(
                   values=[2., 3., 1.],
                   indices=[[0, 0], [1, 0], [2, 0]],
                   dense_shape=[3, 5]),
           'country':
-              sparse_tensor.SparseTensor(
+              tf.sparse.SparseTensor(
                   # 'GB' is out of the vocabulary.
                   values=['IT', 'US', 'GB'],
                   indices=[[0, 0], [1, 0], [2, 0]],
                   dense_shape=[3, 5])
-      }, constant_op.constant([[1], [0], [1]])
+      }, tf.constant([[1], [0], [1]])
 
-    country = feature_column_lib.categorical_column_with_vocabulary_list(
+    country = tf.feature_column.categorical_column_with_vocabulary_list(
         'country', vocabulary_list=['US', 'CA', 'MK', 'IT', 'CN'])
     country_weighted_by_price = (
-        feature_column_lib.weighted_categorical_column(country, 'price'))
+        tf.feature_column.weighted_categorical_column(country, 'price'))
     optimizer = linear.LinearSDCA(
         example_id_column='example_id', symmetric_l2_regularization=0.01)
     classifier = linear.LinearClassifierV2(
@@ -196,21 +187,21 @@ class SDCAClassifierTest(test.TestCase):
     def input_fn():
       return {
           'example_id':
-              constant_op.constant(['1', '2', '3']),
+              tf.constant(['1', '2', '3']),
           'language':
-              sparse_tensor.SparseTensor(
+              tf.sparse.SparseTensor(
                   values=['english', 'italian', 'spanish'],
                   indices=[[0, 0], [1, 0], [2, 0]],
                   dense_shape=[3, 1]),
           'country':
-              sparse_tensor.SparseTensor(
+              tf.sparse.SparseTensor(
                   values=['US', 'IT', 'MX'],
                   indices=[[0, 0], [1, 0], [2, 0]],
                   dense_shape=[3, 1])
-      }, constant_op.constant([[0], [0], [1]])
+      }, tf.constant([[0], [0], [1]])
 
-    country_language = feature_column_lib.crossed_column(
-        ['language', 'country'], hash_bucket_size=100)
+    country_language = tf.feature_column.crossed_column(['language', 'country'],
+                                                        hash_bucket_size=100)
     optimizer = linear.LinearSDCA(
         example_id_column='example_id', symmetric_l2_regularization=0.01)
     classifier = linear.LinearClassifierV2(
@@ -225,27 +216,27 @@ class SDCAClassifierTest(test.TestCase):
     def input_fn():
       return {
           'example_id':
-              constant_op.constant(['1', '2', '3']),
+              tf.constant(['1', '2', '3']),
           'price':
-              constant_op.constant([[0.6], [0.8], [0.3]]),
+              tf.constant([[0.6], [0.8], [0.3]]),
           'sq_footage':
-              constant_op.constant([[900.0], [700.0], [600.0]]),
+              tf.constant([[900.0], [700.0], [600.0]]),
           'country':
-              sparse_tensor.SparseTensor(
+              tf.sparse.SparseTensor(
                   values=['IT', 'US', 'GB'],
                   indices=[[0, 0], [1, 3], [2, 1]],
                   dense_shape=[3, 5]),
           'weights':
-              constant_op.constant([[3.0], [1.0], [1.0]])
-      }, constant_op.constant([[1], [0], [1]])
+              tf.constant([[3.0], [1.0], [1.0]])
+      }, tf.constant([[1], [0], [1]])
 
-    price = feature_column_lib.numeric_column('price')
-    sq_footage_bucket = feature_column_lib.bucketized_column(
-        feature_column_lib.numeric_column('sq_footage'),
+    price = tf.feature_column.numeric_column('price')
+    sq_footage_bucket = tf.feature_column.bucketized_column(
+        tf.feature_column.numeric_column('sq_footage'),
         boundaries=[650.0, 800.0])
-    country = feature_column_lib.categorical_column_with_hash_bucket(
+    country = tf.feature_column.categorical_column_with_hash_bucket(
         'country', hash_bucket_size=5)
-    sq_footage_country = feature_column_lib.crossed_column(
+    sq_footage_country = tf.feature_column.crossed_column(
         [sq_footage_bucket, 'country'], hash_bucket_size=10)
     optimizer = linear.LinearSDCA(
         example_id_column='example_id', symmetric_l2_regularization=0.01)
@@ -263,27 +254,27 @@ class SDCAClassifierTest(test.TestCase):
     def input_fn():
       return {
           'example_id':
-              constant_op.constant(['1', '2', '3']),
+              tf.constant(['1', '2', '3']),
           'price':
-              constant_op.constant([[0.6], [0.8], [0.3]]),
+              tf.constant([[0.6], [0.8], [0.3]]),
           'sq_footage':
-              constant_op.constant([[900.0], [700.0], [600.0]]),
+              tf.constant([[900.0], [700.0], [600.0]]),
           'country':
-              sparse_tensor.SparseTensor(
+              tf.sparse.SparseTensor(
                   values=['IT', 'US', 'GB'],
                   indices=[[0, 0], [1, 3], [2, 1]],
                   dense_shape=[3, 5]),
           'weights':
-              constant_op.constant([[3.0], [1.0], [1.0]])
-      }, constant_op.constant([[1], [0], [1]])
+              tf.constant([[3.0], [1.0], [1.0]])
+      }, tf.constant([[1], [0], [1]])
 
-    price = feature_column_lib.numeric_column('price')
-    sq_footage_bucket = feature_column_lib.bucketized_column(
-        feature_column_lib.numeric_column('sq_footage'),
+    price = tf.feature_column.numeric_column('price')
+    sq_footage_bucket = tf.feature_column.bucketized_column(
+        tf.feature_column.numeric_column('sq_footage'),
         boundaries=[650.0, 800.0])
-    country = feature_column_lib.categorical_column_with_hash_bucket(
+    country = tf.feature_column.categorical_column_with_hash_bucket(
         'country', hash_bucket_size=5)
-    sq_footage_country = feature_column_lib.crossed_column(
+    sq_footage_country = tf.feature_column.crossed_column(
         [sq_footage_bucket, 'country'], hash_bucket_size=10)
 
     optimizer = linear.LinearSDCA(
@@ -292,15 +283,14 @@ class SDCAClassifierTest(test.TestCase):
     classifier = linear.LinearClassifier(
         feature_columns=[price, sq_footage_bucket, country, sq_footage_country],
         weight_column='weights',
-        partitioner=partitioned_variables.fixed_size_partitioner(
-            num_shards=2, axis=0),
+        partitioner=tf.compat.v1.fixed_size_partitioner(num_shards=2, axis=0),
         optimizer=optimizer)
     classifier.train(input_fn=input_fn, steps=100)
     loss = classifier.evaluate(input_fn=input_fn, steps=1)['loss']
     self.assertLess(loss, 0.2)
 
 
-class SDCARegressorTest(test.TestCase):
+class SDCARegressorTest(tf.test.TestCase):
 
   def testRealValuedLinearFeatures(self):
     """Tests LinearRegressor with LinearSDCA and real valued features."""
@@ -310,12 +300,12 @@ class SDCARegressorTest(test.TestCase):
 
     def input_fn():
       return {
-          'example_id': constant_op.constant(['1', '2', '3']),
-          'x': constant_op.constant(x),
-          'weights': constant_op.constant([[10.0], [10.0], [10.0]])
-      }, constant_op.constant(y)
+          'example_id': tf.constant(['1', '2', '3']),
+          'x': tf.constant(x),
+          'weights': tf.constant([[10.0], [10.0], [10.0]])
+      }, tf.constant(y)
 
-    x_column = feature_column_lib.numeric_column('x', shape=3)
+    x_column = tf.feature_column.numeric_column('x', shape=3)
     optimizer = linear.LinearSDCA(
         example_id_column='example_id', symmetric_l2_regularization=0.1)
     regressor = linear.LinearRegressorV2(
@@ -329,8 +319,9 @@ class SDCARegressorTest(test.TestCase):
                   regressor.get_variable_names())
     regressor_weights = regressor.get_variable_value(
         'linear/linear_model/x/weights')
-    self.assertAllClose(
-        [w[0] for w in weights], regressor_weights.flatten(), rtol=0.1)
+    self.assertAllClose([w[0] for w in weights],
+                        regressor_weights.flatten(),
+                        rtol=0.1)
 
   def testMixedFeaturesArbitraryWeights(self):
     """Tests LinearRegressor with LinearSDCA and a mix of features."""
@@ -338,27 +329,27 @@ class SDCARegressorTest(test.TestCase):
     def input_fn():
       return {
           'example_id':
-              constant_op.constant(['1', '2', '3']),
+              tf.constant(['1', '2', '3']),
           'price':
-              constant_op.constant([0.6, 0.8, 0.3]),
+              tf.constant([0.6, 0.8, 0.3]),
           'sq_footage':
-              constant_op.constant([[900.0], [700.0], [600.0]]),
+              tf.constant([[900.0], [700.0], [600.0]]),
           'country':
-              sparse_tensor.SparseTensor(
+              tf.sparse.SparseTensor(
                   values=['IT', 'US', 'GB'],
                   indices=[[0, 0], [1, 3], [2, 1]],
                   dense_shape=[3, 5]),
           'weights':
-              constant_op.constant([[3.0], [5.0], [7.0]])
-      }, constant_op.constant([[1.55], [-1.25], [-3.0]])
+              tf.constant([[3.0], [5.0], [7.0]])
+      }, tf.constant([[1.55], [-1.25], [-3.0]])
 
-    price = feature_column_lib.numeric_column('price')
-    sq_footage_bucket = feature_column_lib.bucketized_column(
-        feature_column_lib.numeric_column('sq_footage'),
+    price = tf.feature_column.numeric_column('price')
+    sq_footage_bucket = tf.feature_column.bucketized_column(
+        tf.feature_column.numeric_column('sq_footage'),
         boundaries=[650.0, 800.0])
-    country = feature_column_lib.categorical_column_with_hash_bucket(
+    country = tf.feature_column.categorical_column_with_hash_bucket(
         'country', hash_bucket_size=5)
-    sq_footage_country = feature_column_lib.crossed_column(
+    sq_footage_country = tf.feature_column.crossed_column(
         [sq_footage_bucket, 'country'], hash_bucket_size=10)
     optimizer = linear.LinearSDCA(
         example_id_column='example_id', symmetric_l2_regularization=0.1)
@@ -376,27 +367,27 @@ class SDCARegressorTest(test.TestCase):
     def input_fn():
       return {
           'example_id':
-              constant_op.constant(['1', '2', '3']),
+              tf.constant(['1', '2', '3']),
           'price':
-              constant_op.constant([0.6, 0.8, 0.3]),
+              tf.constant([0.6, 0.8, 0.3]),
           'sq_footage':
-              constant_op.constant([[900.0], [700.0], [600.0]]),
+              tf.constant([[900.0], [700.0], [600.0]]),
           'country':
-              sparse_tensor.SparseTensor(
+              tf.sparse.SparseTensor(
                   values=['IT', 'US', 'GB'],
                   indices=[[0, 0], [1, 3], [2, 1]],
                   dense_shape=[3, 5]),
           'weights':
-              constant_op.constant([[3.0], [5.0], [7.0]])
-      }, constant_op.constant([[1.55], [-1.25], [-3.0]])
+              tf.constant([[3.0], [5.0], [7.0]])
+      }, tf.constant([[1.55], [-1.25], [-3.0]])
 
-    price = feature_column_lib.numeric_column('price')
-    sq_footage_bucket = feature_column_lib.bucketized_column(
-        feature_column_lib.numeric_column('sq_footage'),
+    price = tf.feature_column.numeric_column('price')
+    sq_footage_bucket = tf.feature_column.bucketized_column(
+        tf.feature_column.numeric_column('sq_footage'),
         boundaries=[650.0, 800.0])
-    country = feature_column_lib.categorical_column_with_hash_bucket(
+    country = tf.feature_column.categorical_column_with_hash_bucket(
         'country', hash_bucket_size=5)
-    sq_footage_country = feature_column_lib.crossed_column(
+    sq_footage_country = tf.feature_column.crossed_column(
         [sq_footage_bucket, 'country'], hash_bucket_size=10)
     optimizer = linear.LinearSDCA(
         example_id_column='example_id', symmetric_l2_regularization=0.1)
@@ -404,8 +395,7 @@ class SDCARegressorTest(test.TestCase):
     regressor = linear.LinearRegressor(
         feature_columns=[price, sq_footage_bucket, country, sq_footage_country],
         weight_column='weights',
-        partitioner=partitioned_variables.fixed_size_partitioner(
-            num_shards=2, axis=0),
+        partitioner=tf.compat.v1.fixed_size_partitioner(num_shards=2, axis=0),
         optimizer=optimizer)
     regressor.train(input_fn=input_fn, steps=20)
     loss = regressor.evaluate(input_fn=input_fn, steps=1)['loss']
@@ -417,20 +407,20 @@ class SDCARegressorTest(test.TestCase):
     def input_fn():
       return {
           'example_id':
-              constant_op.constant(['1', '2', '3']),
+              tf.constant(['1', '2', '3']),
           'price':
-              constant_op.constant([[0.4], [0.6], [0.3]]),
+              tf.constant([[0.4], [0.6], [0.3]]),
           'country':
-              sparse_tensor.SparseTensor(
+              tf.sparse.SparseTensor(
                   values=['IT', 'US', 'GB'],
                   indices=[[0, 0], [1, 3], [2, 1]],
                   dense_shape=[3, 5]),
           'weights':
-              constant_op.constant([[10.0], [10.0], [10.0]])
-      }, constant_op.constant([[1.4], [-0.8], [2.6]])
+              tf.constant([[10.0], [10.0], [10.0]])
+      }, tf.constant([[1.4], [-0.8], [2.6]])
 
-    price = feature_column_lib.numeric_column('price')
-    country = feature_column_lib.categorical_column_with_hash_bucket(
+    price = tf.feature_column.numeric_column('price')
+    country = tf.feature_column.categorical_column_with_hash_bucket(
         'country', hash_bucket_size=5)
     # Regressor with no L1 regularization.
     optimizer = linear.LinearSDCA(
@@ -445,10 +435,10 @@ class SDCARegressorTest(test.TestCase):
     self.assertIn('linear/linear_model/price/weights', variable_names)
     self.assertIn('linear/linear_model/country/weights', variable_names)
     no_l1_reg_weights = {
-        'linear/linear_model/price/weights': regressor.get_variable_value(
-            'linear/linear_model/price/weights'),
-        'linear/linear_model/country/weights': regressor.get_variable_value(
-            'linear/linear_model/country/weights'),
+        'linear/linear_model/price/weights':
+            regressor.get_variable_value('linear/linear_model/price/weights'),
+        'linear/linear_model/country/weights':
+            regressor.get_variable_value('linear/linear_model/country/weights'),
     }
 
     # Regressor with L1 regularization.
@@ -463,10 +453,10 @@ class SDCARegressorTest(test.TestCase):
     regressor.train(input_fn=input_fn, steps=20)
     l1_reg_loss = regressor.evaluate(input_fn=input_fn, steps=1)['loss']
     l1_reg_weights = {
-        'linear/linear_model/price/weights': regressor.get_variable_value(
-            'linear/linear_model/price/weights'),
-        'linear/linear_model/country/weights': regressor.get_variable_value(
-            'linear/linear_model/country/weights'),
+        'linear/linear_model/price/weights':
+            regressor.get_variable_value('linear/linear_model/price/weights'),
+        'linear/linear_model/country/weights':
+            regressor.get_variable_value('linear/linear_model/country/weights'),
     }
 
     # Unregularized loss is lower when there is no L1 regularization.
@@ -499,23 +489,22 @@ class SDCARegressorTest(test.TestCase):
       """
       num_examples = 40
       return {
-          'example_id':
-              constant_op.constant([str(x + 1) for x in range(num_examples)]),
+          'example_id': tf.constant([str(x + 1) for x in range(num_examples)]),
           # place_holder is an empty column which is always 0 (absent), because
           # LinearClassifier requires at least one column.
-          'place_holder':
-              constant_op.constant([[0.0]] * num_examples),
-      }, constant_op.constant(
-          [1 if i % 4 is 0 else 0 for i in range(num_examples)])
+          'place_holder': tf.constant([[0.0]] * num_examples),
+      }, tf.constant([1 if i % 4 == 0 else 0 for i in range(num_examples)])
 
-    place_holder = feature_column_lib.numeric_column('place_holder')
+    place_holder = tf.feature_column.numeric_column('place_holder')
     optimizer = linear.LinearSDCA(
         example_id_column='example_id', symmetric_l2_regularization=0.1)
     regressor = linear.LinearRegressorV2(
         feature_columns=[place_holder], optimizer=optimizer)
     regressor.train(input_fn=input_fn, steps=100)
-    self.assertNear(regressor.get_variable_value(
-        'linear/linear_model/bias_weights')[0], 0.25, err=0.1)
+    self.assertNear(
+        regressor.get_variable_value('linear/linear_model/bias_weights')[0],
+        0.25,
+        err=0.1)
 
   def testBiasAndOtherColumns(self):
     """Tests LinearRegressor with LinearSDCA and validates bias weight."""
@@ -543,23 +532,19 @@ class SDCARegressorTest(test.TestCase):
       num_examples = 200
       half = int(num_examples / 2)
       return {
-          'example_id':
-              constant_op.constant([str(x + 1) for x in range(num_examples)]),
-          'a':
-              constant_op.constant([[1]] * int(half) + [[0]] * int(half)),
-          'b':
-              constant_op.constant([[0]] * int(half) + [[1]] * int(half)),
-      }, constant_op.constant(
-          [[x]
-           for x in [1, 0, 0, 1, 1, 0, 0, 0, 1, 0] * int(half / 10) +
-           [0, 1, 0, 0, 0, 0, 0, 0, 1, 0] * int(half / 10)])
+          'example_id': tf.constant([str(x + 1) for x in range(num_examples)]),
+          'a': tf.constant([[1]] * int(half) + [[0]] * int(half)),
+          'b': tf.constant([[0]] * int(half) + [[1]] * int(half)),
+      }, tf.constant([[x]
+                      for x in [1, 0, 0, 1, 1, 0, 0, 0, 1, 0] * int(half / 10) +
+                      [0, 1, 0, 0, 0, 0, 0, 0, 1, 0] * int(half / 10)])
 
     optimizer = linear.LinearSDCA(
         example_id_column='example_id', symmetric_l2_regularization=0.1)
     regressor = linear.LinearRegressorV2(
         feature_columns=[
-            feature_column_lib.numeric_column('a'),
-            feature_column_lib.numeric_column('b')
+            tf.feature_column.numeric_column('a'),
+            tf.feature_column.numeric_column('b')
         ],
         optimizer=optimizer)
 
@@ -570,12 +555,18 @@ class SDCARegressorTest(test.TestCase):
     self.assertIn('linear/linear_model/a/weights', variable_names)
     self.assertIn('linear/linear_model/b/weights', variable_names)
     # TODO(b/29339026): Change the expected results to expect a centered bias.
-    self.assertNear(regressor.get_variable_value(
-        'linear/linear_model/bias_weights')[0], 0.2, err=0.05)
-    self.assertNear(regressor.get_variable_value(
-        'linear/linear_model/a/weights')[0], 0.2, err=0.05)
-    self.assertNear(regressor.get_variable_value(
-        'linear/linear_model/b/weights')[0], 0.0, err=0.05)
+    self.assertNear(
+        regressor.get_variable_value('linear/linear_model/bias_weights')[0],
+        0.2,
+        err=0.05)
+    self.assertNear(
+        regressor.get_variable_value('linear/linear_model/a/weights')[0],
+        0.2,
+        err=0.05)
+    self.assertNear(
+        regressor.get_variable_value('linear/linear_model/b/weights')[0],
+        0.0,
+        err=0.05)
 
   def testBiasAndOtherColumnsFabricatedCentered(self):
     """Tests LinearRegressor with LinearSDCA and validates bias weight."""
@@ -597,21 +588,18 @@ class SDCARegressorTest(test.TestCase):
       num_examples = 200
       half = int(num_examples / 2)
       return {
-          'example_id':
-              constant_op.constant([str(x + 1) for x in range(num_examples)]),
-          'a':
-              constant_op.constant([[1]] * int(half) + [[0]] * int(half)),
-          'b':
-              constant_op.constant([[0]] * int(half) + [[1]] * int(half)),
-      }, constant_op.constant([[1 if x % 10 == 0 else 0] for x in range(half)] +
-                              [[-1 if x % 10 == 0 else 0] for x in range(half)])
+          'example_id': tf.constant([str(x + 1) for x in range(num_examples)]),
+          'a': tf.constant([[1]] * int(half) + [[0]] * int(half)),
+          'b': tf.constant([[0]] * int(half) + [[1]] * int(half)),
+      }, tf.constant([[1 if x % 10 == 0 else 0] for x in range(half)] +
+                     [[-1 if x % 10 == 0 else 0] for x in range(half)])
 
     optimizer = linear.LinearSDCA(
         example_id_column='example_id', symmetric_l2_regularization=0.1)
     regressor = linear.LinearRegressorV2(
         feature_columns=[
-            feature_column_lib.numeric_column('a'),
-            feature_column_lib.numeric_column('b')
+            tf.feature_column.numeric_column('a'),
+            tf.feature_column.numeric_column('b')
         ],
         optimizer=optimizer)
 
@@ -621,12 +609,18 @@ class SDCARegressorTest(test.TestCase):
     self.assertIn('linear/linear_model/bias_weights', variable_names)
     self.assertIn('linear/linear_model/a/weights', variable_names)
     self.assertIn('linear/linear_model/b/weights', variable_names)
-    self.assertNear(regressor.get_variable_value(
-        'linear/linear_model/bias_weights')[0], 0.0, err=0.05)
-    self.assertNear(regressor.get_variable_value(
-        'linear/linear_model/a/weights')[0], 0.1, err=0.05)
-    self.assertNear(regressor.get_variable_value(
-        'linear/linear_model/b/weights')[0], -0.1, err=0.05)
+    self.assertNear(
+        regressor.get_variable_value('linear/linear_model/bias_weights')[0],
+        0.0,
+        err=0.05)
+    self.assertNear(
+        regressor.get_variable_value('linear/linear_model/a/weights')[0],
+        0.1,
+        err=0.05)
+    self.assertNear(
+        regressor.get_variable_value('linear/linear_model/b/weights')[0],
+        -0.1,
+        err=0.05)
 
   def testUnknownBatchSize(self):
     """Tests LinearRegressor with LinearSDCA and unknown batch size."""
@@ -636,19 +630,17 @@ class SDCARegressorTest(test.TestCase):
       # let the static batch size unspecified.
       return {
           'example_id':
-              array_ops.placeholder_with_default(
-                  constant_op.constant(['0', '1']),
-                  shape=[None]),
+              tf.compat.v1.placeholder_with_default(
+                  tf.constant(['0', '1']), shape=[None]),
           # always_zero is an empty column which is always 0 (absent), because
           # LinearClassifier requires at least one column.
           'always_zero':
-              array_ops.placeholder_with_default(
-                  constant_op.constant([[0.0]] * 2),
-                  shape=[None, 1]),
-      }, array_ops.placeholder_with_default(constant_op.constant([0.0, 1.0]),
-                                            shape=[None])
+              tf.compat.v1.placeholder_with_default(
+                  tf.constant([[0.0]] * 2), shape=[None, 1]),
+      }, tf.compat.v1.placeholder_with_default(
+          tf.constant([0.0, 1.0]), shape=[None])
 
-    always_zero = feature_column_lib.numeric_column('always_zero')
+    always_zero = tf.feature_column.numeric_column('always_zero')
     optimizer = linear.LinearSDCA(
         example_id_column='example_id',
         symmetric_l2_regularization=0.1,
@@ -656,9 +648,11 @@ class SDCARegressorTest(test.TestCase):
     regressor = linear.LinearRegressorV2(
         feature_columns=[always_zero], optimizer=optimizer)
     regressor.train(input_fn=input_fn, steps=100)
-    self.assertNear(regressor.get_variable_value(
-        'linear/linear_model/bias_weights')[0], 0.5, err=0.1)
+    self.assertNear(
+        regressor.get_variable_value('linear/linear_model/bias_weights')[0],
+        0.5,
+        err=0.1)
 
 
 if __name__ == '__main__':
-  test.main()
+  tf.test.main()

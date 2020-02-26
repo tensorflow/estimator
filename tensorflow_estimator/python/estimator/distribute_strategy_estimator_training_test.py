@@ -26,27 +26,17 @@ import sys
 import tempfile
 from absl.testing import parameterized
 import numpy as np
-
-from tensorflow.python.data.ops import dataset_ops
+import tensorflow as tf
 from tensorflow.python.distribute import central_storage_strategy
-from tensorflow.python.distribute import collective_all_reduce_strategy
 from tensorflow.python.distribute import combinations
 from tensorflow.python.distribute import cross_device_ops as cross_device_ops_lib
 from tensorflow.python.distribute import distribute_coordinator as dc
 from tensorflow.python.distribute import estimator_training as dc_training
-from tensorflow.python.distribute import mirrored_strategy
 from tensorflow.python.distribute import multi_worker_test_base
 from tensorflow.python.distribute import multi_worker_util
-from tensorflow.python.distribute import parameter_server_strategy
 from tensorflow.python.distribute.cluster_resolver import SimpleClusterResolver
 from tensorflow.python.distribute.distribute_config import DistributeConfig
 from tensorflow.python.eager import context
-from tensorflow.python.feature_column import feature_column_lib as feature_column
-from tensorflow.python.platform import gfile
-from tensorflow.python.platform import test
-from tensorflow.python.summary import summary_iterator
-from tensorflow.python.summary.writer import writer_cache
-from tensorflow.python.training import session_manager
 from tensorflow_estimator.python.estimator import exporter as exporter_lib
 from tensorflow_estimator.python.estimator import run_config as run_config_lib
 from tensorflow_estimator.python.estimator import training as estimator_training
@@ -54,12 +44,11 @@ from tensorflow_estimator.python.estimator.canned import dnn_linear_combined
 from tensorflow_estimator.python.estimator.canned import prediction_keys
 from tensorflow_estimator.python.estimator.export import export as export_lib
 
-
 BATCH_SIZE = 10
 LABEL_DIMENSION = 2
 DATA = np.linspace(
-    0., 2., BATCH_SIZE * LABEL_DIMENSION, dtype=np.float32).reshape(
-        BATCH_SIZE, LABEL_DIMENSION)
+    0., 2., BATCH_SIZE * LABEL_DIMENSION,
+    dtype=np.float32).reshape(BATCH_SIZE, LABEL_DIMENSION)
 EVAL_NAME = "foo"
 EXPORTER_NAME = "saved_model_exporter"
 MAX_STEPS = 10
@@ -89,7 +78,7 @@ class DistributeCoordinatorIntegrationTest(
   def dataset_input_fn(self, x, y, batch_size, shuffle):
 
     def input_fn():
-      dataset = dataset_ops.Dataset.from_tensor_slices((x, y))
+      dataset = tf.compat.v1.data.Dataset.from_tensor_slices((x, y))
       if shuffle:
         dataset = dataset.shuffle(batch_size)
       dataset = dataset.repeat(100).batch(batch_size)
@@ -98,7 +87,7 @@ class DistributeCoordinatorIntegrationTest(
     return input_fn
 
   def _get_exporter(self, name, fc):
-    feature_spec = feature_column.make_parse_example_spec(fc)
+    feature_spec = tf.compat.v1.feature_column.make_parse_example_spec(fc)
     serving_input_receiver_fn = (
         export_lib.build_parsing_serving_input_receiver_fn(feature_spec))
     return exporter_lib.LatestExporter(
@@ -113,7 +102,7 @@ class DistributeCoordinatorIntegrationTest(
     loss = None
     global_step_count = None
 
-    for e in summary_iterator.summary_iterator(event_paths[-1]):
+    for e in tf.compat.v1.train.summary_iterator(event_paths[-1]):
       current_loss = None
       for v in e.summary.value:
         if v.tag == "loss":
@@ -136,10 +125,10 @@ class DistributeCoordinatorIntegrationTest(
                      remote_cluster=None):
     input_dimension = LABEL_DIMENSION
     linear_feature_columns = [
-        feature_column.numeric_column("x", shape=(input_dimension,))
+        tf.feature_column.numeric_column("x", shape=(input_dimension,))
     ]
     dnn_feature_columns = [
-        feature_column.numeric_column("x", shape=(input_dimension,))
+        tf.feature_column.numeric_column("x", shape=(input_dimension,))
     ]
 
     return dnn_linear_combined.DNNLinearCombinedRegressor(
@@ -178,10 +167,10 @@ class DistributeCoordinatorIntegrationTest(
         x={"x": DATA}, y=DATA, batch_size=eval_batch_size, shuffle=False)
 
     linear_feature_columns = [
-        feature_column.numeric_column("x", shape=(input_dimension,))
+        tf.feature_column.numeric_column("x", shape=(input_dimension,))
     ]
     dnn_feature_columns = [
-        feature_column.numeric_column("x", shape=(input_dimension,))
+        tf.feature_column.numeric_column("x", shape=(input_dimension,))
     ]
     feature_columns = linear_feature_columns + dnn_feature_columns
 
@@ -202,25 +191,23 @@ class DistributeCoordinatorIntegrationTest(
       estimator.train(train_input_fn, max_steps=MAX_STEPS)
 
       latest_ckpt_path = estimator.latest_checkpoint()
-      metrics = estimator.evaluate(eval_input_fn,
-                                   checkpoint_path=latest_ckpt_path,
-                                   name=EVAL_NAME)
+      metrics = estimator.evaluate(
+          eval_input_fn, checkpoint_path=latest_ckpt_path, name=EVAL_NAME)
 
       # Export the eval result to files.
       eval_result = estimator_training._EvalResult(
           status=estimator_training._EvalStatus.EVALUATED,
           metrics=metrics,
           checkpoint_path=latest_ckpt_path)
-      evaluator = estimator_training._TrainingExecutor._Evaluator(estimator,
-                                                                  eval_spec,
-                                                                  None)
+      evaluator = estimator_training._TrainingExecutor._Evaluator(
+          estimator, eval_spec, None)
       evaluator._export_eval_result(eval_result, True)
 
     return estimator
 
   def _inspect_train_and_eval_events(self, estimator):
     # Make sure nothing is stuck in limbo.
-    writer_cache.FileWriterCache.clear()
+    tf.compat.v1.summary.FileWriterCache.clear()
 
     # Examine the training events. Use a range to check global step to avoid
     # flakyness due to global step race condition.
@@ -237,11 +224,11 @@ class DistributeCoordinatorIntegrationTest(
     # Examine the export folder.
     export_dir = os.path.join(
         os.path.join(self._model_dir, "export"), EXPORTER_NAME)
-    self.assertTrue(gfile.Exists(export_dir))
+    self.assertTrue(tf.compat.v1.gfile.Exists(export_dir))
 
     # Examine the ckpt for predict.
     def predict_input_fn():
-      return dataset_ops.Dataset.from_tensor_slices({
+      return tf.compat.v1.data.Dataset.from_tensor_slices({
           "x": DATA
       }).batch(BATCH_SIZE)
 
@@ -260,20 +247,19 @@ class DistributeCoordinatorIntegrationTest(
                            strategy_cls,
                            cluster_spec=None,
                            eval_strategy=False):
-    if strategy_cls == mirrored_strategy.MirroredStrategy:
+    if strategy_cls == tf.distribute.MirroredStrategy:
       if eval_strategy:
         return strategy_cls()
       else:
         return strategy_cls(
             cross_device_ops=self._make_cross_device_ops(
                 num_gpus_per_worker=context.num_gpus()))
-    elif (strategy_cls == mirrored_strategy.MirroredStrategy and
-          not eval_strategy):
+    elif (strategy_cls == tf.distribute.MirroredStrategy and not eval_strategy):
       return strategy_cls(
           num_gpus_per_worker=context.num_gpus(),
           cross_device_ops=self._make_cross_device_ops(
               num_gpus_per_worker=context.num_gpus()))
-    elif strategy_cls == parameter_server_strategy.ParameterServerStrategy:
+    elif strategy_cls == tf.distribute.experimental.ParameterServerStrategy:
       assert cluster_spec is not None
       cluster_resolver = SimpleClusterResolver(
           cluster_spec=multi_worker_util.normalize_cluster_spec(cluster_spec),
@@ -281,7 +267,7 @@ class DistributeCoordinatorIntegrationTest(
           task_id=0,
           num_accelerators={"GPU": context.num_gpus()})
       return strategy_cls(cluster_resolver)
-    elif strategy_cls == central_storage_strategy.CentralStorageStrategy:
+    elif strategy_cls == tf.distribute.experimental.CentralStorageStrategy:
       return strategy_cls._from_num_gpus(context.num_gpus())
     else:
       return strategy_cls()
@@ -290,15 +276,15 @@ class DistributeCoordinatorIntegrationTest(
       combinations.combine(
           mode=["graph"],
           train_distribute_cls=[
-              collective_all_reduce_strategy.CollectiveAllReduceStrategy,
-              mirrored_strategy.MirroredStrategy,
-              parameter_server_strategy.ParameterServerStrategy
+              tf.distribute.experimental.MultiWorkerMirroredStrategy,
+              tf.distribute.MirroredStrategy,
+              tf.distribute.experimental.ParameterServerStrategy
           ],
           eval_distribute_cls=[
               None,
-              mirrored_strategy.MirroredStrategy,
+              tf.distribute.MirroredStrategy,
               central_storage_strategy.CentralStorageStrategy,
-              collective_all_reduce_strategy.CollectiveAllReduceStrategy,
+              tf.distribute.experimental.MultiWorkerMirroredStrategy,
           ],
           required_gpus=[0, 1]))
   def test_complete_flow_standalone_client(self, train_distribute_cls,
@@ -306,7 +292,7 @@ class DistributeCoordinatorIntegrationTest(
 
     cluster_spec = copy.deepcopy(self._cluster_spec)
     if (train_distribute_cls !=
-        parameter_server_strategy.ParameterServerStrategy):
+        tf.distribute.experimental.ParameterServerStrategy):
       cluster_spec.pop("ps", None)
 
     train_distribute = self._get_strategy_object(
@@ -327,15 +313,16 @@ class DistributeCoordinatorIntegrationTest(
           mode=["graph"],
           eval_distribute_class=[
               None,
-              mirrored_strategy.MirroredStrategy,
+              tf.distribute.MirroredStrategy,
               central_storage_strategy.CentralStorageStrategy,
           ],
           required_gpus=[0, 1]))
   def test_complete_flow_standalone_client_collective_nccl(
       self, eval_distribute_class):
     train_distribute = (
-        collective_all_reduce_strategy.CollectiveAllReduceStrategy(
-            communication=cross_device_ops_lib.CollectiveCommunication.NCCL))
+        tf.distribute.experimental.MultiWorkerMirroredStrategy(
+            communication=tf.distribute.experimental.CollectiveCommunication
+            .NCCL))
 
     if eval_distribute_class:
       eval_distribute = self._get_strategy_object(
@@ -353,11 +340,11 @@ class DistributeCoordinatorIntegrationTest(
       combinations.combine(
           mode=["graph"],
           train_distribute_cls=[
-              mirrored_strategy.MirroredStrategy,
+              tf.distribute.MirroredStrategy,
           ],
           eval_distribute_cls=[
               None,
-              mirrored_strategy.MirroredStrategy,
+              tf.distribute.MirroredStrategy,
           ],
           required_gpus=[0, 1]))
   def test_estimator_standalone_client(self, train_distribute_cls,
@@ -374,7 +361,9 @@ class DistributeCoordinatorIntegrationTest(
     cluster.pop("evaluator", None)
 
     estimator = self._complete_flow(
-        train_distribute, eval_distribute, remote_cluster=cluster,
+        train_distribute,
+        eval_distribute,
+        remote_cluster=cluster,
         use_train_and_evaluate=False)
     self._inspect_train_and_eval_events(estimator)
 
@@ -390,32 +379,32 @@ class DistributeCoordinatorIntegrationTest(
       train_distribute,
       eval_distribute,
   ):
-    with test.mock.patch.object(dc, "_run_std_server",
-                                self._mock_run_std_server):
+    with tf.compat.v1.test.mock.patch.object(dc, "_run_std_server",
+                                             self._mock_run_std_server):
       self._complete_flow(train_distribute, eval_distribute)
 
   @combinations.generate(
       combinations.combine(
           mode=["graph"],
           train_distribute_cls=[
-              collective_all_reduce_strategy.CollectiveAllReduceStrategy,
-              parameter_server_strategy.ParameterServerStrategy,
+              tf.distribute.experimental.MultiWorkerMirroredStrategy,
+              tf.distribute.experimental.ParameterServerStrategy,
           ],
           eval_distribute_cls=[
               None,
-              mirrored_strategy.MirroredStrategy,
+              tf.distribute.MirroredStrategy,
               central_storage_strategy.CentralStorageStrategy,
-              collective_all_reduce_strategy.CollectiveAllReduceStrategy,
+              tf.distribute.experimental.MultiWorkerMirroredStrategy,
           ],
           required_gpus=[0, 1]))
   def test_complete_flow_independent_worker_between_graph(
       self, train_distribute_cls, eval_distribute_cls):
     if (context.num_gpus() < 2 and eval_distribute_cls ==
-        collective_all_reduce_strategy.CollectiveAllReduceStrategy):
+        tf.distribute.experimental.MultiWorkerMirroredStrategy):
       self.skipTest("`CollectiveAllReduceStrategy` needs at least two towers.")
 
-    if (train_distribute_cls == parameter_server_strategy
-        .ParameterServerStrategy):
+    if (train_distribute_cls ==
+        tf.distribute.experimental.ParameterServerStrategy):
       cluster_spec = multi_worker_test_base.create_cluster_spec(
           num_workers=3, num_ps=2, has_eval=True)
       # 3 workers, 2 ps and 1 evaluator.
@@ -453,11 +442,11 @@ class DistributeCoordinatorIntegrationTest(
       combinations.combine(
           mode=["graph"],
           train_distribute_cls=[
-              mirrored_strategy.MirroredStrategy,
+              tf.distribute.MirroredStrategy,
           ],
           eval_distribute_cls=[
               None,
-              mirrored_strategy.MirroredStrategy,
+              tf.distribute.MirroredStrategy,
           ],
           required_gpus=[0, 1]))
   def test_complete_flow_independent_worker_in_graph(self, train_distribute_cls,
@@ -506,14 +495,14 @@ TF_CONFIG_WITH_MASTER = {
 TF_CONFIG_WITHOUT_TASK = {"cluster": {"chief": ["fake_worker"]}}
 
 
-class RunConfigTest(test.TestCase):
+class RunConfigTest(tf.test.TestCase):
 
   def test_previously_unexpected_cluster_spec(self):
-    with test.mock.patch.dict(
+    with tf.compat.v1.test.mock.patch.dict(
         "os.environ", {"TF_CONFIG": json.dumps(TF_CONFIG_WITHOUT_TASK)}):
       run_config_lib.RunConfig(
           experimental_distribute=DistributeConfig(
-              train_distribute=mirrored_strategy.MirroredStrategy(
+              train_distribute=tf.distribute.MirroredStrategy(
                   ["/device:GPU:0", "/device:GPU:1"])))
 
   def test_should_run_distribute_coordinator(self):
@@ -525,23 +514,23 @@ class RunConfigTest(test.TestCase):
 
     # When `train_distribute` is not specified, don't use distribute
     # coordinator.
-    with test.mock.patch.dict("os.environ",
-                              {"TF_CONFIG": json.dumps(TF_CONFIG_WITH_CHIEF)}):
+    with tf.compat.v1.test.mock.patch.dict(
+        "os.environ", {"TF_CONFIG": json.dumps(TF_CONFIG_WITH_CHIEF)}):
       self.assertFalse(
           dc_training.should_run_distribute_coordinator(
               run_config_lib.RunConfig()))
 
     # When `train_distribute` is specified and TF_CONFIG is detected, use
     # distribute coordinator.
-    with test.mock.patch.dict("os.environ",
-                              {"TF_CONFIG": json.dumps(TF_CONFIG_WITH_CHIEF)}):
+    with tf.compat.v1.test.mock.patch.dict(
+        "os.environ", {"TF_CONFIG": json.dumps(TF_CONFIG_WITH_CHIEF)}):
       config_with_train_distribute = run_config_lib.RunConfig(
           experimental_distribute=DistributeConfig(
-              train_distribute=mirrored_strategy.MirroredStrategy(
+              train_distribute=tf.distribute.MirroredStrategy(
                   ["/device:GPU:0", "/device:GPU:1"])))
       config_with_eval_distribute = run_config_lib.RunConfig(
           experimental_distribute=DistributeConfig(
-              eval_distribute=mirrored_strategy.MirroredStrategy(
+              eval_distribute=tf.distribute.MirroredStrategy(
                   ["/device:GPU:0", "/device:GPU:1"])))
     self.assertTrue(
         dc_training.should_run_distribute_coordinator(
@@ -551,55 +540,55 @@ class RunConfigTest(test.TestCase):
             config_with_eval_distribute))
 
     # With a master in the cluster, don't run distribute coordinator.
-    with test.mock.patch.dict("os.environ",
-                              {"TF_CONFIG": json.dumps(TF_CONFIG_WITH_MASTER)}):
+    with tf.compat.v1.test.mock.patch.dict(
+        "os.environ", {"TF_CONFIG": json.dumps(TF_CONFIG_WITH_MASTER)}):
       config = run_config_lib.RunConfig(
           experimental_distribute=DistributeConfig(
-              train_distribute=mirrored_strategy.MirroredStrategy(
+              train_distribute=tf.distribute.MirroredStrategy(
                   ["/device:GPU:0", "/device:GPU:1"])))
     self.assertFalse(dc_training.should_run_distribute_coordinator(config))
 
   def test_init_run_config_duplicate_distribute(self):
     with self.assertRaises(ValueError):
       run_config_lib.RunConfig(
-          train_distribute=mirrored_strategy.MirroredStrategy(),
+          train_distribute=tf.distribute.MirroredStrategy(),
           experimental_distribute=DistributeConfig(
-              train_distribute=mirrored_strategy.MirroredStrategy()))
+              train_distribute=tf.distribute.MirroredStrategy()))
 
     with self.assertRaises(ValueError):
       run_config_lib.RunConfig(
-          eval_distribute=mirrored_strategy.MirroredStrategy(),
+          eval_distribute=tf.distribute.MirroredStrategy(),
           experimental_distribute=DistributeConfig(
-              eval_distribute=mirrored_strategy.MirroredStrategy()))
+              eval_distribute=tf.distribute.MirroredStrategy()))
 
   def test_init_run_config_none_distribute_coordinator_mode(self):
     # We don't use distribute coordinator for local training.
     config = run_config_lib.RunConfig(
-        train_distribute=mirrored_strategy.MirroredStrategy())
+        train_distribute=tf.distribute.MirroredStrategy())
     dc_training.init_run_config(config, {})
     self.assertIsNone(config._distribute_coordinator_mode)
 
     # With a master in the cluster, don't run distribute coordinator.
-    with test.mock.patch.dict("os.environ",
-                              {"TF_CONFIG": json.dumps(TF_CONFIG_WITH_MASTER)}):
+    with tf.compat.v1.test.mock.patch.dict(
+        "os.environ", {"TF_CONFIG": json.dumps(TF_CONFIG_WITH_MASTER)}):
       config = run_config_lib.RunConfig(
-          train_distribute=mirrored_strategy.MirroredStrategy())
+          train_distribute=tf.distribute.MirroredStrategy())
       self.assertIsNone(config._distribute_coordinator_mode)
 
     # When `train_distribute` is not specified, don't use distribute
     # coordinator.
-    with test.mock.patch.dict("os.environ",
-                              {"TF_CONFIG": json.dumps(TF_CONFIG_WITH_CHIEF)}):
+    with tf.compat.v1.test.mock.patch.dict(
+        "os.environ", {"TF_CONFIG": json.dumps(TF_CONFIG_WITH_CHIEF)}):
       config = run_config_lib.RunConfig()
       self.assertFalse(hasattr(config, "_distribute_coordinator_mode"))
 
   def test_init_run_config_independent_worker(self):
     # When `train_distribute` is specified and TF_CONFIG is detected, use
     # distribute coordinator with INDEPENDENT_WORKER mode.
-    with test.mock.patch.dict("os.environ",
-                              {"TF_CONFIG": json.dumps(TF_CONFIG_WITH_CHIEF)}):
+    with tf.compat.v1.test.mock.patch.dict(
+        "os.environ", {"TF_CONFIG": json.dumps(TF_CONFIG_WITH_CHIEF)}):
       config = run_config_lib.RunConfig(
-          train_distribute=mirrored_strategy.MirroredStrategy())
+          train_distribute=tf.distribute.MirroredStrategy())
     self.assertEqual(config._distribute_coordinator_mode,
                      dc.CoordinatorMode.INDEPENDENT_WORKER)
 
@@ -608,7 +597,7 @@ class RunConfigTest(test.TestCase):
     # `experimental.remote_cluster` is set use distribute coordinator with
     # STANDALONE_CLIENT mode.
     config = run_config_lib.RunConfig(
-        train_distribute=mirrored_strategy.MirroredStrategy(),
+        train_distribute=tf.distribute.MirroredStrategy(),
         experimental_distribute=DistributeConfig(
             remote_cluster={"chief": ["fake_worker"]}))
     self.assertEqual(config._distribute_coordinator_mode,
@@ -617,14 +606,14 @@ class RunConfigTest(test.TestCase):
 
 if __name__ == "__main__":
   # Reduce `recovery_wait_secs` from 30 seconds so the test completes quickly.
-  orig_init = session_manager.SessionManager.__init__
+  orig_init = tf.compat.v1.train.SessionManager.__init__
 
   def new_init(*args, **kwargs):
     kwargs.pop("recovery_wait_secs", None)
     kwargs["recovery_wait_secs"] = 0.5
     orig_init(*args, **kwargs)
 
-  session_manager.SessionManager.__init__ = new_init
+  tf.compat.v1.train.SessionManager.__init__ = new_init
 
-  with test.mock.patch.object(sys, "exit", os._exit):
-    test.main()
+  with tf.compat.v1.test.mock.patch.object(sys, "exit", os._exit):
+    tf.test.main()

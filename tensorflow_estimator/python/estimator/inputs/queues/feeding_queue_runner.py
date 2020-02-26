@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-
 """A `QueueRunner` that takes a feed function as an argument."""
 
 from __future__ import absolute_import
@@ -20,17 +19,18 @@ from __future__ import division
 from __future__ import print_function
 
 import threading
-
-from tensorflow.python.framework import errors
-from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.training import queue_runner as qr
+import tensorflow as tf
 
 
-class _FeedingQueueRunner(qr.QueueRunner):
+class _FeedingQueueRunner(tf.compat.v1.train.queue_runner.QueueRunner):
   """A queue runner that allows the feeding of values such as numpy arrays."""
 
-  def __init__(self, queue=None, enqueue_ops=None, close_op=None,
-               cancel_op=None, feed_fns=None,
+  def __init__(self,
+               queue=None,
+               enqueue_ops=None,
+               close_op=None,
+               cancel_op=None,
+               feed_fns=None,
                queue_closed_exception_types=None):
     """Initialize the queue runner.
 
@@ -47,19 +47,22 @@ class _FeedingQueueRunner(qr.QueueRunner):
         `Tensor`s to values. Must be the same length as `enqueue_ops`.
       queue_closed_exception_types: Optional tuple of Exception types that
         indicate that the queue has been closed when raised during an enqueue
-        operation.  Defaults to
-        `(tf.errors.OutOfRangeError, tf.errors.CancelledError)`.
+        operation.  Defaults to `(tf.errors.OutOfRangeError,
+        tf.errors.CancelledError)`.
 
     Raises:
       ValueError: `feed_fns` is not `None` and has different length than
         `enqueue_ops`.
     """
     if queue_closed_exception_types is None:
-      queue_closed_exception_types = (
-          errors.OutOfRangeError, errors.CancelledError)
+      queue_closed_exception_types = (tf.errors.OutOfRangeError,
+                                      tf.errors.CancelledError)
     super(_FeedingQueueRunner, self).__init__(
-        queue, enqueue_ops, close_op,
-        cancel_op, queue_closed_exception_types=queue_closed_exception_types)
+        queue,
+        enqueue_ops,
+        close_op,
+        cancel_op,
+        queue_closed_exception_types=queue_closed_exception_types)
     if feed_fns is None:
       self._feed_fns = [None for _ in enqueue_ops]
     else:
@@ -77,9 +80,8 @@ class _FeedingQueueRunner(qr.QueueRunner):
       sess: A `Session`.
       enqueue_op: The `Operation` to run.
       feed_fn: the feed function to pass to `sess.run`.
-      coord: Optional `Coordinator` object for reporting errors and checking
-        for stop conditions.
-
+      coord: Optional `Coordinator` object for reporting errors and checking for
+        stop conditions.
     """
     # TODO(jamieas): Reduce code duplication with `QueueRunner`.
     if coord:
@@ -92,7 +94,7 @@ class _FeedingQueueRunner(qr.QueueRunner):
         try:
           feed_dict = None if feed_fn is None else feed_fn()
           sess.run(enqueue_op, feed_dict=feed_dict)
-        except (errors.OutOfRangeError, errors.CancelledError):
+        except (tf.errors.OutOfRangeError, tf.errors.CancelledError):
           # This exception indicates that a queue was closed.
           with self._lock:
             self._runs_per_session[sess] -= 1
@@ -102,14 +104,14 @@ class _FeedingQueueRunner(qr.QueueRunner):
                 sess.run(self._close_op)
               except Exception as e:
                 # Intentionally ignore errors from close_op.
-                logging.vlog(1, "Ignored exception: %s", str(e))
+                tf.compat.v1.logging.vlog(1, "Ignored exception: %s", str(e))
             return
     except Exception as e:
       # This catches all other exceptions.
       if coord:
         coord.request_stop(e)
       else:
-        logging.error("Exception in QueueRunner: %s", str(e))
+        tf.compat.v1.logging.error("Exception in QueueRunner: %s", str(e))
         with self._lock:
           self._exceptions_raised.append(e)
         raise
@@ -139,8 +141,8 @@ class _FeedingQueueRunner(qr.QueueRunner):
       coord: Optional `Coordinator` object for reporting errors and checking
         stop conditions.
       daemon: Boolean.  If `True` make the threads daemon threads.
-      start: Boolean.  If `True` starts the threads.  If `False` the
-        caller must call the `start()` method of the returned threads.
+      start: Boolean.  If `True` starts the threads.  If `False` the caller must
+        call the `start()` method of the returned threads.
 
     Returns:
       A list of threads.
@@ -156,12 +158,14 @@ class _FeedingQueueRunner(qr.QueueRunner):
       self._runs_per_session[sess] = len(self._enqueue_ops)
       self._exceptions_raised = []
 
-    ret_threads = [threading.Thread(target=self._run,
-                                    args=(sess, op, feed_fn, coord))
-                   for op, feed_fn in zip(self._enqueue_ops, self._feed_fns)]
+    ret_threads = [
+        threading.Thread(target=self._run, args=(sess, op, feed_fn, coord))
+        for op, feed_fn in zip(self._enqueue_ops, self._feed_fns)
+    ]
     if coord:
-      ret_threads.append(threading.Thread(target=self._close_on_stop,
-                                          args=(sess, self._cancel_op, coord)))
+      ret_threads.append(
+          threading.Thread(
+              target=self._close_on_stop, args=(sess, self._cancel_op, coord)))
     for t in ret_threads:
       if daemon:
         t.daemon = True
@@ -171,10 +175,10 @@ class _FeedingQueueRunner(qr.QueueRunner):
 
   def _init_from_proto(self, queue_runner_def):
     raise NotImplementedError(
-        "{} does not support initialization from proto.".format(type(
-            self).__name__))
+        "{} does not support initialization from proto.".format(
+            type(self).__name__))
 
   def to_proto(self):
     raise NotImplementedError(
-        "{} does not support serialization to proto.".format(type(
-            self).__name__))
+        "{} does not support serialization to proto.".format(
+            type(self).__name__))

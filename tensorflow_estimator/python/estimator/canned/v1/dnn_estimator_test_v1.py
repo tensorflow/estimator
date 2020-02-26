@@ -23,14 +23,8 @@ import tempfile
 
 import numpy as np
 import six
-
-from tensorflow.python.feature_column import feature_column_lib as feature_column
-from tensorflow.python.framework import ops
+import tensorflow as tf
 from tensorflow.python.framework import test_util
-from tensorflow.python.ops.losses import losses
-from tensorflow.python.platform import gfile
-from tensorflow.python.platform import test
-from tensorflow.python.summary.writer import writer_cache
 from tensorflow_estimator.python.estimator.canned import dnn
 from tensorflow_estimator.python.estimator.canned import head as head_lib
 from tensorflow_estimator.python.estimator.canned import prediction_keys
@@ -46,7 +40,7 @@ def _dnn_estimator_fn(weight_column=None, label_dimension=1, **kwargs):
           weight_column=weight_column,
           label_dimension=label_dimension,
           # Tests in core (from which this test inherits) test the sum loss.
-          loss_reduction=losses.Reduction.SUM),
+          loss_reduction=tf.compat.v1.losses.Reduction.SUM),
       **kwargs)
 
 
@@ -57,61 +51,61 @@ def _dnn_estimator_classifier_fn(n_classes=3, **kwargs):
       **kwargs)
 
 
-@test_util.run_v1_only("Tests v1 only symbols")
+@test_util.run_v1_only('Tests v1 only symbols')
 class DNNEstimatorEvaluateTest(
-    dnn_testing_utils_v1.BaseDNNRegressorEvaluateTest, test.TestCase):
+    dnn_testing_utils_v1.BaseDNNRegressorEvaluateTest, tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
+    tf.test.TestCase.__init__(self, methodName)
     dnn_testing_utils_v1.BaseDNNRegressorEvaluateTest.__init__(
         self, _dnn_estimator_fn)
 
 
-@test_util.run_v1_only("Tests v1 only symbols")
+@test_util.run_v1_only('Tests v1 only symbols')
 class DNNEstimatorPredictTest(dnn_testing_utils_v1.BaseDNNRegressorPredictTest,
-                              test.TestCase):
+                              tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
+    tf.test.TestCase.__init__(self, methodName)
     dnn_testing_utils_v1.BaseDNNRegressorPredictTest.__init__(
         self, _dnn_estimator_fn)
 
 
-@test_util.run_v1_only("Tests v1 only symbols")
+@test_util.run_v1_only('Tests v1 only symbols')
 class DNNEstimatorTrainTest(dnn_testing_utils_v1.BaseDNNRegressorTrainTest,
-                            test.TestCase):
+                            tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
+    tf.test.TestCase.__init__(self, methodName)
     dnn_testing_utils_v1.BaseDNNRegressorTrainTest.__init__(
         self, _dnn_estimator_fn)
 
 
-@test_util.run_v1_only("Tests v1 only symbols")
+@test_util.run_v1_only('Tests v1 only symbols')
 class DNNEstimatorWarmStartingTest(dnn_testing_utils_v1.BaseDNNWarmStartingTest,
-                                   test.TestCase):
+                                   tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
+    tf.test.TestCase.__init__(self, methodName)
     dnn_testing_utils_v1.BaseDNNWarmStartingTest.__init__(
         self, _dnn_estimator_classifier_fn, _dnn_estimator_fn)
 
 
-@test_util.run_v1_only("Tests v1 only symbols")
-class DNNEstimatorIntegrationTest(test.TestCase):
+@test_util.run_v1_only('Tests v1 only symbols')
+class DNNEstimatorIntegrationTest(tf.test.TestCase):
 
   def setUp(self):
     self._model_dir = tempfile.mkdtemp()
 
   def tearDown(self):
     if self._model_dir:
-      writer_cache.FileWriterCache.clear()
+      tf.compat.v1.summary.FileWriterCache.clear()
       shutil.rmtree(self._model_dir)
 
   def _test_complete_flow(self, train_input_fn, eval_input_fn, predict_input_fn,
                           input_dimension, label_dimension, batch_size):
     feature_columns = [
-        feature_column.numeric_column('x', shape=(input_dimension,))
+        tf.feature_column.numeric_column('x', shape=(input_dimension,))
     ]
     est = dnn.DNNEstimator(
         head=head_lib._regression_head(label_dimension=label_dimension),
@@ -125,7 +119,7 @@ class DNNEstimatorIntegrationTest(test.TestCase):
 
     # Evaluate
     scores = est.evaluate(eval_input_fn)
-    self.assertEqual(num_steps, scores[ops.GraphKeys.GLOBAL_STEP])
+    self.assertEqual(num_steps, scores[tf.compat.v1.GraphKeys.GLOBAL_STEP])
     self.assertIn('loss', six.iterkeys(scores))
 
     # Predict
@@ -136,12 +130,13 @@ class DNNEstimatorIntegrationTest(test.TestCase):
     self.assertAllEqual((batch_size, label_dimension), predictions.shape)
 
     # Export
-    feature_spec = feature_column.make_parse_example_spec(feature_columns)
+    feature_spec = tf.compat.v1.feature_column.make_parse_example_spec(
+        feature_columns)
     serving_input_receiver_fn = export.build_parsing_serving_input_receiver_fn(
         feature_spec)
     export_dir = est.export_saved_model(tempfile.mkdtemp(),
                                         serving_input_receiver_fn)
-    self.assertTrue(gfile.Exists(export_dir))
+    self.assertTrue(tf.compat.v1.gfile.Exists(export_dir))
 
   def test_numpy_input_fn(self):
     """Tests complete flow with numpy_input_fn."""
@@ -171,4 +166,4 @@ class DNNEstimatorIntegrationTest(test.TestCase):
 
 
 if __name__ == '__main__':
-  test.main()
+  tf.test.main()

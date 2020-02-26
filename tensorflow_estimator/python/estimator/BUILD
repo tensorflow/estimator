@@ -1068,7 +1068,11 @@ py_test(
     python_version = "PY3",
     shard_count = 4,
     srcs_version = "PY2AND3",
-    tags = ["no_pip"],
+    tags = [
+        "manual",
+        "no_pip",
+        "notap",  # b/148804861
+    ],
     deps = [
         ":dnn_testing_utils_v1",
         ":head",
@@ -1158,7 +1162,11 @@ py_test(
     python_version = "PY3",
     shard_count = 4,
     srcs_version = "PY2AND3",
-    tags = ["no_pip"],
+    tags = [
+        "manual",
+        "no_pip",
+        "notap",  # b/148804861
+    ],
     deps = [
         ":binary_class_head",
         ":dnn",
@@ -1311,6 +1319,10 @@ py_test(
     python_version = "PY3",
     shard_count = 4,
     srcs_version = "PY2AND3",
+    tags = [
+        "manual",
+        "notap",  # b/148804861
+    ],
     deps = [
         ":head_utils",
         ":metric_keys",
@@ -1977,7 +1989,7 @@ py_test(
         "cuda",
         "gpu",
         "multi_and_single_gpu",
-        "requires-gpu-sm35",
+        "requires-gpu-nvidia",
         "tf_integration_test",
     ],
     deps = [
@@ -2024,7 +2036,7 @@ py_test(
         "nomsan",
         "notsan",
         "cuda",
-        "requires-gpu-sm35",
+        "requires-gpu-nvidia",
         "gpu",
         "multi_and_single_gpu",
     ],
@@ -2059,7 +2071,7 @@ py_test(
         "cuda",
         "gpu",
         "multi_and_single_gpu",
-        "requires-gpu-sm35",
+        "requires-gpu-nvidia",
         "tf_integration_test",
     ],
     deps = [

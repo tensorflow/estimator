@@ -19,7 +19,7 @@ from __future__ import division
 from __future__ import print_function
 
 import six
-
+import tensorflow as tf
 from tensorflow.python.feature_column import dense_features
 from tensorflow.python.feature_column import feature_column_lib as fc
 from tensorflow.python.framework import ops
@@ -28,10 +28,6 @@ from tensorflow.python.keras import layers as keras_layers
 from tensorflow.python.keras import models
 from tensorflow.python.keras.layers import recurrent_v2
 from tensorflow.python.keras.utils import losses_utils
-from tensorflow.python.ops import array_ops
-from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.summary import summary
-from tensorflow.python.training import training_util
 from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator import estimator
 from tensorflow_estimator.python.estimator import model_fn
@@ -55,14 +51,14 @@ _GRU_KEY = 'gru'
 _CELL_TYPE_TO_LAYER_MAPPING = {
     _LSTM_KEY: recurrent_v2.LSTM,
     _GRU_KEY: recurrent_v2.GRU,
-    _SIMPLE_RNN_KEY: keras_layers.SimpleRNN}
+    _SIMPLE_RNN_KEY: keras_layers.SimpleRNN
+}
 
 _CELL_TYPES = {
     _LSTM_KEY: recurrent_v2.LSTMCell,
     _GRU_KEY: recurrent_v2.GRUCell,
     _SIMPLE_RNN_KEY: keras_layers.SimpleRNNCell
 }
-
 
 # Indicates no value was provided by the user to a kwarg.
 USE_DEFAULT = object()
@@ -100,11 +96,13 @@ def _make_rnn_cell_fn(units, cell_type=_SIMPLE_RNN_KEY):
   Raises:
     ValueError: If cell_type is not supported.
   """
+
   def rnn_cell_fn():
     cells = [_single_rnn_cell(n, cell_type) for n in units]
     if len(cells) == 1:
       return cells[0]
     return cells
+
   return rnn_cell_fn
 
 
@@ -132,28 +130,27 @@ class RNNModel(models.Model):
   """
 
   # TODO(aarg): Update arguments to support multiple rnn layers.
-  def __init__(
-      self,
-      rnn_layer,
-      units,
-      sequence_feature_columns,
-      context_feature_columns=None,
-      activation=None,
-      return_sequences=False,
-      **kwargs):
+  def __init__(self,
+               rnn_layer,
+               units,
+               sequence_feature_columns,
+               context_feature_columns=None,
+               activation=None,
+               return_sequences=False,
+               **kwargs):
     """Initializes a RNNModel instance.
 
     Args:
       rnn_layer: A Keras RNN layer.
       units: An int indicating the dimension of the logit layer, and of the
         model output.
-      sequence_feature_columns: An iterable containing the `FeatureColumn`s
-        that represent sequential input. All items in the set should either be
+      sequence_feature_columns: An iterable containing the `FeatureColumn`s that
+        represent sequential input. All items in the set should either be
         sequence columns (e.g. `sequence_numeric_column`) or constructed from
         one (e.g. `embedding_column` with `sequence_categorical_column_*` as
         input).
-      context_feature_columns: An iterable containing the `FeatureColumn`s
-        for contextual input. The data represented by these columns will be
+      context_feature_columns: An iterable containing the `FeatureColumn`s for
+        contextual input. The data represented by these columns will be
         replicated and given to the RNN at each timestep. These columns must be
         instances of classes derived from `DenseColumn` such as
         `numeric_column`, not the sequential variants.
@@ -206,14 +203,14 @@ class RNNModel(models.Model):
                        'Given type: {}'.format(type(inputs)))
     with ops.name_scope('sequence_input_layer'):
       sequence_input, sequence_length = self._sequence_features_layer(inputs)
-      summary.histogram('sequence_length', sequence_length)
+      tf.compat.v1.summary.histogram('sequence_length', sequence_length)
 
       if self._context_feature_columns:
         context_input = self._dense_features_layer(inputs)
         sequence_input = fc.concatenate_context_input(
             context_input, sequence_input=sequence_input)
 
-    sequence_length_mask = array_ops.sequence_mask(sequence_length)
+    sequence_length_mask = tf.sequence_mask(sequence_length)
     rnn_outputs = self._rnn_layer(
         sequence_input, mask=sequence_length_mask, training=training)
 
@@ -264,29 +261,31 @@ class RNNModel(models.Model):
     activation = activations.deserialize(
         config.pop('activation', None), custom_objects=custom_objects)
     return cls(
-        rnn_layer=rnn_layer, sequence_feature_columns=sequence_feature_columns,
-        context_feature_columns=context_feature_columns, activation=activation,
+        rnn_layer=rnn_layer,
+        sequence_feature_columns=sequence_feature_columns,
+        context_feature_columns=context_feature_columns,
+        activation=activation,
         **config)
 
 
-def _get_rnn_estimator_spec(
-    features, labels, mode, head, rnn_model, optimizer, return_sequences):
+def _get_rnn_estimator_spec(features, labels, mode, head, rnn_model, optimizer,
+                            return_sequences):
   """Computes `EstimatorSpec` from logits to use in estimator model function.
 
   Args:
     features: dict of `Tensor` and `SparseTensor` objects returned from
       `input_fn`.
     labels: `Tensor` of shape [batch_size, 1] or [batch_size] with labels.
-    mode: Defines whether this is training, evaluation or prediction.
-      See `ModeKeys`.
+    mode: Defines whether this is training, evaluation or prediction. See
+      `ModeKeys`.
     head: A `Head` instance.
     rnn_model: A Keras model that computes RNN logits from features.
     optimizer: String, `tf.keras.optimizers.Optimizer` object, or callable that
       creates the optimizer to use for training. If not specified, will use the
       Adagrad optimizer with a default learning rate of 0.05 and gradient clip
       norm of 5.0.
-    return_sequences: A boolean indicating whether to return the last output
-      in the output sequence, or the full sequence.
+    return_sequences: A boolean indicating whether to return the last output in
+      the output sequence, or the full sequence.
 
   Returns:
     An `EstimatorSpec` instance.
@@ -308,7 +307,7 @@ def _get_rnn_estimator_spec(
       optimizer.clipnorm = _DEFAULT_CLIP_NORM
     else:
       optimizer = optimizers.get_optimizer_instance_v2(optimizer)
-    optimizer.iterations = training_util.get_or_create_global_step()
+    optimizer.iterations = tf.compat.v1.train.get_or_create_global_step()
   else:
     optimizer = None
 
@@ -437,22 +436,21 @@ class RNNEstimator(estimator.Estimator):
     Args:
       head: A `Head` instance. This specifies the model's output and loss
         function to be optimized.
-      sequence_feature_columns: An iterable containing the `FeatureColumn`s
-        that represent sequential input. All items in the set should either be
+      sequence_feature_columns: An iterable containing the `FeatureColumn`s that
+        represent sequential input. All items in the set should either be
         sequence columns (e.g. `sequence_numeric_column`) or constructed from
         one (e.g. `embedding_column` with `sequence_categorical_column_*` as
         input).
-      context_feature_columns: An iterable containing the `FeatureColumn`s
-        for contextual input. The data represented by these columns will be
+      context_feature_columns: An iterable containing the `FeatureColumn`s for
+        contextual input. The data represented by these columns will be
         replicated and given to the RNN at each timestep. These columns must be
         instances of classes derived from `DenseColumn` such as
         `numeric_column`, not the sequential variants.
-      units: Iterable of integer number of hidden units per RNN layer. If
-        set, `cell_type` must also be specified and `rnn_cell_fn` must be
-        `None`.
+      units: Iterable of integer number of hidden units per RNN layer. If set,
+        `cell_type` must also be specified and `rnn_cell_fn` must be `None`.
       cell_type: A class producing a RNN cell or a string specifying the cell
         type. Supported strings are: `'simple_rnn'`, `'lstm'`, and `'gru'`. If
-        set, `units` must also be specified and `rnn_cell_fn` must be `None`.
+          set, `units` must also be specified and `rnn_cell_fn` must be `None`.
       rnn_cell_fn: A function that returns a RNN cell instance that will be used
         to construct the RNN. If set, `units` and `cell_type` cannot be set.
         This is for advanced users who need additional customization beyond
@@ -467,11 +465,12 @@ class RNNEstimator(estimator.Estimator):
         type. Defaults to Adagrad optimizer.
       config: `RunConfig` object to configure the runtime settings.
 
-    Note that a RNN cell is has:
+    Note that a RNN cell has:
       - a `call` method.
       - a `state_size` attribute.
       - a `output_size` attribute.
       - a `get_initial_state` method.
+
     See the documentation on `tf.keras.layers.RNN` for more details.
 
     Raises:
@@ -480,18 +479,18 @@ class RNNEstimator(estimator.Estimator):
     """
 
     # TODO(aarg): Instead of raising an error convert head to sequential head.
-    if return_sequences and not isinstance(
-        head, seq_head_lib._SequentialHead):  # pylint: disable=protected-access
-      raise ValueError(
-          'Provided head must be a `_SequentialHead` object when '
-          '`return_sequences` is set to True.')
+    if return_sequences and not isinstance(head, seq_head_lib._SequentialHead):  # pylint: disable=protected-access
+      raise ValueError('Provided head must be a `_SequentialHead` object when '
+                       '`return_sequences` is set to True.')
     _verify_rnn_cell_input(rnn_cell_fn, units, cell_type)
 
     def _model_fn(features, labels, mode, config):
       """RNNEstimator model function."""
       del config  # Unused.
       rnn_layer = _make_rnn_layer(
-          rnn_cell_fn=rnn_cell_fn, units=units, cell_type=cell_type,
+          rnn_cell_fn=rnn_cell_fn,
+          units=units,
+          cell_type=cell_type,
           return_sequences=return_sequences)
       rnn_model = RNNModel(
           rnn_layer=rnn_layer,
@@ -501,8 +500,13 @@ class RNNEstimator(estimator.Estimator):
           return_sequences=return_sequences,
           name='rnn_model')
       return _get_rnn_estimator_spec(
-          features, labels, mode, head=head, rnn_model=rnn_model,
-          optimizer=optimizer, return_sequences=return_sequences)
+          features,
+          labels,
+          mode,
+          head=head,
+          rnn_model=rnn_model,
+          optimizer=optimizer,
+          return_sequences=return_sequences)
 
     super(RNNEstimator, self).__init__(
         model_fn=_model_fn, model_dir=model_dir, config=config)
@@ -579,22 +583,21 @@ class RNNClassifier(RNNEstimator):
     """Initializes a `RNNClassifier` instance.
 
     Args:
-      sequence_feature_columns: An iterable containing the `FeatureColumn`s
-        that represent sequential input. All items in the set should either be
+      sequence_feature_columns: An iterable containing the `FeatureColumn`s that
+        represent sequential input. All items in the set should either be
         sequence columns (e.g. `sequence_numeric_column`) or constructed from
         one (e.g. `embedding_column` with `sequence_categorical_column_*` as
         input).
-      context_feature_columns: An iterable containing the `FeatureColumn`s
-        for contextual input. The data represented by these columns will be
+      context_feature_columns: An iterable containing the `FeatureColumn`s for
+        contextual input. The data represented by these columns will be
         replicated and given to the RNN at each timestep. These columns must be
         instances of classes derived from `DenseColumn` such as
         `numeric_column`, not the sequential variants.
-      units: Iterable of integer number of hidden units per RNN layer. If
-        set, `cell_type` must also be specified and `rnn_cell_fn` must be
-        `None`.
+      units: Iterable of integer number of hidden units per RNN layer. If set,
+        `cell_type` must also be specified and `rnn_cell_fn` must be `None`.
       cell_type: A class producing a RNN cell or a string specifying the cell
         type. Supported strings are: `'simple_rnn'`, `'lstm'`, and `'gru'`. If
-        set, `units` must also be specified and `rnn_cell_fn` must be `None`.
+          set, `units` must also be specified and `rnn_cell_fn` must be `None`.
       rnn_cell_fn: A function that returns a RNN cell instance that will be used
         to construct the RNN. If set, `units` and `cell_type` cannot be set.
         This is for advanced users who need additional customization beyond
@@ -617,10 +620,10 @@ class RNNClassifier(RNNEstimator):
         weight_column.normalizer_fn is applied on it to get weight tensor.
       label_vocabulary: A list of strings represents possible label values. If
         given, labels must be string type and have any value in
-        `label_vocabulary`. If it is not given, that means labels are
-        already encoded as integer or float within [0, 1] for `n_classes=2` and
-        encoded as integer values in {0, 1,..., n_classes-1} for `n_classes`>2 .
-        Also there will be errors if vocabulary is not provided and labels are
+        `label_vocabulary`. If it is not given, that means labels are already
+        encoded as integer or float within [0, 1] for `n_classes=2` and encoded
+        as integer values in {0, 1,..., n_classes-1} for `n_classes`>2 . Also
+        there will be errors if vocabulary is not provided and labels are
         string.
       optimizer: An instance of `tf.Optimizer` or string specifying optimizer
         type. Defaults to Adagrad optimizer.
@@ -640,6 +643,7 @@ class RNNClassifier(RNNEstimator):
       - a `state_size` attribute.
       - a `output_size` attribute.
       - a `get_initial_state` method.
+
     See the documentation on `tf.keras.layers.RNN` for more details.
 
     Raises:
@@ -659,10 +663,12 @@ class RNNClassifier(RNNEstimator):
           loss_reduction=loss_reduction)
 
     if return_sequences:
-      logging.info('Converting head to sequential head with '
-                   '`SequentialHeadWrapper` to allow sequential predictions.')
+      tf.compat.v1.logging.info(
+          'Converting head to sequential head with '
+          '`SequentialHeadWrapper` to allow sequential predictions.')
       head = seq_head_lib.SequentialHeadWrapper(
-          head, sequence_length_mask=sequence_mask,
+          head,
+          sequence_length_mask=sequence_mask,
           feature_columns=weight_column)
 
     super(RNNClassifier, self).__init__(

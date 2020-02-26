@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-
 r"""System for specifying garbage collection (GC) of path based data.
 
 This framework allows for GC of data specified by path names, for example files
@@ -65,14 +64,12 @@ For example,
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
-
 import collections
 import heapq
 import math
 import os
-
+import tensorflow as tf
 from tensorflow.python.platform import gfile
-from tensorflow.python.util import compat
 
 Path = collections.namedtuple('Path', 'path export_version')
 
@@ -86,6 +83,7 @@ def _largest_export_versions(n):
   Returns:
     A filter function that keeps the n largest paths.
   """
+
   def keep(paths):
     heap = []
     for idx, path in enumerate(paths):
@@ -108,6 +106,7 @@ def _one_of_every_n_export_versions(n):
     [0, n], (n, 2n], (2n, 3n], etc...  If more than one path exists in an
     interval the largest is kept.
   """
+
   def keep(paths):
     """A filter function that keeps exactly one out of every n paths."""
 
@@ -137,12 +136,14 @@ def _mod_export_version(n):
   Returns:
     A filter function that keeps paths where export_version % n == 0.
   """
+
   def keep(paths):
     keepers = []
     for p in paths:
       if p.export_version % n == 0:
         keepers.append(p)
     return sorted(keepers)
+
   return keep
 
 
@@ -156,10 +157,12 @@ def _union(lf, rf):
   Returns:
     A filter function that keeps the n largest paths.
   """
+
   def keep(paths):
     l = set(lf(paths))
     r = set(rf(paths))
-    return sorted(list(l|r))
+    return sorted(list(l | r))
+
   return keep
 
 
@@ -172,10 +175,12 @@ def _negation(f):
   Returns:
     A filter function that returns the negation of f.
   """
+
   def keep(paths):
     l = set(paths)
     r = set(f(paths))
-    return sorted(list(l-r))
+    return sorted(list(l - r))
+
   return keep
 
 
@@ -186,9 +191,9 @@ def _get_paths(base_dir, parser):
     base_dir: directory.
     parser: a function which gets the raw Path and can augment it with
       information such as the export_version, or ignore the path by returning
-      None.  An example parser may extract the export version from a path
-      such as "/tmp/exports/100" an another may extract from a full file
-      name such as "/tmp/checkpoint-99.out".
+      None.  An example parser may extract the export version from a path such
+      as "/tmp/exports/100" an another may extract from a full file name such as
+      "/tmp/checkpoint-99.out".
 
   Returns:
     A list of Paths contained in the base directory with the parsing function
@@ -198,14 +203,15 @@ def _get_paths(base_dir, parser):
     The parsing function is responsible for populating,
       - Path.export_version
   """
+  # We are mocking this in the test, hence we should not use public API
   raw_paths = gfile.ListDirectory(base_dir)
   paths = []
   for r in raw_paths:
     # ListDirectory() return paths with "/" at the last if base_dir was GCS URL
-    r = compat.as_str_any(r)
+    r = tf.compat.as_str_any(r)
     if r[-1] == '/':
-      r = r[0:len(r)-1]
-    p = parser(Path(os.path.join(compat.as_str_any(base_dir), r), None))
+      r = r[0:len(r) - 1]
+    p = parser(Path(os.path.join(tf.compat.as_str_any(base_dir), r), None))
     if p:
       paths.append(p)
   return sorted(paths)

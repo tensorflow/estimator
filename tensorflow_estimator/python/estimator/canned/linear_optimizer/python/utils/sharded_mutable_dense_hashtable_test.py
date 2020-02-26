@@ -18,15 +18,12 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from tensorflow.python.eager import context
-from tensorflow.python.framework import constant_op
-from tensorflow.python.framework import dtypes
-from tensorflow.python.framework import test_util
+import tensorflow as tf
 from tensorflow.python.platform import googletest
 from tensorflow_estimator.python.estimator.canned.linear_optimizer.python.utils.sharded_mutable_dense_hashtable import _ShardedMutableDenseHashTable
 
 
-class _ShardedMutableDenseHashTableTest(test_util.TensorFlowTestCase):
+class _ShardedMutableDenseHashTableTest(tf.test.TestCase):
   """Tests for the ShardedMutableHashTable class."""
 
   def testShardedMutableHashTable(self):
@@ -35,11 +32,11 @@ class _ShardedMutableDenseHashTableTest(test_util.TensorFlowTestCase):
         default_val = -1
         empty_key = 0
         deleted_key = -1
-        keys = constant_op.constant([11, 12, 13], dtypes.int64)
-        values = constant_op.constant([0, 1, 2], dtypes.int64)
+        keys = tf.constant([11, 12, 13], tf.dtypes.int64)
+        values = tf.constant([0, 1, 2], tf.dtypes.int64)
         table = _ShardedMutableDenseHashTable(
-            dtypes.int64,
-            dtypes.int64,
+            tf.dtypes.int64,
+            tf.dtypes.int64,
             default_val,
             empty_key,
             deleted_key,
@@ -49,7 +46,7 @@ class _ShardedMutableDenseHashTableTest(test_util.TensorFlowTestCase):
         self.evaluate(table.insert(keys, values))
         self.assertAllEqual(3, self.evaluate(table.size()))
 
-        input_string = constant_op.constant([11, 12, 14], dtypes.int64)
+        input_string = tf.constant([11, 12, 14], tf.dtypes.int64)
         output = table.lookup(input_string)
         self.assertAllEqual([3], output.get_shape())
         self.assertAllEqual([0, 1, -1], self.evaluate(output))
@@ -60,13 +57,12 @@ class _ShardedMutableDenseHashTableTest(test_util.TensorFlowTestCase):
         default_val = [-0.1, 0.2]
         empty_key = [0, 1]
         deleted_key = [1, 0]
-        keys = constant_op.constant([[11, 12], [13, 14], [15, 16]],
-                                    dtypes.int64)
-        values = constant_op.constant([[0.5, 0.6], [1.5, 1.6], [2.5, 2.6]],
-                                      dtypes.float32)
+        keys = tf.constant([[11, 12], [13, 14], [15, 16]], tf.dtypes.int64)
+        values = tf.constant([[0.5, 0.6], [1.5, 1.6], [2.5, 2.6]],
+                             tf.dtypes.float32)
         table = _ShardedMutableDenseHashTable(
-            dtypes.int64,
-            dtypes.float32,
+            tf.dtypes.int64,
+            tf.dtypes.float32,
             default_val,
             empty_key,
             deleted_key,
@@ -76,8 +72,8 @@ class _ShardedMutableDenseHashTableTest(test_util.TensorFlowTestCase):
         self.evaluate(table.insert(keys, values))
         self.assertAllEqual(3, self.evaluate(table.size()))
 
-        input_string = constant_op.constant([[11, 12], [13, 14], [11, 14]],
-                                            dtypes.int64)
+        input_string = tf.constant([[11, 12], [13, 14], [11, 14]],
+                                   tf.dtypes.int64)
         output = table.lookup(input_string)
         self.assertAllEqual([3, 2], output.get_shape())
         self.assertAllClose([[0.5, 0.6], [1.5, 1.6], [-0.1, 0.2]],
@@ -89,11 +85,11 @@ class _ShardedMutableDenseHashTableTest(test_util.TensorFlowTestCase):
       deleted_key = -3
       default_val = -1
       num_shards = 2
-      keys = constant_op.constant([10, 11, 12], dtypes.int64)
-      values = constant_op.constant([2, 3, 4], dtypes.int64)
+      keys = tf.constant([10, 11, 12], tf.dtypes.int64)
+      values = tf.constant([2, 3, 4], tf.dtypes.int64)
       table = _ShardedMutableDenseHashTable(
-          dtypes.int64,
-          dtypes.int64,
+          tf.dtypes.int64,
+          tf.dtypes.int64,
           default_val,
           empty_key,
           deleted_key,

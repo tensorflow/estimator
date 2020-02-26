@@ -19,17 +19,15 @@ from __future__ import division
 from __future__ import print_function
 
 import six
-
+import tensorflow as tf
 from tensorflow.python.feature_column import feature_column_lib as fc
-from tensorflow.python.framework import dtypes
-from tensorflow.python.ops import parsing_ops
 from tensorflow.python.util.tf_export import estimator_export
 
 
 @estimator_export('estimator.classifier_parse_example_spec', v1=[])
 def classifier_parse_example_spec_v2(feature_columns,
                                      label_key,
-                                     label_dtype=dtypes.int64,
+                                     label_dtype=tf.dtypes.int64,
                                      label_default=None,
                                      weight_column=None):
   """Generates parsing spec for tf.parse_example to be used with classifiers.
@@ -112,18 +110,18 @@ def classifier_parse_example_spec_v2(feature_columns,
       classification.
     label_default: used as label if label_key does not exist in given
       tf.Example. An example usage: let's say `label_key` is 'clicked' and
-      tf.Example contains clicked data only for positive examples in following
+        tf.Example contains clicked data only for positive examples in following
       format `key:clicked, value:1`. This means that if there is no data with
-      key 'clicked' it should count as negative example by setting
-      `label_deafault=0`. Type of this value should be compatible with
-      `label_dtype`.
+        key 'clicked' it should count as negative example by setting
+        `label_deafault=0`. Type of this value should be compatible with
+        `label_dtype`.
     weight_column: A string or a `NumericColumn` created by
       `tf.feature_column.numeric_column` defining feature column representing
       weights. It is used to down weight or boost examples during training. It
       will be multiplied by the loss of the example. If it is a string, it is
       used as a key to fetch weight tensor from the `features`. If it is a
-      `NumericColumn`, raw tensor is fetched by key `weight_column.key`,
-      then weight_column.normalizer_fn is applied on it to get weight tensor.
+      `NumericColumn`, raw tensor is fetched by key `weight_column.key`, then
+      weight_column.normalizer_fn is applied on it to get weight tensor.
 
   Returns:
     A dict mapping each feature key to a `FixedLenFeature` or `VarLenFeature`
@@ -138,7 +136,7 @@ def classifier_parse_example_spec_v2(feature_columns,
     ValueError: if label_key is None.
   """
   parsing_spec = fc.make_parse_example_spec_v2(feature_columns)
-  label_spec = parsing_ops.FixedLenFeature((1,), label_dtype, label_default)
+  label_spec = tf.io.FixedLenFeature((1,), label_dtype, label_default)
   return _add_label_and_weight_to_parsing_spec(
       parsing_spec=parsing_spec,
       label_key=label_key,
@@ -149,7 +147,7 @@ def classifier_parse_example_spec_v2(feature_columns,
 @estimator_export('estimator.regressor_parse_example_spec', v1=[])
 def regressor_parse_example_spec_v2(feature_columns,
                                     label_key,
-                                    label_dtype=dtypes.float32,
+                                    label_dtype=tf.dtypes.float32,
                                     label_default=None,
                                     label_dimension=1,
                                     weight_column=None):
@@ -230,16 +228,16 @@ def regressor_parse_example_spec_v2(feature_columns,
     label_default: used as label if label_key does not exist in given
       tf.Example. By default default_value is none, which means
       `tf.parse_example` will error out if there is any missing label.
-    label_dimension: Number of regression targets per example. This is the
-      size of the last dimension of the labels and logits `Tensor` objects
+    label_dimension: Number of regression targets per example. This is the size
+      of the last dimension of the labels and logits `Tensor` objects
       (typically, these have shape `[batch_size, label_dimension]`).
     weight_column: A string or a `NumericColumn` created by
       `tf.feature_column.numeric_column` defining feature column representing
       weights. It is used to down weight or boost examples during training. It
       will be multiplied by the loss of the example. If it is a string, it is
       used as a key to fetch weight tensor from the `features`. If it is a
-      `NumericColumn`, raw tensor is fetched by key `weight_column.key`,
-      then weight_column.normalizer_fn is applied on it to get weight tensor.
+      `NumericColumn`, raw tensor is fetched by key `weight_column.key`, then
+      weight_column.normalizer_fn is applied on it to get weight tensor.
 
   Returns:
     A dict mapping each feature key to a `FixedLenFeature` or `VarLenFeature`
@@ -254,8 +252,8 @@ def regressor_parse_example_spec_v2(feature_columns,
     ValueError: if label_key is None.
   """
   parsing_spec = fc.make_parse_example_spec_v2(feature_columns)
-  label_spec = parsing_ops.FixedLenFeature(
-      (label_dimension,), label_dtype, label_default)
+  label_spec = tf.io.FixedLenFeature((label_dimension,), label_dtype,
+                                     label_default)
   return _add_label_and_weight_to_parsing_spec(
       parsing_spec=parsing_spec,
       label_key=label_key,
@@ -263,8 +261,10 @@ def regressor_parse_example_spec_v2(feature_columns,
       weight_column=weight_column)
 
 
-def _add_label_and_weight_to_parsing_spec(
-    parsing_spec, label_key, label_spec, weight_column=None):
+def _add_label_and_weight_to_parsing_spec(parsing_spec,
+                                          label_key,
+                                          label_spec,
+                                          weight_column=None):
   """Adds label and weight spec to given parsing spec.
 
   Args:
@@ -278,8 +278,8 @@ def _add_label_and_weight_to_parsing_spec(
       weights. It is used to down weight or boost examples during training. It
       will be multiplied by the loss of the example. If it is a string, it is
       used as a key to fetch weight tensor from the `features`. If it is a
-      `NumericColumn`, raw tensor is fetched by key `weight_column.key`,
-      then weight_column.normalizer_fn is applied on it to get weight tensor.
+      `NumericColumn`, raw tensor is fetched by key `weight_column.key`, then
+      weight_column.normalizer_fn is applied on it to get weight tensor.
 
   Returns:
     A dict mapping each feature key to a `FixedLenFeature` or `VarLenFeature`
@@ -295,7 +295,7 @@ def _add_label_and_weight_to_parsing_spec(
     return parsing_spec
 
   if isinstance(weight_column, six.string_types):
-    weight_column = fc.numeric_column(weight_column)
+    weight_column = tf.feature_column.numeric_column(weight_column)
 
   if not isinstance(weight_column, fc.NumericColumn):
     raise ValueError('weight_column should be an instance of '
@@ -315,11 +315,12 @@ def _add_label_and_weight_to_parsing_spec(
 @estimator_export(v1=['estimator.classifier_parse_example_spec'])
 def classifier_parse_example_spec(feature_columns,
                                   label_key,
-                                  label_dtype=dtypes.int64,
+                                  label_dtype=tf.dtypes.int64,
                                   label_default=None,
                                   weight_column=None):
-  parsing_spec = fc.make_parse_example_spec(feature_columns)
-  label_spec = parsing_ops.FixedLenFeature((1,), label_dtype, label_default)
+  parsing_spec = tf.compat.v1.feature_column.make_parse_example_spec(
+      feature_columns)
+  label_spec = tf.io.FixedLenFeature((1,), label_dtype, label_default)
   return _add_label_and_weight_to_parsing_spec(
       parsing_spec=parsing_spec,
       label_key=label_key,
@@ -331,19 +332,22 @@ classifier_parse_example_spec.__doc__ = classifier_parse_example_spec_v2.__doc__
 
 
 @estimator_export(v1=['estimator.regressor_parse_example_spec'])
-def regressor_parse_example_spec(feature_columns,  # pylint: disable=missing-docstring
-                                 label_key,
-                                 label_dtype=dtypes.float32,
-                                 label_default=None,
-                                 label_dimension=1,
-                                 weight_column=None):
-  parsing_spec = fc.make_parse_example_spec(feature_columns)
-  label_spec = parsing_ops.FixedLenFeature(
-      (label_dimension,), label_dtype, label_default)
+def regressor_parse_example_spec(
+    feature_columns,  # pylint: disable=missing-docstring
+    label_key,
+    label_dtype=tf.dtypes.float32,
+    label_default=None,
+    label_dimension=1,
+    weight_column=None):
+  parsing_spec = tf.compat.v1.feature_column.make_parse_example_spec(
+      feature_columns)
+  label_spec = tf.io.FixedLenFeature((label_dimension,), label_dtype,
+                                     label_default)
   return _add_label_and_weight_to_parsing_spec(
       parsing_spec=parsing_spec,
       label_key=label_key,
       label_spec=label_spec,
       weight_column=weight_column)
+
 
 regressor_parse_example_spec.__doc__ = regressor_parse_example_spec_v2.__doc__

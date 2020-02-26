@@ -18,14 +18,14 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import tensorflow as tf
+
 from tensorflow.python.keras.optimizer_v2 import adagrad
 from tensorflow.python.keras.optimizer_v2 import adam
 from tensorflow.python.keras.optimizer_v2 import ftrl
 from tensorflow.python.keras.optimizer_v2 import gradient_descent
 from tensorflow.python.keras.optimizer_v2 import optimizer_v2
 from tensorflow.python.keras.optimizer_v2 import rmsprop
-from tensorflow.python.ops import variables
-from tensorflow.python.platform import test
 from tensorflow_estimator.python.estimator.canned import optimizers
 
 
@@ -38,7 +38,7 @@ class _TestOptimizerV2(optimizer_v2.OptimizerV2):
     pass
 
 
-class GetOptimizerInstanceV2(test.TestCase):
+class GetOptimizerInstanceV2(tf.test.TestCase):
   """Tests for Optimizer V2."""
 
   def test_unsupported_name(self):
@@ -52,56 +52,56 @@ class GetOptimizerInstanceV2(test.TestCase):
       opt = optimizers.get_optimizer_instance_v2('Adagrad')
       # The creation of variables in optimizer_v2 is deferred to when it's
       # called, so we need to manually create it here. Same for all other tests.
-      self.assertIsInstance(opt.learning_rate, variables.Variable)
-      self.evaluate(variables.global_variables_initializer())
+      self.assertIsInstance(opt.learning_rate, tf.Variable)
+      self.evaluate(tf.compat.v1.initializers.global_variables())
       self.assertIsInstance(opt, adagrad.Adagrad)
       self.assertAlmostEqual(0.001, self.evaluate(opt.learning_rate))
 
   def test_adam_but_no_learning_rate(self):
     with self.cached_session():
       opt = optimizers.get_optimizer_instance_v2('Adam')
-      self.assertIsInstance(opt.learning_rate, variables.Variable)
-      self.evaluate(variables.global_variables_initializer())
+      self.assertIsInstance(opt.learning_rate, tf.Variable)
+      self.evaluate(tf.compat.v1.initializers.global_variables())
       self.assertIsInstance(opt, adam.Adam)
       self.assertAlmostEqual(0.001, self.evaluate(opt.learning_rate))
 
   def test_adagrad(self):
     with self.cached_session():
       opt = optimizers.get_optimizer_instance_v2('Adagrad', learning_rate=0.1)
-      self.assertIsInstance(opt.learning_rate, variables.Variable)
-      self.evaluate(variables.global_variables_initializer())
+      self.assertIsInstance(opt.learning_rate, tf.Variable)
+      self.evaluate(tf.compat.v1.initializers.global_variables())
       self.assertIsInstance(opt, adagrad.Adagrad)
       self.assertAlmostEqual(0.1, self.evaluate(opt.learning_rate))
 
   def test_adam(self):
     with self.cached_session():
       opt = optimizers.get_optimizer_instance_v2('Adam', learning_rate=0.1)
-      self.assertIsInstance(opt.learning_rate, variables.Variable)
-      self.evaluate(variables.global_variables_initializer())
+      self.assertIsInstance(opt.learning_rate, tf.Variable)
+      self.evaluate(tf.compat.v1.initializers.global_variables())
       self.assertIsInstance(opt, adam.Adam)
       self.assertAlmostEqual(0.1, self.evaluate(opt.learning_rate))
 
   def test_ftrl(self):
     with self.cached_session():
       opt = optimizers.get_optimizer_instance_v2('Ftrl', learning_rate=0.1)
-      self.assertIsInstance(opt.learning_rate, variables.Variable)
-      self.evaluate(variables.global_variables_initializer())
+      self.assertIsInstance(opt.learning_rate, tf.Variable)
+      self.evaluate(tf.compat.v1.initializers.global_variables())
       self.assertIsInstance(opt, ftrl.Ftrl)
       self.assertAlmostEqual(0.1, self.evaluate(opt.learning_rate))
 
   def test_rmsprop(self):
     with self.cached_session():
       opt = optimizers.get_optimizer_instance_v2('RMSProp', learning_rate=0.1)
-      self.assertIsInstance(opt.learning_rate, variables.Variable)
-      self.evaluate(variables.global_variables_initializer())
+      self.assertIsInstance(opt.learning_rate, tf.Variable)
+      self.evaluate(tf.compat.v1.initializers.global_variables())
       self.assertIsInstance(opt, rmsprop.RMSProp)
       self.assertAlmostEqual(0.1, self.evaluate(opt.learning_rate))
 
   def test_sgd(self):
     with self.cached_session():
       opt = optimizers.get_optimizer_instance_v2('SGD', learning_rate=0.1)
-      self.assertIsInstance(opt.learning_rate, variables.Variable)
-      self.evaluate(variables.global_variables_initializer())
+      self.assertIsInstance(opt.learning_rate, tf.Variable)
+      self.evaluate(tf.compat.v1.initializers.global_variables())
       self.assertIsInstance(opt, gradient_descent.SGD)
       self.assertAlmostEqual(0.1, self.evaluate(opt.learning_rate))
 
@@ -139,4 +139,4 @@ class GetOptimizerInstanceV2(test.TestCase):
 
 
 if __name__ == '__main__':
-  test.main()
+  tf.test.main()

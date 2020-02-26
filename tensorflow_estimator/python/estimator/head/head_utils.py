@@ -18,12 +18,13 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import tensorflow as tf
+
 from tensorflow.core.framework import summary_pb2
-from tensorflow.python.saved_model import signature_constants
 from tensorflow_estimator.python.estimator.head import binary_class_head
 from tensorflow_estimator.python.estimator.head import multi_class_head
 
-_DEFAULT_SERVING_KEY = signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY
+_DEFAULT_SERVING_KEY = tf.saved_model.DEFAULT_SERVING_SIGNATURE_DEF_KEY
 
 
 def binary_or_multi_class_head(n_classes, weight_column, label_vocabulary,
@@ -37,17 +38,16 @@ def binary_or_multi_class_head(n_classes, weight_column, label_vocabulary,
       weights. It is used to down weight or boost examples during training. It
       will be multiplied by the loss of the example. If it is a string, it is
       used as a key to fetch weight tensor from the `features`. If it is a
-      `NumericColumn`, raw tensor is fetched by key `weight_column.key`,
-      then weight_column.normalizer_fn is applied on it to get weight tensor.
+      `NumericColumn`, raw tensor is fetched by key `weight_column.key`, then
+      weight_column.normalizer_fn is applied on it to get weight tensor.
     label_vocabulary: A list of strings represents possible label values. If
       given, labels must be string type and have any value in
-      `label_vocabulary`. If it is not given, that means labels are
-      already encoded as integer or float within [0, 1] for `n_classes=2` and
-      encoded as integer values in {0, 1,..., n_classes-1} for `n_classes`>2 .
-      Also there will be errors if vocabulary is not provided and labels are
-      string.
-    loss_reduction: One of `tf.losses.Reduction` except `NONE`. Defines how
-      to reduce training loss over batch. Defaults to `SUM_OVER_BATCH_SIZE`.
+      `label_vocabulary`. If it is not given, that means labels are already
+      encoded as integer or float within [0, 1] for `n_classes=2` and encoded as
+      integer values in {0, 1,..., n_classes-1} for `n_classes`>2 . Also there
+      will be errors if vocabulary is not provided and labels are string.
+    loss_reduction: One of `tf.losses.Reduction` except `NONE`. Defines how to
+      reduce training loss over batch. Defaults to `SUM_OVER_BATCH_SIZE`.
 
   Returns:
     A `Head` instance.
@@ -59,7 +59,8 @@ def binary_or_multi_class_head(n_classes, weight_column, label_vocabulary,
         loss_reduction=loss_reduction)
   else:
     head = multi_class_head.MultiClassHead(
-        n_classes, weight_column=weight_column,
+        n_classes,
+        weight_column=weight_column,
         label_vocabulary=label_vocabulary,
         loss_reduction=loss_reduction)
   return head
@@ -76,7 +77,9 @@ def _initialize_variables(test_case, scaffold):
   test_case.assertIsNotNone(scaffold.saver)
 
 
-def _assert_simple_summaries(test_case, expected_summaries, summary_str,
+def _assert_simple_summaries(test_case,
+                             expected_summaries,
+                             summary_str,
                              tol=1e-6):
   """Assert summary the specified simple values.
 
@@ -88,9 +91,10 @@ def _assert_simple_summaries(test_case, expected_summaries, summary_str,
   """
   summary = summary_pb2.Summary()
   summary.ParseFromString(summary_str)
-  test_case.assertAllClose(expected_summaries, {
-      v.tag: v.simple_value for v in summary.value
-  }, rtol=tol, atol=tol)
+  test_case.assertAllClose(
+      expected_summaries, {v.tag: v.simple_value for v in summary.value},
+      rtol=tol,
+      atol=tol)
 
 
 def _assert_no_hooks(test_case, spec):

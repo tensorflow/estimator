@@ -22,14 +22,9 @@ import shutil
 import tempfile
 from absl.testing import parameterized
 import numpy as np
-from tensorflow.python.data.ops import dataset_ops
+import tensorflow as tf
 from tensorflow.python.distribute import combinations
 from tensorflow.python.distribute import strategy_combinations
-from tensorflow.python.feature_column import feature_column_lib as feature_column
-from tensorflow.python.framework import ops
-from tensorflow.python.platform import gfile
-from tensorflow.python.platform import test
-from tensorflow.python.summary.writer import writer_cache
 from tensorflow_estimator.python.estimator import run_config
 from tensorflow_estimator.python.estimator import training
 from tensorflow_estimator.python.estimator.canned import dnn_linear_combined
@@ -38,7 +33,7 @@ from tensorflow_estimator.python.estimator.export import export_lib as export
 from tensorflow_estimator.python.estimator.inputs import numpy_io
 
 
-class DNNLinearCombinedClassifierIntegrationTest(test.TestCase,
+class DNNLinearCombinedClassifierIntegrationTest(tf.test.TestCase,
                                                  parameterized.TestCase):
 
   def setUp(self):
@@ -47,7 +42,7 @@ class DNNLinearCombinedClassifierIntegrationTest(test.TestCase,
   def dataset_input_fn(self, x, y, batch_size, shuffle):
 
     def input_fn():
-      dataset = dataset_ops.Dataset.from_tensor_slices((x, y))
+      dataset = tf.compat.v1.data.Dataset.from_tensor_slices((x, y))
       if shuffle:
         dataset = dataset.shuffle(batch_size)
       dataset = dataset.repeat(10).batch(batch_size)
@@ -84,10 +79,10 @@ class DNNLinearCombinedClassifierIntegrationTest(test.TestCase,
         x={'x': data}, batch_size=batch_size, shuffle=False)
 
     linear_feature_columns = [
-        feature_column.numeric_column('x', shape=(input_dimension,))
+        tf.feature_column.numeric_column('x', shape=(input_dimension,))
     ]
     dnn_feature_columns = [
-        feature_column.numeric_column('x', shape=(input_dimension,))
+        tf.feature_column.numeric_column('x', shape=(input_dimension,))
     ]
     feature_columns = linear_feature_columns + dnn_feature_columns
     estimator = dnn_linear_combined.DNNLinearCombinedRegressor(
@@ -105,14 +100,13 @@ class DNNLinearCombinedClassifierIntegrationTest(test.TestCase,
     num_steps = 10
     if use_train_and_evaluate:
       scores, _ = training.train_and_evaluate(
-          estimator,
-          training.TrainSpec(train_input_fn, max_steps=num_steps),
+          estimator, training.TrainSpec(train_input_fn, max_steps=num_steps),
           training.EvalSpec(eval_input_fn))
     else:
       estimator.train(train_input_fn, steps=num_steps)
       scores = estimator.evaluate(eval_input_fn)
 
-    self.assertEqual(num_steps, scores[ops.GraphKeys.GLOBAL_STEP])
+    self.assertEqual(num_steps, scores[tf.compat.v1.GraphKeys.GLOBAL_STEP])
     self.assertIn('loss', scores)
 
     predictions = np.array([
@@ -121,18 +115,19 @@ class DNNLinearCombinedClassifierIntegrationTest(test.TestCase,
     ])
     self.assertAllEqual((batch_size, label_dimension), predictions.shape)
 
-    feature_spec = feature_column.make_parse_example_spec(feature_columns)
+    feature_spec = tf.compat.v1.feature_column.make_parse_example_spec(
+        feature_columns)
     serving_input_receiver_fn = export.build_parsing_serving_input_receiver_fn(
         feature_spec)
     export_dir = estimator.export_saved_model(tempfile.mkdtemp(),
                                               serving_input_receiver_fn)
-    self.assertTrue(gfile.Exists(export_dir))
+    self.assertTrue(tf.compat.v1.gfile.Exists(export_dir))
 
   def tearDown(self):
     if self._model_dir:
-      writer_cache.FileWriterCache.clear()
+      tf.compat.v1.summary.FileWriterCache.clear()
       shutil.rmtree(self._model_dir)
 
 
 if __name__ == '__main__':
-  test.main()
+  tf.test.main()

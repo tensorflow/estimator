@@ -20,24 +20,10 @@ from __future__ import print_function
 
 import numpy as np
 import six
-
-from tensorflow.python.eager import context
-from tensorflow.python.feature_column import feature_column_lib as feature_column
-from tensorflow.python.framework import constant_op
-from tensorflow.python.framework import dtypes
-from tensorflow.python.framework import errors
-from tensorflow.python.framework import ops
-from tensorflow.python.framework import sparse_tensor
+import tensorflow as tf
 from tensorflow.python.framework import test_util
 from tensorflow.python.keras.optimizer_v2 import optimizer_v2
 from tensorflow.python.keras.utils import losses_utils
-from tensorflow.python.ops import array_ops
-from tensorflow.python.ops import control_flow_ops
-from tensorflow.python.ops import math_ops
-from tensorflow.python.ops import string_ops
-from tensorflow.python.ops import variables
-from tensorflow.python.platform import test
-from tensorflow.python.training import monitored_session
 from tensorflow_estimator.python.estimator.canned import dnn
 from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.canned import prediction_keys
@@ -46,7 +32,8 @@ from tensorflow_estimator.python.estimator.head import multi_class_head as head_
 from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 
 
-class MultiClassHead(test.TestCase):
+@test_util.run_all_in_graph_and_eager_modes
+class MultiClassHead(tf.test.TestCase):
 
   def test_n_classes_is_none(self):
     with self.assertRaisesRegexp(ValueError, 'n_classes cannot be None'):
@@ -116,11 +103,11 @@ class MultiClassHead(test.TestCase):
     with self.assertRaisesRegexp(ValueError, 'logits shape'):
       preds = head.predictions(logits_2x2, [pred_key])
       self.evaluate(preds[pred_key])
-    if context.executing_eagerly():
+    if tf.executing_eagerly():
       return
 
     # Dynamic shape only works in Graph mode.
-    logits_placeholder = array_ops.placeholder(dtype=dtypes.float32)
+    logits_placeholder = tf.compat.v1.placeholder(dtype=tf.dtypes.float32)
     spec = head.create_estimator_spec(
         features={'x': np.array((
             (30.,),
@@ -128,10 +115,9 @@ class MultiClassHead(test.TestCase):
         ))},
         mode=ModeKeys.PREDICT,
         logits=logits_placeholder,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        trainable_variables=[tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
     with self.cached_session():
-      with self.assertRaisesRegexp(errors.OpError, 'logits shape'):
+      with self.assertRaisesRegexp(tf.errors.OpError, 'logits shape'):
         spec.predictions[pred_key].eval({logits_placeholder: logits_2x2})
 
   def test_invalid_labels_shape(self):
@@ -159,12 +145,12 @@ class MultiClassHead(test.TestCase):
           features=features,
           mode=ModeKeys.EVAL)
       self.evaluate(training_loss)
-    if context.executing_eagerly():
+    if tf.executing_eagerly():
       return
 
     # Dynamic shape only works in Graph mode.
-    labels_placeholder = array_ops.placeholder(dtype=dtypes.int64)
-    logits_placeholder = array_ops.placeholder(dtype=dtypes.float32)
+    labels_placeholder = tf.compat.v1.placeholder(dtype=tf.dtypes.int64)
+    logits_placeholder = tf.compat.v1.placeholder(dtype=tf.dtypes.float32)
     training_loss = head.loss(
         logits=logits_placeholder,
         labels=labels_placeholder,
@@ -172,7 +158,7 @@ class MultiClassHead(test.TestCase):
         mode=ModeKeys.EVAL)
     with self.cached_session():
       with self.assertRaisesRegexp(
-          errors.InvalidArgumentError,
+          tf.errors.InvalidArgumentError,
           r'\[expected_labels_shape: \] \[2 1\] \[labels_shape: \] \[2 2\]'):
         training_loss.eval({
             logits_placeholder: logits_2x3,
@@ -203,12 +189,12 @@ class MultiClassHead(test.TestCase):
           labels=labels_2x1,
           features=features,
           mode=ModeKeys.EVAL)
-    if context.executing_eagerly():
+    if tf.executing_eagerly():
       return
 
     # Dynamic shape only works in Graph mode.
-    labels_placeholder = array_ops.placeholder(dtype=dtypes.float32)
-    logits_placeholder = array_ops.placeholder(dtype=dtypes.float32)
+    labels_placeholder = tf.compat.v1.placeholder(dtype=tf.dtypes.float32)
+    logits_placeholder = tf.compat.v1.placeholder(dtype=tf.dtypes.float32)
     with self.assertRaisesRegexp(ValueError, 'Labels dtype'):
       head.loss(
           logits=logits_placeholder,
@@ -235,7 +221,7 @@ class MultiClassHead(test.TestCase):
     ))
     features = {'x': np.array(((42.,),))}
 
-    if context.executing_eagerly():
+    if tf.executing_eagerly():
       with self.assertRaisesRegexp(ValueError, 'Labels must be <= 3 - 1'):
         training_loss = head.loss(
             logits=logits_2x3,
@@ -252,8 +238,8 @@ class MultiClassHead(test.TestCase):
       return
 
     # Dynamic shape only works in Graph mode.
-    labels_placeholder = array_ops.placeholder(dtype=dtypes.int64)
-    logits_placeholder = array_ops.placeholder(dtype=dtypes.float32)
+    labels_placeholder = tf.compat.v1.placeholder(dtype=tf.dtypes.int64)
+    logits_placeholder = tf.compat.v1.placeholder(dtype=tf.dtypes.float32)
     training_loss = head.loss(
         logits=logits_placeholder,
         labels=labels_placeholder,
@@ -278,7 +264,7 @@ class MultiClassHead(test.TestCase):
     head = head_lib.MultiClassHead(n_classes)
     self.assertEqual(n_classes, head.logits_dimension)
 
-    labels_2x1 = sparse_tensor.SparseTensor(
+    labels_2x1 = tf.sparse.SparseTensor(
         values=['english', 'italian'],
         indices=[[0, 0], [1, 0]],
         dense_shape=[2, 1])
@@ -317,7 +303,7 @@ class MultiClassHead(test.TestCase):
 
     # Static shape.
     # Eager mode.
-    if context.executing_eagerly():
+    if tf.executing_eagerly():
       with self.assertRaisesRegexp(ValueError, 'labels shape'):
         head.loss(
             logits=values_2x3,
@@ -338,8 +324,8 @@ class MultiClassHead(test.TestCase):
           mode=ModeKeys.EVAL)
 
     # Dynamic shape only works in Graph mode.
-    labels_placeholder = array_ops.placeholder(dtype=dtypes.int64)
-    logits_placeholder = array_ops.placeholder(dtype=dtypes.float32)
+    labels_placeholder = tf.compat.v1.placeholder(dtype=tf.dtypes.int64)
+    logits_placeholder = tf.compat.v1.placeholder(dtype=tf.dtypes.float32)
     training_loss = head.loss(
         logits=logits_placeholder,
         labels=labels_placeholder,
@@ -347,7 +333,7 @@ class MultiClassHead(test.TestCase):
         mode=ModeKeys.EVAL)
     with self.cached_session():
       with self.assertRaisesRegexp(
-          errors.InvalidArgumentError,
+          tf.errors.InvalidArgumentError,
           r'\[expected_labels_shape: \] \[2 1\] \[labels_shape: \] \[3 1\]'):
         training_loss.eval({
             labels_placeholder: values_3x1,
@@ -380,15 +366,14 @@ class MultiClassHead(test.TestCase):
                         self.evaluate(preds[keys.ALL_CLASS_IDS]))
     self.assertAllEqual(expected_all_classes,
                         self.evaluate(preds[keys.ALL_CLASSES]))
-    if context.executing_eagerly():
+    if tf.executing_eagerly():
       return
 
     spec = head.create_estimator_spec(
         features={'x': np.array(((42,),), dtype=np.int32)},
         mode=ModeKeys.PREDICT,
         logits=logits,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        trainable_variables=[tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
 
     self.assertItemsEqual(
         (test_lib._DEFAULT_SERVING_KEY, 'predict', 'classification'),
@@ -416,7 +401,7 @@ class MultiClassHead(test.TestCase):
           sess.run(spec.export_outputs[test_lib._DEFAULT_SERVING_KEY].classes))
 
   def test_predict_with_tensor_n_classes(self):
-    n_classes = constant_op.constant(3, dtype=dtypes.int32)
+    n_classes = tf.constant(3, dtype=tf.dtypes.int32)
     head = head_lib.MultiClassHead(n_classes)
     self.assertEqual(n_classes, head.logits_dimension)
 
@@ -441,15 +426,14 @@ class MultiClassHead(test.TestCase):
                         self.evaluate(preds[keys.ALL_CLASS_IDS]))
     self.assertAllEqual(expected_all_classes,
                         self.evaluate(preds[keys.ALL_CLASSES]))
-    if context.executing_eagerly():
+    if tf.executing_eagerly():
       return
 
     spec = head.create_estimator_spec(
         features={'x': np.array(((42,),), dtype=np.int32)},
         mode=ModeKeys.PREDICT,
         logits=logits,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        trainable_variables=[tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
 
     self.assertItemsEqual(
         (test_lib._DEFAULT_SERVING_KEY, 'predict', 'classification'),
@@ -497,7 +481,7 @@ class MultiClassHead(test.TestCase):
     expected_classes = [[b'aang'], [b'zuko']]
     expected_export_classes = [[b'aang', b'iroh', b'zuko']] * 2
     pred_key = prediction_keys.PredictionKeys.CLASSES
-    if context.executing_eagerly():
+    if tf.executing_eagerly():
       preds = head.predictions(logits, [pred_key])
       self.assertAllEqual(expected_classes,
                           preds[prediction_keys.PredictionKeys.CLASSES])
@@ -507,8 +491,7 @@ class MultiClassHead(test.TestCase):
         features={'x': np.array(((42,),), dtype=np.int32)},
         mode=ModeKeys.PREDICT,
         logits=logits,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        trainable_variables=[tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
 
     with self.cached_session() as sess:
       test_lib._initialize_variables(self, spec.scaffold)
@@ -535,13 +518,14 @@ class MultiClassHead(test.TestCase):
     self.assertAllClose(logits, self.evaluate(preds[keys.LOGITS]))
     self.assertAllClose(expected_probabilities,
                         self.evaluate(preds[keys.PROBABILITIES]))
-    if context.executing_eagerly():
+    if tf.executing_eagerly():
       return
 
     spec = head.create_estimator_spec(
-        features=features, mode=ModeKeys.PREDICT, logits=logits,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        features=features,
+        mode=ModeKeys.PREDICT,
+        logits=logits,
+        trainable_variables=[tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
 
     with self.cached_session() as sess:
       test_lib._initialize_variables(self, spec.scaffold)
@@ -565,10 +549,7 @@ class MultiClassHead(test.TestCase):
     expected_training_loss = 5.
     # Create loss.
     training_loss = head.loss(
-        logits=logits,
-        labels=labels,
-        features=features,
-        mode=ModeKeys.EVAL)
+        logits=logits, labels=labels, features=features, mode=ModeKeys.EVAL)
     self.assertAllClose(
         expected_training_loss,
         self.evaluate(training_loss),
@@ -582,14 +563,12 @@ class MultiClassHead(test.TestCase):
     labels_input = np.array([[1], [2]], dtype=np.int64)
 
     def _loss_fn(labels, logits):
-      check_labels = control_flow_ops.Assert(
-          math_ops.reduce_all(math_ops.equal(labels, labels_input)),
-          data=[labels])
-      check_logits = control_flow_ops.Assert(
-          math_ops.reduce_all(math_ops.equal(logits, logits_input)),
-          data=[logits])
-      with ops.control_dependencies([check_labels, check_logits]):
-        return constant_op.constant(loss)
+      check_labels = tf.debugging.Assert(
+          tf.reduce_all(tf.math.equal(labels, labels_input)), data=[labels])
+      check_logits = tf.debugging.Assert(
+          tf.reduce_all(tf.math.equal(logits, logits_input)), data=[logits])
+      with tf.control_dependencies([check_labels, check_logits]):
+        return tf.constant(loss)
 
     head = head_lib.MultiClassHead(n_classes=3, loss_fn=_loss_fn)
 
@@ -606,24 +585,21 @@ class MultiClassHead(test.TestCase):
 
     def _loss_fn(labels, logits):
       del labels, logits  # Unused
-      return constant_op.constant(loss)
+      return tf.constant(loss)
 
     head = head_lib.MultiClassHead(n_classes=3, loss_fn=_loss_fn)
 
     logits = np.array([[-10., 10., 0.], [-15., 10., 0.]], dtype=np.float32)
     labels = np.array([[1], [2]], dtype=np.int64)
     features = {'x': np.array(((42,),), dtype=np.int32)}
-    if context.executing_eagerly():
+    if tf.executing_eagerly():
       with self.assertRaisesRegexp(ValueError, 'loss_shape'):
         head.loss(logits=logits, labels=labels, features=features)
     else:
       actual_training_loss = head.loss(
-          logits=logits,
-          labels=labels,
-          features=features,
-          mode=ModeKeys.EVAL)
+          logits=logits, labels=labels, features=features, mode=ModeKeys.EVAL)
       with self.assertRaisesRegexp(
-          errors.InvalidArgumentError,
+          tf.errors.InvalidArgumentError,
           r'\[loss_fn must return Tensor of shape \[D0, D1, ... DN, 1\]\. \] '
           r'\[logits_shape: \] \[2 3\] \[loss_shape: \] \[2\]'):
         self.evaluate(actual_training_loss)
@@ -662,7 +638,7 @@ class MultiClassHead(test.TestCase):
     }
     tol = 1e-2
 
-    if context.executing_eagerly():
+    if tf.executing_eagerly():
       eval_metrics = head.metrics()
       updated_metrics = head.update_metrics(eval_metrics, features, logits,
                                             labels)
@@ -672,8 +648,7 @@ class MultiClassHead(test.TestCase):
           {k: updated_metrics[k].result() for k in updated_metrics},
           rtol=tol,
           atol=tol)
-      loss = head.loss(
-          labels, logits, features=features, mode=ModeKeys.EVAL)
+      loss = head.loss(labels, logits, features=features, mode=ModeKeys.EVAL)
       self.assertIsNotNone(loss)
       self.assertAllClose(expected_loss, loss, rtol=tol, atol=tol)
       return
@@ -684,8 +659,7 @@ class MultiClassHead(test.TestCase):
         mode=ModeKeys.EVAL,
         logits=logits,
         labels=labels,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        trainable_variables=[tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
 
     # Assert spec contains expected tensors.
     self.assertIsNotNone(spec.loss)
@@ -751,7 +725,7 @@ class MultiClassHead(test.TestCase):
         keys.ACCURACY: 0.5,  # 1 of 2 labels is correct.
     }
     tol = 1e-2
-    if context.executing_eagerly():
+    if tf.executing_eagerly():
       eval_metrics = head.metrics(regularization_losses=regularization_losses)
       updated_metrics = head.update_metrics(
           eval_metrics,
@@ -774,8 +748,7 @@ class MultiClassHead(test.TestCase):
         logits=logits,
         labels=labels,
         regularization_losses=regularization_losses,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        trainable_variables=[tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
 
     # Assert predictions, loss, and metrics.
     with self.cached_session() as sess:
@@ -794,37 +767,29 @@ class MultiClassHead(test.TestCase):
   def test_eval_with_label_vocabulary_create_loss(self):
     n_classes = 3
     head = head_lib.MultiClassHead(
-        n_classes,
-        label_vocabulary=['aang', 'iroh', 'zuko'])
+        n_classes, label_vocabulary=['aang', 'iroh', 'zuko'])
     logits = [[10., 0, 0], [0, 10, 0]]
     labels = [[b'iroh'], [b'iroh']]
     features = {'x': np.array(((42,),), dtype=np.int32)}
     # loss = sum(cross_entropy(labels, logits)) / batch_size = [5.0, 0].
     expected_training_loss = 5.
-    if context.executing_eagerly():
+    if tf.executing_eagerly():
       training_loss = head.loss(
-          logits=logits,
-          labels=labels,
-          features=features,
-          mode=ModeKeys.EVAL)
+          logits=logits, labels=labels, features=features, mode=ModeKeys.EVAL)
       self.assertAllClose(
           expected_training_loss, training_loss, rtol=1e-2, atol=1e-2)
     else:
       training_loss = head.loss(
-          logits=logits,
-          labels=labels,
-          features=features,
-          mode=ModeKeys.EVAL)
+          logits=logits, labels=labels, features=features, mode=ModeKeys.EVAL)
       with self.cached_session():
-        test_lib._initialize_variables(self, monitored_session.Scaffold())
+        test_lib._initialize_variables(self, tf.compat.v1.train.Scaffold())
         self.assertAllClose(
             expected_training_loss, training_loss.eval(), rtol=1e-2, atol=1e-2)
 
   def test_eval_with_label_vocabulary(self):
     n_classes = 3
     head = head_lib.MultiClassHead(
-        n_classes,
-        label_vocabulary=['aang', 'iroh', 'zuko'])
+        n_classes, label_vocabulary=['aang', 'iroh', 'zuko'])
 
     logits = [[10., 0, 0], [0, 10, 0]]
     labels = [[b'iroh'], [b'iroh']]
@@ -838,12 +803,9 @@ class MultiClassHead(test.TestCase):
         keys.ACCURACY: 0.5,  # 1 of 2 labels is correct.
     }
     tol = 1e-2
-    if context.executing_eagerly():
+    if tf.executing_eagerly():
       loss = head.loss(
-          logits=logits,
-          labels=labels,
-          features=features,
-          mode=ModeKeys.EVAL)
+          logits=logits, labels=labels, features=features, mode=ModeKeys.EVAL)
       self.assertAllClose(
           expected_loss, self.evaluate(loss), rtol=tol, atol=tol)
       eval_metrics = head.metrics()
@@ -861,8 +823,7 @@ class MultiClassHead(test.TestCase):
         mode=ModeKeys.EVAL,
         logits=logits,
         labels=labels,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        trainable_variables=[tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
 
     with self.cached_session() as sess:
       test_lib._initialize_variables(self, spec.scaffold)
@@ -906,12 +867,9 @@ class MultiClassHead(test.TestCase):
     }
 
     tol = 1e-2
-    if context.executing_eagerly():
+    if tf.executing_eagerly():
       loss = head.loss(
-          logits=logits,
-          labels=labels,
-          features=features,
-          mode=ModeKeys.EVAL)
+          logits=logits, labels=labels, features=features, mode=ModeKeys.EVAL)
       self.assertIsNotNone(loss)
       self.assertAllClose(expected_loss, loss, rtol=tol, atol=tol)
       eval_metrics = head.metrics()
@@ -930,8 +888,7 @@ class MultiClassHead(test.TestCase):
         mode=ModeKeys.EVAL,
         logits=logits,
         labels=labels,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        trainable_variables=[tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
     # Assert spec contains expected tensors.
     self.assertIsNotNone(spec.loss)
     self.assertItemsEqual(expected_metrics.keys(), spec.eval_metric_ops.keys())
@@ -969,7 +926,7 @@ class MultiClassHead(test.TestCase):
     # training_loss = (1 * 10 + 1 * 0) / 2 = 5.
     expected_training_loss = 5.
     tol = 1e-2
-    if context.executing_eagerly():
+    if tf.executing_eagerly():
       training_loss = head.loss(labels, logits, features)
       self.assertAllClose(
           expected_training_loss, training_loss, rtol=tol, atol=tol)
@@ -984,7 +941,7 @@ class MultiClassHead(test.TestCase):
     unreduced_loss, actual_weights = head._unweighted_loss_and_weights(
         logits, labels, features)
     with self.cached_session():
-      test_lib._initialize_variables(self, monitored_session.Scaffold())
+      test_lib._initialize_variables(self, tf.compat.v1.train.Scaffold())
       self.assertAllClose(
           expected_training_loss, training_loss.eval(), rtol=tol, atol=tol)
       self.assertAllClose(
@@ -1010,7 +967,7 @@ class MultiClassHead(test.TestCase):
     # training_loss = 1 * 10 + 1 * 0
     expected_training_loss = 10.
     tol = 1e-2
-    if context.executing_eagerly():
+    if tf.executing_eagerly():
       training_loss = head.loss(labels, logits, features)
       self.assertAllClose(
           expected_training_loss, training_loss, rtol=tol, atol=tol)
@@ -1025,7 +982,7 @@ class MultiClassHead(test.TestCase):
     unreduced_loss, actual_weights = head._unweighted_loss_and_weights(
         logits, labels, features)
     with self.cached_session():
-      test_lib._initialize_variables(self, monitored_session.Scaffold())
+      test_lib._initialize_variables(self, tf.compat.v1.train.Scaffold())
       self.assertAllClose(
           expected_training_loss, training_loss.eval(), rtol=tol, atol=tol)
       self.assertAllClose(
@@ -1062,12 +1019,9 @@ class MultiClassHead(test.TestCase):
     #      = sum(10, 0) / 2 = 5.
     expected_loss = 5.
     tol = 1e-2
-    if context.executing_eagerly():
+    if tf.executing_eagerly():
       loss = head.loss(
-          logits=logits,
-          labels=labels,
-          features=features,
-          mode=ModeKeys.TRAIN)
+          logits=logits, labels=labels, features=features, mode=ModeKeys.TRAIN)
       self.assertIsNotNone(loss)
       self.assertAllClose(expected_loss, loss, rtol=tol, atol=tol)
       return
@@ -1075,9 +1029,9 @@ class MultiClassHead(test.TestCase):
     expected_train_result = 'my_train_op'
 
     def _train_op_fn(loss):
-      return string_ops.string_join([
-          constant_op.constant(expected_train_result),
-          string_ops.as_string(loss, precision=2)
+      return tf.strings.join([
+          tf.constant(expected_train_result),
+          tf.strings.as_string(loss, precision=2)
       ])
 
     spec = head.create_estimator_spec(
@@ -1086,8 +1040,7 @@ class MultiClassHead(test.TestCase):
         logits=logits,
         labels=labels,
         train_op_fn=_train_op_fn,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        trainable_variables=[tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
 
     self.assertIsNotNone(spec.loss)
     self.assertEqual({}, spec.eval_metric_ops)
@@ -1099,16 +1052,15 @@ class MultiClassHead(test.TestCase):
     with self.cached_session() as sess:
       test_lib._initialize_variables(self, spec.scaffold)
       self.assertIsNotNone(spec.scaffold.summary_op)
-      loss, train_result, summary_str = sess.run((spec.loss, spec.train_op,
-                                                  spec.scaffold.summary_op))
+      loss, train_result, summary_str = sess.run(
+          (spec.loss, spec.train_op, spec.scaffold.summary_op))
       self.assertAllClose(expected_loss, loss, rtol=tol, atol=tol)
       self.assertEqual(
           six.b('{0:s}{1:.2f}'.format(expected_train_result, expected_loss)),
           train_result)
-      test_lib._assert_simple_summaries(
-          self, {
-              metric_keys.MetricKeys.LOSS: expected_loss,
-          }, summary_str, tol)
+      test_lib._assert_simple_summaries(self, {
+          metric_keys.MetricKeys.LOSS: expected_loss,
+      }, summary_str, tol)
 
   def test_train_with_regularization_losses(self):
     n_classes = 3
@@ -1128,7 +1080,7 @@ class MultiClassHead(test.TestCase):
     # loss = unregularized_loss + regularization_loss = 7.
     expected_loss = 7.
     tol = 1e-2
-    if context.executing_eagerly():
+    if tf.executing_eagerly():
       loss = head.loss(
           logits=logits,
           labels=labels,
@@ -1141,9 +1093,9 @@ class MultiClassHead(test.TestCase):
     expected_train_result = 'my_train_op'
 
     def _train_op_fn(loss):
-      return string_ops.string_join([
-          constant_op.constant(expected_train_result),
-          string_ops.as_string(loss, precision=2)
+      return tf.strings.join([
+          tf.constant(expected_train_result),
+          tf.strings.as_string(loss, precision=2)
       ])
 
     spec = head.create_estimator_spec(
@@ -1153,15 +1105,14 @@ class MultiClassHead(test.TestCase):
         labels=labels,
         train_op_fn=_train_op_fn,
         regularization_losses=regularization_losses,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        trainable_variables=[tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
 
     # Assert predictions, loss, train_op, and summaries.
     with self.cached_session() as sess:
       test_lib._initialize_variables(self, spec.scaffold)
       self.assertIsNotNone(spec.scaffold.summary_op)
-      loss, train_result, summary_str = sess.run((spec.loss, spec.train_op,
-                                                  spec.scaffold.summary_op))
+      loss, train_result, summary_str = sess.run(
+          (spec.loss, spec.train_op, spec.scaffold.summary_op))
       self.assertAllClose(expected_loss, loss, rtol=tol, atol=tol)
       self.assertEqual(
           six.b('{0:s}{1:.2f}'.format(expected_train_result, expected_loss)),
@@ -1170,14 +1121,13 @@ class MultiClassHead(test.TestCase):
           self, {
               metric_keys.MetricKeys.LOSS:
                   expected_loss,
-              metric_keys.MetricKeys.LOSS_REGULARIZATION: (
-                  expected_regularization_loss),
+              metric_keys.MetricKeys.LOSS_REGULARIZATION:
+                  (expected_regularization_loss),
           }, summary_str, tol)
 
   def test_train_one_dim_create_loss(self):
     """Tests create_loss with 1D labels and weights (shape [batch_size])."""
-    head = head_lib.MultiClassHead(
-        n_classes=3, weight_column='label_weights')
+    head = head_lib.MultiClassHead(n_classes=3, weight_column='label_weights')
 
     logits = np.array((
         (10, 0, 0),
@@ -1205,7 +1155,7 @@ class MultiClassHead(test.TestCase):
     expected_training_loss = 10.
     tol = 1e-2
 
-    if context.executing_eagerly():
+    if tf.executing_eagerly():
       training_loss = head.loss(labels_rank_1, logits, features)
       self.assertAllClose(
           expected_training_loss, training_loss, rtol=tol, atol=tol)
@@ -1213,14 +1163,13 @@ class MultiClassHead(test.TestCase):
 
     training_loss = head.loss(labels_rank_1, logits, features)
     with self.cached_session():
-      test_lib._initialize_variables(self, monitored_session.Scaffold())
+      test_lib._initialize_variables(self, tf.compat.v1.train.Scaffold())
       self.assertAllClose(
           expected_training_loss, training_loss.eval(), rtol=tol, atol=tol)
 
   def test_train_one_dim(self):
     """Tests train with 1D labels and weights (shape [batch_size])."""
-    head = head_lib.MultiClassHead(
-        n_classes=3, weight_column='label_weights')
+    head = head_lib.MultiClassHead(n_classes=3, weight_column='label_weights')
 
     logits = np.array((
         (10, 0, 0),
@@ -1248,7 +1197,7 @@ class MultiClassHead(test.TestCase):
         'label_weights': weights_rank_1
     }
     tol = 1e-2
-    if context.executing_eagerly():
+    if tf.executing_eagerly():
       loss = head.loss(
           logits=logits,
           labels=labels_rank_1,
@@ -1261,9 +1210,9 @@ class MultiClassHead(test.TestCase):
     expected_train_result = 'my_train_op'
 
     def _train_op_fn(loss):
-      return string_ops.string_join([
-          constant_op.constant(expected_train_result),
-          string_ops.as_string(loss, precision=2)
+      return tf.strings.join([
+          tf.constant(expected_train_result),
+          tf.strings.as_string(loss, precision=2)
       ])
 
     spec = head.create_estimator_spec(
@@ -1272,8 +1221,7 @@ class MultiClassHead(test.TestCase):
         logits=logits,
         labels=labels_rank_1,
         train_op_fn=_train_op_fn,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        trainable_variables=[tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
 
     self.assertIsNotNone(spec.loss)
     self.assertEqual({}, spec.eval_metric_ops)
@@ -1285,17 +1233,15 @@ class MultiClassHead(test.TestCase):
     with self.cached_session() as sess:
       test_lib._initialize_variables(self, spec.scaffold)
       self.assertIsNotNone(spec.scaffold.summary_op)
-      loss, train_result, summary_str = sess.run((spec.loss, spec.train_op,
-                                                  spec.scaffold.summary_op))
+      loss, train_result, summary_str = sess.run(
+          (spec.loss, spec.train_op, spec.scaffold.summary_op))
       self.assertAllClose(expected_loss, loss, rtol=tol, atol=tol)
       self.assertEqual(
           six.b('{0:s}{1:.2f}'.format(expected_train_result, expected_loss)),
           train_result)
-      test_lib._assert_simple_summaries(
-          self, {
-              metric_keys.MetricKeys.LOSS:
-                  expected_loss,
-          }, summary_str, tol)
+      test_lib._assert_simple_summaries(self, {
+          metric_keys.MetricKeys.LOSS: expected_loss,
+      }, summary_str, tol)
 
   def test_train_with_vocabulary_create_loss(self):
     n_classes = 3
@@ -1307,23 +1253,17 @@ class MultiClassHead(test.TestCase):
     features = {'x': np.array(((42,),), dtype=np.int32)}
     # loss = sum(cross_entropy(labels, logits)) / batch_size = 10 / 2 = 5.
     expected_training_loss = 5.
-    if context.executing_eagerly():
+    if tf.executing_eagerly():
       training_loss = head.loss(
-          logits=logits,
-          labels=labels,
-          features=features,
-          mode=ModeKeys.TRAIN)
+          logits=logits, labels=labels, features=features, mode=ModeKeys.TRAIN)
       self.assertAllClose(
           expected_training_loss, training_loss, rtol=1e-2, atol=1e-2)
       return
 
     training_loss = head.loss(
-        logits=logits,
-        labels=labels,
-        features=features,
-        mode=ModeKeys.TRAIN)
+        logits=logits, labels=labels, features=features, mode=ModeKeys.TRAIN)
     with self.cached_session():
-      test_lib._initialize_variables(self, monitored_session.Scaffold())
+      test_lib._initialize_variables(self, tf.compat.v1.train.Scaffold())
       self.assertAllClose(
           expected_training_loss, training_loss.eval(), rtol=1e-2, atol=1e-2)
 
@@ -1339,18 +1279,15 @@ class MultiClassHead(test.TestCase):
     #      = sum(10, 0) / 2 = 5.
     expected_loss = 5.
     tol = 1e-2
-    if context.executing_eagerly():
+    if tf.executing_eagerly():
       loss = head.loss(
-          logits=logits,
-          labels=labels,
-          features=features,
-          mode=ModeKeys.TRAIN)
+          logits=logits, labels=labels, features=features, mode=ModeKeys.TRAIN)
       self.assertAllClose(expected_loss, loss, rtol=tol, atol=tol)
       return
 
     def _train_op_fn(loss):
       del loss
-      return control_flow_ops.no_op()
+      return tf.no_op()
 
     spec = head.create_estimator_spec(
         features=features,
@@ -1358,8 +1295,7 @@ class MultiClassHead(test.TestCase):
         logits=logits,
         labels=labels,
         train_op_fn=_train_op_fn,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        trainable_variables=[tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
     with self.cached_session() as sess:
       test_lib._initialize_variables(self, spec.scaffold)
       loss = sess.run(spec.loss)
@@ -1385,20 +1321,17 @@ class MultiClassHead(test.TestCase):
         'x': np.array(((42,),), dtype=np.float32),
         'label_weights': weights_3x1
     }
-    if context.executing_eagerly():
+    if tf.executing_eagerly():
       loss = head.loss(
-          logits=logits,
-          labels=labels,
-          features=features,
-          mode=ModeKeys.TRAIN)
+          logits=logits, labels=labels, features=features, mode=ModeKeys.TRAIN)
       self.assertIsNotNone(loss)
       self.assertAllClose(expected_loss, loss, rtol=tol, atol=tol)
       return
 
     def _train_op_fn(loss):
-      return string_ops.string_join([
-          constant_op.constant(expected_train_result),
-          string_ops.as_string(loss, precision=2)
+      return tf.strings.join([
+          tf.constant(expected_train_result),
+          tf.strings.as_string(loss, precision=2)
       ])
 
     # Create estimator spec.
@@ -1408,8 +1341,7 @@ class MultiClassHead(test.TestCase):
         logits=logits,
         labels=labels,
         train_op_fn=_train_op_fn,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        trainable_variables=[tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
 
     self.assertIsNotNone(spec.loss)
     self.assertEqual({}, spec.eval_metric_ops)
@@ -1421,26 +1353,19 @@ class MultiClassHead(test.TestCase):
     with self.cached_session() as sess:
       test_lib._initialize_variables(self, spec.scaffold)
       self.assertIsNotNone(spec.scaffold.summary_op)
-      loss, train_result, summary_str = sess.run((spec.loss, spec.train_op,
-                                                  spec.scaffold.summary_op))
+      loss, train_result, summary_str = sess.run(
+          (spec.loss, spec.train_op, spec.scaffold.summary_op))
       self.assertAllClose(expected_loss, loss, rtol=tol, atol=tol)
       self.assertEqual(
           six.b('{0:s}{1:.2f}'.format(expected_train_result, expected_loss)),
           train_result)
-      test_lib._assert_simple_summaries(
-          self,
-          {
-              metric_keys.MetricKeys.LOSS:
-                  expected_loss,
-          },
-          summary_str,
-          tol)
+      test_lib._assert_simple_summaries(self, {
+          metric_keys.MetricKeys.LOSS: expected_loss,
+      }, summary_str, tol)
 
   def test_multi_dim_weighted_train_create_loss(self):
     """Logits of shape [2, 2, 2], labels [2, 2, 1], weights [2, 2]."""
-    head = head_lib.MultiClassHead(
-        n_classes=3,
-        weight_column='weights')
+    head = head_lib.MultiClassHead(n_classes=3, weight_column='weights')
 
     logits = np.array([[[10, 0, 0], [12, 0, 0]], [[0, 10, 0], [0, 15, 0]]],
                       dtype=np.float32)
@@ -1453,7 +1378,7 @@ class MultiClassHead(test.TestCase):
     #               = 55.5 / (2*2) = 13.875
     expected_training_loss = 13.875
     tol = 1e-2
-    if context.executing_eagerly():
+    if tf.executing_eagerly():
       training_loss = head.loss(labels, logits, features={'weights': weights})
       self.assertAllClose(
           expected_training_loss, training_loss, rtol=tol, atol=tol)
@@ -1461,15 +1386,13 @@ class MultiClassHead(test.TestCase):
 
     training_loss = head.loss(labels, logits, features={'weights': weights})
     with self.cached_session():
-      test_lib._initialize_variables(self, monitored_session.Scaffold())
+      test_lib._initialize_variables(self, tf.compat.v1.train.Scaffold())
       self.assertAllClose(
           expected_training_loss, training_loss.eval(), rtol=tol, atol=tol)
 
   def test_multi_dim_weighted_train(self):
     """Logits of shape [2, 2, 2], labels [2, 2, 1], weights [2, 2]."""
-    head = head_lib.MultiClassHead(
-        n_classes=3,
-        weight_column='weights')
+    head = head_lib.MultiClassHead(n_classes=3, weight_column='weights')
 
     logits = np.array([[[10, 0, 0], [12, 0, 0]], [[0, 10, 0], [0, 15, 0]]],
                       dtype=np.float32)
@@ -1480,7 +1403,7 @@ class MultiClassHead(test.TestCase):
     # weighted_sum_loss = (1*0 + 1.5*12 + 2*0 + 2.5*15) = 55.5
     # training_loss = weighted_sum_loss / batch_size  = 55.5 / (2*2) = 13.875
     expected_loss = 13.875
-    if context.executing_eagerly():
+    if tf.executing_eagerly():
       loss = head.loss(
           logits=logits,
           labels=labels,
@@ -1492,9 +1415,9 @@ class MultiClassHead(test.TestCase):
     expected_train_result = 'my_train_op'
 
     def _train_op_fn(loss):
-      return string_ops.string_join([
-          constant_op.constant(expected_train_result),
-          string_ops.as_string(loss, precision=2)
+      return tf.strings.join([
+          tf.constant(expected_train_result),
+          tf.strings.as_string(loss, precision=2)
       ])
 
     spec = head.create_estimator_spec(
@@ -1503,8 +1426,7 @@ class MultiClassHead(test.TestCase):
         logits=logits,
         labels=labels,
         train_op_fn=_train_op_fn,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        trainable_variables=[tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
 
     # Assert predictions, loss, train_op, and summaries.
     with self.cached_session() as sess:
@@ -1523,7 +1445,7 @@ class MultiClassHead(test.TestCase):
     labels = np.array([[[0], [1]], [[1], [2]]], dtype=np.int64)
     weights = np.array([[1.], [2.]], dtype=np.float32)
 
-    if context.executing_eagerly():
+    if tf.executing_eagerly():
       with self.assertRaisesRegexp(ValueError, 'weights shape'):
         head.loss(
             logits=logits,
@@ -1534,7 +1456,7 @@ class MultiClassHead(test.TestCase):
 
     def _no_op_train_fn(loss):
       del loss
-      return control_flow_ops.no_op()
+      return tf.no_op()
 
     spec = head.create_estimator_spec(
         features={'weights': weights},
@@ -1542,12 +1464,11 @@ class MultiClassHead(test.TestCase):
         logits=logits,
         labels=labels,
         train_op_fn=_no_op_train_fn,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        trainable_variables=[tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
     with self.cached_session():
-      test_lib._initialize_variables(self, monitored_session.Scaffold())
+      test_lib._initialize_variables(self, tf.compat.v1.train.Scaffold())
       with self.assertRaisesRegexp(
-          errors.InvalidArgumentError,
+          tf.errors.InvalidArgumentError,
           r'\[logits_shape: \] \[2 2 3\] \[weights_shape: \] \[2 1\]'):
         spec.loss.eval()
 
@@ -1560,7 +1481,7 @@ class MultiClassHead(test.TestCase):
     weights = np.array([[[1., 1.1, 1.2], [1.5, 1.6, 1.7]],
                         [[2., 2.1, 2.2], [2.5, 2.6, 2.7]]])
 
-    if context.executing_eagerly():
+    if tf.executing_eagerly():
       with self.assertRaisesRegexp(ValueError, 'weights shape'):
         head.loss(
             logits=logits,
@@ -1569,11 +1490,11 @@ class MultiClassHead(test.TestCase):
             mode=ModeKeys.TRAIN)
       return
 
-    weights_placeholder = array_ops.placeholder(dtype=dtypes.float32)
+    weights_placeholder = tf.compat.v1.placeholder(dtype=tf.dtypes.float32)
 
     def _no_op_train_fn(loss):
       del loss
-      return control_flow_ops.no_op()
+      return tf.no_op()
 
     spec = head.create_estimator_spec(
         features={'weights': weights_placeholder},
@@ -1581,20 +1502,17 @@ class MultiClassHead(test.TestCase):
         logits=logits,
         labels=labels,
         train_op_fn=_no_op_train_fn,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        trainable_variables=[tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
     with self.cached_session():
-      test_lib._initialize_variables(self, monitored_session.Scaffold())
+      test_lib._initialize_variables(self, tf.compat.v1.train.Scaffold())
       with self.assertRaisesRegexp(
-          errors.InvalidArgumentError,
+          tf.errors.InvalidArgumentError,
           r'\[logits_shape: \]\s\[2 2 3\]\s\[weights_shape: \]\s\[2 2 3\]'):
         spec.loss.eval({weights_placeholder: weights})
 
   def test_multi_dim_weighted_eval(self):
     """Logits of shape [2, 2, 2], labels [2, 2, 1], weights [2, 2]."""
-    head = head_lib.MultiClassHead(
-        n_classes=3,
-        weight_column='weights')
+    head = head_lib.MultiClassHead(n_classes=3, weight_column='weights')
     logits = np.array([[[10, 0, 0], [12, 0, 0]], [[0, 10, 0], [0, 15, 0]]],
                       dtype=np.float32)
     labels = np.array([[[0], [1]], [[1], [2]]], dtype=np.int64)
@@ -1611,7 +1529,7 @@ class MultiClassHead(test.TestCase):
             (1. * 1. + 1.5 * 0. + 2. * 1. + 2.5 * 0.) / np.sum(weights),
     }
     tol = 1e-2
-    if context.executing_eagerly():
+    if tf.executing_eagerly():
       loss = head.loss(
           logits=logits,
           labels=labels,
@@ -1639,8 +1557,7 @@ class MultiClassHead(test.TestCase):
         mode=ModeKeys.EVAL,
         logits=logits,
         labels=labels,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        trainable_variables=[tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
     # Assert predictions, loss, and metrics.
     with self.cached_session() as sess:
       test_lib._initialize_variables(self, spec.scaffold)
@@ -1656,7 +1573,7 @@ class MultiClassHead(test.TestCase):
 
 
 @test_util.deprecated_graph_mode_only
-class MultiClassHeadForEstimator(test.TestCase):
+class MultiClassHeadForEstimator(tf.test.TestCase):
   """Tests for create_estimator_spec running in Graph mode only."""
 
   def test_invalid_trainable_variables(self):
@@ -1667,17 +1584,19 @@ class MultiClassHeadForEstimator(test.TestCase):
 
       def get_updates(self, loss, params):
         del params
-        return [string_ops.string_join([
-            constant_op.constant('my_train_op'),
-            string_ops.as_string(loss, precision=2)
-        ])]
+        return [
+            tf.strings.join([
+                tf.constant('my_train_op'),
+                tf.strings.as_string(loss, precision=2)
+            ])
+        ]
 
       def get_config(self):
         config = super(_Optimizer, self).get_config()
         return config
 
-    with self.assertRaisesRegexp(
-        ValueError, r'trainable_variables cannot be None'):
+    with self.assertRaisesRegexp(ValueError,
+                                 r'trainable_variables cannot be None'):
       head.create_estimator_spec(
           features={'x': np.array(((42,),), dtype=np.int32)},
           mode=ModeKeys.TRAIN,
@@ -1699,8 +1618,9 @@ class MultiClassHeadForEstimator(test.TestCase):
           ), dtype=np.float32),
           labels=np.array(((1,), (1,)), dtype=np.int64),
           optimizer=_Optimizer('my_optimizer'),
-          trainable_variables={'var_list': [
-              variables.Variable([1.0, 2.0], dtype=dtypes.float32)]})
+          trainable_variables={
+              'var_list': [tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)]
+          })
 
   def test_train_with_optimizer(self):
     n_classes = 3
@@ -1718,10 +1638,12 @@ class MultiClassHeadForEstimator(test.TestCase):
 
       def get_updates(self, loss, params):
         del params
-        return [string_ops.string_join([
-            constant_op.constant(expected_train_result),
-            string_ops.as_string(loss, precision=2)
-        ])]
+        return [
+            tf.strings.join([
+                tf.constant(expected_train_result),
+                tf.strings.as_string(loss, precision=2)
+            ])
+        ]
 
       def get_config(self):
         config = super(_Optimizer, self).get_config()
@@ -1736,8 +1658,7 @@ class MultiClassHeadForEstimator(test.TestCase):
         logits=logits,
         labels=labels,
         optimizer=_Optimizer('my_optimizer'),
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        trainable_variables=[tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
 
     tol = 1e-2
     with self.cached_session() as sess:
@@ -1750,16 +1671,17 @@ class MultiClassHeadForEstimator(test.TestCase):
 
   def test_train_with_update_ops(self):
     n_classes = 3
-    with ops.Graph().as_default():
-      w = variables.Variable(1)
+    with tf.Graph().as_default():
+      w = tf.Variable(1)
       update_op = w.assign_add(1)
 
-      t = variables.Variable('')
+      t = tf.Variable('')
       expected_train_result = b'my_train_op'
 
       def _train_op_fn(loss):
         del loss
         return t.assign(expected_train_result)
+
       head = head_lib.MultiClassHead(n_classes)
 
       spec = head.create_estimator_spec(
@@ -1773,7 +1695,8 @@ class MultiClassHeadForEstimator(test.TestCase):
           train_op_fn=_train_op_fn,
           update_ops=[update_op],
           trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+              tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)
+          ])
 
       with self.cached_session() as sess:
         test_lib._initialize_variables(self, spec.scaffold)
@@ -1797,7 +1720,7 @@ class MultiClassHeadForEstimator(test.TestCase):
 
     def _train_op_fn(loss):
       del loss
-      return control_flow_ops.no_op()
+      return tf.no_op()
 
     spec = head.create_estimator_spec(
         features=features,
@@ -1805,8 +1728,7 @@ class MultiClassHeadForEstimator(test.TestCase):
         logits=logits,
         labels=labels,
         train_op_fn=_train_op_fn,
-        trainable_variables=[
-            variables.Variable([1.0, 2.0], dtype=dtypes.float32)])
+        trainable_variables=[tf.Variable([1.0, 2.0], dtype=tf.dtypes.float32)])
 
     # Assert summaries.
     tol = 1e-2
@@ -1823,27 +1745,28 @@ class MultiClassHeadForEstimator(test.TestCase):
   def test_lookup_tables_in_graph(self):
     n_classes = 3
     head = head_lib.MultiClassHead(
-        n_classes,
-        label_vocabulary=['aang', 'iroh', 'zuko'])
+        n_classes, label_vocabulary=['aang', 'iroh', 'zuko'])
 
-    feature_columns = [feature_column.numeric_column('x')]
+    feature_columns = [tf.feature_column.numeric_column('x')]
     # Create dnn estimator.
     est = dnn.DNNEstimatorV2(
-        head=head,
-        hidden_units=(2, 2),
-        feature_columns=feature_columns)
+        head=head, hidden_units=(2, 2), feature_columns=feature_columns)
 
     def input_fn():
-      return (
-          {'x': np.array(((42,), (43,),), dtype=np.int32)},
-          [[b'iroh'], [b'iroh']])
+      return ({
+          'x': np.array((
+              (42,),
+              (43,),
+          ), dtype=np.int32)
+      }, [[b'iroh'], [b'iroh']])
 
     # Train.
     num_steps = 1
     est.train(input_fn, steps=num_steps)
     # Eval.
     eval_results = est.evaluate(input_fn, steps=num_steps)
-    self.assertEqual(num_steps, eval_results[ops.GraphKeys.GLOBAL_STEP])
+    self.assertEqual(num_steps,
+                     eval_results[tf.compat.v1.GraphKeys.GLOBAL_STEP])
     self.assertIn('loss', six.iterkeys(eval_results))
     # Predict.
     est.predict(input_fn)
@@ -1855,4 +1778,4 @@ class MultiClassHeadForEstimator(test.TestCase):
 
 
 if __name__ == '__main__':
-  test.main()
+  tf.test.main()

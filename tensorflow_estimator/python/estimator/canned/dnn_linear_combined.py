@@ -21,18 +21,8 @@ from __future__ import print_function
 import math
 
 import six
-
-from tensorflow.python.framework import ops
+import tensorflow as tf
 from tensorflow.python.keras.utils import losses_utils
-from tensorflow.python.ops import control_flow_ops
-from tensorflow.python.ops import nn
-from tensorflow.python.ops import partitioned_variables
-from tensorflow.python.ops import state_ops
-from tensorflow.python.ops import variable_scope
-from tensorflow.python.ops.losses import losses
-from tensorflow.python.summary import summary
-from tensorflow.python.training import sync_replicas_optimizer
-from tensorflow.python.training import training_util
 from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator import estimator
 from tensorflow_estimator.python.estimator.canned import dnn
@@ -50,7 +40,7 @@ _LINEAR_LEARNING_RATE = 0.005
 
 
 def _check_no_sync_replicas_optimizer(optimizer):
-  if isinstance(optimizer, sync_replicas_optimizer.SyncReplicasOptimizer):
+  if isinstance(optimizer, tf.compat.v1.train.SyncReplicasOptimizer):
     raise ValueError(
         'SyncReplicasOptimizer does not support multi optimizers case. '
         'Therefore, it is not supported in DNNLinearCombined model. '
@@ -76,16 +66,16 @@ def _linear_learning_rate(num_linear_feature_columns):
 
 
 def _add_layer_summary(value, tag):
-  summary.scalar('%s/fraction_of_zero_values' % tag, nn.zero_fraction(value))
-  summary.histogram('%s/activation' % tag, value)
+  tf.compat.v1.summary.scalar('%s/fraction_of_zero_values' % tag,
+                              tf.math.zero_fraction(value))
+  tf.compat.v1.summary.histogram('%s/activation' % tag, value)
 
 
 def _validate_feature_columns(linear_feature_columns, dnn_feature_columns):
   """Validates feature columns DNNLinearCombinedRegressor."""
   linear_feature_columns = linear_feature_columns or []
   dnn_feature_columns = dnn_feature_columns or []
-  feature_columns = (
-      list(linear_feature_columns) + list(dnn_feature_columns))
+  feature_columns = (list(linear_feature_columns) + list(dnn_feature_columns))
   if not feature_columns:
     raise ValueError('Either linear_feature_columns or dnn_feature_columns '
                      'must be defined.')
@@ -102,7 +92,7 @@ def _dnn_linear_combined_model_fn_v2(
     dnn_feature_columns=None,
     dnn_optimizer='Adagrad',
     dnn_hidden_units=None,
-    dnn_activation_fn=nn.relu,
+    dnn_activation_fn=tf.nn.relu,
     dnn_dropout=None,
     config=None,
     batch_norm=False,
@@ -214,18 +204,13 @@ def _dnn_linear_combined_model_fn_v2(
       loss = losses_utils.scale_loss_for_distribution(loss)
 
     if dnn_logits is not None:
-      train_ops.extend(
-          dnn_optimizer.get_updates(
-              loss,
-              dnn_trainable_variables))
+      train_ops.extend(dnn_optimizer.get_updates(loss, dnn_trainable_variables))
       if dnn_update_ops is not None:
         train_ops.extend(dnn_update_ops)
     if linear_logits is not None:
       train_ops.extend(
-          linear_optimizer.get_updates(
-              loss,
-              linear_trainable_variables))
-    train_op = control_flow_ops.group(*train_ops)
+          linear_optimizer.get_updates(loss, linear_trainable_variables))
+    train_op = tf.group(*train_ops)
     return train_op
 
   # In TRAIN mode, asssign global_step variable to optimizer.iterations to
@@ -233,9 +218,10 @@ def _dnn_linear_combined_model_fn_v2(
   # step counter. Note that, Only one model's optimizer needs this assignment.
   if mode == ModeKeys.TRAIN:
     if dnn_logits is not None:
-      dnn_optimizer.iterations = training_util.get_or_create_global_step()
+      dnn_optimizer.iterations = tf.compat.v1.train.get_or_create_global_step()
     else:
-      linear_optimizer.iterations = training_util.get_or_create_global_step()
+      linear_optimizer.iterations = \
+        tf.compat.v1.train.get_or_create_global_step()
 
   return head.create_estimator_spec(
       features=features,
@@ -254,7 +240,7 @@ def _dnn_linear_combined_model_fn(features,
                                   dnn_feature_columns=None,
                                   dnn_optimizer='Adagrad',
                                   dnn_hidden_units=None,
-                                  dnn_activation_fn=nn.relu,
+                                  dnn_activation_fn=tf.nn.relu,
                                   dnn_dropout=None,
                                   input_layer_partitioner=None,
                                   config=None,
@@ -266,8 +252,8 @@ def _dnn_linear_combined_model_fn(features,
     features: dict of `Tensor`.
     labels: `Tensor` of shape [batch_size, 1] or [batch_size] labels of dtype
       `int32` or `int64` in the range `[0, n_classes)`.
-    mode: Defines whether this is training, evaluation or prediction.
-      See `ModeKeys`.
+    mode: Defines whether this is training, evaluation or prediction. See
+      `ModeKeys`.
     head: A `Head` instance.
     linear_feature_columns: An iterable containing all the feature columns used
       by the Linear model.
@@ -290,6 +276,7 @@ def _dnn_linear_combined_model_fn(features,
     linear_sparse_combiner: A string specifying how to reduce the linear model
       if a categorical column is multivalent.  One of "mean", "sqrtn", and
       "sum".
+
   Returns:
     An `EstimatorSpec` instance.
 
@@ -307,9 +294,8 @@ def _dnn_linear_combined_model_fn(features,
 
   num_ps_replicas = config.num_ps_replicas if config else 0
   input_layer_partitioner = input_layer_partitioner or (
-      partitioned_variables.min_max_variable_partitioner(
-          max_partitions=num_ps_replicas,
-          min_slice_size=64 << 20))
+      tf.compat.v1.min_max_variable_partitioner(
+          max_partitions=num_ps_replicas, min_slice_size=64 << 20))
 
   # Build DNN Logits.
   dnn_parent_scope = 'dnn'
@@ -325,9 +311,9 @@ def _dnn_linear_combined_model_fn(features,
           'dnn_hidden_units must be defined when dnn_feature_columns is '
           'specified.')
     dnn_partitioner = (
-        partitioned_variables.min_max_variable_partitioner(
+        tf.compat.v1.min_max_variable_partitioner(
             max_partitions=num_ps_replicas))
-    with variable_scope.variable_scope(
+    with tf.compat.v1.variable_scope(
         dnn_parent_scope,
         values=tuple(six.itervalues(features)),
         partitioner=dnn_partitioner) as scope:
@@ -351,7 +337,7 @@ def _dnn_linear_combined_model_fn(features,
         linear_optimizer,
         learning_rate=_linear_learning_rate(len(linear_feature_columns)))
     _check_no_sync_replicas_optimizer(linear_optimizer)
-    with variable_scope.variable_scope(
+    with tf.compat.v1.variable_scope(
         linear_parent_scope,
         values=tuple(six.itervalues(features)),
         partitioner=input_layer_partitioner) as scope:
@@ -374,25 +360,25 @@ def _dnn_linear_combined_model_fn(features,
   def _train_op_fn(loss):
     """Returns the op to optimize the loss."""
     train_ops = []
-    global_step = training_util.get_global_step()
+    global_step = tf.compat.v1.train.get_global_step()
     if dnn_logits is not None:
       train_ops.append(
           dnn_optimizer.minimize(
               loss,
-              var_list=ops.get_collection(
-                  ops.GraphKeys.TRAINABLE_VARIABLES,
+              var_list=tf.compat.v1.get_collection(
+                  tf.compat.v1.GraphKeys.TRAINABLE_VARIABLES,
                   scope=dnn_absolute_scope)))
     if linear_logits is not None:
       train_ops.append(
           linear_optimizer.minimize(
               loss,
-              var_list=ops.get_collection(
-                  ops.GraphKeys.TRAINABLE_VARIABLES,
+              var_list=tf.compat.v1.get_collection(
+                  tf.compat.v1.GraphKeys.TRAINABLE_VARIABLES,
                   scope=linear_absolute_scope)))
 
-    train_op = control_flow_ops.group(*train_ops)
-    with ops.control_dependencies([train_op]):
-      return state_ops.assign_add(global_step, 1).op
+    train_op = tf.group(*train_ops)
+    with tf.control_dependencies([train_op]):
+      return tf.compat.v1.assign_add(global_step, 1).op
 
   return head.create_estimator_spec(
       features=features,
@@ -494,7 +480,7 @@ class DNNLinearCombinedClassifierV2(estimator.EstimatorV2):
                dnn_feature_columns=None,
                dnn_optimizer='Adagrad',
                dnn_hidden_units=None,
-               dnn_activation_fn=nn.relu,
+               dnn_activation_fn=tf.nn.relu,
                dnn_dropout=None,
                n_classes=2,
                weight_column=None,
@@ -508,28 +494,28 @@ class DNNLinearCombinedClassifierV2(estimator.EstimatorV2):
 
     Args:
       model_dir: Directory to save model parameters, graph and etc. This can
-        also be used to load checkpoints from the directory into a estimator
-        to continue training a previously saved model.
+        also be used to load checkpoints from the directory into a estimator to
+        continue training a previously saved model.
       linear_feature_columns: An iterable containing all the feature columns
-        used by linear part of the model. All items in the set must be
-        instances of classes derived from `FeatureColumn`.
+        used by linear part of the model. All items in the set must be instances
+        of classes derived from `FeatureColumn`.
       linear_optimizer: An instance of `tf.keras.optimizers.*` used to apply
-         gradients to the linear part of the model. Can also be a string
-         (one of 'Adagrad', 'Adam', 'Ftrl', 'RMSProp', 'SGD'), or callable.
-         Defaults to FTRL optimizer.
+        gradients to the linear part of the model. Can also be a string (one of
+        'Adagrad', 'Adam', 'Ftrl', 'RMSProp', 'SGD'), or callable. Defaults to
+        FTRL optimizer.
       dnn_feature_columns: An iterable containing all the feature columns used
         by deep part of the model. All items in the set must be instances of
         classes derived from `FeatureColumn`.
       dnn_optimizer: An instance of `tf.keras.optimizers.*` used to apply
-        gradients to the deep part of the model. Can also be a string
-        (one of 'Adagrad', 'Adam', 'Ftrl', 'RMSProp', 'SGD'), or callable.
-        Defaults to Adagrad optimizer.
+        gradients to the deep part of the model. Can also be a string (one of
+        'Adagrad', 'Adam', 'Ftrl', 'RMSProp', 'SGD'), or callable. Defaults to
+        Adagrad optimizer.
       dnn_hidden_units: List of hidden units per layer. All layers are fully
         connected.
       dnn_activation_fn: Activation function applied to each layer. If None,
         will use `tf.nn.relu`.
-      dnn_dropout: When not None, the probability we will drop out
-        a given coordinate.
+      dnn_dropout: When not None, the probability we will drop out a given
+        coordinate.
       n_classes: Number of label classes. Defaults to 2, namely binary
         classification. Must be > 1.
       weight_column: A string or a `_NumericColumn` created by
@@ -537,14 +523,14 @@ class DNNLinearCombinedClassifierV2(estimator.EstimatorV2):
         weights. It is used to down weight or boost examples during training. It
         will be multiplied by the loss of the example. If it is a string, it is
         used as a key to fetch weight tensor from the `features`. If it is a
-        `_NumericColumn`, raw tensor is fetched by key `weight_column.key`,
-        then weight_column.normalizer_fn is applied on it to get weight tensor.
+        `_NumericColumn`, raw tensor is fetched by key `weight_column.key`, then
+        weight_column.normalizer_fn is applied on it to get weight tensor.
       label_vocabulary: A list of strings represents possible label values. If
         given, labels must be string type and have any value in
-        `label_vocabulary`. If it is not given, that means labels are
-        already encoded as integer or float within [0, 1] for `n_classes=2` and
-        encoded as integer values in {0, 1,..., n_classes-1} for `n_classes`>2 .
-        Also there will be errors if vocabulary is not provided and labels are
+        `label_vocabulary`. If it is not given, that means labels are already
+        encoded as integer or float within [0, 1] for `n_classes=2` and encoded
+        as integer values in {0, 1,..., n_classes-1} for `n_classes`>2 . Also
+        there will be errors if vocabulary is not provided and labels are
         string.
       config: RunConfig object to configure the runtime settings.
       warm_start_from: A string filepath to a checkpoint to warm-start from, or
@@ -570,7 +556,8 @@ class DNNLinearCombinedClassifierV2(estimator.EstimatorV2):
         dnn_feature_columns=dnn_feature_columns)
 
     head = head_utils.binary_or_multi_class_head(
-        n_classes, weight_column=weight_column,
+        n_classes,
+        weight_column=weight_column,
         label_vocabulary=label_vocabulary,
         loss_reduction=loss_reduction)
     estimator._canned_estimator_api_gauge.get_cell('Classifier').set(  # pylint: disable=protected-access
@@ -614,7 +601,7 @@ class DNNLinearCombinedClassifier(estimator.Estimator):
                dnn_feature_columns=None,
                dnn_optimizer='Adagrad',
                dnn_hidden_units=None,
-               dnn_activation_fn=nn.relu,
+               dnn_activation_fn=tf.nn.relu,
                dnn_dropout=None,
                n_classes=2,
                weight_column=None,
@@ -622,7 +609,7 @@ class DNNLinearCombinedClassifier(estimator.Estimator):
                input_layer_partitioner=None,
                config=None,
                warm_start_from=None,
-               loss_reduction=losses.Reduction.SUM,
+               loss_reduction=tf.compat.v1.losses.Reduction.SUM,
                batch_norm=False,
                linear_sparse_combiner='sum'):
     self._feature_columns = _validate_feature_columns(
@@ -660,22 +647,16 @@ class DNNLinearCombinedClassifier(estimator.Estimator):
         warm_start_from=warm_start_from)
 
 
-def _init_dnn_linear_combined_estimator(
-    head,
-    linear_feature_columns,
-    linear_optimizer,
-    dnn_feature_columns,
-    dnn_optimizer,
-    dnn_hidden_units,
-    dnn_activation_fn,
-    dnn_dropout,
-    input_layer_partitioner,
-    linear_sparse_combiner):
+def _init_dnn_linear_combined_estimator(head, linear_feature_columns,
+                                        linear_optimizer, dnn_feature_columns,
+                                        dnn_optimizer, dnn_hidden_units,
+                                        dnn_activation_fn, dnn_dropout,
+                                        input_layer_partitioner,
+                                        linear_sparse_combiner):
   """Helper function for the initialization of DNNLinearCombinedEstimator."""
   linear_feature_columns = linear_feature_columns or []
   dnn_feature_columns = dnn_feature_columns or []
-  feature_columns = (
-      list(linear_feature_columns) + list(dnn_feature_columns))
+  feature_columns = (list(linear_feature_columns) + list(dnn_feature_columns))
   if not feature_columns:
     raise ValueError('Either linear_feature_columns or dnn_feature_columns '
                      'must be defined.')
@@ -697,6 +678,7 @@ def _init_dnn_linear_combined_estimator(
         input_layer_partitioner=input_layer_partitioner,
         config=config,
         linear_sparse_combiner=linear_sparse_combiner)
+
   return feature_columns, _model_fn
 
 
@@ -792,7 +774,7 @@ class DNNLinearCombinedEstimatorV2(estimator.EstimatorV2):
                dnn_feature_columns=None,
                dnn_optimizer='Adagrad',
                dnn_hidden_units=None,
-               dnn_activation_fn=nn.relu,
+               dnn_activation_fn=tf.nn.relu,
                dnn_dropout=None,
                config=None,
                linear_sparse_combiner='sum'):
@@ -802,28 +784,28 @@ class DNNLinearCombinedEstimatorV2(estimator.EstimatorV2):
       head: A `Head` instance constructed with a method such as
         `tf.estimator.MultiLabelHead`.
       model_dir: Directory to save model parameters, graph and etc. This can
-        also be used to load checkpoints from the directory into an estimator
-        to continue training a previously saved model.
+        also be used to load checkpoints from the directory into an estimator to
+        continue training a previously saved model.
       linear_feature_columns: An iterable containing all the feature columns
-        used by linear part of the model. All items in the set must be
-        instances of classes derived from `FeatureColumn`.
+        used by linear part of the model. All items in the set must be instances
+        of classes derived from `FeatureColumn`.
       linear_optimizer: An instance of `tf.keras.optimizers.*` used to apply
-        gradients to the linear part of the model. Can also be a string
-        (one of 'Adagrad', 'Adam', 'Ftrl', 'RMSProp', 'SGD'), or callable.
-        Defaults to FTRL optimizer.
+        gradients to the linear part of the model. Can also be a string (one of
+        'Adagrad', 'Adam', 'Ftrl', 'RMSProp', 'SGD'), or callable. Defaults to
+        FTRL optimizer.
       dnn_feature_columns: An iterable containing all the feature columns used
         by deep part of the model. All items in the set must be instances of
         classes derived from `FeatureColumn`.
       dnn_optimizer: An instance of `tf.keras.optimizers.*` used to apply
-        gradients to the deep part of the model. Can also be a string
-        (one of 'Adagrad', 'Adam', 'Ftrl', 'RMSProp', 'SGD'), or callable.
-        Defaults to Adagrad optimizer.
+        gradients to the deep part of the model. Can also be a string (one of
+        'Adagrad', 'Adam', 'Ftrl', 'RMSProp', 'SGD'), or callable. Defaults to
+        Adagrad optimizer.
       dnn_hidden_units: List of hidden units per layer. All layers are fully
         connected.
       dnn_activation_fn: Activation function applied to each layer. If None,
         will use `tf.nn.relu`.
-      dnn_dropout: When not None, the probability we will drop out
-        a given coordinate.
+      dnn_dropout: When not None, the probability we will drop out a given
+        coordinate.
       config: RunConfig object to configure the runtime settings.
       linear_sparse_combiner: A string specifying how to reduce the linear model
         if a categorical column is multivalent.  One of "mean", "sqrtn", and
@@ -859,9 +841,7 @@ class DNNLinearCombinedEstimatorV2(estimator.EstimatorV2):
           linear_sparse_combiner=linear_sparse_combiner)
 
     super(DNNLinearCombinedEstimatorV2, self).__init__(
-        model_fn=_model_fn,
-        model_dir=model_dir,
-        config=config)
+        model_fn=_model_fn, model_dir=model_dir, config=config)
 
 
 @estimator_export(v1=['estimator.DNNLinearCombinedEstimator'])  # pylint: disable=missing-docstring
@@ -876,7 +856,7 @@ class DNNLinearCombinedEstimator(estimator.Estimator):
                dnn_feature_columns=None,
                dnn_optimizer='Adagrad',
                dnn_hidden_units=None,
-               dnn_activation_fn=nn.relu,
+               dnn_activation_fn=tf.nn.relu,
                dnn_dropout=None,
                input_layer_partitioner=None,
                config=None,
@@ -906,9 +886,7 @@ class DNNLinearCombinedEstimator(estimator.Estimator):
           linear_sparse_combiner=linear_sparse_combiner)
 
     super(DNNLinearCombinedEstimator, self).__init__(
-        model_fn=_model_fn,
-        model_dir=model_dir,
-        config=config)
+        model_fn=_model_fn, model_dir=model_dir, config=config)
 
 
 @estimator_export('estimator.DNNLinearCombinedRegressor', v1=[])
@@ -1003,7 +981,7 @@ class DNNLinearCombinedRegressorV2(estimator.EstimatorV2):
                dnn_feature_columns=None,
                dnn_optimizer='Adagrad',
                dnn_hidden_units=None,
-               dnn_activation_fn=nn.relu,
+               dnn_activation_fn=tf.nn.relu,
                dnn_dropout=None,
                label_dimension=1,
                weight_column=None,
@@ -1016,28 +994,28 @@ class DNNLinearCombinedRegressorV2(estimator.EstimatorV2):
 
     Args:
       model_dir: Directory to save model parameters, graph and etc. This can
-        also be used to load checkpoints from the directory into a estimator
-        to continue training a previously saved model.
+        also be used to load checkpoints from the directory into a estimator to
+        continue training a previously saved model.
       linear_feature_columns: An iterable containing all the feature columns
-        used by linear part of the model. All items in the set must be
-        instances of classes derived from `FeatureColumn`.
+        used by linear part of the model. All items in the set must be instances
+        of classes derived from `FeatureColumn`.
       linear_optimizer: An instance of `tf.keras.optimizers.*` used to apply
-         gradients to the linear part of the model. Can also be a string
-         (one of 'Adagrad', 'Adam', 'Ftrl', 'RMSProp', 'SGD'), or callable.
-         Defaults to FTRL optimizer.
+        gradients to the linear part of the model. Can also be a string (one of
+        'Adagrad', 'Adam', 'Ftrl', 'RMSProp', 'SGD'), or callable. Defaults to
+        FTRL optimizer.
       dnn_feature_columns: An iterable containing all the feature columns used
         by deep part of the model. All items in the set must be instances of
         classes derived from `FeatureColumn`.
       dnn_optimizer: An instance of `tf.keras.optimizers.*` used to apply
-        gradients to the deep part of the model. Can also be a string
-        (one of 'Adagrad', 'Adam', 'Ftrl', 'RMSProp', 'SGD'), or callable.
-        Defaults to Adagrad optimizer.
+        gradients to the deep part of the model. Can also be a string (one of
+        'Adagrad', 'Adam', 'Ftrl', 'RMSProp', 'SGD'), or callable. Defaults to
+        Adagrad optimizer.
       dnn_hidden_units: List of hidden units per layer. All layers are fully
         connected.
       dnn_activation_fn: Activation function applied to each layer. If None,
         will use `tf.nn.relu`.
-      dnn_dropout: When not None, the probability we will drop out
-        a given coordinate.
+      dnn_dropout: When not None, the probability we will drop out a given
+        coordinate.
       label_dimension: Number of regression targets per example. This is the
         size of the last dimension of the labels and logits `Tensor` objects
         (typically, these have shape `[batch_size, label_dimension]`).
@@ -1046,8 +1024,8 @@ class DNNLinearCombinedRegressorV2(estimator.EstimatorV2):
         weights. It is used to down weight or boost examples during training. It
         will be multiplied by the loss of the example. If it is a string, it is
         used as a key to fetch weight tensor from the `features`. If it is a
-        `_NumericColumn`, raw tensor is fetched by key `weight_column.key`,
-        then weight_column.normalizer_fn is applied on it to get weight tensor.
+        `_NumericColumn`, raw tensor is fetched by key `weight_column.key`, then
+        weight_column.normalizer_fn is applied on it to get weight tensor.
       config: RunConfig object to configure the runtime settings.
       warm_start_from: A string filepath to a checkpoint to warm-start from, or
         a `WarmStartSettings` object to fully configure warm-starting.  If the
@@ -1115,14 +1093,14 @@ class DNNLinearCombinedRegressor(estimator.Estimator):
                dnn_feature_columns=None,
                dnn_optimizer='Adagrad',
                dnn_hidden_units=None,
-               dnn_activation_fn=nn.relu,
+               dnn_activation_fn=tf.nn.relu,
                dnn_dropout=None,
                label_dimension=1,
                weight_column=None,
                input_layer_partitioner=None,
                config=None,
                warm_start_from=None,
-               loss_reduction=losses.Reduction.SUM,
+               loss_reduction=tf.compat.v1.losses.Reduction.SUM,
                batch_norm=False,
                linear_sparse_combiner='sum'):
     self._feature_columns = _validate_feature_columns(

@@ -23,14 +23,9 @@ import tempfile
 
 import numpy as np
 import six
-
-from tensorflow.python.feature_column import feature_column_v2
-from tensorflow.python.framework import ops
+import tensorflow as tf
 from tensorflow.python.keras.optimizer_v2 import adagrad as adagrad_v2
 from tensorflow.python.keras.utils import losses_utils
-from tensorflow.python.platform import gfile
-from tensorflow.python.platform import test
-from tensorflow.python.summary.writer import writer_cache
 from tensorflow_estimator.python.estimator.canned import dnn
 from tensorflow_estimator.python.estimator.canned import dnn_testing_utils
 from tensorflow_estimator.python.estimator.canned import prediction_keys
@@ -53,71 +48,74 @@ def _dnn_estimator_fn(weight_column=None, label_dimension=1, **kwargs):
 
 def _dnn_estimator_classifier_fn(n_classes=3, **kwargs):
   return dnn.DNNEstimatorV2(
-      head=multi_class_head.MultiClassHead(
-          n_classes=n_classes),
-      **kwargs)
+      head=multi_class_head.MultiClassHead(n_classes=n_classes), **kwargs)
 
 
-class DNNLogitFnBuilderTest(test.TestCase):
+class DNNLogitFnBuilderTest(tf.test.TestCase):
 
   def testLongInPy2(self):
     if six.PY2:
-      ret = dnn.dnn_logit_fn_builder(long(1), None, None, None,
-                                     None, None, None)
+      ret = dnn.dnn_logit_fn_builder(
+          long(1), None, None, None, None, None, None)
       self.assertTrue(callable(ret))
 
 
 class DNNEstimatorEvaluateTest(dnn_testing_utils.BaseDNNRegressorEvaluateTest,
-                               test.TestCase):
+                               tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
+    tf.test.TestCase.__init__(self, methodName)
     dnn_testing_utils.BaseDNNRegressorEvaluateTest.__init__(
         self, _dnn_estimator_fn)
 
 
 class DNNEstimatorPredictTest(dnn_testing_utils.BaseDNNRegressorPredictTest,
-                              test.TestCase):
+                              tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
+    tf.test.TestCase.__init__(self, methodName)
     dnn_testing_utils.BaseDNNRegressorPredictTest.__init__(
         self, _dnn_estimator_fn)
 
 
 class DNNEstimatorTrainTest(dnn_testing_utils.BaseDNNRegressorTrainTest,
-                            test.TestCase):
+                            tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
+    tf.test.TestCase.__init__(self, methodName)
     dnn_testing_utils.BaseDNNRegressorTrainTest.__init__(
         self, _dnn_estimator_fn)
 
 
 class DNNEstimatorWarmStartingTest(dnn_testing_utils.BaseDNNWarmStartingTest,
-                                   test.TestCase):
+                                   tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
+    tf.test.TestCase.__init__(self, methodName)
     dnn_testing_utils.BaseDNNWarmStartingTest.__init__(
         self, _dnn_estimator_classifier_fn, _dnn_estimator_fn)
 
 
-class DNNEstimatorIntegrationTest(test.TestCase):
+class DNNEstimatorIntegrationTest(tf.test.TestCase):
 
   def setUp(self):
     self._model_dir = tempfile.mkdtemp()
 
   def tearDown(self):
     if self._model_dir:
-      writer_cache.FileWriterCache.clear()
+      tf.compat.v1.summary.FileWriterCache.clear()
       shutil.rmtree(self._model_dir)
 
-  def _test_complete_flow(self, train_input_fn, eval_input_fn, predict_input_fn,
-                          input_dimension, label_dimension, batch_size,
+  def _test_complete_flow(self,
+                          train_input_fn,
+                          eval_input_fn,
+                          predict_input_fn,
+                          input_dimension,
+                          label_dimension,
+                          batch_size,
                           optimizer='Adagrad'):
     feature_columns = [
-        feature_column_v2.numeric_column('x', shape=(input_dimension,))
+        tf.feature_column.numeric_column('x', shape=(input_dimension,))
     ]
     est = dnn.DNNEstimatorV2(
         head=regression_head.RegressionHead(label_dimension=label_dimension),
@@ -132,7 +130,7 @@ class DNNEstimatorIntegrationTest(test.TestCase):
 
     # Evaluate
     scores = est.evaluate(eval_input_fn)
-    self.assertEqual(num_steps, scores[ops.GraphKeys.GLOBAL_STEP])
+    self.assertEqual(num_steps, scores[tf.compat.v1.GraphKeys.GLOBAL_STEP])
     self.assertIn('loss', six.iterkeys(scores))
 
     # Predict
@@ -143,12 +141,12 @@ class DNNEstimatorIntegrationTest(test.TestCase):
     self.assertAllEqual((batch_size, label_dimension), predictions.shape)
 
     # Export
-    feature_spec = feature_column_v2.make_parse_example_spec_v2(feature_columns)
+    feature_spec = tf.feature_column.make_parse_example_spec(feature_columns)
     serving_input_receiver_fn = export.build_parsing_serving_input_receiver_fn(
         feature_spec)
     export_dir = est.export_saved_model(tempfile.mkdtemp(),
                                         serving_input_receiver_fn)
-    self.assertTrue(gfile.Exists(export_dir))
+    self.assertTrue(tf.compat.v1.gfile.Exists(export_dir))
 
   def _create_input_fn(self, label_dimension, batch_size):
     """Creates input_fn for integration test."""
@@ -198,5 +196,6 @@ class DNNEstimatorIntegrationTest(test.TestCase):
         batch_size=batch_size,
         optimizer=adagrad_v2.Adagrad(0.01))  # Test with optimizer_v2 instance
 
+
 if __name__ == '__main__':
-  test.main()
+  tf.test.main()

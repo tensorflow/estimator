@@ -18,17 +18,11 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from tensorflow.python.eager import context
+import tensorflow as tf
 from tensorflow.python.framework import ops
-from tensorflow.python.framework import dtypes
 from tensorflow.python.keras import metrics
 from tensorflow.python.keras.utils import losses_utils
-from tensorflow.python.ops import array_ops
-from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import lookup_ops
-from tensorflow.python.ops import math_ops
-from tensorflow.python.ops import nn
-from tensorflow.python.ops import string_ops
 from tensorflow.python.ops import weights_broadcast_ops
 from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator import model_fn
@@ -232,7 +226,7 @@ class BinaryClassHead(base_head.Head):
     Returns:
       A hash table for lookup.
     """
-    if self._cached_class_id_table is None or not context.executing_eagerly():
+    if self._cached_class_id_table is None or not tf.executing_eagerly():
       self._cached_class_id_table = lookup_ops.index_table_from_tensor(
           vocabulary_list=tuple(self._label_vocabulary), name='class_id_lookup')
     return self._cached_class_id_table
@@ -248,12 +242,11 @@ class BinaryClassHead(base_head.Head):
     Returns:
       A hash table for lookup.
     """
-    if (self._cached_class_string_table is None
-        or not context.executing_eagerly()):
+    if (self._cached_class_string_table is None or not tf.executing_eagerly()):
       self._cached_class_string_table = (
           lookup_ops.index_to_string_table_from_tensor(
-              vocabulary_list=self._label_vocabulary, name='class_string_lookup'
-              ))
+              vocabulary_list=self._label_vocabulary,
+              name='class_string_lookup'))
     return self._cached_class_string_table
 
   def _processed_labels(self, logits, labels):
@@ -262,28 +255,35 @@ class BinaryClassHead(base_head.Head):
         labels=labels, logits=logits, expected_labels_dimension=1)
     if self._label_vocabulary is not None:
       labels = self._class_id_table.lookup(labels)
-    labels = math_ops.cast(labels, dtype=dtypes.float32)
+    labels = tf.cast(labels, dtype=tf.dtypes.float32)
     return base_head.check_label_range(labels, n_classes=2)
 
   def _unweighted_loss_and_weights(self, logits, labels, features):
     """Computes unweighted loss and weights."""
     if self._loss_fn:
       unweighted_loss = base_head.call_loss_fn(
-          loss_fn=self._loss_fn, labels=labels, logits=logits,
-          features=features, expected_loss_dim=1)
+          loss_fn=self._loss_fn,
+          labels=labels,
+          logits=logits,
+          features=features,
+          expected_loss_dim=1)
     else:
-      unweighted_loss = nn.sigmoid_cross_entropy_with_logits(
+      unweighted_loss = tf.compat.v1.nn.sigmoid_cross_entropy_with_logits(
           labels=labels, logits=logits)
     weights = base_head.get_weights_and_check_match_logits(
         features=features, weight_column=self._weight_column, logits=logits)
     return unweighted_loss, weights
 
-  def loss(self, labels, logits, features=None, mode=None,
+  def loss(self,
+           labels,
+           logits,
+           features=None,
+           mode=None,
            regularization_losses=None):
     """Returns regularized training loss. See `base_head.Head` for details."""
     del mode  # Unused for this head.
-    with ops.name_scope('losses', values=(logits, labels, regularization_losses,
-                                          features)):
+    with ops.name_scope(
+        'losses', values=(logits, labels, regularization_losses, features)):
       logits = base_head.check_logits_final_dim(logits, self.logits_dimension)
       labels = self._processed_labels(logits, labels)
       unweighted_loss, weights = self._unweighted_loss_and_weights(
@@ -292,31 +292,35 @@ class BinaryClassHead(base_head.Head):
           unweighted_loss,
           sample_weight=weights,
           reduction=self._loss_reduction)
-      regularization_loss = math_ops.add_n(
+      regularization_loss = tf.math.add_n(
           regularization_losses) if regularization_losses is not None else None
       regularized_training_loss = (
-          training_loss + regularization_loss if regularization_loss is not None
-          else training_loss)
+          training_loss + regularization_loss
+          if regularization_loss is not None else training_loss)
     return regularized_training_loss
 
   def predictions(self, logits, keys=None):
-    """Return predictions based on keys. See `base_head.Head` for details.
+    """Return predictions based on keys.
+
+    See `base_head.Head` for details.
 
     Args:
       logits: logits `Tensor` with shape `[D0, D1, ... DN, logits_dimension]`.
         For many applications, the shape is `[batch_size, logits_dimension]`.
       keys: a list or tuple of prediction keys. Each key can be either the class
         variable of prediction_keys.PredictionKeys or its string value, such as:
-        prediction_keys.PredictionKeys.CLASSES or 'classes'. If not specified,
-        it will return the predictions for all valid keys.
+          prediction_keys.PredictionKeys.CLASSES or 'classes'. If not specified,
+          it will return the predictions for all valid keys.
 
     Returns:
       A dict of predictions.
     """
     pred_keys = prediction_keys.PredictionKeys
-    valid_keys = [pred_keys.LOGITS, pred_keys.LOGISTIC, pred_keys.PROBABILITIES,
-                  pred_keys.CLASS_IDS, pred_keys.CLASSES,
-                  pred_keys.ALL_CLASS_IDS, pred_keys.ALL_CLASSES]
+    valid_keys = [
+        pred_keys.LOGITS, pred_keys.LOGISTIC, pred_keys.PROBABILITIES,
+        pred_keys.CLASS_IDS, pred_keys.CLASSES, pred_keys.ALL_CLASS_IDS,
+        pred_keys.ALL_CLASSES
+    ]
 
     if keys:
       base_head.check_prediction_keys(keys, valid_keys)
@@ -328,26 +332,26 @@ class BinaryClassHead(base_head.Head):
       if pred_keys.LOGITS in keys:
         predictions[pred_keys.LOGITS] = logits
       if pred_keys.LOGISTIC in keys:
-        logistic = math_ops.sigmoid(logits, name=pred_keys.LOGISTIC)
+        logistic = tf.math.sigmoid(logits, name=pred_keys.LOGISTIC)
         predictions[pred_keys.LOGISTIC] = logistic
-      two_class_logits = array_ops.concat(
-          (array_ops.zeros_like(logits), logits),
-          axis=-1, name='two_class_logits')
+      two_class_logits = tf.concat((tf.compat.v1.zeros_like(logits), logits),
+                                   axis=-1,
+                                   name='two_class_logits')
       if pred_keys.PROBABILITIES in keys:
-        probabilities = nn.softmax(
+        probabilities = tf.compat.v1.nn.softmax(
             two_class_logits, name=pred_keys.PROBABILITIES)
         predictions[pred_keys.PROBABILITIES] = probabilities
       if pred_keys.CLASS_IDS in keys or pred_keys.CLASSES in keys:
-        class_ids = math_ops.argmax(
+        class_ids = tf.compat.v1.math.argmax(
             two_class_logits, axis=-1, name=pred_keys.CLASS_IDS)
-        class_ids = array_ops.expand_dims(class_ids, axis=-1)
+        class_ids = tf.compat.v1.expand_dims(class_ids, axis=-1)
         if pred_keys.CLASS_IDS in keys:
           predictions[pred_keys.CLASS_IDS] = class_ids
         if pred_keys.CLASSES in keys:
           if self._label_vocabulary is not None:
             classes = self._class_string_table.lookup(class_ids)
           else:
-            classes = string_ops.as_string(class_ids, name='str_classes')
+            classes = tf.strings.as_string(class_ids, name='str_classes')
           predictions[pred_keys.CLASSES] = classes
       if pred_keys.ALL_CLASS_IDS in keys:
         predictions[pred_keys.ALL_CLASS_IDS] = base_head.all_class_ids(
@@ -416,21 +420,24 @@ class BinaryClassHead(base_head.Head):
     """
     label_mean_metric = eval_metrics[self._label_mean_key]
     accuracy_baseline_metric = eval_metrics[self._accuracy_baseline_key]
-    # Mimic the call of accuracy_baseline_metric.update_state()
-    accuracy_baseline_metric._updates = [control_flow_ops.no_op()]  # pylint: disable=protected-access
-    accuracy_baseline_metric.total = math_ops.maximum(
+    accuracy_baseline_metric.add_update(tf.no_op())
+    accuracy_baseline_metric.total = tf.math.maximum(
         label_mean_metric.total,
         label_mean_metric.count - label_mean_metric.total)
     accuracy_baseline_metric.count = label_mean_metric.count
 
   def _update_auc(self, auc_metric, labels, predictions, weights=None):
-    predictions = math_ops.cast(predictions, dtype=dtypes.float32)
+    predictions = tf.cast(predictions, dtype=tf.dtypes.float32)
     if weights is not None:
       weights = weights_broadcast_ops.broadcast_weights(weights, predictions)
     auc_metric.update_state(
         y_true=labels, y_pred=predictions, sample_weight=weights)
 
-  def update_metrics(self, eval_metrics, features, logits, labels,
+  def update_metrics(self,
+                     eval_metrics,
+                     features,
+                     logits,
+                     labels,
                      regularization_losses=None):
     """Updates eval metrics. See `base_head.Head` for details."""
     preds = self.predictions(logits)
@@ -457,13 +464,17 @@ class BinaryClassHead(base_head.Head):
         eval_metrics[self._label_mean_key], labels, weights)
     self._update_accuracy_baseline(eval_metrics)
     self._update_auc(
-        auc_metric=eval_metrics[self._auc_key], labels=labels,
-        predictions=logistic, weights=weights)
+        auc_metric=eval_metrics[self._auc_key],
+        labels=labels,
+        predictions=logistic,
+        weights=weights)
     self._update_auc(
-        auc_metric=eval_metrics[self._auc_pr_key], labels=labels,
-        predictions=logistic, weights=weights)
+        auc_metric=eval_metrics[self._auc_pr_key],
+        labels=labels,
+        predictions=logistic,
+        weights=weights)
     if regularization_losses is not None:
-      regularization_loss = math_ops.add_n(regularization_losses)
+      regularization_loss = tf.math.add_n(regularization_losses)
       eval_metrics[self._loss_regularization_key].update_state(
           values=regularization_loss)
     for i in range(len(self._thresholds)):
@@ -475,10 +486,16 @@ class BinaryClassHead(base_head.Head):
           y_true=labels, y_pred=logistic, sample_weight=weights)
     return eval_metrics
 
-  def _create_tpu_estimator_spec(
-      self, features, mode, logits, labels=None, optimizer=None,
-      trainable_variables=None, train_op_fn=None, update_ops=None,
-      regularization_losses=None):
+  def _create_tpu_estimator_spec(self,
+                                 features,
+                                 mode,
+                                 logits,
+                                 labels=None,
+                                 optimizer=None,
+                                 trainable_variables=None,
+                                 train_op_fn=None,
+                                 update_ops=None,
+                                 regularization_losses=None):
     """Returns an `EstimatorSpec`.
 
     Args:
@@ -492,9 +509,8 @@ class BinaryClassHead(base_head.Head):
         namely `[D0, D1, ... DN, 1]` or `[D0, D1, ... DN]`. `labels` is required
         argument when `mode` equals `TRAIN` or `EVAL`.
       optimizer: An `tf.keras.optimizers.Optimizer` instance to optimize the
-        loss in TRAIN mode. Namely, sets
-        `train_op = optimizer.get_updates(loss, trainable_variables)`,
-        which updates variables to minimize `loss`.
+        loss in TRAIN mode. Namely, sets `train_op = optimizer.get_updates(loss,
+        trainable_variables)`, which updates variables to minimize `loss`.
       trainable_variables: A list or tuple of `Variable` objects to update to
         minimize `loss`. In Tensorflow 1.x, by default these are the list of
         variables collected in the graph under the key
@@ -511,8 +527,8 @@ class BinaryClassHead(base_head.Head):
       regularization_losses: A list of additional scalar losses to be added to
         the training loss, such as regularization losses. These losses are
         usually expressed as a batch average, so for best results users need to
-        set `loss_reduction=SUM_OVER_BATCH_SIZE` when creating the head to
-        avoid scaling errors.
+        set `loss_reduction=SUM_OVER_BATCH_SIZE` when creating the head to avoid
+        scaling errors.
 
     Returns:
       `EstimatorSpec`.
@@ -529,7 +545,8 @@ class BinaryClassHead(base_head.Head):
         probabilities = predictions[pred_keys.PROBABILITIES]
         logistic = predictions[pred_keys.LOGISTIC]
         classifier_output = base_head.classification_output(
-            scores=probabilities, n_classes=2,
+            scores=probabilities,
+            n_classes=2,
             label_vocabulary=self._label_vocabulary)
         return model_fn._TPUEstimatorSpec(  # pylint: disable=protected-access
             mode=ModeKeys.PREDICT,
@@ -543,7 +560,10 @@ class BinaryClassHead(base_head.Head):
                     export_output.PredictOutput(predictions)
             })
       regularized_training_loss = self.loss(
-          logits=logits, labels=labels, features=features, mode=mode,
+          logits=logits,
+          labels=labels,
+          features=features,
+          mode=mode,
           regularization_losses=regularization_losses)
       # Eval.
       if mode == ModeKeys.EVAL:

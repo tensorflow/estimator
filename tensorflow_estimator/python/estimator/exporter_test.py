@@ -20,19 +20,15 @@ from __future__ import print_function
 import os
 import tempfile
 import time
-
+import tensorflow as tf
 from tensorflow.python.eager import context
 from tensorflow.python.framework import test_util
-from tensorflow.python.ops import array_ops
 from tensorflow.python.platform import gfile
-from tensorflow.python.platform import test
-from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.util import compat
 from tensorflow_estimator.python.estimator import estimator as estimator_lib
 from tensorflow_estimator.python.estimator import exporter as exporter_lib
 
 
-class BestExporterTest(test.TestCase):
+class BestExporterTest(tf.test.TestCase):
 
   def test_error_out_if_exports_to_keep_is_zero(self):
 
@@ -52,9 +48,9 @@ class BestExporterTest(test.TestCase):
       pass
 
     export_dir_base = tempfile.mkdtemp()
-    gfile.MkDir(export_dir_base)
-    gfile.MkDir(export_dir_base + "/export")
-    gfile.MkDir(export_dir_base + "/eval")
+    tf.compat.v1.gfile.MkDir(export_dir_base)
+    tf.compat.v1.gfile.MkDir(export_dir_base + "/export")
+    tf.compat.v1.gfile.MkDir(export_dir_base + "/eval")
 
     exporter = exporter_lib.BestExporter(
         name="best_exporter",
@@ -62,7 +58,7 @@ class BestExporterTest(test.TestCase):
         assets_extra={"from/path": "to/path"},
         as_text=False,
         exports_to_keep=5)
-    estimator = test.mock.Mock(spec=estimator_lib.Estimator)
+    estimator = tf.compat.v1.test.mock.Mock(spec=estimator_lib.Estimator)
     estimator.export_saved_model.return_value = "export_result_path"
     estimator.model_dir = export_dir_base
 
@@ -83,9 +79,9 @@ class BestExporterTest(test.TestCase):
       pass
 
     export_dir_base = tempfile.mkdtemp()
-    gfile.MkDir(export_dir_base)
-    gfile.MkDir(export_dir_base + "/export")
-    gfile.MkDir(export_dir_base + "/eval")
+    tf.compat.v1.gfile.MkDir(export_dir_base)
+    tf.compat.v1.gfile.MkDir(export_dir_base + "/export")
+    tf.compat.v1.gfile.MkDir(export_dir_base + "/eval")
 
     exporter = exporter_lib.BestExporter(
         name="best_exporter",
@@ -93,7 +89,7 @@ class BestExporterTest(test.TestCase):
         assets_extra={"from/path": "to/path"},
         as_text=False,
         exports_to_keep=1)
-    estimator = test.mock.Mock(spec=estimator_lib.Estimator)
+    estimator = tf.compat.v1.test.mock.Mock(spec=estimator_lib.Estimator)
     estimator.export_saved_model.return_value = "export_result_path"
     estimator.model_dir = export_dir_base
 
@@ -117,9 +113,9 @@ class BestExporterTest(test.TestCase):
       pass
 
     export_dir_base = tempfile.mkdtemp()
-    gfile.MkDir(export_dir_base)
-    gfile.MkDir(export_dir_base + "/export")
-    gfile.MkDir(export_dir_base + "/eval")
+    tf.compat.v1.gfile.MkDir(export_dir_base)
+    tf.compat.v1.gfile.MkDir(export_dir_base + "/export")
+    tf.compat.v1.gfile.MkDir(export_dir_base + "/eval")
 
     eval_dir_base = os.path.join(export_dir_base, "eval_continuous")
     # _write_dict_to_summary is only called internally within graph mode.
@@ -135,7 +131,7 @@ class BestExporterTest(test.TestCase):
         as_text=False,
         exports_to_keep=1)
 
-    estimator = test.mock.Mock(spec=estimator_lib.Estimator)
+    estimator = tf.compat.v1.test.mock.Mock(spec=estimator_lib.Estimator)
     estimator.model_dir = export_dir_base
     estimator.export_saved_model.return_value = "export_result_path"
 
@@ -158,9 +154,9 @@ class BestExporterTest(test.TestCase):
       pass
 
     export_dir_base = tempfile.mkdtemp()
-    gfile.MkDir(export_dir_base)
-    gfile.MkDir(export_dir_base + "/export")
-    gfile.MkDir(export_dir_base + "/eval")
+    tf.compat.v1.gfile.MkDir(export_dir_base)
+    tf.compat.v1.gfile.MkDir(export_dir_base + "/export")
+    tf.compat.v1.gfile.MkDir(export_dir_base + "/eval")
 
     eval_dir_base = os.path.join(export_dir_base, "eval_continuous")
     estimator_lib._write_dict_to_summary(eval_dir_base, {}, 1)
@@ -174,7 +170,7 @@ class BestExporterTest(test.TestCase):
         as_text=False,
         exports_to_keep=1)
 
-    estimator = test.mock.Mock(spec=estimator_lib.Estimator)
+    estimator = tf.compat.v1.test.mock.Mock(spec=estimator_lib.Estimator)
     estimator.model_dir = export_dir_base
     estimator.export_saved_model.return_value = "export_result_path"
 
@@ -192,9 +188,9 @@ class BestExporterTest(test.TestCase):
       pass
 
     export_dir_base = tempfile.mkdtemp()
-    gfile.MkDir(export_dir_base)
-    gfile.MkDir(export_dir_base + "/export")
-    gfile.MkDir(export_dir_base + "/eval")
+    tf.compat.v1.gfile.MkDir(export_dir_base)
+    tf.compat.v1.gfile.MkDir(export_dir_base + "/export")
+    tf.compat.v1.gfile.MkDir(export_dir_base + "/eval")
 
     exporter = exporter_lib.BestExporter(
         name="best_exporter",
@@ -204,7 +200,7 @@ class BestExporterTest(test.TestCase):
         as_text=False,
         exports_to_keep=1)
 
-    estimator = test.mock.Mock(spec=estimator_lib.Estimator)
+    estimator = tf.compat.v1.test.mock.Mock(spec=estimator_lib.Estimator)
     estimator.model_dir = export_dir_base
     estimator.export_saved_model.return_value = "export_result_path"
 
@@ -223,42 +219,43 @@ class BestExporterTest(test.TestCase):
 
   def test_garbage_collect_exports(self):
     export_dir_base = tempfile.mkdtemp()
-    gfile.MkDir(export_dir_base)
-    gfile.MkDir(export_dir_base + "/export")
-    gfile.MkDir(export_dir_base + "/eval")
+    tf.compat.v1.gfile.MkDir(export_dir_base)
+    tf.compat.v1.gfile.MkDir(export_dir_base + "/export")
+    tf.compat.v1.gfile.MkDir(export_dir_base + "/eval")
 
     export_dir_1 = _create_test_export_dir(export_dir_base)
     export_dir_2 = _create_test_export_dir(export_dir_base)
     export_dir_3 = _create_test_export_dir(export_dir_base)
     export_dir_4 = _create_test_export_dir(export_dir_base)
 
-    self.assertTrue(gfile.Exists(export_dir_1))
-    self.assertTrue(gfile.Exists(export_dir_2))
-    self.assertTrue(gfile.Exists(export_dir_3))
-    self.assertTrue(gfile.Exists(export_dir_4))
+    self.assertTrue(tf.compat.v1.gfile.Exists(export_dir_1))
+    self.assertTrue(tf.compat.v1.gfile.Exists(export_dir_2))
+    self.assertTrue(tf.compat.v1.gfile.Exists(export_dir_3))
+    self.assertTrue(tf.compat.v1.gfile.Exists(export_dir_4))
 
     def _serving_input_receiver_fn():
-      return array_ops.constant([1]), None
+      return tf.constant([1]), None
 
     exporter = exporter_lib.BestExporter(
         name="best_exporter",
         serving_input_receiver_fn=_serving_input_receiver_fn,
         exports_to_keep=2)
-    estimator = test.mock.Mock(spec=estimator_lib.Estimator)
+    estimator = tf.compat.v1.test.mock.Mock(spec=estimator_lib.Estimator)
     estimator.model_dir = export_dir_base
     # Garbage collect all but the most recent 2 exports,
     # where recency is determined based on the timestamp directory names.
     exporter.export(estimator, export_dir_base, None, None, False)
 
-    self.assertFalse(gfile.Exists(export_dir_1))
-    self.assertFalse(gfile.Exists(export_dir_2))
-    self.assertTrue(gfile.Exists(export_dir_3))
-    self.assertTrue(gfile.Exists(export_dir_4))
+    self.assertFalse(tf.compat.v1.gfile.Exists(export_dir_1))
+    self.assertFalse(tf.compat.v1.gfile.Exists(export_dir_2))
+    self.assertTrue(tf.compat.v1.gfile.Exists(export_dir_3))
+    self.assertTrue(tf.compat.v1.gfile.Exists(export_dir_4))
 
 
-class LatestExporterTest(test.TestCase):
+class LatestExporterTest(tf.test.TestCase):
 
   def test_error_out_if_exports_to_keep_is_zero(self):
+
     def _serving_input_receiver_fn():
       pass
 
@@ -275,7 +272,7 @@ class LatestExporterTest(test.TestCase):
       pass
 
     export_dir_base = tempfile.mkdtemp() + "export/"
-    gfile.MkDir(export_dir_base)
+    tf.compat.v1.gfile.MkDir(export_dir_base)
 
     exporter = exporter_lib.LatestExporter(
         name="latest_exporter",
@@ -283,7 +280,7 @@ class LatestExporterTest(test.TestCase):
         assets_extra={"from/path": "to/path"},
         as_text=False,
         exports_to_keep=5)
-    estimator = test.mock.Mock(spec=estimator_lib.Estimator)
+    estimator = tf.compat.v1.test.mock.Mock(spec=estimator_lib.Estimator)
     estimator.export_saved_model.return_value = "export_result_path"
 
     export_result = exporter.export(estimator, export_dir_base,
@@ -303,14 +300,14 @@ class LatestExporterTest(test.TestCase):
       pass
 
     export_dir_base = tempfile.mkdtemp() + "export/"
-    gfile.MkDir(export_dir_base)
+    tf.compat.v1.gfile.MkDir(export_dir_base)
 
     exporter = exporter_lib.FinalExporter(
         name="latest_exporter",
         serving_input_receiver_fn=_serving_input_receiver_fn,
         assets_extra={"from/path": "to/path"},
         as_text=False)
-    estimator = test.mock.Mock(spec=estimator_lib.Estimator)
+    estimator = tf.compat.v1.test.mock.Mock(spec=estimator_lib.Estimator)
     estimator.export_saved_model.return_value = "export_result_path"
 
     export_result = exporter.export(estimator, export_dir_base,
@@ -332,75 +329,76 @@ class LatestExporterTest(test.TestCase):
 
   def test_garbage_collect_exports(self):
     export_dir_base = tempfile.mkdtemp() + "export/"
-    gfile.MkDir(export_dir_base)
+    tf.compat.v1.gfile.MkDir(export_dir_base)
     export_dir_1 = _create_test_export_dir(export_dir_base)
     export_dir_2 = _create_test_export_dir(export_dir_base)
     export_dir_3 = _create_test_export_dir(export_dir_base)
     export_dir_4 = _create_test_export_dir(export_dir_base)
 
-    self.assertTrue(gfile.Exists(export_dir_1))
-    self.assertTrue(gfile.Exists(export_dir_2))
-    self.assertTrue(gfile.Exists(export_dir_3))
-    self.assertTrue(gfile.Exists(export_dir_4))
+    self.assertTrue(tf.compat.v1.gfile.Exists(export_dir_1))
+    self.assertTrue(tf.compat.v1.gfile.Exists(export_dir_2))
+    self.assertTrue(tf.compat.v1.gfile.Exists(export_dir_3))
+    self.assertTrue(tf.compat.v1.gfile.Exists(export_dir_4))
 
     def _serving_input_receiver_fn():
-      return array_ops.constant([1]), None
+      return tf.constant([1]), None
 
     exporter = exporter_lib.LatestExporter(
         name="latest_exporter",
         serving_input_receiver_fn=_serving_input_receiver_fn,
         exports_to_keep=2)
-    estimator = test.mock.Mock(spec=estimator_lib.Estimator)
+    estimator = tf.compat.v1.test.mock.Mock(spec=estimator_lib.Estimator)
     # Garbage collect all but the most recent 2 exports,
     # where recency is determined based on the timestamp directory names.
     exporter.export(estimator, export_dir_base, None, None, False)
 
-    self.assertFalse(gfile.Exists(export_dir_1))
-    self.assertFalse(gfile.Exists(export_dir_2))
-    self.assertTrue(gfile.Exists(export_dir_3))
-    self.assertTrue(gfile.Exists(export_dir_4))
+    self.assertFalse(tf.compat.v1.gfile.Exists(export_dir_1))
+    self.assertFalse(tf.compat.v1.gfile.Exists(export_dir_2))
+    self.assertTrue(tf.compat.v1.gfile.Exists(export_dir_3))
+    self.assertTrue(tf.compat.v1.gfile.Exists(export_dir_4))
 
   def test_garbage_collect_exports_with_trailing_delimiter(self):
     export_dir_base = tempfile.mkdtemp() + "export/"
-    gfile.MkDir(export_dir_base)
+    tf.compat.v1.gfile.MkDir(export_dir_base)
     export_dir_1 = _create_test_export_dir(export_dir_base)
     export_dir_2 = _create_test_export_dir(export_dir_base)
     export_dir_3 = _create_test_export_dir(export_dir_base)
     export_dir_4 = _create_test_export_dir(export_dir_base)
 
-    self.assertTrue(gfile.Exists(export_dir_1))
-    self.assertTrue(gfile.Exists(export_dir_2))
-    self.assertTrue(gfile.Exists(export_dir_3))
-    self.assertTrue(gfile.Exists(export_dir_4))
+    self.assertTrue(tf.compat.v1.gfile.Exists(export_dir_1))
+    self.assertTrue(tf.compat.v1.gfile.Exists(export_dir_2))
+    self.assertTrue(tf.compat.v1.gfile.Exists(export_dir_3))
+    self.assertTrue(tf.compat.v1.gfile.Exists(export_dir_4))
 
     def _serving_input_receiver_fn():
-      return array_ops.constant([1]), None
+      return tf.constant([1]), None
 
     exporter = exporter_lib.LatestExporter(
         name="latest_exporter",
         serving_input_receiver_fn=_serving_input_receiver_fn,
         exports_to_keep=1)
-    estimator = test.mock.Mock(spec=estimator_lib.Estimator)
+    estimator = tf.compat.v1.test.mock.Mock(spec=estimator_lib.Estimator)
     # Garbage collect all but the most recent 2 exports,
     # where recency is determined based on the timestamp directory names.
-    with test.mock.patch.object(gfile, "ListDirectory") as mock_list_directory:
+    with tf.compat.v1.test.mock.patch.object(
+        gfile, "ListDirectory") as mock_list_directory:
       mock_list_directory.return_value = [
           os.path.basename(export_dir_1) + b"/",
           os.path.basename(export_dir_2) + b"/",
           os.path.basename(export_dir_3) + b"/",
           os.path.basename(export_dir_4) + b"/",
-          ]
+      ]
       exporter.export(estimator, export_dir_base, None, None, False)
 
-    self.assertFalse(gfile.Exists(export_dir_1))
-    self.assertFalse(gfile.Exists(export_dir_2))
-    self.assertFalse(gfile.Exists(export_dir_3))
-    self.assertTrue(gfile.Exists(export_dir_4))
+    self.assertFalse(tf.compat.v1.gfile.Exists(export_dir_1))
+    self.assertFalse(tf.compat.v1.gfile.Exists(export_dir_2))
+    self.assertFalse(tf.compat.v1.gfile.Exists(export_dir_3))
+    self.assertTrue(tf.compat.v1.gfile.Exists(export_dir_4))
 
 
 def _create_test_export_dir(export_dir_base):
   export_dir = _get_timestamped_export_dir(export_dir_base)
-  gfile.MkDir(export_dir)
+  tf.compat.v1.gfile.MkDir(export_dir)
   time.sleep(2)
   return export_dir
 
@@ -417,16 +415,16 @@ def _get_timestamped_export_dir(export_dir_base):
     export_timestamp = int(time.time())
 
     export_dir = os.path.join(
-        compat.as_bytes(export_dir_base), compat.as_bytes(
-            str(export_timestamp)))
-    if not gfile.Exists(export_dir):
+        tf.compat.as_bytes(export_dir_base),
+        tf.compat.as_bytes(str(export_timestamp)))
+    if not tf.compat.v1.gfile.Exists(export_dir):
       # Collisions are still possible (though extremely unlikely): this
       # directory is not actually created yet, but it will be almost
       # instantly on return from this function.
       return export_dir
     time.sleep(1)
     attempts += 1
-    logging.warn(
+    tf.compat.v1.logging.warn(
         "Export directory {} already exists; retrying (attempt {}/{})".format(
             export_dir, attempts, max_directory_creation_attempts))
   raise RuntimeError("Failed to obtain a unique export directory name after "
@@ -434,4 +432,4 @@ def _get_timestamped_export_dir(export_dir_base):
 
 
 if __name__ == "__main__":
-  test.main()
+  tf.test.main()

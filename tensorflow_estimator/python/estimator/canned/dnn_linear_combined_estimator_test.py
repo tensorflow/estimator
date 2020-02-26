@@ -23,16 +23,10 @@ import tempfile
 
 import numpy as np
 import six
-
-from tensorflow.python.feature_column import feature_column_v2
-from tensorflow.python.framework import ops
+import tensorflow as tf
 from tensorflow.python.keras.optimizer_v2 import adagrad as adagrad_v2
 from tensorflow.python.keras.optimizer_v2 import ftrl as ftrl_v2
 from tensorflow.python.keras.utils import losses_utils
-from tensorflow.python.ops import nn
-from tensorflow.python.platform import gfile
-from tensorflow.python.platform import test
-from tensorflow.python.summary.writer import writer_cache
 from tensorflow_estimator.python.estimator.canned import dnn_linear_combined
 from tensorflow_estimator.python.estimator.canned import dnn_testing_utils
 from tensorflow_estimator.python.estimator.canned import linear_testing_utils
@@ -42,16 +36,15 @@ from tensorflow_estimator.python.estimator.head import regression_head
 from tensorflow_estimator.python.estimator.inputs import numpy_io
 
 
-def _dnn_only_estimator_fn(
-    hidden_units,
-    feature_columns,
-    model_dir=None,
-    label_dimension=1,
-    weight_column=None,
-    optimizer='Adagrad',
-    activation_fn=nn.relu,
-    dropout=None,
-    config=None):
+def _dnn_only_estimator_fn(hidden_units,
+                           feature_columns,
+                           model_dir=None,
+                           label_dimension=1,
+                           weight_column=None,
+                           optimizer='Adagrad',
+                           activation_fn=tf.nn.relu,
+                           dropout=None,
+                           config=None):
   return dnn_linear_combined.DNNLinearCombinedEstimatorV2(
       head=regression_head.RegressionHead(
           weight_column=weight_column,
@@ -68,40 +61,39 @@ def _dnn_only_estimator_fn(
 
 
 class DNNOnlyEstimatorEvaluateTest(
-    dnn_testing_utils.BaseDNNRegressorEvaluateTest, test.TestCase):
+    dnn_testing_utils.BaseDNNRegressorEvaluateTest, tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
+    tf.test.TestCase.__init__(self, methodName)
     dnn_testing_utils.BaseDNNRegressorEvaluateTest.__init__(
         self, _dnn_only_estimator_fn)
 
 
-class DNNOnlyEstimatorPredictTest(
-    dnn_testing_utils.BaseDNNRegressorPredictTest, test.TestCase):
+class DNNOnlyEstimatorPredictTest(dnn_testing_utils.BaseDNNRegressorPredictTest,
+                                  tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
+    tf.test.TestCase.__init__(self, methodName)
     dnn_testing_utils.BaseDNNRegressorPredictTest.__init__(
         self, _dnn_only_estimator_fn)
 
 
-class DNNOnlyEstimatorTrainTest(
-    dnn_testing_utils.BaseDNNRegressorTrainTest, test.TestCase):
+class DNNOnlyEstimatorTrainTest(dnn_testing_utils.BaseDNNRegressorTrainTest,
+                                tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
+    tf.test.TestCase.__init__(self, methodName)
     dnn_testing_utils.BaseDNNRegressorTrainTest.__init__(
         self, _dnn_only_estimator_fn)
 
 
-def _linear_only_estimator_fn(
-    feature_columns,
-    model_dir=None,
-    label_dimension=1,
-    weight_column=None,
-    optimizer='Ftrl',
-    config=None,
-    sparse_combiner='sum'):
+def _linear_only_estimator_fn(feature_columns,
+                              model_dir=None,
+                              label_dimension=1,
+                              weight_column=None,
+                              optimizer='Ftrl',
+                              config=None,
+                              sparse_combiner='sum'):
   return dnn_linear_combined.DNNLinearCombinedEstimatorV2(
       head=regression_head.RegressionHead(
           weight_column=weight_column,
@@ -116,50 +108,57 @@ def _linear_only_estimator_fn(
 
 
 class LinearOnlyEstimatorEvaluateTest(
-    linear_testing_utils.BaseLinearRegressorEvaluationTest, test.TestCase):
+    linear_testing_utils.BaseLinearRegressorEvaluationTest, tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
+    tf.test.TestCase.__init__(self, methodName)
     linear_testing_utils.BaseLinearRegressorEvaluationTest.__init__(
         self, _linear_only_estimator_fn)
 
 
 class LinearOnlyEstimatorPredictTest(
-    linear_testing_utils.BaseLinearRegressorPredictTest, test.TestCase):
+    linear_testing_utils.BaseLinearRegressorPredictTest, tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
+    tf.test.TestCase.__init__(self, methodName)
     linear_testing_utils.BaseLinearRegressorPredictTest.__init__(
         self, _linear_only_estimator_fn)
 
 
 class LinearOnlyEstimatorTrainTest(
-    linear_testing_utils.BaseLinearRegressorTrainingTest, test.TestCase):
+    linear_testing_utils.BaseLinearRegressorTrainingTest, tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
-    test.TestCase.__init__(self, methodName)
+    tf.test.TestCase.__init__(self, methodName)
     linear_testing_utils.BaseLinearRegressorTrainingTest.__init__(
         self, _linear_only_estimator_fn)
 
 
-class DNNLinearCombinedEstimatorIntegrationTest(test.TestCase):
+class DNNLinearCombinedEstimatorIntegrationTest(tf.test.TestCase):
 
   def setUp(self):
     self._model_dir = tempfile.mkdtemp()
 
   def tearDown(self):
     if self._model_dir:
-      writer_cache.FileWriterCache.clear()
+      tf.compat.v1.summary.FileWriterCache.clear()
       shutil.rmtree(self._model_dir)
 
-  def _test_complete_flow(
-      self, train_input_fn, eval_input_fn, predict_input_fn, input_dimension,
-      label_dimension, batch_size, dnn_optimizer='Adagrad',
-      linear_optimizer='Ftrl'):
+  def _test_complete_flow(self,
+                          train_input_fn,
+                          eval_input_fn,
+                          predict_input_fn,
+                          input_dimension,
+                          label_dimension,
+                          batch_size,
+                          dnn_optimizer='Adagrad',
+                          linear_optimizer='Ftrl'):
     linear_feature_columns = [
-        feature_column_v2.numeric_column('x', shape=(input_dimension,))]
+        tf.feature_column.numeric_column('x', shape=(input_dimension,))
+    ]
     dnn_feature_columns = [
-        feature_column_v2.numeric_column('x', shape=(input_dimension,))]
+        tf.feature_column.numeric_column('x', shape=(input_dimension,))
+    ]
     feature_columns = linear_feature_columns + dnn_feature_columns
     est = dnn_linear_combined.DNNLinearCombinedEstimatorV2(
         head=regression_head.RegressionHead(label_dimension=label_dimension),
@@ -176,7 +175,7 @@ class DNNLinearCombinedEstimatorIntegrationTest(test.TestCase):
 
     # Evaluate
     scores = est.evaluate(eval_input_fn)
-    self.assertEqual(num_steps, scores[ops.GraphKeys.GLOBAL_STEP])
+    self.assertEqual(num_steps, scores[tf.compat.v1.GraphKeys.GLOBAL_STEP])
     self.assertIn('loss', six.iterkeys(scores))
 
     # Predict
@@ -187,12 +186,12 @@ class DNNLinearCombinedEstimatorIntegrationTest(test.TestCase):
     self.assertAllEqual((batch_size, label_dimension), predictions.shape)
 
     # Export
-    feature_spec = feature_column_v2.make_parse_example_spec_v2(feature_columns)
+    feature_spec = tf.feature_column.make_parse_example_spec(feature_columns)
     serving_input_receiver_fn = export.build_parsing_serving_input_receiver_fn(
         feature_spec)
     export_dir = est.export_saved_model(tempfile.mkdtemp(),
                                         serving_input_receiver_fn)
-    self.assertTrue(gfile.Exists(export_dir))
+    self.assertTrue(tf.compat.v1.gfile.Exists(export_dir))
 
   def _create_input_fn(self, label_dimension, batch_size):
     """Creates input_fn for integration test."""
@@ -206,14 +205,9 @@ class DNNLinearCombinedEstimatorIntegrationTest(test.TestCase):
         num_epochs=None,
         shuffle=True)
     eval_input_fn = numpy_io.numpy_input_fn(
-        x={'x': data},
-        y=data,
-        batch_size=batch_size,
-        shuffle=False)
+        x={'x': data}, y=data, batch_size=batch_size, shuffle=False)
     predict_input_fn = numpy_io.numpy_input_fn(
-        x={'x': data},
-        batch_size=batch_size,
-        shuffle=False)
+        x={'x': data}, batch_size=batch_size, shuffle=False)
 
     return train_input_fn, eval_input_fn, predict_input_fn
 
@@ -249,5 +243,6 @@ class DNNLinearCombinedEstimatorIntegrationTest(test.TestCase):
         dnn_optimizer=adagrad_v2.Adagrad(0.01),
         linear_optimizer=ftrl_v2.Ftrl(0.01))
 
+
 if __name__ == '__main__':
-  test.main()
+  tf.test.main()

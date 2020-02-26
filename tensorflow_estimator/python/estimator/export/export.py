@@ -27,13 +27,8 @@ from __future__ import print_function
 import collections
 
 import six
-
-from tensorflow.python.framework import dtypes
+import tensorflow as tf
 from tensorflow.python.framework import ops
-from tensorflow.python.framework import sparse_tensor
-from tensorflow.python.framework import tensor_shape
-from tensorflow.python.ops import array_ops
-from tensorflow.python.ops import parsing_ops
 from tensorflow.python.saved_model.model_utils import export_utils
 from tensorflow.python.saved_model.model_utils.export_utils import SINGLE_FEATURE_DEFAULT_NAME
 from tensorflow.python.saved_model.model_utils.export_utils import SINGLE_LABEL_DEFAULT_NAME
@@ -55,8 +50,8 @@ def wrap_and_check_input_tensors(tensors, field_name, allow_int_keys=False):
   Args:
     tensors: dict of `str` (or `int`s if `allow_int_keys=True`) to `Tensors`, or
       a single `Tensor`.
-    field_name: name of the member field of `ServingInputReceiver`
-      whose value is being passed to `tensors`.
+    field_name: name of the member field of `ServingInputReceiver` whose value
+      is being passed to `tensors`.
     allow_int_keys: If set to true, the `tensor` dict keys may also be `int`s.
 
   Returns:
@@ -79,8 +74,8 @@ def wrap_and_check_input_tensors(tensors, field_name, allow_int_keys=False):
 
 def _check_tensor(tensor, name, error_label='feature'):
   """Check that passed `tensor` is a Tensor or SparseTensor."""
-  if not (isinstance(tensor, ops.Tensor) or
-          isinstance(tensor, sparse_tensor.SparseTensor)):
+  if not (isinstance(tensor, tf.Tensor) or
+          isinstance(tensor, tf.sparse.SparseTensor)):
     fmt_name = ' {}'.format(name) if name else ''
     value_error = ValueError('{}{} must be a Tensor or SparseTensor.'.format(
         error_label, fmt_name))
@@ -120,21 +115,21 @@ class ServingInputReceiver(
     features: A `Tensor`, `SparseTensor`, or dict of string or int to `Tensor`
       or `SparseTensor`, specifying the features to be passed to the model.
       Note: if `features` passed is not a dict, it will be wrapped in a dict
-      with a single entry, using 'feature' as the key.  Consequently, the model
+        with a single entry, using 'feature' as the key.  Consequently, the
+        model
       must accept a feature dict of the form {'feature': tensor}.  You may use
-      `TensorServingInputReceiver` if you want the tensor to be passed as is.
+        `TensorServingInputReceiver` if you want the tensor to be passed as is.
     receiver_tensors: A `Tensor`, `SparseTensor`, or dict of string to `Tensor`
       or `SparseTensor`, specifying input nodes where this receiver expects to
       be fed by default.  Typically, this is a single placeholder expecting
       serialized `tf.Example` protos.
-    receiver_tensors_alternatives: a dict of string to additional
-      groups of receiver tensors, each of which may be a `Tensor`,
-      `SparseTensor`, or dict of string to `Tensor` or`SparseTensor`.
-      These named receiver tensor alternatives generate additional serving
-      signatures, which may be used to feed inputs at different points within
-      the input receiver subgraph.  A typical usage is to allow feeding raw
-      feature `Tensor`s *downstream* of the tf.parse_example() op.
-      Defaults to None.
+    receiver_tensors_alternatives: a dict of string to additional groups of
+      receiver tensors, each of which may be a `Tensor`, `SparseTensor`, or dict
+      of string to `Tensor` or`SparseTensor`. These named receiver tensor
+      alternatives generate additional serving signatures, which may be used to
+      feed inputs at different points within the input receiver subgraph.  A
+      typical usage is to allow feeding raw feature `Tensor`s *downstream* of
+      the tf.parse_example() op. Defaults to None.
   """
 
   def __new__(cls,
@@ -156,8 +151,8 @@ class ServingInputReceiver(
           six.iteritems(receiver_tensors_alternatives)):
         # Updating dict during iteration is OK in this case.
         receiver_tensors_alternatives[alternative_name] = (
-            wrap_and_check_input_tensors(
-                receiver_tensors_alt, 'receiver_tensors_alternative'))
+            wrap_and_check_input_tensors(receiver_tensors_alt,
+                                         'receiver_tensors_alternative'))
 
     return super(ServingInputReceiver, cls).__new__(
         cls,
@@ -189,20 +184,19 @@ class TensorServingInputReceiver(
   (provided by the dict key).
 
   Attributes:
-    features: A single `Tensor` or `SparseTensor`, representing the feature
-      to be passed to the model.
+    features: A single `Tensor` or `SparseTensor`, representing the feature to
+      be passed to the model.
     receiver_tensors: A `Tensor`, `SparseTensor`, or dict of string to `Tensor`
       or `SparseTensor`, specifying input nodes where this receiver expects to
       be fed by default.  Typically, this is a single placeholder expecting
       serialized `tf.Example` protos.
-    receiver_tensors_alternatives: a dict of string to additional
-      groups of receiver tensors, each of which may be a `Tensor`,
-      `SparseTensor`, or dict of string to `Tensor` or`SparseTensor`.
-      These named receiver tensor alternatives generate additional serving
-      signatures, which may be used to feed inputs at different points within
-      the input receiver subgraph.  A typical usage is to allow feeding raw
-      feature `Tensor`s *downstream* of the tf.parse_example() op.
-      Defaults to None.
+    receiver_tensors_alternatives: a dict of string to additional groups of
+      receiver tensors, each of which may be a `Tensor`, `SparseTensor`, or dict
+      of string to `Tensor` or`SparseTensor`. These named receiver tensor
+      alternatives generate additional serving signatures, which may be used to
+      feed inputs at different points within the input receiver subgraph.  A
+      typical usage is to allow feeding raw feature `Tensor`s *downstream* of
+      the tf.parse_example() op. Defaults to None.
   """
 
   def __new__(cls,
@@ -298,8 +292,8 @@ def build_parsing_serving_input_receiver_fn(feature_spec,
 
   Args:
     feature_spec: a dict of string to `VarLenFeature`/`FixedLenFeature`.
-    default_batch_size: the number of query examples expected per batch.
-        Leave unset for variable batch size (recommended).
+    default_batch_size: the number of query examples expected per batch. Leave
+      unset for variable batch size (recommended).
 
   Returns:
     A serving_input_receiver_fn suitable for use in serving.
@@ -307,12 +301,13 @@ def build_parsing_serving_input_receiver_fn(feature_spec,
 
   def serving_input_receiver_fn():
     """An input_fn that expects a serialized tf.Example."""
-    serialized_tf_example = array_ops.placeholder(
-        dtype=dtypes.string,
+    serialized_tf_example = tf.compat.v1.placeholder(
+        dtype=tf.dtypes.string,
         shape=[default_batch_size],
         name='input_example_tensor')
     receiver_tensors = {'examples': serialized_tf_example}
-    features = parsing_ops.parse_example(serialized_tf_example, feature_spec)
+    features = tf.compat.v1.io.parse_example(serialized_tf_example,
+                                             feature_spec)
     return ServingInputReceiver(features, receiver_tensors)
 
   return serving_input_receiver_fn
@@ -323,13 +318,13 @@ def _placeholder_from_tensor(t, default_batch_size=None):
 
   Args:
     t: Tensor or EagerTensor
-    default_batch_size: the number of query examples expected per batch.
-        Leave unset for variable batch size (recommended).
+    default_batch_size: the number of query examples expected per batch. Leave
+      unset for variable batch size (recommended).
 
   Returns:
     Placeholder that matches the passed tensor.
   """
-  batch_shape = tensor_shape.TensorShape([default_batch_size])
+  batch_shape = tf.TensorShape([default_batch_size])
   shape = batch_shape.concatenate(t.get_shape()[1:])
 
   # Reuse the feature tensor's op name (t.op.name) for the placeholder,
@@ -345,7 +340,7 @@ def _placeholder_from_tensor(t, default_batch_size=None):
     # name if none is available.
     name = None
 
-  return array_ops.placeholder(dtype=t.dtype, shape=shape, name=name)
+  return tf.compat.v1.placeholder(dtype=t.dtype, shape=shape, name=name)
 
 
 def _placeholders_from_receiver_tensors_dict(input_vals,
@@ -365,8 +360,8 @@ def build_raw_serving_input_receiver_fn(features, default_batch_size=None):
 
   Args:
     features: a dict of string to `Tensor`.
-    default_batch_size: the number of query examples expected per batch.
-        Leave unset for variable batch size (recommended).
+    default_batch_size: the number of query examples expected per batch. Leave
+      unset for variable batch size (recommended).
 
   Returns:
     A serving_input_receiver_fn.
@@ -396,8 +391,8 @@ def build_raw_supervised_input_receiver_fn(features,
   Args:
     features: a dict of string to `Tensor` or `Tensor`.
     labels: a dict of string to `Tensor` or `Tensor`.
-    default_batch_size: the number of query examples expected per batch.
-        Leave unset for variable batch size (recommended).
+    default_batch_size: the number of query examples expected per batch. Leave
+      unset for variable batch size (recommended).
 
   Returns:
     A supervised_input_receiver_fn.
@@ -454,18 +449,16 @@ def build_supervised_input_receiver_fn_from_input_fn(input_fn, **input_fn_args):
 
   Args:
     input_fn: An Estimator input_fn, which is a function that returns one of:
-
-      * A 'tf.data.Dataset' object: Outputs of `Dataset` object must be a
-          tuple (features, labels) with same constraints as below.
+      * A 'tf.data.Dataset' object: Outputs of `Dataset` object must be a tuple
+        (features, labels) with same constraints as below.
       * A tuple (features, labels): Where `features` is a `Tensor` or a
-        dictionary of string feature name to `Tensor` and `labels` is a
-        `Tensor` or a dictionary of string label name to `Tensor`. Both
-        `features` and `labels` are consumed by `model_fn`. They should
-        satisfy the expectation of `model_fn` from inputs.
-
-    **input_fn_args: set of kwargs to be passed to the input_fn. Note that
-      these will not be checked or validated here, and any errors raised by
-      the input_fn will be thrown to the top.
+        dictionary of string feature name to `Tensor` and `labels` is a `Tensor`
+        or a dictionary of string label name to `Tensor`. Both `features` and
+        `labels` are consumed by `model_fn`. They should satisfy the expectation
+        of `model_fn` from inputs.
+    **input_fn_args: set of kwargs to be passed to the input_fn. Note that these
+      will not be checked or validated here, and any errors raised by the
+      input_fn will be thrown to the top.
 
   Returns:
     A function taking no arguments that, when called, returns a
@@ -474,7 +467,7 @@ def build_supervised_input_receiver_fn_from_input_fn(input_fn, **input_fn_args):
     modes.
   """
   # Wrap the input_fn call in a graph to prevent sullying the default namespace
-  with ops.Graph().as_default():
+  with tf.Graph().as_default():
     result = input_fn(**input_fn_args)
     features, labels, _ = util.parse_input_fn_result(result)
   # Placeholders are created back in the default graph.

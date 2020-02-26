@@ -12,18 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-
 """Methods to allow pandas.DataFrame."""
 
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
-import six
-import uuid
 
+import uuid
 import numpy as np
-from tensorflow_estimator.python.estimator.inputs.queues import feeding_functions
+import six
 from tensorflow.python.util.tf_export import estimator_export
+from tensorflow_estimator.python.estimator.inputs.queues import feeding_functions
 
 try:
   # pylint: disable=g-import-not-at-top
@@ -70,16 +69,16 @@ def pandas_input_fn(x,
     x: pandas `DataFrame` object.
     y: pandas `Series` object or `DataFrame`. `None` if absent.
     batch_size: int, size of batches to return.
-    num_epochs: int, number of epochs to iterate over data. If not `None`,
-      read attempts that would exceed this value will raise `OutOfRangeError`.
+    num_epochs: int, number of epochs to iterate over data. If not `None`, read
+      attempts that would exceed this value will raise `OutOfRangeError`.
     shuffle: bool, whether to read the records in random order.
     queue_capacity: int, size of the read queue. If `None`, it will be set
       roughly to the size of `x`.
     num_threads: Integer, number of threads used for reading and enqueueing. In
       order to have predicted and repeatable order of reading and enqueueing,
       such as in prediction and evaluation mode, `num_threads` should be 1.
-    target_column: str, name to give the target column `y`. This parameter
-      is not used when `y` is a `DataFrame`.
+    target_column: str, name to give the target column `y`. This parameter is
+      not used when `y` is a `DataFrame`.
 
   Returns:
     Function, that has signature of ()->(dict of `features`, `target`)
@@ -111,8 +110,9 @@ def pandas_input_fn(x,
       raise ValueError('Index for x and y are mismatched.\nIndex for x: %s\n'
                        'Index for y: %s\n' % (x.index, y.index))
     if isinstance(y, pd.DataFrame):
-      y_columns = [(column, _get_unique_target_key(x, column))
-                   for column in list(y)]
+      y_columns = [
+          (column, _get_unique_target_key(x, column)) for column in list(y)
+      ]
       target_column = [v for _, v in y_columns]
       x[target_column] = y
     else:
@@ -154,4 +154,5 @@ def pandas_input_fn(x,
         target = features.pop(target_column)
       return features, target
     return features
+
   return input_fn

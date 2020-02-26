@@ -18,22 +18,13 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import os
+import tensorflow as tf
 
-from tensorflow.python.data.ops import dataset_ops
-from tensorflow.python.eager import backprop
-from tensorflow.python.framework import constant_op
-from tensorflow.python.framework import dtypes
-from tensorflow.python.framework import ops
+import os
 from tensorflow.python.keras import backend
 from tensorflow.python.keras.engine import training
 from tensorflow.python.keras.layers import core
 from tensorflow.python.keras.optimizer_v2 import adam
-from tensorflow.python.ops import array_ops
-from tensorflow.python.ops import control_flow_ops
-from tensorflow.python.ops import math_ops
-from tensorflow.python.ops import variables as variables_lib
-from tensorflow.python.platform import test
 from tensorflow.python.saved_model import saved_model
 # pylint: disable=g-import-not-at-top
 try:
@@ -41,9 +32,6 @@ try:
 except ImportError:
   # TODO(allenl): Remove this after cl/229814711 syncs
   from tensorflow.python.training.checkpointable import util
-from tensorflow.python.training import checkpoint_management
-from tensorflow.python.training import monitored_session
-from tensorflow.python.training import training_util
 
 from tensorflow_estimator.python.estimator import estimator as estimator_lib
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
@@ -62,13 +50,13 @@ class SubclassedModel(training.Model):
 
 
 def _serving_input_receiver_fn():
-  receiver = array_ops.placeholder(
-      dtypes.float32, shape=[None, 1], name='input')
+  receiver = tf.compat.v1.placeholder(
+      tf.dtypes.float32, shape=[None, 1], name='input')
   return export_lib.ServingInputReceiver(
       features={'feature': receiver}, receiver_tensors=receiver)
 
 
-class ObjectCheckpointingTest(test.TestCase):
+class ObjectCheckpointingTest(tf.test.TestCase):
 
   def _make_estimator(self, model_dir):
 
@@ -77,17 +65,17 @@ class ObjectCheckpointingTest(test.TestCase):
       model = SubclassedModel()
       optimizer = adam.Adam(0.01)
       checkpoint = util.Checkpoint(
-          step=training_util.get_or_create_global_step(),
+          step=tf.compat.v1.train.get_or_create_global_step(),
           optimizer=optimizer,
           model=model)
       # Make the save counter to satisfy the assert_consumed() assertion later
       checkpoint.save_counter  # pylint: disable=pointless-statement
-      with backprop.GradientTape() as tape:
+      with tf.GradientTape() as tape:
         output = model(features['feature'])
-        loss = math_ops.reduce_sum(output)
+        loss = tf.math.reduce_sum(output)
       variables = model.trainable_variables
       gradients = tape.gradient(loss, variables)
-      train_op = control_flow_ops.group(
+      train_op = tf.group(
           optimizer.apply_gradients(zip(gradients, variables)),
           checkpoint.step.assign_add(1))
       return model_fn_lib.EstimatorSpec(
@@ -96,14 +84,11 @@ class ObjectCheckpointingTest(test.TestCase):
           train_op=train_op,
           predictions=dict(
               output=output,
-              bias=array_ops.tile(
-                  model.dense_two.bias[None, :],
-                  [array_ops.shape(output)[0], 1]),
-              step=array_ops.tile(
-                  checkpoint.step[None],
-                  [array_ops.shape(output)[0]])),
-          scaffold=monitored_session.Scaffold(saver=checkpoint)
-      )
+              bias=tf.tile(model.dense_two.bias[None, :],
+                           [tf.compat.v1.shape(output)[0], 1]),
+              step=tf.tile(checkpoint.step[None],
+                           [tf.compat.v1.shape(output)[0]])),
+          scaffold=tf.compat.v1.train.Scaffold(saver=checkpoint))
 
     est = estimator_lib.EstimatorV2(model_fn=_model_fn, model_dir=model_dir)
 
@@ -112,7 +97,7 @@ class ObjectCheckpointingTest(test.TestCase):
       return {'feature': tensor}, tensor
 
     def _input_fn():
-      return dataset_ops.Dataset.from_tensors(
+      return tf.compat.v1.data.Dataset.from_tensors(
           [1.]).repeat().batch(10).map(_input_map_fn)
 
     return est, _input_fn
@@ -126,15 +111,14 @@ class ObjectCheckpointingTest(test.TestCase):
     model = SubclassedModel()
     optimizer = adam.Adam(0.01)
     checkpoint = util.Checkpoint(
-        step=variables_lib.Variable(0, dtype=dtypes.int64),
+        step=tf.Variable(0, dtype=tf.dtypes.int64),
         optimizer=optimizer,
         model=model)
-    status = checkpoint.restore(
-        checkpoint_management.latest_checkpoint(save_model_dir))
+    status = checkpoint.restore(tf.train.latest_checkpoint(save_model_dir))
     self.assertEqual(3, self.evaluate(checkpoint.step))
-    with backprop.GradientTape() as tape:
-      output = model(constant_op.constant([[1.]]))
-      loss = math_ops.reduce_sum(output)
+    with tf.GradientTape() as tape:
+      output = model(tf.constant([[1.]]))
+      loss = tf.math.reduce_sum(output)
     variables = model.trainable_variables
     gradients = tape.gradient(loss, variables)
     optimizer.apply_gradients(zip(gradients, variables))
@@ -164,9 +148,9 @@ class ObjectCheckpointingTest(test.TestCase):
 
     # Check the saved model loads and simple inference runs.
     model = saved_model.load(export_dir)
-    model.signatures['serving_default'](array_ops.constant([[1.]]))
+    model.signatures['serving_default'](tf.constant([[1.]]))
 
 
 if __name__ == '__main__':
-  ops.enable_eager_execution()
-  test.main()
+  tf.compat.v1.enable_eager_execution()
+  tf.test.main()

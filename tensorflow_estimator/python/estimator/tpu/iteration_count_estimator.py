@@ -26,8 +26,7 @@ from __future__ import print_function
 import collections
 
 import numpy as np
-
-from tensorflow.python.platform import tf_logging as logging
+import tensorflow as tf
 
 RuntimeCounter = collections.namedtuple(
     "RuntimeCounter", ["runtime_secs", "steps", "step_time_secs"])
@@ -131,12 +130,12 @@ class IterationCountEstimator(object):
       count: The number of iterations.
     """
     if runtime_secs <= 0.0:
-      logging.debug(
+      tf.compat.v1.logging.debug(
           "Invalid `runtime_secs`. Value must be positive. Actual:%.3f.",
           runtime_secs)
       return
     if count <= 0.0:
-      logging.debug(
+      tf.compat.v1.logging.debug(
           "Invalid samples `count`. Value must be positive. Actual:%d.", count)
       return
 
@@ -172,7 +171,7 @@ class IterationCountEstimator(object):
           "Invalid `total_secs`. It must be positive number. Actual:%d" %
           total_secs)
     if not self._buffer_wheel:
-      logging.debug(
+      tf.compat.v1.logging.debug(
           "IterationCountEstimator has no sample(s). Returns min iterations:%d.",
           self._min_iterations)
       return self._min_iterations
@@ -191,7 +190,7 @@ class IterationCountEstimator(object):
       delta_iterations = 0
     self._last_iterations += delta_iterations
     self._last_iterations = max(self._last_iterations, self._min_iterations)
-    logging.info(
+    tf.compat.v1.logging.info(
         "IterationCountEstimator -- target_runtime:%.3fs. last_runtime:%.3fs. "
         "mean_runtime:%.3fs. last_step_time:%.3f. std_step_time:%.3f. "
         "mean_step_time:%.3fs. delta_steps:%.2f. prev_steps:%.2f. "

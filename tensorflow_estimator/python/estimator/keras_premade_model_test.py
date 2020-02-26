@@ -20,20 +20,13 @@ from __future__ import print_function
 import os
 
 import numpy as np
-
+import tensorflow as tf
 from tensorflow.python import keras
-from tensorflow.python.data.ops import dataset_ops
 from tensorflow.python.feature_column import dense_features
-from tensorflow.python.feature_column import feature_column_v2 as feature_column
-from tensorflow.python.framework import dtypes
-from tensorflow.python.framework import test_util
 from tensorflow.python.keras.optimizer_v2 import adam
 from tensorflow.python.keras.optimizer_v2 import gradient_descent
 from tensorflow.python.keras.premade import linear
 from tensorflow.python.keras.premade import wide_deep
-from tensorflow.python.platform import gfile
-from tensorflow.python.platform import test
-from tensorflow.python.summary.writer import writer_cache
 from tensorflow_estimator.python.estimator import keras as keras_lib
 from tensorflow_estimator.python.estimator import run_config as run_config_lib
 from tensorflow_estimator.python.estimator.inputs import numpy_io
@@ -44,7 +37,8 @@ _RANDOM_SEED = 1337
 def gen_input_fn(x, y=None, batch_size=32, num_epochs=10, shuffle=False):
 
   def input_fn():
-    ds = dataset_ops.Dataset.from_tensor_slices((x, y) if y is not None else x)
+    ds = tf.compat.v1.data.Dataset.from_tensor_slices((
+        x, y) if y is not None else x)
     if shuffle:
       ds = ds.shuffle(1000)
     return ds.repeat(num_epochs).batch(batch_size)
@@ -83,20 +77,20 @@ def randomize_io_type(array, name):
     return {name: array}
 
 
-class KerasPremadeModelTest(test_util.TensorFlowTestCase):
+class KerasPremadeModelTest(tf.test.TestCase):
 
   def setUp(self):
     self._base_dir = os.path.join(self.get_temp_dir(), 'keras_estimator_test')
-    gfile.MakeDirs(self._base_dir)
+    tf.compat.v1.gfile.MakeDirs(self._base_dir)
     self._config = run_config_lib.RunConfig(
         tf_random_seed=_RANDOM_SEED, model_dir=self._base_dir)
     super(KerasPremadeModelTest, self).setUp()
 
   def tearDown(self):
     # Make sure nothing is stuck in limbo.
-    writer_cache.FileWriterCache.clear()
+    tf.compat.v1.summary.FileWriterCache.clear()
     if os.path.isdir(self._base_dir):
-      gfile.DeleteRecursively(self._base_dir)
+      tf.compat.v1.gfile.DeleteRecursively(self._base_dir)
     keras.backend.clear_session()
     super(KerasPremadeModelTest, self).tearDown()
 
@@ -109,11 +103,11 @@ class KerasPremadeModelTest(test_util.TensorFlowTestCase):
       indices = np.where(data == vocab)
       y[indices] = val + np.random.uniform(
           low=-0.01, high=0.01, size=indices[0].shape)
-    cat_column = feature_column.categorical_column_with_vocabulary_list(
+    cat_column = tf.feature_column.categorical_column_with_vocabulary_list(
         key='symbol', vocabulary_list=vocab_list)
-    ind_column = feature_column.indicator_column(cat_column)
+    ind_column = tf.feature_column.indicator_column(cat_column)
     keras_input = keras.layers.Input(
-        name='symbol', shape=3, dtype=dtypes.string)
+        name='symbol', shape=3, dtype=tf.dtypes.string)
     feature_layer = dense_features.DenseFeatures([ind_column])
     h = feature_layer({'symbol': keras_input})
     linear_model = linear.LinearModel(units=1)
@@ -162,13 +156,13 @@ class KerasPremadeModelTest(test_util.TensorFlowTestCase):
       indices = np.where(data == vocab)
       y[indices] = val + np.random.uniform(
           low=-0.01, high=0.01, size=indices[0].shape)
-    cat_column = feature_column.categorical_column_with_vocabulary_list(
+    cat_column = tf.feature_column.categorical_column_with_vocabulary_list(
         key='symbol', vocabulary_list=vocab_list)
-    ind_column = feature_column.indicator_column(cat_column)
+    ind_column = tf.feature_column.indicator_column(cat_column)
     # TODO(tanzheny): use emb column for dense part once b/139667019 is fixed.
     # emb_column = feature_column.embedding_column(cat_column, dimension=5)
     keras_input = keras.layers.Input(
-        name='symbol', shape=3, dtype=dtypes.string)
+        name='symbol', shape=3, dtype=tf.dtypes.string)
 
     # build linear part with feature layer.
     linear_feature_layer = dense_features.DenseFeatures([ind_column])
@@ -207,4 +201,4 @@ class KerasPremadeModelTest(test_util.TensorFlowTestCase):
 
 
 if __name__ == '__main__':
-  test.main()
+  tf.test.main()

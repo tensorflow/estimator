@@ -24,13 +24,14 @@ import threading
 import time
 
 import six
-
-from tensorflow.python.framework import errors
-from tensorflow.python.platform import tf_logging as logging
+import tensorflow as tf
 from tensorflow_estimator.python.estimator.tools import analytics
 
-_UNINTERESTING_ERRORS = (errors.CancelledError,)
-_IGNORED_ERRORS = (errors.AbortedError, errors.UnavailableError,)
+_UNINTERESTING_ERRORS = (tf.errors.CancelledError,)
+_IGNORED_ERRORS = (
+    tf.errors.AbortedError,
+    tf.errors.UnavailableError,
+)
 
 _CHECK_NUMERIC_OP_NAME = 'CheckNumerics'
 
@@ -91,11 +92,11 @@ class ErrorRendezvous(object):
 
       def _cancel_session():
         time.sleep(5)
-        logging.error('Closing session due to error %s' % value)
+        tf.compat.v1.logging.error('Closing session due to error %s' % value)
         try:
           session.close()
         except:  # pylint: disable=bare-except
-          logging.error(
+          tf.compat.v1.logging.error(
               '\n\n\nFailed to close session after error.'
               'Other threads may hang.\n\n\n')
 
@@ -111,7 +112,7 @@ class ErrorRendezvous(object):
     Args:
       source: `str`, source being recorded
     """
-    logging.info('%s marked as finished', source)
+    tf.compat.v1.logging.info('%s marked as finished', source)
     if source not in self._errors:
       self._errors[source] = None
 
@@ -145,9 +146,9 @@ class ErrorRendezvous(object):
       if isinstance(value, _UNINTERESTING_ERRORS):
         continue
       else:
-        logging.warn('Reraising captured error')
+        tf.compat.v1.logging.warn('Reraising captured error')
         six.reraise(typ, value, traceback)
 
     for k, (typ, value, traceback) in kept_errors:
-      logging.warn('Reraising captured error')
+      tf.compat.v1.logging.warn('Reraising captured error')
       six.reraise(typ, value, traceback)
