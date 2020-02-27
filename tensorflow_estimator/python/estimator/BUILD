@@ -749,6 +749,8 @@ py_test(
     tags = [
         "no_pip",
         "notsan",  # TODO(b/67510291)
+        "no_oss",
+        "nooss",
     ],
     deps = [
         ":dnn_linear_combined",
@@ -1980,6 +1982,8 @@ py_test(
         "noasan",
         "nomsan",
         "notsan",
+        "no_oss",
+        "nooss",
     ],
     deps = [
         ":estimator_py",
