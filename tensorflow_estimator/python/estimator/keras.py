@@ -35,7 +35,7 @@ from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 _DEFAULT_SERVING_KEY = tf.saved_model.DEFAULT_SERVING_SIGNATURE_DEF_KEY
 
 
-class DictKeyError(KeyError):
+class FormattedKeyError(KeyError):
   """This class will format the exception information properly."""
   def __init__(self, message):
     self.message = message
