@@ -35,6 +35,15 @@ from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 _DEFAULT_SERVING_KEY = tf.saved_model.DEFAULT_SERVING_SIGNATURE_DEF_KEY
 
 
+class DictKeyError(KeyError):
+  """This class will format the exception information properly."""
+  def __init__(self, message):
+    self.message = message
+
+  def __str__(self):
+    return self.message
+
+
 def _cast_tensor_to_floatx(x):
   """Cast tensor to keras's floatx dtype if it is not already the same dtype."""
   if x.dtype == K.floatx():
@@ -129,8 +138,7 @@ def _convert_estimator_io_to_keras(keras_model, features, labels):
                   obj_keys=set(obj.keys()),
                   different_keys=different_keys))
         except KeyError as e:
-          print(e.args[0])
-          return None
+          raise DictKeyError(e.args[0])
 
       return [_convert_tensor(obj[key]) for key in key_order]
     else:  # Assume obj is a tensor.
