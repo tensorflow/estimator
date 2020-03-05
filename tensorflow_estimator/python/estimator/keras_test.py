@@ -661,13 +661,17 @@ class TestKerasEstimator(tf.test.TestCase, parameterized.TestCase):
         loss='categorical_crossentropy', optimizer='adam', metrics=['acc'])
     est_keras = keras_lib.model_to_estimator(
         keras_model=model, config=self._config)
+
+    regexp_pattern = r'{} keys:(\s|.)*{}(\s|.)*Missed keys:(\s|.)*{}'
+
     with self.assertRaisesRegexp(
-        KeyError,
-        'features keys: .*invalid_input_name.*Missed keys: .*input_layer'):
+        keras_lib.FormattedKeyError,
+        regexp_pattern.format('features', 'invalid_input_name', 'input_layer')):
       est_keras.train(input_fn=invald_input_name_input_fn, steps=100)
 
     with self.assertRaisesRegexp(
-        KeyError, 'labels keys: .*invalid_output_name.*Missed keys: .*dense_1'):
+        keras_lib.FormattedKeyError,
+        regexp_pattern.format('labels', 'invalid_output_name', 'dense_1')):
       est_keras.train(input_fn=invald_output_name_input_fn, steps=100)
 
   def test_custom_objects(self):

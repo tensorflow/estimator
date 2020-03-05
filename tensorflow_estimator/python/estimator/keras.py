@@ -35,6 +35,23 @@ from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 _DEFAULT_SERVING_KEY = tf.saved_model.DEFAULT_SERVING_SIGNATURE_DEF_KEY
 
 
+class FormattedKeyError(KeyError):
+  """KeyError with formatted error message.
+
+  Python's `KeyError` has special casing around formatting
+  (see https://bugs.python.org/issue2651). Use this class when the error
+  message has newlines and other special format characters.
+
+  Needed by https://github.com/tensorflow/tensorflow/issues/36857.
+  """
+
+  def __init__(self, message):
+    self.message = message
+
+  def __str__(self):
+    return self.message
+
+
 def _cast_tensor_to_floatx(x):
   """Cast tensor to keras's floatx dtype if it is not already the same dtype."""
   if x.dtype == K.floatx():
@@ -116,7 +133,7 @@ def _convert_estimator_io_to_keras(keras_model, features, labels):
       different_keys = set(key_order) - set(obj.keys())
 
       if different_keys:
-        raise KeyError(
+        raise FormattedKeyError(
             'The dictionary passed into {obj_name} does not cover requested '
             '{order_name} keys defined in the keras model.'
             '\n\tExpected keys: {order_keys}'
