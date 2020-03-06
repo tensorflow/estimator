@@ -48,6 +48,7 @@ py_library(
         "//tensorflow_estimator/python/estimator/api:estimator_python_api_gen_compat_v1",
         "//tensorflow_estimator/python/estimator/api:estimator_python_api_gen_compat_v2",
     ],
+    srcs_version = "PY2AND3",
     deps = [
         "//tensorflow_estimator/python/estimator:estimator_py",
     ],
