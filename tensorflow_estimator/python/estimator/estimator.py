@@ -656,8 +656,8 @@ class Estimator(object):
     """Exports inference graph as a `SavedModel` into the given dir.
 
     For a detailed guide, see
-    [Using SavedModel with
-    Estimators](https://tensorflow.org/guide/saved_model#using_savedmodel_with_estimators).
+    [SavedModel from 
+    Estimators](https://tensorflow.org/guide/saved_model#savedmodels_from_estimators).
 
     This method builds a new graph by first calling the
     `serving_input_receiver_fn` to obtain feature `Tensor`s, and then calling
@@ -1676,8 +1676,8 @@ class Estimator(object):
     """Exports inference graph as a `SavedModel` into the given dir.
 
     For a detailed guide, see
-    [Using SavedModel with
-    Estimators](https://tensorflow.org/guide/saved_model#using_savedmodel_with_estimators).
+    [SavedModel from
+    Estimators](https://tensorflow.org/guide/saved_model#savedmodels_from_estimators).
 
     This method builds a new graph by first calling the
     `serving_input_receiver_fn` to obtain feature `Tensor`s, and then calling
