@@ -23,10 +23,7 @@ import abc
 import six
 import tensorflow as tf
 
-if six.PY3:
-  from collections.abc import Iterable
-else:
-  from collections import Iterable
+from six.moves.collections_abc import Iterable
 
 from tensorflow.python.framework import ops
 from tensorflow_estimator.python.estimator.head import base_head
