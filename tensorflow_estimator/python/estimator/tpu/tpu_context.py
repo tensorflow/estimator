@@ -32,15 +32,16 @@ from tensorflow_estimator.python.estimator.tpu import tpu_config
 _DEFAULT_JOB_NAME = 'tpu_worker'
 _DEFAULT_COORDINATOR_JOB_NAME = 'coordinator'
 _LOCAL_MASTERS = ('', 'local')
+# TODO(pgavin): support PF 3D mesh
 _NUM_CORES_TO_COMPUTATION_SHAPE = {
-    1: [1, 1, 1],
-    2: [1, 1, 2],
-    4: [1, 2, 2],
-    8: [2, 2, 2],
-    16: [4, 2, 2],
-    32: [4, 4, 2],
-    64: [8, 4, 2],
-    128: [8, 8, 2],
+    1: [1, 1, 1, 1],
+    2: [1, 1, 1, 2],
+    4: [1, 2, 1, 2],
+    8: [2, 2, 1, 2],
+    16: [4, 2, 1, 2],
+    32: [4, 4, 1, 2],
+    64: [8, 4, 1, 2],
+    128: [8, 8, 1, 2],
 }
 
 
