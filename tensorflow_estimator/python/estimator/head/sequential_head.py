@@ -19,10 +19,15 @@ from __future__ import division
 from __future__ import print_function
 
 import abc
-import collections
 
 import six
 import tensorflow as tf
+
+if six.PY3:
+  from collections.abc import Iterable
+else:
+  from collections import Iterable
+
 from tensorflow.python.framework import ops
 from tensorflow_estimator.python.estimator.head import base_head
 from tensorflow_estimator.python.estimator.head import multi_head
@@ -149,7 +154,7 @@ class SequentialHeadWrapper(_SequentialHead):
 
     # Verify and set feature columns (to be flattened).
     feature_columns = feature_columns or []
-    if not isinstance(feature_columns, collections.Iterable):
+    if not isinstance(feature_columns, Iterable):
       raise TypeError('`feature_columns` must be either a string or an '
                       'iterable of strings got {} instead.'.format(
                           type(feature_columns)))
