@@ -563,7 +563,7 @@ class _MultiWorkerEarlyStoppingHook(session_run_hook.SessionRunHook):
         self._stop_placeholder = placeholder
       return var.assign_add(placeholder)
 
-    self._stop_op = strategy.experimental_run_v2(
+    self._stop_op = strategy.run(
         stop_op_fn, args=(self._stop_var,))
 
   def before_run(self, run_context):
