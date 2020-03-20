@@ -202,11 +202,18 @@ class RNNModel(models.Model):
       raise ValueError('inputs should be a dictionary of `Tensor`s. '
                        'Given type: {}'.format(type(inputs)))
     with ops.name_scope('sequence_input_layer'):
-      sequence_input, sequence_length = self._sequence_features_layer(inputs)
+      try:
+        sequence_input, sequence_length = self._sequence_features_layer(
+            inputs, training=training)
+      except TypeError:
+        sequence_input, sequence_length = self._sequence_features_layer(inputs)
       tf.compat.v1.summary.histogram('sequence_length', sequence_length)
 
       if self._context_feature_columns:
-        context_input = self._dense_features_layer(inputs)
+        try:
+          context_input = self._dense_features_layer(inputs, training=training)
+        except TypeError:
+          context_input = self._dense_features_layer(inputs)
         sequence_input = fc.concatenate_context_input(
             context_input, sequence_input=sequence_input)
 

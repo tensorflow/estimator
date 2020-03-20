@@ -248,7 +248,8 @@ class RNNLogitFnTest(tf.test.TestCase, parameterized.TestCase):
                    features_fn,
                    expected_logits,
                    expected_mask,
-                   return_sequences=False):
+                   return_sequences=False,
+                   training=False):
     """Tests that the expected logits are calculated."""
     rnn_layer = keras_layers.SimpleRNN(
         2,
@@ -264,7 +265,7 @@ class RNNLogitFnTest(tf.test.TestCase, parameterized.TestCase):
           sequence_feature_columns=self.sequence_feature_columns,
           context_feature_columns=self.context_feature_columns,
           return_sequences=return_sequences)
-    logits = logit_layer(features_fn())
+    logits = logit_layer(features_fn(), training=training)
     if return_sequences:
       logits = (logits, logits._keras_mask)
       expected_logits = (expected_logits, expected_mask)
@@ -280,8 +281,18 @@ class RNNLogitFnTest(tf.test.TestCase, parameterized.TestCase):
           'testcase_name': 'Sequential',
           'return_sequences': True,
           'expected_logits': [[[-1.4388], [-0.6033]]]
+      }, {
+          'testcase_name': 'SequentialTrain',
+          'return_sequences': True,
+          'expected_logits': [[[-1.4388], [-0.6033]]],
+          'training': True
+      }, {
+          'testcase_name': 'SequentialInfer',
+          'return_sequences': True,
+          'expected_logits': [[[-1.4388], [-0.6033]]],
+          'training': False
       })
-  def testOneDimLogits(self, return_sequences, expected_logits):
+  def testOneDimLogits(self, return_sequences, expected_logits, training=False):
     """Tests one-dimensional logits.
 
     Intermediate values are rounded for ease in reading.
@@ -301,6 +312,7 @@ class RNNLogitFnTest(tf.test.TestCase, parameterized.TestCase):
       return_sequences: A boolean indicating whether to return the last output
         in the output sequence, or the full sequence.
       expected_logits: An array with expected logits result.
+      training: Specifies if this training or evaluation / prediction mode.
     """
     expected_mask = [[1, 1]]
 
@@ -309,7 +321,8 @@ class RNNLogitFnTest(tf.test.TestCase, parameterized.TestCase):
         features_fn=_default_features_fn,
         expected_mask=expected_mask,
         expected_logits=expected_logits,
-        return_sequences=return_sequences)
+        return_sequences=return_sequences,
+        training=training)
 
   @parameterized.named_parameters(
       {

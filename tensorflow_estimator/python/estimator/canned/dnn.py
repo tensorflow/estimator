@@ -240,7 +240,10 @@ class _DNNModel(training.Model):
       with tf.compat.v1.variable_scope(
           'input_from_feature_columns',
           partitioner=self._input_layer_partitioner):
-        net = self._input_layer(features)
+        try:
+          net = self._input_layer(features, training=training)
+        except TypeError:
+          net = self._input_layer(features)
       for i in range(len(self._hidden_layers)):
         net = self._hidden_layers[i](net)
         if self._dropout is not None and is_training:
@@ -345,7 +348,10 @@ class _DNNModelV2(training.Model):
 
   def call(self, features, mode):
     is_training = mode == ModeKeys.TRAIN
-    net = self._input_layer(features)
+    kwargs = {}
+    if 'mode' in six.get_function_code(self._input_layer.call).co_varnames:
+      kwargs['mode'] = mode
+    net = self._input_layer(features, **kwargs)
     for i in range(len(self._hidden_layers)):
       net = self._hidden_layers[i](net)
       if self._dropout is not None and is_training:
