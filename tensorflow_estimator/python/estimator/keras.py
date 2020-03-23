@@ -248,11 +248,13 @@ def _clone_and_build_model(mode,
   return clone
 
 
-def _convert_keras_metrics_to_estimator(model):
+def _convert_keras_metrics_to_estimator(model, metric_names_map=None):
   """Convert metrics from a Keras model to ops used by the Estimator framework.
 
   Args:
     model: A `tf.keras.Model` object.
+    metric_names_map: Optional dictionary mapping Keras model output metric
+      names to custom names.
 
   Returns:
     Dictionary mapping metric names to tuples of (value, update) ops. May return
@@ -263,18 +265,42 @@ def _convert_keras_metrics_to_estimator(model):
 
   # We are not using model.metrics here because we want to exclude the metrics
   # added using `add_metric` API.
-  return {m.name: m for m in model._compile_metric_functions}
+  compiled_metrics = model._compile_metric_functions
+
+  if metric_names_map:
+    custom_map_keys = set(metric_names_map.keys())
+    expected_keys = {m.name for m in compiled_metrics}
+    unknown = expected_keys.difference(custom_map_keys)
+    if unknown:
+      raise ValueError(
+          'Invalid `metric_names_map`. '
+          'The following keras model metric names:"{}" do not exist in '
+          'the `metric_names_map` dictionary'.format(list(unknown)))
+
+    extra = custom_map_keys.difference(expected_keys)
+    if extra:
+      raise ValueError('Invalid `metric_names_map`. '
+                       'There are unexpected keys in the `metric_names_map` '
+                       'dictionary. Expected keys: {}, Received: {}'.format(
+                           list(expected_keys), list(extra)))
+
+    return {metric_names_map[m.name]: m for m in compiled_metrics}
+  else:
+    return {m.name: m for m in compiled_metrics}
 
 
 def _create_keras_model_fn(keras_model,
                            custom_objects=None,
-                           save_object_ckpt=False):
+                           save_object_ckpt=False,
+                           metric_names_map=None):
   """Creates model_fn for keras Estimator.
 
   Args:
     keras_model: an instance of compiled keras model.
     custom_objects: Dictionary for custom objects.
     save_object_ckpt: Whether to save an object-based checkpoint.
+    metric_names_map: Optional dictionary mapping Keras model output metric
+      names to custom names.
 
   Returns:
     The model_fn for a keras Estimator.
@@ -327,7 +353,8 @@ def _create_keras_model_fn(keras_model,
         model._make_test_function()  # pylint: disable=protected-access
       loss = model.total_loss
 
-      eval_metric_ops = _convert_keras_metrics_to_estimator(model)
+      eval_metric_ops = _convert_keras_metrics_to_estimator(
+          model, metric_names_map)
 
     # Set train_op only during train.
     if mode is ModeKeys.TRAIN:
@@ -468,7 +495,8 @@ def model_to_estimator(keras_model=None,
                        model_dir=None,
                        config=None,
                        checkpoint_format=None,
-                       use_v2_estimator=False):
+                       use_v2_estimator=False,
+                       metric_names_map=None):
   # LINT.ThenChange(//tensorflow/python/keras/estimator/__init__.py)
   """Constructs an `Estimator` instance from given keras model.
 
@@ -532,6 +560,17 @@ def model_to_estimator(keras_model=None,
       models.
     use_v2_estimator: Whether to convert the model to a V2 Estimator or V1
       Estimator. Defaults to `False`.
+    metric_names_map: Optional dictionary mapping Keras model output metric
+      names to custom names. This can be used to override the default Keras
+      model output metrics names in a multi IO model use case and provide custom
+      names for the `eval_metric_ops` in Estimator.
+      The Keras model metric names can be obtained using `model.metrics_names`
+      excluding any loss metrics such as total loss and output losses.
+      For example, if your Keras model has two outputs `out_1` and `out_2`,
+      with `mse` loss and `acc` metric, then `model.metrics_names` will be
+      `['loss', 'out_1_loss', 'out_2_loss', 'out_1_acc', 'out_2_acc']`.
+      The model metric names excluding the loss metrics will be
+      `['out_1_acc', 'out_2_acc']`.
 
   Returns:
     An Estimator from given keras model.
@@ -587,7 +626,7 @@ def model_to_estimator(keras_model=None,
                      'before calling `model_to_estimator()`.')
 
   keras_model_fn = _create_keras_model_fn(keras_model, custom_objects,
-                                          save_object_ckpt)
+                                          save_object_ckpt, metric_names_map)
   if _any_weight_initialized(keras_model):
     # Warn if config passed to estimator tries to update GPUOptions. If a
     # session has already been created, the GPUOptions passed to the first

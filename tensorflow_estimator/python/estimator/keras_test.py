@@ -512,6 +512,114 @@ class TestKerasEstimator(tf.test.TestCase, parameterized.TestCase):
           msg='%s mismatch, keras model: %s, estimator: %s' %
           (metric_name, keras_eval[i], est_eval[metric_name]))
 
+  def test_evaluate_multi_io_model(self):
+    input_a = keras.layers.Input(shape=(16,), name='input_a')
+    input_b = keras.layers.Input(shape=(16,), name='input_b')
+    dense = keras.layers.Dense(8, name='dense_1')
+    interm_a = dense(input_a)
+    interm_b = dense(input_b)
+    merged = keras.layers.concatenate([interm_a, interm_b], name='merge')
+    output_a = keras.layers.Dense(
+        3, activation='softmax', name='dense_2')(
+            merged)
+    output_b = keras.layers.Dense(
+        2, activation='softmax', name='dense_3')(
+            merged)
+    keras_model = keras.models.Model(
+        inputs=[input_a, input_b], outputs=[output_a, output_b])
+    keras_model.compile(
+        loss='categorical_crossentropy',
+        optimizer='rmsprop',
+        metrics={
+            'dense_2': 'categorical_accuracy',
+            'dense_3': 'categorical_accuracy'
+        })
+
+    np.random.seed(_RANDOM_SEED)
+    (x_train_1, y_train_1), (x_test_1, y_test_1) = testing_utils.get_test_data(
+        train_samples=_TRAIN_SIZE,
+        test_samples=50,
+        input_shape=(16,),
+        num_classes=3)
+    (x_train_2, y_train_2), (x_test_2, y_test_2) = testing_utils.get_test_data(
+        train_samples=_TRAIN_SIZE,
+        test_samples=50,
+        input_shape=(16,),
+        num_classes=2)
+    y_train_1 = np_utils.to_categorical(y_train_1)
+    y_test_1 = np_utils.to_categorical(y_test_1)
+    y_train_2 = np_utils.to_categorical(y_train_2)
+    y_test_2 = np_utils.to_categorical(y_test_2)
+
+    keras_model.fit((x_train_1, x_train_2), (y_train_1, y_train_2), epochs=1)
+    keras_eval = keras_model.evaluate((x_test_1, x_test_2),
+                                      (y_test_1, y_test_2),
+                                      batch_size=32)
+
+    def input_fn():
+      ds = tf.compat.v1.data.Dataset.from_tensor_slices(
+          ((x_test_1, x_test_2), (y_test_1, y_test_2)))
+      return ds.batch(128)
+
+    keras_est = keras_lib.model_to_estimator(
+        keras_model=keras_model, config=self._config)
+    est_eval = keras_est.evaluate(input_fn=input_fn)
+
+    def verify_correctness(metric_names):
+      for i, metric_name in enumerate(metric_names):
+        if i < 3:  # TODO(b/148461691): Investigate 1% diff in loss.
+          continue
+        self.assertAlmostEqual(
+            keras_eval[i],
+            est_eval[metric_name],
+            places=4,
+            msg='%s mismatch, keras model: %s, estimator: %s' %
+            (metric_name, keras_eval[i], est_eval[metric_name]))
+
+    verify_correctness([
+        'loss', 'dense_2_loss', 'dense_3_loss', 'dense_2_categorical_accuracy',
+        'dense_3_categorical_accuracy'
+    ])
+
+    metric_names_map = {
+        'dense_2_categorical_accuracy': 'acc_1',
+        'dense_3_categorical_accuracy': 'acc_2',
+    }
+    keras_est = keras_lib.model_to_estimator(
+        keras_model=keras_model,
+        config=self._config,
+        metric_names_map=metric_names_map)
+    est_eval = keras_est.evaluate(input_fn=input_fn)
+    verify_correctness(
+        ['loss', 'dense_2_loss', 'dense_3_loss', 'acc_1', 'acc_2'])
+
+  def test_invalid_metric_names_map(self):
+    keras_model, (_, _), (_,
+                          _), _, eval_input_fn = get_resource_for_simple_model(
+                              model_type='functional', is_evaluate=True)
+    keras_model.compile(
+        loss='categorical_crossentropy',
+        optimizer='adam',
+        metrics=['binary_accuracy'])
+
+    keras_est = keras_lib.model_to_estimator(
+        keras_model=keras_model,
+        config=self._config,
+        metric_names_map={'binary_acc': ''})
+    with self.assertRaisesRegexp(ValueError,
+                                 r'Invalid `metric_names_map`.*do not exist'):
+      keras_est.evaluate(input_fn=eval_input_fn)
+    keras_est = keras_lib.model_to_estimator(
+        keras_model=keras_model,
+        config=self._config,
+        metric_names_map={
+            'binary_accuracy': 'acc',
+            'abcde': ''
+        })
+    with self.assertRaisesRegexp(
+        ValueError, r'Invalid `metric_names_map`.*unexpected keys'):
+      keras_est.evaluate(input_fn=eval_input_fn)
+
   def test_predict(self):
     # Check that predict on a pretrained model yield the same result.
     keras_model, (x_train, y_train), (
