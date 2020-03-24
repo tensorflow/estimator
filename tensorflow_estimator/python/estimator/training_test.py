@@ -53,6 +53,8 @@ _INVALID_NAME_MSG = '`name` must be string'
 _INVALID_EVAL_DELAY_SECS_MSG = 'Must specify start_delay_secs >= 0'
 _INVALID_EVAL_THROTTLE_SECS_MSG = 'Must specify throttle_secs >= 0'
 _INVALID_ESTIMATOR_MSG = '`estimator` must have type `tf.estimator.Estimator`'
+_INVALID_SAVING_LISTENER_MSG = (
+    'All saving_listeners must be `CheckpointSaverListener` instances')
 _STALE_CHECKPOINT_MSG = 'There was no new checkpoint after the training.'
 _INVALID_EXPORTER_MSG = '`exporters` must be an Exporter'
 _INVALID_EXPORTER_NAME_TYPE_MSG = 'An Exporter must have a string name'
@@ -154,6 +156,10 @@ class _InvalidHook(object):
   """Invalid hook (not a subclass of `SessionRunHook`)."""
 
 
+class _InvalidCheckpointSaverListener(object):
+  """Invalid hook (not a subclass of `CheckpointSaverListener`)."""
+
+
 def _create_exporter(name):
 
   class FakeExporter(exporter_lib.Exporter):
@@ -206,6 +212,11 @@ class TrainSpecTest(tf.test.TestCase):
   def testInvalidHook(self):
     with self.assertRaisesRegexp(TypeError, _INVALID_HOOK_MSG):
       training.TrainSpec(input_fn=lambda: 1, hooks=[_InvalidHook()])
+
+  def testInvalidSavingListener(self):
+    with self.assertRaisesRegexp(TypeError, _INVALID_SAVING_LISTENER_MSG):
+      training.TrainSpec(input_fn=lambda: 1,
+                         saving_listeners=[_InvalidCheckpointSaverListener()])
 
 
 class EvalSpecTest(tf.test.TestCase):
@@ -726,6 +737,8 @@ class TrainingExecutorRunMasterTest(tf.test.TestCase):
     mock_eval_spec = tf.compat.v1.test.mock.Mock(
         spec=training.EvalSpec, exporters=[])
 
+    mock_train_spec.saving_listeners = tuple([])
+
     executor = training._TrainingExecutor(mock_est, mock_train_spec,
                                           mock_eval_spec)
 
@@ -820,6 +833,8 @@ class TrainingExecutorRunMasterTest(tf.test.TestCase):
     mock_eval_spec = tf.compat.v1.test.mock.Mock(
         spec=training.EvalSpec, exporters=[])
 
+    mock_train_spec.saving_listeners = tuple([])
+
     executor = training._TrainingExecutor(mock_est, mock_train_spec,
                                           mock_eval_spec)
     tf_config = {'TF_CONFIG': json.dumps(_TF_CONFIG_FOR_GOOGLE)}
@@ -838,6 +853,8 @@ class TrainingExecutorRunMasterTest(tf.test.TestCase):
     mock_est.config.master = 'grpc://...'
     mock_est.config.task_type = 'master'
     mock_est.config.task_id = 2
+
+    mock_train_spec.saving_listeners = tuple([])
 
     with self.assertRaisesRegexp(RuntimeError,
                                  _INVALID_CONFIG_FOR_STD_SERVER_MSG):
@@ -858,6 +875,8 @@ class TrainingExecutorRunMasterTest(tf.test.TestCase):
     mock_est.config.master = ''
     mock_est.config.task_type = 'master'
     mock_est.config.task_id = 0
+
+    mock_train_spec.saving_listeners = tuple([])
 
     with self.assertRaisesRegexp(RuntimeError,
                                  _INVALID_CONFIG_FOR_STD_SERVER_MSG):
@@ -885,6 +904,8 @@ class TrainingExecutorRunMasterTest(tf.test.TestCase):
     mock_est.config.task_type = 'master'
     mock_est.config.task_id = 0
 
+    mock_train_spec.saving_listeners = tuple([])
+
     executor = training._TrainingExecutor(mock_est, mock_train_spec,
                                           mock_eval_spec)
     executor.run_master()
@@ -904,6 +925,8 @@ class TrainingExecutorRunMasterTest(tf.test.TestCase):
     mock_est.config.task_type = ''
     mock_est.config.task_id = 2
 
+    mock_train_spec.saving_listeners = tuple([])
+
     with self.assertRaisesRegexp(RuntimeError,
                                  _INVALID_CONFIG_FOR_STD_SERVER_MSG):
       training._TrainingExecutor(mock_est, mock_train_spec,
@@ -920,6 +943,8 @@ class TrainingExecutorRunMasterTest(tf.test.TestCase):
     mock_est.config.master = 'grpc://...'
     mock_est.config.task_type = 'master'
     mock_est.config.task_id = None
+
+    mock_train_spec.saving_listeners = tuple([])
 
     with self.assertRaisesRegexp(RuntimeError,
                                  _INVALID_CONFIG_FOR_STD_SERVER_MSG):
@@ -1594,6 +1619,8 @@ class TrainingExecutorRunPsTest(tf.test.TestCase):
     mock_est.config.task_type = 'ps'
     mock_est.config.task_id = 2
 
+    mock_train_spec.saving_listeners = tuple([])
+
     with self.assertRaisesRegexp(RuntimeError,
                                  _INVALID_CONFIG_FOR_STD_SERVER_MSG):
       training._TrainingExecutor(mock_est, mock_train_spec,
@@ -1610,6 +1637,8 @@ class TrainingExecutorRunPsTest(tf.test.TestCase):
     mock_est.config.master = ''
     mock_est.config.task_type = 'ps'
     mock_est.config.task_id = 2
+
+    mock_train_spec.saving_listeners = tuple([])
 
     with self.assertRaisesRegexp(RuntimeError,
                                  _INVALID_CONFIG_FOR_STD_SERVER_MSG):

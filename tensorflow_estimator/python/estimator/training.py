@@ -61,6 +61,18 @@ def _validate_hooks(hooks):
   return hooks
 
 
+def _validate_saving_listeners(saving_listeners):
+  """Validates the `saving_listeners`."""
+  saving_listeners = tuple(saving_listeners or [])
+  for saving_listener in saving_listeners:
+    if not isinstance(saving_listener,
+                      tf.compat.v1.train.CheckpointSaverListener):
+      raise TypeError(
+          'All saving_listeners must be `CheckpointSaverListener` instances, '
+          'given: {}'.format(saving_listener))
+  return saving_listeners
+
+
 def _validate_exporters(exporters):
   """Validates `exporters` and returns them as a tuple."""
   if not exporters:
@@ -116,14 +128,29 @@ def _is_google_env():
 
 @estimator_export('estimator.TrainSpec')
 class TrainSpec(
-    collections.namedtuple('TrainSpec', ['input_fn', 'max_steps', 'hooks'])):
+    collections.namedtuple(
+        'TrainSpec', ['input_fn', 'max_steps', 'hooks', 'saving_listeners'])):
   """Configuration for the "train" part for the `train_and_evaluate` call.
 
   `TrainSpec` determines the input data for the training, as well as the
   duration. Optional hooks run at various stages of training.
+
+  Usage:
+
+  >>> train_spec = tf.estimator.TrainSpec(
+  ...    input_fn=lambda: 1,
+  ...    max_steps=100,
+  ...    hooks=[_StopAtSecsHook(stop_after_secs=10)],
+  ...    saving_listeners=[_NewCheckpointListenerForEvaluate(None, 20, None)])
+  >>> train_spec.saving_listeners[0]._eval_throttle_secs
+  20
+  >>> train_spec.hooks[0]._stop_after_secs
+  10
+  >>> train_spec.max_steps
+  100
   """
 
-  def __new__(cls, input_fn, max_steps=None, hooks=None):
+  def __new__(cls, input_fn, max_steps=None, hooks=None, saving_listeners=None):
     """Creates a validated `TrainSpec` instance.
 
     Args:
@@ -143,6 +170,8 @@ class TrainSpec(
         `train_and_evaluate` stop condition section for details.
       hooks: Iterable of `tf.train.SessionRunHook` objects to run on all workers
         (including chief) during training.
+      saving_listeners: Iterable of `tf.estimator.CheckpointSaverListener`
+        objects to run on chief during training.
 
     Returns:
       A validated `TrainSpec` object.
@@ -162,8 +191,12 @@ class TrainSpec(
     # Validate hooks.
     hooks = _validate_hooks(hooks)
 
+    # Validate saving_listeners.
+    saving_listeners = _validate_saving_listeners(saving_listeners)
+
     return super(TrainSpec, cls).__new__(
-        cls, input_fn=input_fn, max_steps=max_steps, hooks=hooks)
+        cls, input_fn=input_fn, max_steps=max_steps, hooks=hooks,
+        saving_listeners=saving_listeners)
 
 
 @estimator_export('estimator.EvalSpec')
@@ -641,7 +674,8 @@ class _TrainingExecutor(object):
   def run_chief(self):
     """Runs task chief."""
     # TODO(xiejw): To allow execution framework to add train hooks.
-    return self._start_distributed_training()
+    return self._start_distributed_training(
+        saving_listeners=self._train_spec.saving_listeners)
 
   def run_worker(self):
     """Runs task (training) worker."""
@@ -668,11 +702,10 @@ class _TrainingExecutor(object):
 
     # When the underlying `Estimator` object saves a new checkpoint, we would
     # like this callback to be called so that evaluation and export can trigger.
-    saving_listeners = [
-        _NewCheckpointListenerForEvaluate(evaluator,
-                                          self._eval_spec.throttle_secs,
-                                          _ContinuousEvalListener())
-    ]
+    saving_listeners = self._train_spec.saving_listeners + tuple(
+        [_NewCheckpointListenerForEvaluate(evaluator,
+                                           self._eval_spec.throttle_secs,
+                                           _ContinuousEvalListener())])
     self._start_distributed_training(saving_listeners=saving_listeners)
 
   def run_evaluator(self):
@@ -705,7 +738,7 @@ class _TrainingExecutor(object):
     listener_for_eval = _NewCheckpointListenerForEvaluate(
         evaluator, self._eval_spec.throttle_secs,
         self._continuous_eval_listener)
-    saving_listeners = [listener_for_eval]
+    saving_listeners = self._train_spec.saving_listeners + (listener_for_eval,)
 
     self._estimator.train(
         input_fn=self._train_spec.input_fn,
