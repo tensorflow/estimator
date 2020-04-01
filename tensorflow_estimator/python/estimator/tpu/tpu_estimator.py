@@ -1063,9 +1063,9 @@ def generate_per_host_v2_enqueue_ops_fn_for_host(ctx, input_fn,
         features, labels, enqueue_data = (
             _tpu_estimator_embedding.split_inputs(ctx, features, labels))
         if len(enqueue_data) != 1:
-          raise RuntimeErrora(('Missing or extra enqueue_data for host {}. '
-                               'len(enqueue_data) = {}.').format(
-                                   host, len(enqueue_data)))
+          raise RuntimeError(('Missing or extra enqueue_data for host {}. '
+                              'len(enqueue_data) = {}.').format(
+                                 host, len(enqueue_data)))
         enqueue_datas_list.append(enqueue_data[0])
 
         inputs_structure_recorder.validate_and_record_structure(
