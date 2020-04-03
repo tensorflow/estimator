@@ -2732,12 +2732,6 @@ class TPUEstimator(estimator_lib.Estimator):
     Raises:
       ValueError: `params` has reserved keys already.
     """
-    if tf.compat.v1.executing_eagerly():
-      raise ValueError(
-          'TPUEstimator is not supported in eager mode. Please call '
-          '`tf.disable_v2_behavior()` in the beginning of your program to '
-          'disable v2 behavior.')
-
     if config is None or not isinstance(config, tpu_config.RunConfig):
       raise ValueError(
           '`config` must be provided with type `tpu_config.RunConfig`')
