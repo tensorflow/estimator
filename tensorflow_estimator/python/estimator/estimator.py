@@ -97,7 +97,7 @@ class Estimator(object):
   the base class, and may add methods implementing specialized functionality.
 
   See [estimators](https://tensorflow.org/guide/estimators) for more
-    information.
+  information.
 
   To warm-start an `Estimator`:
 
@@ -401,22 +401,21 @@ class Estimator(object):
     Evaluates until:
     - `steps` batches are processed, or
     - `input_fn` raises an end-of-input exception (`tf.errors.OutOfRangeError`
-    or
-    `StopIteration`).
+    or `StopIteration`).
 
     Args:
       input_fn: A function that constructs the input data for evaluation. See
         [Premade Estimators](
         https://tensorflow.org/guide/premade_estimators#create_input_functions)
-          for more information. The
-        function should construct and return one of the following:  * A
-        `tf.data.Dataset` object: Outputs of `Dataset` object must be a tuple
-          `(features, labels)` with same constraints as below. * A tuple
-        `(features, labels)`: Where `features` is a `tf.Tensor` or a dictionary
-          of string feature name to `Tensor` and `labels` is a `Tensor` or a
-          dictionary of string label name to `Tensor`. Both `features` and
-          `labels` are consumed by `model_fn`. They should satisfy the
-          expectation of `model_fn` from inputs.
+        for more information. The function should construct and return one of
+        the following:
+        * A `tf.data.Dataset` object: Outputs of `Dataset` object must be a
+          tuple `(features, labels)` with same constraints as below.
+        * A tuple `(features, labels)`: Where `features` is a `tf.Tensor` or a
+          dictionary of string feature name to `Tensor` and `labels` is a
+          `Tensor` or a dictionary of string label name to `Tensor`. Both
+          `features` and `labels` are consumed by `model_fn`. They should
+          satisfy the expectation of `model_fn` from inputs.
       steps: Number of steps for which to evaluate model. If `None`, evaluates
         until `input_fn` raises an end-of-input exception.
       hooks: List of `tf.train.SessionRunHook` subclass instances. Used for
@@ -566,7 +565,8 @@ class Estimator(object):
           same constraints as below.
         * features -- A `tf.Tensor` or a dictionary of string feature name to
           `Tensor`. features are consumed by `model_fn`. They should satisfy
-          the expectation of `model_fn` from inputs. * A tuple, in which case
+          the expectation of `model_fn` from inputs.
+        * A tuple, in which case
           the first item is extracted as features.
       predict_keys: list of `str`, name of the keys to predict. It is used if
         the `tf.estimator.EstimatorSpec.predictions` is a `dict`. If
@@ -656,7 +656,7 @@ class Estimator(object):
     """Exports inference graph as a `SavedModel` into the given dir.
 
     For a detailed guide, see
-    [SavedModel from 
+    [SavedModel from
     Estimators](https://tensorflow.org/guide/saved_model#savedmodels_from_estimators).
 
     This method builds a new graph by first calling the
@@ -670,15 +670,12 @@ class Estimator(object):
 
     The exported `MetaGraphDef` will provide one `SignatureDef` for each
     element of the `export_outputs` dict returned from the `model_fn`, named
-    using
-    the same keys.  One of these keys is always
+    using the same keys.  One of these keys is always
     `tf.saved_model.signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY`,
-    indicating which
-    signature will be served when a serving request does not specify one.
-    For each signature, the outputs are provided by the corresponding
-    `tf.estimator.export.ExportOutput`s, and the inputs are always the input
-    receivers provided by
-    the `serving_input_receiver_fn`.
+    indicating which signature will be served when a serving request does not
+    specify one. For each signature, the outputs are provided by the
+    corresponding `tf.estimator.export.ExportOutput`s, and the inputs are always
+    the input receivers provided by the `serving_input_receiver_fn`.
 
     Extra assets may be written into the `SavedModel` via the `assets_extra`
     argument.  This should be a dict, where each key gives a destination path
@@ -749,25 +746,21 @@ class Estimator(object):
     `SavedModel` directory.
 
     For the variables and `tf.MetaGraphDefs`, a timestamped export directory
-    below
-    `export_dir_base`, and writes a `SavedModel` into it containing
-    the `tf.MetaGraphDef` for the given mode and its associated signatures.
+    below `export_dir_base`, and writes a `SavedModel` into it containing the
+    `tf.MetaGraphDef` for the given mode and its associated signatures.
 
     For prediction, the exported `MetaGraphDef` will provide one `SignatureDef`
     for each element of the `export_outputs` dict returned from the `model_fn`,
     named using the same keys.  One of these keys is always
     `tf.saved_model.signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY`,
-    indicating which
-    signature will be served when a serving request does not specify one.
-    For each signature, the outputs are provided by the corresponding
-    `tf.estimator.export.ExportOutput`s, and the inputs are always the input
-    receivers provided by
-    the `serving_input_receiver_fn`.
+    indicating which signature will be served when a serving request does not
+    specify one. For each signature, the outputs are provided by the
+    corresponding `tf.estimator.export.ExportOutput`s, and the inputs are always
+    the input receivers provided by the `serving_input_receiver_fn`.
 
     For training and evaluation, the `train_op` is stored in an extra
-    collection,
-    and loss, metrics, and predictions are included in a `SignatureDef` for the
-    mode in question.
+    collection, and loss, metrics, and predictions are included in a
+    `SignatureDef` for the mode in question.
 
     Extra assets may be written into the `SavedModel` via the `assets_extra`
     argument.  This should be a dict, where each key gives a destination path
@@ -1110,7 +1103,7 @@ class Estimator(object):
       The return value of the passed `input_fn`, which should be one of:
 
         * A 'tf.data.Dataset' object: Outputs of `Dataset` object must be a
-            tuple `(features, labels)` with same constraints as below.
+          tuple `(features, labels)` with same constraints as below.
         * A tuple `(features, labels)`: Where `features` is a `Tensor` or a
           dictionary of string feature name to `Tensor` and `labels` is a
           `Tensor` or a dictionary of string label name to `Tensor`. Both
@@ -1690,15 +1683,12 @@ class Estimator(object):
 
     The exported `MetaGraphDef` will provide one `SignatureDef` for each
     element of the `export_outputs` dict returned from the `model_fn`, named
-    using
-    the same keys.  One of these keys is always
+    using the same keys.  One of these keys is always
     `tf.saved_model.signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY`,
-    indicating which
-    signature will be served when a serving request does not specify one.
-    For each signature, the outputs are provided by the corresponding
-    `tf.estimator.export.ExportOutput`s, and the inputs are always the input
-    receivers provided by
-    the `serving_input_receiver_fn`.
+    indicating which signature will be served when a serving request does not
+    specify one. For each signature, the outputs are provided by the
+    corresponding `tf.estimator.export.ExportOutput`s, and the inputs are always
+    the input receivers provided by the `serving_input_receiver_fn`.
 
     Extra assets may be written into the `SavedModel` via the `assets_extra`
     argument.  This should be a dict, where each key gives a destination path
@@ -1972,9 +1962,8 @@ def _get_replica_device_setter(config):
   """Creates a replica device setter if required as a default `device_fn`.
 
   `Estimator` uses `tf.train.ReplicaDeviceSetter` as a default device placer. It
-  sets the
-  distributed related arguments such as number of `ps_replicas` based on given
-  `config`.
+  sets the distributed related arguments such as number of `ps_replicas` based
+  on given `config`.
 
   Args:
     config: A `tf.estimator.RunConfig` instance.
@@ -2302,21 +2291,25 @@ class WarmStartSettings(
     ckpt_to_initialize_from: [Required] A string specifying the directory with
       checkpoint file(s) or path to checkpoint from which to warm-start the
       model parameters.
-    vars_to_warm_start: [Optional] One of the following:  - A regular expression
-      (string) that captures which variables to warm-start (see
-      tf.compat.v1.get_collection).  This expression will only consider
-      variables in the TRAINABLE_VARIABLES collection -- if you need to
-      warm-start non_TRAINABLE vars (such as optimizer accumulators or batch
-      norm statistics), please use the below option. - A list of strings, each a
-      regex scope provided to tf.compat.v1.get_collection with GLOBAL_VARIABLES
-      (please see tf.compat.v1.get_collection).  For backwards compatibility
-      reasons, this is separate from the single-string argument type. - A list
-      of Variables to warm-start.  If you do not have access to the `Variable`
-      objects at the call site, please use the above option. - `None`, in which
-      case only TRAINABLE variables specified in `var_name_to_vocab_info` will
-      be warm-started.  Defaults to `'.*'`, which warm-starts all variables in
-      the TRAINABLE_VARIABLES collection.  Note that this excludes variables
-      such as accumulators and moving statistics from batch norm.
+    vars_to_warm_start: [Optional] One of the following:
+
+      * A regular expression (string) that captures which variables to
+        warm-start (see tf.compat.v1.get_collection).  This expression will only
+        consider variables in the TRAINABLE_VARIABLES collection -- if you need
+        to warm-start non_TRAINABLE vars (such as optimizer accumulators or
+        batch norm statistics), please use the below option.
+      * A list of strings, each a regex scope provided to
+        tf.compat.v1.get_collection with GLOBAL_VARIABLES (please see
+        tf.compat.v1.get_collection).  For backwards compatibility reasons, this
+        is separate from the single-string argument type.
+      * A list of Variables to warm-start.  If you do not have access to the
+        `Variable` objects at the call site, please use the above option.
+      * `None`, in which case only TRAINABLE variables specified in
+        `var_name_to_vocab_info` will be warm-started.
+
+      Defaults to `'.*'`, which warm-starts all variables in the
+      TRAINABLE_VARIABLES collection. Note that this excludes variables such as
+      accumulators and moving statistics from batch norm.
     var_name_to_vocab_info: [Optional] Dict of variable names (strings) to
       `tf.estimator.VocabInfo`. The variable names should be "full" variables,
       not the names of the partitions.  If not explicitly provided, the variable
@@ -2360,8 +2353,7 @@ def _get_default_warm_start_settings(warm_start_from):
 
   Raises:
     ValueError: If `warm_start_from` is not `None` but is neither a string nor
-    an
-      instance of `WarmStartSettings`.
+    an instance of `WarmStartSettings`.
   """
   if warm_start_from is None:
     return None
