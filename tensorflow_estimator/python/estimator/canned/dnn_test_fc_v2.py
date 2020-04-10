@@ -21,12 +21,15 @@ from __future__ import print_function
 import shutil
 import tempfile
 
+from unittest.mock import patch
+
 from absl.testing import parameterized
 import numpy as np
 import six
 import tensorflow as tf
 from tensorflow.core.example import example_pb2
 from tensorflow.core.example import feature_pb2
+from tensorflow.python.feature_column import dense_features_v2
 from tensorflow.python.feature_column import feature_column_v2
 from tensorflow_estimator.python.estimator.canned import dnn
 from tensorflow_estimator.python.estimator.canned import dnn_testing_utils
@@ -464,6 +467,59 @@ class DNNClassifierIntegrationTest(tf.test.TestCase):
         input_dimension=input_dimension,
         n_classes=n_classes,
         batch_size=batch_size)
+
+
+class DNNTrainingMode(tf.test.TestCase):
+  """Tests that training mode propagates to feature columns correctly."""
+
+  def setUp(self):
+    self._model_dir = tempfile.mkdtemp()
+    self._label_dimension = 1
+    self._batch_size = 10
+
+  def tearDown(self):
+    if self._model_dir:
+      tf.compat.v1.summary.FileWriterCache.clear()
+      shutil.rmtree(self._model_dir)
+
+  def _create_data(self):
+    data = np.linspace(
+        0., 2., self._batch_size * self._label_dimension, dtype=np.float32)
+    return data.reshape(self._batch_size, self._label_dimension)
+
+  def _get_estimator(self):
+    feature_columns = [
+        tf.feature_column.numeric_column('x', shape=(self._label_dimension,))
+    ]
+    return dnn.DNNRegressorV2(
+        hidden_units=(2, 2),
+        feature_columns=feature_columns,
+        label_dimension=self._label_dimension,
+        model_dir=self._model_dir)
+
+  def test_train_vs_eval_mode(self):
+    data = self._create_data()
+    train_input_fn = numpy_io.numpy_input_fn(
+        x={'x': data},
+        y=data,
+        batch_size=self._batch_size,
+        num_epochs=None,
+        shuffle=True)
+    eval_input_fn = numpy_io.numpy_input_fn(
+        x={'x': data}, y=data, batch_size=self._batch_size, shuffle=False)
+    est = self._get_estimator()
+    with patch.object(
+        dense_features_v2.DenseFeatures, 'call',
+        return_value=data) as mock_dense_features_call:
+      est.train(train_input_fn, steps=10)
+      est.evaluate(eval_input_fn)
+    train_args, eval_args = mock_dense_features_call.call_args_list
+    # DenseFeature should have been called with training = True in train.
+    _, train_training_kwarg = train_args
+    self.assertTrue(train_training_kwarg['training'])
+    # DenseFeature should have been called with training = False in eval.
+    _, eval_training_kwarg = eval_args
+    self.assertFalse(eval_training_kwarg['training'])
 
 
 if __name__ == '__main__':

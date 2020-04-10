@@ -241,7 +241,7 @@ class _DNNModel(training.Model):
           'input_from_feature_columns',
           partitioner=self._input_layer_partitioner):
         try:
-          net = self._input_layer(features, training=training)
+          net = self._input_layer(features, training=is_training)
         except TypeError:
           net = self._input_layer(features)
       for i in range(len(self._hidden_layers)):
@@ -348,10 +348,10 @@ class _DNNModelV2(training.Model):
 
   def call(self, features, mode):
     is_training = mode == ModeKeys.TRAIN
-    kwargs = {}
-    if 'mode' in six.get_function_code(self._input_layer.call).co_varnames:
-      kwargs['mode'] = mode
-    net = self._input_layer(features, **kwargs)
+    try:
+      net = self._input_layer(features, training=is_training)
+    except TypeError:
+      net = self._input_layer(features)
     for i in range(len(self._hidden_layers)):
       net = self._hidden_layers[i](net)
       if self._dropout is not None and is_training:
