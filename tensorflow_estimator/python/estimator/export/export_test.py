@@ -78,7 +78,8 @@ class ServingInputReceiverTest(tf.test.TestCase):
           features={42.2: tf.constant([1])}, receiver_tensors=receiver_tensors)
 
     with self.assertRaisesRegexp(
-        ValueError, "feature feature1 must be a Tensor or SparseTensor"):
+        ValueError, "feature feature1 must be a Tensor, SparseTensor, or "
+        "RaggedTensor."):
       export.ServingInputReceiver(
           features={"feature1": [1]}, receiver_tensors=receiver_tensors)
 
@@ -255,19 +256,22 @@ class SupervisedInputReceiverTest(tf.test.TestCase):
           receiver_tensors=receiver_tensors)
 
     with self.assertRaisesRegexp(
-        ValueError, "feature feature1 must be a Tensor or SparseTensor"):
+        ValueError, "feature feature1 must be a Tensor, SparseTensor, or "
+        "RaggedTensor."):
       export.SupervisedInputReceiver(
           features={"feature1": [1]},
           labels=labels,
           receiver_tensors=receiver_tensors)
 
     with self.assertRaisesRegexp(ValueError,
-                                 "feature must be a Tensor or SparseTensor"):
+                                 "feature must be a Tensor, SparseTensor, "
+                                 "or RaggedTensor."):
       export.SupervisedInputReceiver(
           features=[1], labels=labels, receiver_tensors=receiver_tensors)
 
     with self.assertRaisesRegexp(ValueError,
-                                 "label must be a Tensor or SparseTensor"):
+                                 "label must be a Tensor, SparseTensor, "
+                                 "or RaggedTensor."):
       export.SupervisedInputReceiver(
           features=features, labels=100, receiver_tensors=receiver_tensors)
 

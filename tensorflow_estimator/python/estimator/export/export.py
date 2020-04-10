@@ -73,12 +73,13 @@ def wrap_and_check_input_tensors(tensors, field_name, allow_int_keys=False):
 
 
 def _check_tensor(tensor, name, error_label='feature'):
-  """Check that passed `tensor` is a Tensor or SparseTensor."""
+  """Check that passed `tensor` is a Tensor or SparseTensor or RaggedTensor."""
   if not (isinstance(tensor, tf.Tensor) or
-          isinstance(tensor, tf.sparse.SparseTensor)):
+          isinstance(tensor, tf.sparse.SparseTensor) or
+          isinstance(tensor, tf.RaggedTensor)):
     fmt_name = ' {}'.format(name) if name else ''
-    value_error = ValueError('{}{} must be a Tensor or SparseTensor.'.format(
-        error_label, fmt_name))
+    value_error = ValueError('{}{} must be a Tensor, SparseTensor, or '
+                             'RaggedTensor.'.format(error_label, fmt_name))
     # NOTE(ericmc): This if-else block is a specific carve-out for
     # LabeledTensor, which has a `.tensor` attribute and which is
     # convertible to tf.Tensor via ops.convert_to_tensor.
