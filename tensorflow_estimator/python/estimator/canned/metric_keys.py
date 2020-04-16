@@ -43,6 +43,13 @@ class MetricKeys(object):
   PRECISION_AT_THRESHOLD = 'precision/positive_threshold_%g'
   RECALL_AT_THRESHOLD = 'recall/positive_threshold_%g'
 
+  # The following require a constraint on a competing metric to be applied,
+  # float in range (0, 1).
+  PRECISION_AT_RECALL = 'precision_at_recall_%g'
+  RECALL_AT_PRECISION = 'recall_at_precision_%g'
+  SENSITIVITY_AT_SPECFICITY = 'sensitivity_at_specficity_%g'
+  SPECFICITY_AT_SENSITIVITY = 'specficity_at_sensitivity_%g'
+
   # The following require a class id applied.
   PROBABILITY_MEAN_AT_CLASS = 'probability_mean/class%d'
   AUC_AT_CLASS = 'auc/class%d'
