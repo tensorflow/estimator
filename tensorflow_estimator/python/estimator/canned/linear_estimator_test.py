@@ -30,6 +30,7 @@ from tensorflow_estimator.python.estimator.canned import linear
 from tensorflow_estimator.python.estimator.canned import linear_testing_utils
 from tensorflow_estimator.python.estimator.canned import prediction_keys
 from tensorflow_estimator.python.estimator.export import export
+from tensorflow_estimator.python.estimator.head import multi_class_head
 from tensorflow_estimator.python.estimator.head import regression_head
 from tensorflow_estimator.python.estimator.inputs import numpy_io
 
@@ -43,6 +44,11 @@ def _linear_estimator_fn(weight_column=None, label_dimension=1, **kwargs):
           # Tests in core (from which this test inherits) test the sum loss.
           loss_reduction=losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE),
       **kwargs)
+
+
+def _linear_estimator_classifier_fn(n_classes=3, **kwargs):
+  return linear.LinearEstimatorV2(
+      head=multi_class_head.MultiClassHead(n_classes=n_classes), **kwargs)
 
 
 class LinearEstimatorEvaluateTest(
@@ -70,6 +76,17 @@ class LinearEstimatorTrainTest(
     tf.test.TestCase.__init__(self, methodName)
     linear_testing_utils.BaseLinearRegressorTrainingTest.__init__(
         self, _linear_estimator_fn)
+
+
+class LinearEstimatorWarmStartingTest(
+    linear_testing_utils.BaseLinearWarmStartingTest, tf.test.TestCase):
+
+  def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
+    tf.test.TestCase.__init__(self, methodName)
+    linear_testing_utils.BaseLinearWarmStartingTest.__init__(
+        self,
+        _linear_estimator_classifier_fn,
+        _linear_estimator_fn)
 
 
 class LinearEstimatorIntegrationTest(tf.test.TestCase):

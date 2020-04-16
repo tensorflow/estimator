@@ -1081,7 +1081,8 @@ class LinearEstimatorV2(estimator.EstimatorV2):
                model_dir=None,
                optimizer='Ftrl',
                config=None,
-               sparse_combiner='sum'):
+               sparse_combiner='sum',
+               warm_start_from=None):
     """Initializes a `LinearEstimator` instance.
 
     Args:
@@ -1102,6 +1103,11 @@ class LinearEstimatorV2(estimator.EstimatorV2):
         effectively different ways to do example-level normalization, which can
         be useful for bag-of-words features. for more details, see
         `tf.feature_column.linear_model`.
+      warm_start_from: A string filepath to a checkpoint to warm-start from, or
+        a `WarmStartSettings` object to fully configure warm-starting.  If the
+        string filepath is provided instead of a `WarmStartSettings`, then all
+        weights and biases are warm-started, and it is assumed that vocabularies
+        and Tensor names are unchanged.
     """
 
     def _model_fn(features, labels, mode, config):
@@ -1117,7 +1123,8 @@ class LinearEstimatorV2(estimator.EstimatorV2):
 
     estimator._canned_estimator_api_gauge.get_cell('Estimator').set('Linear')  # pylint: disable=protected-access
     super(LinearEstimatorV2, self).__init__(
-        model_fn=_model_fn, model_dir=model_dir, config=config)
+        model_fn=_model_fn, model_dir=model_dir, config=config,
+        warm_start_from=warm_start_from)
 
 
 @estimator_export(v1=['estimator.LinearEstimator'])  # pylint: disable=missing-docstring
@@ -1131,7 +1138,8 @@ class LinearEstimator(estimator.Estimator):
                optimizer='Ftrl',
                config=None,
                partitioner=None,
-               sparse_combiner='sum'):
+               sparse_combiner='sum',
+               warm_start_from=None):
     """Initializes a `LinearEstimator` instance.
 
     Args:
@@ -1153,6 +1161,11 @@ class LinearEstimator(estimator.Estimator):
         effectively different ways to do example-level normalization, which can
         be useful for bag-of-words features. for more details, see
         `tf.feature_column.linear_model`.
+      warm_start_from: A string filepath to a checkpoint to warm-start from, or
+        a `WarmStartSettings` object to fully configure warm-starting.  If the
+        string filepath is provided instead of a `WarmStartSettings`, then all
+        weights and biases are warm-started, and it is assumed that vocabularies
+        and Tensor names are unchanged.
     """
 
     def _model_fn(features, labels, mode, config):
@@ -1169,7 +1182,8 @@ class LinearEstimator(estimator.Estimator):
 
     estimator._canned_estimator_api_gauge.get_cell('Estimator').set('Linear')  # pylint: disable=protected-access
     super(LinearEstimator, self).__init__(
-        model_fn=_model_fn, model_dir=model_dir, config=config)
+        model_fn=_model_fn, model_dir=model_dir, config=config,
+        warm_start_from=warm_start_from)
 
 
 def _validate_linear_sdca_optimizer_for_linear_regressor(
