@@ -47,8 +47,8 @@ class MetricKeys(object):
   # float in range (0, 1).
   PRECISION_AT_RECALL = 'precision_at_recall_%g'
   RECALL_AT_PRECISION = 'recall_at_precision_%g'
-  SENSITIVITY_AT_SPECFICITY = 'sensitivity_at_specficity_%g'
-  SPECFICITY_AT_SENSITIVITY = 'specficity_at_sensitivity_%g'
+  SENSITIVITY_AT_SPECIFICITY = 'sensitivity_at_specificity_%g'
+  SPECIFICITY_AT_SENSITIVITY = 'specificity_at_sensitivity_%g'
 
   # The following require a class id applied.
   PROBABILITY_MEAN_AT_CLASS = 'probability_mean/class%d'
