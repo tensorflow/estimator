@@ -2585,7 +2585,7 @@ class TPUEstimator(estimator_lib.Estimator):
   TensorFlow Serving model-server is used, this is done automatically. If not,
   please use `session.run(tpu.initialize_system())`.
 
-  There are two versions of the API: ExportSavedModelApiVersion.V1 and V2.
+  There are two versions of the API: 1 or 2.
 
   In V1, the exported CPU graph is `model_fn` as it is. The exported TPU graph
   wraps `tpu.rewrite()` and `TPUPartitionedCallOp` around `model_fn` so
@@ -2721,7 +2721,8 @@ class TPUEstimator(estimator_lib.Estimator):
         assumed that vocabularies and Tensor names are unchanged.
       embedding_config_spec: Optional EmbeddingConfigSpec instance to support
         using TPU embedding.
-      export_saved_model_api_version: ExportSavedModelApiVersion, V1 or V2. With
+      export_saved_model_api_version: an integer: 1 or 2. 1 corresponds to V1,
+        2 corresponds to V2. (Defaults to V1). With
         V1, `export_saved_model()` adds rewrite() and TPUPartitionedCallOp() for
         user; while in v2, user is expected to add rewrite(),
         TPUPartitionedCallOp() etc in their model_fn. A helper function
@@ -2835,10 +2836,12 @@ class TPUEstimator(estimator_lib.Estimator):
     self._export_to_cpu = export_to_cpu
     self._export_to_tpu = export_to_tpu
 
-    if not isinstance(export_saved_model_api_version,
-                      ExportSavedModelApiVersion):
-      raise ValueError('export_saved_model_api_version should be of type '
-                       'ExportSavedModelApiVersion; got {}.'.format(
+    if not (isinstance(export_saved_model_api_version,
+                       ExportSavedModelApiVersion)
+            or export_saved_model_api_version == 1
+            or export_saved_model_api_version == 2):
+      raise ValueError('export_saved_model_api_version should be 1 or 2; '
+                       'got {}.'.format(
                            export_saved_model_api_version))
     self._export_saved_model_api_version = export_saved_model_api_version
     self._is_input_fn_invoked = None
@@ -2901,7 +2904,10 @@ class TPUEstimator(estimator_lib.Estimator):
       context = tpu._TPUInferenceContext('tpu_inference', check_ops=False)
       try:
         context.Enter()
-        if self._export_saved_model_api_version == ExportSavedModelApiVersion.V1:
+        if (
+            (self._export_saved_model_api_version ==
+             ExportSavedModelApiVersion.V1)
+            or self._export_saved_model_api_version == 1):
           result = self._call_model_fn_for_inference(features, labels, mode,
                                                      config)
         else:
