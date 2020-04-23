@@ -529,6 +529,11 @@ def model_to_estimator(keras_model=None,
 
   estimator.train(input_fn, steps=1)
   ```
+  
+  Note: We do not support creating weighted metrics in Keras and converting them
+  to weighted metrics in the Estimator API using `model_to_estimator`.
+  You will have to create these metrics directly on the estimator spec using the
+  `add_metrics` function.
 
   Args:
     keras_model: A compiled Keras model object. This argument is mutually
