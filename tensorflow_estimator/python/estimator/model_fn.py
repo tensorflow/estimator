@@ -25,6 +25,7 @@ import tensorflow as tf
 from tensorflow.python.framework import ops
 from tensorflow.python.keras.metrics import Metric
 from tensorflow.python.saved_model import model_utils as export_utils
+from tensorflow.python.tpu import tensor_tracer
 from tensorflow.python.util import function_utils
 from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
@@ -160,6 +161,15 @@ class EstimatorSpec(
     training_chief_hooks = _validate_estimator_spec_hooks(training_chief_hooks)
     eval_metric_ops = _validate_eval_metric_ops(eval_metric_ops)
     scaffold = _validate_scaffold(scaffold)
+
+    # By default, Tensor Tracer is not enabled and the block below is an no-op.
+    if tensor_tracer.TensorTracer.is_enabled() and train_op is not None:
+      # If Tensor Tracer is enabled via environment flags, loss and train_op
+      # will be used to determine the execution path that will be traced. A
+      # `tf.identity` of loss that enforces the execution of tracing ops will be
+      # returned.
+      tt = tensor_tracer.TensorTracer()
+      loss = tt.trace_cpu(tf.compat.v1.get_default_graph(), loss, train_op)
 
     return super(EstimatorSpec, cls).__new__(
         cls,
