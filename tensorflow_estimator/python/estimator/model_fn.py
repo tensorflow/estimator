@@ -26,6 +26,7 @@ from tensorflow.python.framework import ops
 from tensorflow.python.keras.metrics import Metric
 from tensorflow.python.saved_model import model_utils as export_utils
 from tensorflow.python.tpu import tensor_tracer
+from tensorflow.python.types import core
 from tensorflow.python.util import function_utils
 from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
@@ -549,13 +550,14 @@ def _validate_scaffold(scaffold):
 
 
 def _check_is_tensor_or_operation(x, name):
-  if not (isinstance(x, tf.Operation) or ops.is_dense_tensor_like(x)):
+  if not (isinstance(x, (tf.Operation, core.Tensor)) or
+          ops.is_dense_tensor_like(x)):
     raise TypeError('{} must be Operation or Tensor, given: {}'.format(name, x))
 
 
 def _check_is_tensor(x, tensor_name):
   """Returns `x` if it is a `Tensor`, raises TypeError otherwise."""
-  if not ops.is_dense_tensor_like(x):
+  if not (isinstance(x, core.Tensor) or ops.is_dense_tensor_like(x)):
     raise TypeError('{} must be Tensor, given: {}'.format(tensor_name, x))
   return x
 
