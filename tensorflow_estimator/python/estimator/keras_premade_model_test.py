@@ -22,7 +22,6 @@ import os
 import numpy as np
 import tensorflow as tf
 from tensorflow.python import keras
-from tensorflow.python.feature_column import dense_features
 from tensorflow.python.keras.optimizer_v2 import adam
 from tensorflow.python.keras.optimizer_v2 import gradient_descent
 from tensorflow.python.keras.premade import linear
@@ -108,7 +107,7 @@ class KerasPremadeModelTest(tf.test.TestCase):
     ind_column = tf.feature_column.indicator_column(cat_column)
     keras_input = keras.layers.Input(
         name='symbol', shape=3, dtype=tf.dtypes.string)
-    feature_layer = dense_features.DenseFeatures([ind_column])
+    feature_layer = tf.compat.v1.keras.layers.DenseFeatures([ind_column])
     h = feature_layer({'symbol': keras_input})
     linear_model = linear.LinearModel(units=1)
     h = linear_model(h)
@@ -165,13 +164,13 @@ class KerasPremadeModelTest(tf.test.TestCase):
         name='symbol', shape=3, dtype=tf.dtypes.string)
 
     # build linear part with feature layer.
-    linear_feature_layer = dense_features.DenseFeatures([ind_column])
+    linear_feature_layer = tf.compat.v1.keras.layers.DenseFeatures([ind_column])
     linear_model = linear.LinearModel(
         units=1, name='Linear', kernel_initializer='zeros')
     combined_linear = keras.Sequential([linear_feature_layer, linear_model])
 
     # build dnn part with feature layer.
-    dnn_feature_layer = dense_features.DenseFeatures([ind_column])
+    dnn_feature_layer = tf.compat.v1.keras.layers.DenseFeatures([ind_column])
     dense_layer = keras.layers.Dense(
         units=1, name='DNNDense', kernel_initializer='zeros')
     combined_dnn = keras.Sequential([dnn_feature_layer, dense_layer])

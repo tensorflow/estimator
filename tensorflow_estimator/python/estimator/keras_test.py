@@ -27,8 +27,6 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.core.protobuf import config_pb2
 from tensorflow.python import keras
-from tensorflow.python.feature_column import dense_features
-from tensorflow.python.feature_column import dense_features_v2
 from tensorflow.python.framework import test_util
 from tensorflow.python.keras import optimizers as optimizer_v1
 from tensorflow.python.keras import testing_utils
@@ -379,7 +377,7 @@ class TestKerasEstimator(tf.test.TestCase, parameterized.TestCase):
           shape=(np.size(np.unique(data_array)),),
           dtype=tf.dtypes.int64)
 
-    x = dense_features.DenseFeatures(feature_columns)(input_features)
+    x = tf.compat.v1.keras.layers.DenseFeatures(feature_columns)(input_features)
     x = keras.layers.Dense(16, activation='relu')(x)
     logits = keras.layers.Dense(1, activation='linear')(x)
     model = keras.Model(inputs=input_features, outputs=logits)
@@ -412,7 +410,7 @@ class TestKerasEstimator(tf.test.TestCase, parameterized.TestCase):
           shape=(np.size(np.unique(data_array)),),
           dtype=tf.dtypes.int64)
 
-    df = dense_features.DenseFeatures(feature_columns)
+    df = tf.compat.v1.keras.layers.DenseFeatures(feature_columns)
     x = df(input_features)
     x = keras.layers.Dense(16, activation='relu')(x)
     logits = keras.layers.Dense(1, activation='linear')(x)
@@ -453,7 +451,7 @@ class TestKerasEstimator(tf.test.TestCase, parameterized.TestCase):
           shape=(np.size(np.unique(data_array)),),
           dtype=tf.dtypes.int64)
 
-    df = dense_features_v2.DenseFeatures(feature_columns)
+    df = tf.compat.v2.keras.layers.DenseFeatures(feature_columns)
     x = df(input_features)
     x = keras.layers.Dense(16, activation='relu')(x)
     logits = keras.layers.Dense(1, activation='linear')(x)

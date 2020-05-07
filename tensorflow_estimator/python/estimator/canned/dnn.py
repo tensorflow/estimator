@@ -20,8 +20,6 @@ from __future__ import print_function
 
 import six
 import tensorflow as tf
-from tensorflow.python.feature_column import dense_features
-from tensorflow.python.feature_column import dense_features_v2
 from tensorflow.python.feature_column import feature_column
 from tensorflow.python.feature_column import feature_column_lib
 from tensorflow.python.framework import ops
@@ -173,7 +171,7 @@ class _DNNModel(training.Model):
                **kwargs):
     super(_DNNModel, self).__init__(name=name, **kwargs)
     if feature_column_lib.is_feature_column_v2(feature_columns):
-      self._input_layer = dense_features.DenseFeatures(
+      self._input_layer = tf.compat.v1.keras.layers.DenseFeatures(
           feature_columns=feature_columns, name='input_layer')
     else:
       self._input_layer = feature_column.InputLayer(
@@ -292,7 +290,7 @@ class _DNNModelV2(training.Model):
         'input_from_feature_columns') as input_feature_column_scope:
       layer_name = input_feature_column_scope + 'input_layer'
       if feature_column_lib.is_feature_column_v2(feature_columns):
-        self._input_layer = dense_features_v2.DenseFeatures(
+        self._input_layer = tf.compat.v2.keras.layers.DenseFeatures(
             feature_columns=feature_columns, name=layer_name)
       else:
         raise ValueError(
