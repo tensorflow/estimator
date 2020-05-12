@@ -704,8 +704,20 @@ class EstimatorTrainTest(tf.test.TestCase):
     export_dir = est.export_saved_model(export_dir_base,
                                         serving_input_receiver_fn)
 
+    # warm start using export dir
     warm_started_est = estimator.EstimatorV2(
         model_fn=_make_model_fn(36.), warm_start_from=export_dir)
+    warm_started_est.train(dummy_input_fn, steps=5)
+    # warm_start is called after the model_fn, so x should have the value
+    # from the SavedModel.
+    self.assertEqual(42., warm_started_est.get_variable_value('x'))
+
+    # warm start using WarmStartSettings variables dir
+    warm_start_settings = estimator.WarmStartSettings(
+        ckpt_to_initialize_from=os.path.join(
+            export_dir, tf.compat.as_bytes('variables')))
+    warm_started_est = estimator.EstimatorV2(
+        model_fn=_make_model_fn(46.), warm_start_from=warm_start_settings)
     warm_started_est.train(dummy_input_fn, steps=5)
     # warm_start is called after the model_fn, so x should have the value
     # from the SavedModel.
@@ -1487,6 +1499,20 @@ class EstimatorEvaluateTest(tf.test.TestCase):
     self.assertEqual(43., eval_metrics['mean1'])
     self.assertEqual(43., eval_metrics['mean2'])
 
+    # Also test that we can use WarmStartSettings with an exported SavedModel's
+    # variables dir
+    warm_start_settings = estimator.WarmStartSettings(
+        ckpt_to_initialize_from=os.path.join(
+            exported_path, tf.compat.as_bytes('variables')))
+    est = estimator.EstimatorV2(
+        model_fn=_make_model_fn(72.), warm_start_from=warm_start_settings)
+    eval_metrics = est.evaluate(dummy_input_fn, steps=1)
+    # Metric value here is set to 1 + the value of the Variable that is
+    # warm-started from a checkpoint of the first model (42.), as opposed to
+    # the initialization in the new model_fn (52.).
+    self.assertEqual(43., eval_metrics['mean1'])
+    self.assertEqual(43., eval_metrics['mean2'])
+
   def test_scores(self):
     est = estimator.EstimatorV2(
         model_fn=_model_fn_with_eval_metric_ops,
@@ -1899,6 +1925,18 @@ class EstimatorPredictTest(tf.test.TestCase):
 
     est = estimator.EstimatorV2(
         model_fn=_make_model_fn(40.), warm_start_from=first_est.model_dir)
+    # Prediction here is set to 1 + the value of the Variable that is
+    # warm-started from a checkpoint of the first model (3.), as opposed to
+    # the initialization in the new model_fn (40.).
+    self.assertEqual(4., next(est.predict(dummy_input_fn)))
+
+    # Also test that we can use WarmStartSettings with an exported SavedModel's
+    # variables dir
+    warm_start_settings = estimator.WarmStartSettings(
+        ckpt_to_initialize_from=os.path.join(
+            exported_path, tf.compat.as_bytes('variables')))
+    est = estimator.EstimatorV2(
+        model_fn=_make_model_fn(50.), warm_start_from=warm_start_settings)
     # Prediction here is set to 1 + the value of the Variable that is
     # warm-started from a checkpoint of the first model (3.), as opposed to
     # the initialization in the new model_fn (40.).
