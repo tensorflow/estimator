@@ -551,14 +551,13 @@ def _validate_scaffold(scaffold):
 
 def _check_is_tensor_or_operation(x, name):
   # TODO(b/154650521): Use tf.Tensor instead of core.Tensor.
-  if not (isinstance(x, (tf.Operation, core.Tensor)) or
-          ops.is_dense_tensor_like(x)):
+  if not isinstance(x, (tf.Operation, core.Tensor)):
     raise TypeError('{} must be Operation or Tensor, given: {}'.format(name, x))
 
 
 def _check_is_tensor(x, tensor_name):
   """Returns `x` if it is a `Tensor`, raises TypeError otherwise."""
-  if not (isinstance(x, core.Tensor) or ops.is_dense_tensor_like(x)):
+  if not isinstance(x, core.Tensor):
     raise TypeError('{} must be Tensor, given: {}'.format(tensor_name, x))
   return x
 
