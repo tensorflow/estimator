@@ -314,6 +314,12 @@ class _InternalTPUContext(object):
     return device_assignment
 
   @property
+  def tensor_core_embedding_columns(self):
+    if self._embedding_config_spec:
+      return self._embedding_config_spec.tensor_core_feature_columns
+    return None
+
+  @property
   def embedding_config(self):
     """Returns the embedding config based on current mode."""
     master = self._get_master_address()

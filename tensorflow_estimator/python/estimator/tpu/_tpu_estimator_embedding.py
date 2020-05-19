@@ -41,6 +41,9 @@ _TPU_EMBEDDING_COLUMN_CLASSES = (tpu_fc._TPUEmbeddingColumn,
                                  tpu_fc._TPUSharedEmbeddingColumn,
                                  tpu_fc_v2._TPUEmbeddingColumnV2,
                                  tpu_fc_v2._TPUSharedEmbeddingColumnV2)
+_TPU_DEVICE_SPECIFIC_EMBEDDING_COLUMNS = (
+    tpu_fc_v2._TPUDeviceSpecificEmbeddingColumnV2,
+    tpu_fc_v2._TPUSharedDeviceSpecificEmbeddingColumnV2)
 _EMBEDDING_COLUMN_CLASSES = (core_fc._EmbeddingColumn,
                              core_fc_lib.EmbeddingColumn,
                              core_fc._SharedEmbeddingColumn)
@@ -177,7 +180,8 @@ def get_configs_from_feature_columns(feature_columns):
 @estimator_export(v1=['estimator.tpu.experimental.EmbeddingConfigSpec'])
 class EmbeddingConfigSpec(
     collections.namedtuple('EmbeddingConfigSpec', [
-        'feature_columns', 'optimization_parameters', 'clipping_limit',
+        'feature_columns', 'tensor_core_feature_columns',
+        'optimization_parameters', 'clipping_limit',
         'pipeline_execution_with_tensor_core',
         'experimental_gradient_multiplier_fn', 'feature_to_config_dict',
         'table_to_config_dict', 'partition_strategy'
@@ -279,7 +283,11 @@ class EmbeddingConfigSpec(
       raise ValueError('Invalid partition_strategy {}. Must be one of "mod" or '
                        '"div".'.format(partition_strategy))
 
+    tensor_core_feature_columns = None
+    embedding_core_feature_columns = None
     if feature_columns:
+      tensor_core_feature_columns = []
+      embedding_core_feature_columns = []
       # It is unknown at this moment, whether the TPUEstimator is running in CPU
       # or TPU mode. So allow non-TPU embedding columns also.
       supported_classes = tuple(
@@ -287,6 +295,12 @@ class EmbeddingConfigSpec(
           list(_TPU_EMBEDDING_COLUMN_CLASSES) + list(_EMBEDDING_COLUMN_CLASSES))
 
       for column in feature_columns:
+        if (isinstance(column, _TPU_DEVICE_SPECIFIC_EMBEDDING_COLUMNS) and
+            (column._embedding_lookup_device ==  # pylint: disable=protected-access
+             tpu_fc_v2.EmbeddingDevice.TPU_TENSOR_CORE)):
+          tensor_core_feature_columns.append(column)
+        else:
+          embedding_core_feature_columns.append(column)
         if not isinstance(column, supported_classes):
           raise TypeError(
               'All feature columns must be supported types in {}. Got {}'
@@ -314,7 +328,8 @@ class EmbeddingConfigSpec(
 
     return super(EmbeddingConfigSpec, cls).__new__(
         cls,
-        feature_columns=feature_columns,
+        feature_columns=embedding_core_feature_columns,
+        tensor_core_feature_columns=tensor_core_feature_columns,
         optimization_parameters=optimization_parameters,
         clipping_limit=clipping_limit,
         pipeline_execution_with_tensor_core=pipeline_execution_with_tensor_core,
@@ -479,6 +494,25 @@ def split_inputs(ctx, features, labels, num_cores_per_batch=1):
                   _maybe_dense_to_sparse(sparse_feature_split[i]),
                   weights=split_weights))
       enqueue_datas[feature_key] = enqueue_data
+  if ctx.tensor_core_embedding_columns:
+    # pylint: disable=protected-access
+    for column in ctx.tensor_core_embedding_columns:
+      feature_key = column.categorical_column.key
+      sparse_feature = _get_sparse_feature_from_feature(feature_key, features)
+      padded_values, padded_mask = (
+          tpu_fc_v2.pad_sparse_embedding_lookup_indices(
+              sparse_feature, column._tensor_core_shape[1]))
+      padded_values.set_shape(
+          [ctx.batch_size_for_input_fn, column._tensor_core_shape[1]])
+      padded_mask.set_shape(
+          [ctx.batch_size_for_input_fn, column._tensor_core_shape[1]])
+      features[feature_key] = padded_values
+      mask_key = feature_key + tpu_fc_v2._TENSOR_CORE_MASK_KEY_SUFFIX
+      if mask_key in features:
+        raise ValueError('Mask key {} for Tensor Core embedding is '
+                         'already in use.'.format(mask_key))
+      features[mask_key] = padded_mask
+    # pylint: enable=protected-access
 
   # Transpose the enqueue_datas dict into a list of dicts
   enqueue_datas_list = []
