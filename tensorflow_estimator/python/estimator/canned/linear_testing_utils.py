@@ -1971,7 +1971,7 @@ class BaseLinearLogitFnTest(object):
     occupation = tf.feature_column.categorical_column_with_hash_bucket(
         'occupation', hash_bucket_size=5)
     with tf.Graph().as_default():
-      model = feature_column_v2.LinearModel(
+      model = linear.LinearModel(
           feature_columns=[age, occupation], units=3, name='linear_model')
       features = {
           'age': [[23.], [31.]],

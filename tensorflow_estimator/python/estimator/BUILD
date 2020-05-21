@@ -1510,6 +1510,36 @@ py_test(
     ],
 )
 
+filegroup(
+    name = "vocabulary_testdata",
+    srcs = [
+        "canned/testdata/wire_vocabulary.txt",
+    ],
+)
+
+py_test(
+    name = "linear_model_test",
+    size = "medium",
+    srcs = ["canned/linear_model_test.py"],
+    data = [":vocabulary_testdata"],
+    python_version = "PY3",
+    shard_count = 8,
+    srcs_version = "PY2AND3",
+    tags = [
+        "no_cuda_on_cpu_tap",
+        "no_pip",
+        "no_rocm",
+        "no_windows",
+        "notsan",  # b/67510291
+    ],
+    deps = [
+        ":linear",
+        ":linear_testing_utils",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
+    ],
+)
+
 py_test(
     name = "linear_test_v1",
     size = "medium",

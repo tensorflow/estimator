@@ -24,10 +24,12 @@ import six
 import tensorflow as tf
 from tensorflow.python.feature_column import feature_column
 from tensorflow.python.feature_column import feature_column_lib
+from tensorflow.python.feature_column import feature_column_v2 as fc_v2
 from tensorflow.python.framework import ops
 from tensorflow.python.keras.optimizer_v2 import ftrl as ftrl_v2
 from tensorflow.python.keras.utils import losses_utils
 from tensorflow.python.ops import resource_variable_ops
+from tensorflow.python.ops import variable_scope
 from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator import estimator
 from tensorflow_estimator.python.estimator.canned import head as head_lib
@@ -343,7 +345,7 @@ def linear_logit_fn_builder_v2(units, feature_columns, sparse_combiner='sum'):
           'columns (accessible via tf.compat.v1.estimator.* and '
           'tf.compat.v1.feature_column.*, respectively.')
 
-    linear_model = feature_column_lib.LinearModel(
+    linear_model = LinearModel(
         feature_columns=feature_columns,
         units=units,
         sparse_combiner=sparse_combiner,
@@ -403,7 +405,7 @@ def linear_logit_fn_builder(units, feature_columns, sparse_combiner='sum'):
       A `Tensor` representing the logits.
     """
     if feature_column_lib.is_feature_column_v2(feature_columns):
-      linear_model = feature_column_lib.LinearModel(
+      linear_model = LinearModel(
           feature_columns=feature_columns,
           units=units,
           sparse_combiner=sparse_combiner,
@@ -491,7 +493,7 @@ def _sdca_model_fn(features, labels, mode, head, feature_columns, optimizer):
       (binary_class_head.BinaryClassHead, regression_head.RegressionHead)):
     linear_model_name = 'linear/linear_model'
 
-  linear_model = feature_column_lib.LinearModel(
+  linear_model = LinearModel(
       feature_columns=feature_columns,
       units=1,
       sparse_combiner='sum',
@@ -592,7 +594,7 @@ def _linear_model_fn_builder_v2(units,
   # Name scope has no effect on variables in LinearModel, as it uses
   # tf.get_variables() for variable creation. So we modify the model name to
   # keep the variable names the same for checkpoint backward compatibility.
-  linear_model = feature_column_lib.LinearModel(
+  linear_model = LinearModel(
       feature_columns=feature_columns,
       units=units,
       sparse_combiner=sparse_combiner,
@@ -1412,3 +1414,262 @@ class LinearRegressor(estimator.Estimator):
         model_dir=model_dir,
         config=config,
         warm_start_from=warm_start_from)
+
+
+class _LinearModelLayer(tf.keras.layers.Layer):
+  """Layer that contains logic for `LinearModel`."""
+
+  def __init__(self,
+               feature_columns,
+               units=1,
+               sparse_combiner='sum',
+               trainable=True,
+               name=None,
+               **kwargs):
+    super(_LinearModelLayer, self).__init__(
+        name=name, trainable=trainable, **kwargs)
+
+    self._feature_columns = fc_v2._normalize_feature_columns(feature_columns)  # pylint: disable=protected-access
+    for column in self._feature_columns:
+      if not isinstance(column, (fc_v2.DenseColumn, fc_v2.CategoricalColumn)):
+        raise ValueError(
+            'Items of feature_columns must be either a '
+            'DenseColumn or CategoricalColumn. Given: {}'.format(column))
+
+    self._units = units
+    self._sparse_combiner = sparse_combiner
+
+    self._state_manager = fc_v2._StateManagerImpl(self, self.trainable)  # pylint: disable=protected-access
+    self.bias = None
+
+  def build(self, _):
+    # We need variable scopes for now because we want the variable partitioning
+    # information to percolate down. We also use _pure_variable_scope's here
+    # since we want to open up a name_scope in the `call` method while creating
+    # the ops.
+    with variable_scope._pure_variable_scope(self.name):  # pylint: disable=protected-access
+      for column in self._feature_columns:
+        with variable_scope._pure_variable_scope(  # pylint: disable=protected-access
+            fc_v2._sanitize_column_name_for_variable_scope(column.name)):  # pylint: disable=protected-access
+          # Create the state for each feature column
+          column.create_state(self._state_manager)
+
+          # Create a weight variable for each column.
+          if isinstance(column, fc_v2.CategoricalColumn):
+            first_dim = column.num_buckets
+          else:
+            first_dim = column.variable_shape.num_elements()
+          self._state_manager.create_variable(
+              column,
+              name='weights',
+              dtype=tf.float32,
+              shape=(first_dim, self._units),
+              initializer=tf.keras.initializers.zeros(),
+              trainable=self.trainable)
+
+      # Create a bias variable.
+      self.bias = self.add_variable(
+          name='bias_weights',
+          dtype=tf.float32,
+          shape=[self._units],
+          initializer=tf.keras.initializers.zeros(),
+          trainable=self.trainable,
+          use_resource=True,
+          # TODO(rohanj): Get rid of this hack once we have a mechanism for
+          # specifying a default partitioner for an entire layer. In that case,
+          # the default getter for Layers should work.
+          getter=variable_scope.get_variable)
+
+    super(_LinearModelLayer, self).build(None)
+
+  def call(self, features):
+    if not isinstance(features, dict):
+      raise ValueError('We expected a dictionary here. Instead we got: {}'
+                       .format(features))
+    with ops.name_scope(self.name):
+      transformation_cache = fc_v2.FeatureTransformationCache(features)
+      weighted_sums = []
+      for column in self._feature_columns:
+        with ops.name_scope(
+            fc_v2._sanitize_column_name_for_variable_scope(column.name)):  # pylint: disable=protected-access
+          # All the weights used in the linear model are owned by the state
+          # manager associated with this Linear Model.
+          weight_var = self._state_manager.get_variable(column, 'weights')
+
+          weighted_sum = fc_v2._create_weighted_sum(  # pylint: disable=protected-access
+              column=column,
+              transformation_cache=transformation_cache,
+              state_manager=self._state_manager,
+              sparse_combiner=self._sparse_combiner,
+              weight_var=weight_var)
+          weighted_sums.append(weighted_sum)
+
+      fc_v2._verify_static_batch_size_equality(  # pylint: disable=protected-access
+          weighted_sums, self._feature_columns)
+      predictions_no_bias = tf.math.add_n(
+          weighted_sums, name='weighted_sum_no_bias')
+      predictions = tf.nn.bias_add(
+          predictions_no_bias, self.bias, name='weighted_sum')
+      return predictions
+
+  def get_config(self):
+    # Import here to avoid circular imports.
+    from tensorflow.python.feature_column import serialization  # pylint: disable=g-import-not-at-top
+    column_configs = serialization.serialize_feature_columns(
+        self._feature_columns)
+    config = {
+        'feature_columns': column_configs,
+        'units': self._units,
+        'sparse_combiner': self._sparse_combiner
+    }
+
+    base_config = super(  # pylint: disable=bad-super-call
+        _LinearModelLayer, self).get_config()
+    return dict(list(base_config.items()) + list(config.items()))
+
+  @classmethod
+  def from_config(cls, config, custom_objects=None):
+    # Import here to avoid circular imports.
+    from tensorflow.python.feature_column import serialization  # pylint: disable=g-import-not-at-top
+    config_cp = config.copy()
+    columns = serialization.deserialize_feature_columns(
+        config_cp['feature_columns'], custom_objects=custom_objects)
+
+    del config_cp['feature_columns']
+    return cls(feature_columns=columns, **config_cp)
+
+
+class LinearModel(tf.keras.Model):
+  """Produces a linear prediction `Tensor` based on given `feature_columns`.
+
+  This layer generates a weighted sum based on output dimension `units`.
+  Weighted sum refers to logits in classification problems. It refers to the
+  prediction itself for linear regression problems.
+
+  Note on supported columns: `LinearLayer` treats categorical columns as
+  `indicator_column`s. To be specific, assume the input as `SparseTensor` looks
+  like:
+
+  ```python
+    shape = [2, 2]
+    {
+        [0, 0]: "a"
+        [1, 0]: "b"
+        [1, 1]: "c"
+    }
+  ```
+  `linear_model` assigns weights for the presence of "a", "b", "c' implicitly,
+  just like `indicator_column`, while `input_layer` explicitly requires wrapping
+  each of categorical columns with an `embedding_column` or an
+  `indicator_column`.
+
+  Example of usage:
+
+  ```python
+  price = numeric_column('price')
+  price_buckets = bucketized_column(price, boundaries=[0., 10., 100., 1000.])
+  keywords = categorical_column_with_hash_bucket("keywords", 10K)
+  keywords_price = crossed_column('keywords', price_buckets, ...)
+  columns = [price_buckets, keywords, keywords_price ...]
+  linear_model = LinearLayer(columns)
+
+  features = tf.io.parse_example(..., features=make_parse_example_spec(columns))
+  prediction = linear_model(features)
+  ```
+  """
+
+  def __init__(self,
+               feature_columns,
+               units=1,
+               sparse_combiner='sum',
+               trainable=True,
+               name=None,
+               **kwargs):
+    """Constructs a LinearLayer.
+
+    Args:
+      feature_columns: An iterable containing the FeatureColumns to use as
+        inputs to your model. All items should be instances of classes derived
+        from `_FeatureColumn`s.
+      units: An integer, dimensionality of the output space. Default value is 1.
+      sparse_combiner: A string specifying how to reduce if a categorical column
+        is multivalent. Except `numeric_column`, almost all columns passed to
+        `linear_model` are considered as categorical columns.  It combines each
+        categorical column independently. Currently "mean", "sqrtn" and "sum"
+        are supported, with "sum" the default for linear model. "sqrtn" often
+        achieves good accuracy, in particular with bag-of-words columns.
+          * "sum": do not normalize features in the column
+          * "mean": do l1 normalization on features in the column
+          * "sqrtn": do l2 normalization on features in the column
+        For example, for two features represented as the categorical columns:
+
+          ```python
+          # Feature 1
+
+          shape = [2, 2]
+          {
+              [0, 0]: "a"
+              [0, 1]: "b"
+              [1, 0]: "c"
+          }
+
+          # Feature 2
+
+          shape = [2, 3]
+          {
+              [0, 0]: "d"
+              [1, 0]: "e"
+              [1, 1]: "f"
+              [1, 2]: "g"
+          }
+          ```
+
+        with `sparse_combiner` as "mean", the linear model outputs conceptually
+        are
+        ```
+        y_0 = 1.0 / 2.0 * ( w_a + w_ b) + w_c + b_0
+        y_1 = w_d + 1.0 / 3.0 * ( w_e + w_ f + w_g) + b_1
+        ```
+        where `y_i` is the output, `b_i` is the bias, and `w_x` is the weight
+        assigned to the presence of `x` in the input features.
+      trainable: If `True` also add the variable to the graph collection
+        `GraphKeys.TRAINABLE_VARIABLES` (see `tf.Variable`).
+      name: Name to give to the Linear Model. All variables and ops created will
+        be scoped by this name.
+      **kwargs: Keyword arguments to construct a layer.
+
+    Raises:
+      ValueError: if an item in `feature_columns` is neither a `DenseColumn`
+        nor `CategoricalColumn`.
+    """
+
+    super(LinearModel, self).__init__(name=name, **kwargs)
+    self.layer = _LinearModelLayer(
+        feature_columns,
+        units,
+        sparse_combiner,
+        trainable,
+        name=self.name,
+        **kwargs)
+
+  def call(self, features):
+    """Returns a `Tensor` the represents the predictions of a linear model.
+
+    Args:
+      features: A mapping from key to tensors. `_FeatureColumn`s look up via
+        these keys. For example `numeric_column('price')` will look at 'price'
+        key in this dict. Values are `Tensor` or `SparseTensor` depending on
+        corresponding `_FeatureColumn`.
+
+    Returns:
+      A `Tensor` which represents predictions/logits of a linear model. Its
+      shape is (batch_size, units) and its dtype is `float32`.
+
+    Raises:
+      ValueError: If features are not a dictionary.
+    """
+    return self.layer(features)
+
+  @property
+  def bias(self):
+    return self.layer.bias
