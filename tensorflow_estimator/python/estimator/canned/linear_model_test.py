@@ -979,7 +979,7 @@ class VocabularyFileCategoricalColumnTest(test.TestCase):
 
   # TODO(scottzhu): Reenable test once the issue for reading test file is fixed.
   @test_util.run_deprecated_v1
-  def test_linear_model(self):
+  def DISABLED_test_linear_model(self):
     wire_column = fc.categorical_column_with_vocabulary_file(
         key='wire',
         vocabulary_file=self._wire_vocabulary_file_name,
