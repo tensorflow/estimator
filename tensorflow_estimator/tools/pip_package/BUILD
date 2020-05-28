@@ -13,7 +13,6 @@ COMMON_PIP_DEPS = [
     "//tensorflow_estimator/python/estimator:dnn_testing_utils_v1",
     "//tensorflow_estimator/python/estimator:linear_testing_utils",
     "//tensorflow_estimator/python/estimator:linear_testing_utils_v1",
-    "//tensorflow_estimator/python/estimator:vocabulary_testdata",
 ]
 
 sh_binary(
