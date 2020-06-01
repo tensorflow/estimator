@@ -3834,6 +3834,10 @@ class _CapturingContext(control_flow_ops.ControlFlowContext):
         raise ValueError('{}: Op {} depends on TPU computation {}, '
                          'which is not allowed.'.format(self._message, op, c))
 
+  def AddValue(self, value):
+    self.AddOp(value.op)
+    return value
+
   def __enter__(self):
     # pylint: disable=protected-access
     self._g = tf.compat.v1.get_default_graph()
