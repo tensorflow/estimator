@@ -1619,8 +1619,16 @@ class Estimator(object):
 
     scaffold = _combine_distributed_scaffold(grouped_estimator_spec.scaffold,
                                              self._eval_distribution)
-    evaluation_hooks = self._eval_distribution.experimental_local_results(
-        grouped_estimator_spec.evaluation_hooks)[0]
+
+    def get_hooks_from_the_first_device(per_device_hooks):
+      return [
+          self._eval_distribution.experimental_local_results(per_device_hook)[0]
+          for per_device_hook in per_device_hooks
+      ]
+
+    evaluation_hooks = get_hooks_from_the_first_device(
+        grouped_estimator_spec.evaluation_hooks)
+
     return (scaffold, evaluation_hooks, input_hooks, update_op, eval_dict)
 
   def _evaluate_run(self, checkpoint_path, scaffold, update_op, eval_dict,
