@@ -488,7 +488,8 @@ class RunConfig(object):
       keep_checkpoint_max: The maximum number of recent checkpoint files to
         keep. As new files are created, older files are deleted. If `None` or 0,
         all checkpoint files are kept. Defaults to 5 (that is, the 5 most recent
-        checkpoint files are kept.)
+        checkpoint files are kept). If a saver is passed to the estimator, this
+        argument will be ignored.
       keep_checkpoint_every_n_hours: Number of hours between each checkpoint to
         be saved. The default value of 10,000 hours effectively disables the
         feature.
