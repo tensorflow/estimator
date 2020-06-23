@@ -646,7 +646,7 @@ def model_to_estimator(keras_model=None,
     K.set_session(sess)
 
   warm_start_path = None
-  if keras_model._is_graph_network:
+  if keras_model._is_graph_network and config.is_chief:
     warm_start_path = _save_first_checkpoint(keras_model, custom_objects,
                                              config, save_object_ckpt)
   elif keras_model.built:
