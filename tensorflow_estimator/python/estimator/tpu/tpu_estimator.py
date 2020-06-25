@@ -2385,7 +2385,7 @@ class BatchConfig(
               max_batch_size,
               batch_timeout_micros,
               allowed_batch_sizes,
-              max_enqueued_batches=10):
+              max_enqueued_batches=100):
     """Creates an BatchConfig instance.
 
     Args:
@@ -2399,7 +2399,7 @@ class BatchConfig(
         to pad batches up to one of those sizes. The entries must increase
         monotonically, and the final entry must equal max_batch_size.
       max_enqueued_batches: The maximum depth of the batch queue. Defaults to
-        10.
+        100.
 
     Returns:
       An BatchConfig instance.
@@ -4428,7 +4428,7 @@ def inference_on_tpu(computation,
                      max_batch_size,
                      batch_timeout_micros,
                      allowed_batch_sizes=None,
-                     max_enqueued_batches=10):
+                     max_enqueued_batches=100):
   """Convenient wrapper for export_saved_model API v2 to wrap TPU computation.
 
   It puts computation on TPU, add batching around it and round robin computation
@@ -4450,7 +4450,7 @@ def inference_on_tpu(computation,
       does nothing. Otherwise, supplies a list of batch sizes, causing the op to
       pad batches up to one of those sizes. The entries must increase
       monotonically, and the final entry must equal max_batch_size.
-    max_enqueued_batches: The maximum depth of the batch queue. Defaults to 10.
+    max_enqueued_batches: The maximum depth of the batch queue. Defaults to 100.
 
   Returns:
     The unbatched computation output Tensors.
