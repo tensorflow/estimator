@@ -160,7 +160,7 @@ class EstimatorSpec(
     evaluation_hooks = _validate_estimator_spec_hooks(evaluation_hooks)
     prediction_hooks = _validate_estimator_spec_hooks(prediction_hooks)
     training_chief_hooks = _validate_estimator_spec_hooks(training_chief_hooks)
-    eval_metric_ops = validate_eval_metric_ops(eval_metric_ops)
+    eval_metric_ops = _validate_eval_metric_ops(eval_metric_ops)
     scaffold = _validate_scaffold(scaffold)
 
     # By default, Tensor Tracer is not enabled and the block below is an no-op.
@@ -441,14 +441,13 @@ def _validate_estimator_spec_hooks(hooks):
   return hooks
 
 
-def validate_eval_metric_ops(eval_metric_ops):
+def _validate_eval_metric_ops(eval_metric_ops):
   """Validate eval_metric_ops for use in EstimatorSpec.
 
   Args:
     eval_metric_ops: Dict of metric results keyed by name.
       The values of the dict can be one of the following: (1) instance of
-        a keras `Metric` class on which the update method was called.
-        (2) Results of calling a metric_function, namely a
+        `Metric` class. (2) Results of calling a metric_function, namely a
         `(metric_tensor, update_op)` tuple. `metric_tensor` should be evaluated
         without any impact on state (typically it is a pure computation based on
         variables.). For example, it should not trigger the `update_op` or

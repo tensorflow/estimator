@@ -21,8 +21,6 @@ from __future__ import print_function
 import collections
 import copy
 import enum
-import functools
-import inspect
 import math
 import os
 import signal
@@ -49,7 +47,6 @@ from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import errors
 from tensorflow.python.framework import function
 from tensorflow.python.framework import ops
-from tensorflow.python.keras.metrics import Metric
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import batch_ops
 from tensorflow.python.ops import check_ops
@@ -296,18 +293,6 @@ class _SIGNAL(object):
   STOP = -2
 
 
-def _metric_fn_converter(metric_fn):
-  """Wraps the metric_fn to convert keras metrics and validate results."""
-  @functools.wraps(metric_fn)
-  def wrapped_metric_fn(*args, **kwargs):
-    """Calls metric function and validates and converts the return values."""
-    return model_fn_lib.validate_eval_metric_ops(metric_fn(*args, **kwargs))
-  # XLA compiler depends on signature inspection, therefore the original
-  # signature must be retained (which functools.wraps ommits to do).
-  wrapped_metric_fn.__signature__ = inspect.signature(metric_fn)
-  return wrapped_metric_fn
-
-
 @estimator_export(v1=['estimator.tpu.TPUEstimatorSpec'])
 class TPUEstimatorSpec(model_fn_lib._TPUEstimatorSpec):  # pylint: disable=protected-access
   """Ops and objects returned from a `model_fn` and passed to `TPUEstimator`.
@@ -327,14 +312,9 @@ class TPUEstimatorSpec(model_fn_lib._TPUEstimatorSpec):  # pylint: disable=prote
   size is the first dimension. Once all tensors are available at CPU host from
   all shards, they are concatenated (on CPU) and passed as positional arguments
   to the `metric_fn` if `tensors` is list or keyword arguments if `tensors` is
-  a dict. `metric_fn` takes the `tensors` and returns a dict of metric results
-  keyed by name. The values of the dict can be one of the following:
-  (1) instance of a keras `Metric` class on which the update method was called.
-  (2) Results of calling a metric_function, namely a
-  `(metric_tensor, update_op)` tuple. `metric_tensor` should be evaluated
-  without any impact on state (typically it is a pure computation based on
-  variables.). For example, it should not trigger the `update_op` or require
-  any input fetching.. See `TPUEstimator` for MNIST example how to specify the
+  a dict. `metric_fn` takes the `tensors` and returns a dict from metric string
+  name to the result of calling a metric function, namely a `(metric_tensor,
+  update_op)` tuple. See `TPUEstimator` for MNIST example how to specify the
   `eval_metrics`.
 
   `scaffold_fn` is a function running on CPU to generate the `Scaffold`. This
@@ -365,8 +345,6 @@ class TPUEstimatorSpec(model_fn_lib._TPUEstimatorSpec):  # pylint: disable=prote
     """Creates a validated `TPUEstimatorSpec` instance."""
     cls._host_calls = {}
     if eval_metrics is not None:
-      wrapped_metric_fn = _metric_fn_converter(eval_metrics[0])
-      eval_metrics = wrapped_metric_fn, eval_metrics[1]
       cls._host_calls['eval_metrics'] = eval_metrics
     if host_call is not None:
       cls._host_calls['host_call'] = host_call
@@ -1085,9 +1063,9 @@ def generate_per_host_v2_enqueue_ops_fn_for_host(ctx, input_fn,
         features, labels, enqueue_data = (
             _tpu_estimator_embedding.split_inputs(ctx, features, labels))
         if len(enqueue_data) != 1:
-          raise RuntimeError(
-              ('Missing or extra enqueue_data for host {}. '
-               'len(enqueue_data) = {}.').format(host, len(enqueue_data)))
+          raise RuntimeError(('Missing or extra enqueue_data for host {}. '
+                              'len(enqueue_data) = {}.').format(
+                                 host, len(enqueue_data)))
         enqueue_datas_list.append(enqueue_data[0])
 
         inputs_structure_recorder.validate_and_record_structure(
