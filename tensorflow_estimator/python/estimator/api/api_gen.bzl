@@ -120,6 +120,6 @@ def gen_api_init_files(
             " --output_package=" + output_package + " $(OUTS)"
         ),
         srcs = srcs,
-        tools = [":" + api_gen_binary_target],
+        exec_tools = [":" + api_gen_binary_target],
         visibility = ["//visibility:public"],
     )
