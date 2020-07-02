@@ -42,6 +42,7 @@ from tensorflow.python.client import session as tf_session
 from tensorflow.python.data.ops import dataset_ops
 from tensorflow.python.data.util import nest as data_nest
 from tensorflow.python.distribute.cluster_resolver import tpu_cluster_resolver
+from tensorflow.python.eager import monitoring
 from tensorflow.python.framework import constant_op
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import errors
@@ -124,6 +125,11 @@ _RESERVED_PARAMS_KEYS = [_BATCH_SIZE_KEY, _CTX_KEY]
 # tf.while_loop (This can be disabled by returning features and labels
 # explicitly).
 _WRAP_INPUT_FN_INTO_WHILE_LOOP = False
+
+# Track the adoption of TPUEstimator
+_tpu_estimator_gauge = monitoring.BoolGauge(
+    '/tensorflow/api/tpu_estimator',
+    'Whether the program uses tpu estimator or not.')
 
 if ops.get_to_proto_function('{}_{}'.format(_TPU_ESTIMATOR,
                                             _ITERATIONS_PER_LOOP_VAR)) is None:
@@ -2776,7 +2782,7 @@ class TPUEstimator(estimator_lib.Estimator):
         embedding_config_spec.partition_strategy == 'mod'):
       raise ValueError('Mod sharding of embedding tables not supported on '
                        'CPU.')
-
+    _tpu_estimator_gauge.get_cell().set(True)
     # Verifies the model_fn signature according to Estimator framework.
     estimator_lib._verify_model_fn_args(model_fn, params)  # pylint: disable=protected-access
     # We cannot store config and params in this constructor as parent
