@@ -1941,7 +1941,7 @@ py_library(
 
 py_library(
     name = "expect_pandas_installed",
-    # This is a dummy rule used as a numpy dependency in open-source.
+    # This is a dummy rule used as a pandas dependency in open-source.
     # We expect pandas to already be installed on the system, e.g. via
     # `pip install pandas`
     visibility = ["//visibility:public"],
