@@ -46,7 +46,43 @@ _NUM_CORES_TO_COMPUTATION_SHAPE = {
 
 
 class TPUContext(object):
-  """A context that holds the current configuration of the TPU computation."""
+  """A context that holds the current configuration of the TPU computation.
+
+  TPUContext was designed for getting TPU context information when calling
+  input_fn. It can be called in model_fn as well.
+
+  User is not expected to construct the instance from constructor. The only
+  legitimate way to get the instance is either in `input_fn`:
+
+  ```
+  def input_fn(params):
+    batch_size = params['batch_size']
+    context = params['context']
+    # ...
+  ```
+
+  or in `model_fn`
+
+  ```
+  def model_fn(params):
+    batch_size = params['batch_size']
+    context = params['context']
+    # ...
+  ```
+
+  Most of the fields of TPUContext are useful for both `input_fn` and
+  `model_fn`. Exceptions are:
+
+  1. `input_fn` only:
+
+    current_input_fn_deployment
+    current_host
+
+  2. `model_fn` only:
+
+    device_assignment
+
+  """
 
   def __init__(self,
                internal_ctx,
@@ -88,7 +124,7 @@ class TPUContext(object):
            replicas per host.
 
     Raises:
-      RuntimeError: If this method must not be called from input_fn.
+      RuntimeError: If this method is not be called from input_fn.
     """
     if not self._call_from_input_fn:
       raise RuntimeError('This TPUContext instance must not be called from'
@@ -130,7 +166,19 @@ class TPUContext(object):
 
   @property
   def current_host(self):
-    """The current host index for the TPU system."""
+    """The current host index for the TPU system.
+
+    Returns:
+      The host index (int).
+
+    Raises:
+      RuntimeError: If this method is not be called from input_fn.
+    """
+
+    if not self._call_from_input_fn:
+      raise RuntimeError('This TPUContext instance must not be called from'
+                         ' model_fn.')
+
     return self._host_id
 
   @property
@@ -143,7 +191,11 @@ class TPUContext(object):
 
   @property
   def device_assignment(self):
-    """Returns device_assignment object."""
+    """Returns device_assignment object.
+
+    Raises:
+      RuntimeError: If this method is not be called from model_fn.
+    """
     if self._call_from_input_fn:
       raise RuntimeError('This TPUContext instance must not be called from'
                          ' input_fn.')
