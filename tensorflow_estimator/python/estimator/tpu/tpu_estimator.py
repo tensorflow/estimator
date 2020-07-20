@@ -881,7 +881,8 @@ def generate_per_core_enqueue_ops_fn_for_host(ctx, input_fn,
         user_context = tpu_context.TPUContext(
             internal_ctx=ctx,
             input_device=host_device,
-            invocation_index=host_id * ctx.num_of_cores_per_host + core_ordinal)
+            invocation_index=host_id * ctx.num_of_cores_per_host + core_ordinal,
+            host_id=host_id)
         inputs = _Inputs.from_input_fn(input_fn(user_context))
         if inputs.is_dataset:
           raise TypeError(
@@ -919,7 +920,10 @@ def generate_per_host_enqueue_ops_fn_for_host(ctx, input_fn,
 
   with tf.compat.v1.device(device):
     user_context = tpu_context.TPUContext(
-        internal_ctx=ctx, input_device=device, invocation_index=host_id)
+        internal_ctx=ctx,
+        input_device=device,
+        invocation_index=host_id,
+        host_id=host_id)
     inputs = _Inputs.from_input_fn(input_fn(user_context))
 
     is_dataset = inputs.is_dataset
@@ -1000,14 +1004,18 @@ def generate_per_host_enqueue_ops_fn_for_host(ctx, input_fn,
 
 def generate_per_host_v2_enqueue_ops_fn_for_host(ctx, input_fn,
                                                  inputs_structure_recorder,
-                                                 device, host_id):
+                                                 device, host_id,
+                                                 invocation_index):
   """Generates infeed enqueue ops for per-host input_fn on a single host."""
   captured_infeed_queue = _CapturedObject()
   dataset_initializer = None
 
   with tf.compat.v1.device(device):
     user_context = tpu_context.TPUContext(
-        internal_ctx=ctx, input_device=device, invocation_index=host_id)
+        internal_ctx=ctx,
+        input_device=device,
+        invocation_index=invocation_index,
+        host_id=host_id)
     inputs = _Inputs.from_input_fn(input_fn(user_context))
 
     is_dataset = inputs.is_dataset
@@ -1128,7 +1136,7 @@ def generate_broadcast_enqueue_ops_fn(ctx, input_fn, inputs_structure_recorder,
   device_0 = ctx.tpu_host_placement_function(host_id=0)
   with tf.compat.v1.device(device_0):
     user_context = tpu_context.TPUContext(
-        internal_ctx=ctx, input_device=device_0, invocation_index=0)
+        internal_ctx=ctx, input_device=device_0, invocation_index=0, host_id=0)
     inputs = _Inputs.from_input_fn(input_fn(user_context))
 
     is_dataset = inputs.is_dataset
@@ -1544,14 +1552,23 @@ class _InputPipeline(object):
       # We only want and will get the set of *unique* host_ids
       # *that will call input_fn*. For each replica, we only call the input_fn
       # from the CPU host that contains logical core 0.
-      host_device_ids = set()
-      for replica_id in xrange(self._ctx.num_replicas):
-        host_device, _ = self._ctx.device_for_replica(replica_id)
-        # TODO(lehou): Get host_id in a better way.
-        host_id = int(host_device.split('/task:')[1].split('/device:')[0])
-        host_device_ids.add(host_id)
 
-      for host_id in host_device_ids:
+      # Use a list here to ensure deterministic order.
+      host_id_with_invocation_id_pair = []
+
+      if not self._ctx.is_replica_across_hosts():
+        for host_id in range(num_hosts):
+          invocation_index = host_id
+          host_id_with_invocation_id_pair.append((host_id, invocation_index))
+      else:
+        for replica_id in xrange(self._ctx.num_replicas):
+          invocation_index = replica_id
+          host_device, _ = self._ctx.device_for_replica(replica_id)
+          # TODO(lehou): Get host_id in a better way.
+          host_id = int(host_device.split('/task:')[1].split('/device:')[0])
+          host_id_with_invocation_id_pair.append((host_id, invocation_index))
+
+      for (host_id, invocation_index) in host_id_with_invocation_id_pair:
         host_device = tpu_host_placement_fn(host_id=host_id)
         with tf.compat.v1.device(host_device):
           with ops.name_scope('input_pipeline_task%d' % (host_id)):
@@ -1559,7 +1576,8 @@ class _InputPipeline(object):
               enqueue_ops_fn, captured_infeed_queue, dataset_initializer = (
                   generate_per_host_v2_enqueue_ops_fn_for_host(
                       self._ctx, self._input_fn,
-                      self._inputs_structure_recorder, host_device, host_id))
+                      self._inputs_structure_recorder, host_device, host_id,
+                      invocation_index))
             else:
               enqueue_ops_fn, captured_infeed_queue, dataset_initializer = (
                   generate_per_host_enqueue_ops_fn_for_host(

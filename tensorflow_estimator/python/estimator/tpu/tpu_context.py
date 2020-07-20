@@ -52,11 +52,13 @@ class TPUContext(object):
                internal_ctx,
                input_device=None,
                invocation_index=None,
-               call_from_input_fn=True):
+               call_from_input_fn=True,
+               host_id=None):
     self._internal_ctx = internal_ctx
     self._input_device = input_device
     self._invocation_index = invocation_index
     self._call_from_input_fn = call_from_input_fn
+    self._host_id = host_id
 
   def current_input_fn_deployment(self):
     """The configuration of the current input_fn invocation.
@@ -129,7 +131,7 @@ class TPUContext(object):
   @property
   def current_host(self):
     """The current host index for the TPU system."""
-    return self._invocation_index
+    return self._host_id
 
   @property
   def num_of_replicas_per_host(self):
