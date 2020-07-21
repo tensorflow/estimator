@@ -2083,6 +2083,9 @@ py_test(
     srcs = ["canned/canned_estimator_ds_integration_test.py"],
     python_version = "PY3",
     srcs_version = "PY2AND3",
+    tags = [
+        "notap",  # TODO(b/161835009): Re-enable.
+    ],
     deps = [
         ":estimator_py",
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
