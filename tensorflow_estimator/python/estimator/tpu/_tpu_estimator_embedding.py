@@ -224,6 +224,7 @@ class EmbeddingConfigSpec(
           column=tpu_columns,
           optimization_parameters=(
               tf.estimator.tpu.experimental.AdagradParameters(0.1))))
+  ```
   """
 
   def __new__(cls,
