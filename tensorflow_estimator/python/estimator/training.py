@@ -473,7 +473,7 @@ def train_and_evaluate(estimator, train_spec, eval_spec):
 
   Returns:
     A tuple of the result of the `evaluate` call to the `Estimator` and the
-    export results using the specified `ExportStrategy`.
+    export results using the specified `Exporter`s.
     Currently, the return value is undefined for distributed training mode.
 
   Raises:
