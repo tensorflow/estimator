@@ -6,7 +6,7 @@ load(
     "gen_api_init_files",
 )
 
-licenses(["notice"])  # Apache 2.0
+licenses(["notice"])
 
 package(default_visibility = ["//tensorflow_estimator:internal"])
 
