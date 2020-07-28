@@ -379,6 +379,8 @@ class DistributeCoordinatorIntegrationTest(
       train_distribute,
       eval_distribute,
   ):
+    train_distribute = copy.deepcopy(train_distribute)
+    eval_distribute = copy.deepcopy(eval_distribute)
     with tf.compat.v1.test.mock.patch.object(dc, "_run_std_server",
                                              self._mock_run_std_server):
       self._complete_flow(train_distribute, eval_distribute)
