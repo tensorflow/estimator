@@ -1063,8 +1063,11 @@ def generate_per_host_v2_enqueue_ops_fn_for_host(ctx, input_fn,
         raise TypeError('`input_fn` must return a `Dataset` for this mode.')
       for host in range(num_replicas_per_host):
         # Use control dependencies to ensure a deterministic ordering.
-        with tf.control_dependencies(control_deps):
+        if ctx.allow_per_host_v2_parallel_get_next:
           features, labels = inputs.features_and_labels()  # Calls get_next()
+        with tf.control_dependencies(control_deps):
+          if not ctx.allow_per_host_v2_parallel_get_next:
+            features, labels = inputs.features_and_labels()  # Calls get_next()
           signals = inputs.signals()
 
           # All the replicas share the replica 0's stopping signal.

@@ -398,6 +398,11 @@ class _InternalTPUContext(object):
     return embedding_config
 
   @property
+  def allow_per_host_v2_parallel_get_next(self):
+    return (self._config.tpu_config
+            .experimental_allow_per_host_v2_parallel_get_next)
+
+  @property
   def model_parallelism_enabled(self):
     return self._model_parallelism_enabled
 
