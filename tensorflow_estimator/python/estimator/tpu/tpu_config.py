@@ -56,6 +56,7 @@ class TPUConfig(
         'input_partition_dims',
         'eval_training_input_configuration',
         'experimental_host_call_every_n_steps',
+        'experimental_allow_per_host_v2_parallel_get_next',
     ])):
   r"""TPU related configuration required by `TPUEstimator`.
 
@@ -121,6 +122,12 @@ class TPUConfig(
       sets how often host calls are performed during training. Host calls will
       be evaluated every n steps within a training loop where n is the value of
       this argument.
+    experimental_allow_per_host_v2_parallel_get_next: When enabled, allows
+      concurrent execution of dataset get next calls when using PER_HOST_V2
+      input. May result in a performance increase for models with a small step
+      time, but as a consequence TPUEstimator may non-deterministically
+      distribute batches to different cores, rather than guaranteeing round
+      robin behavior.
 
   Raises:
       ValueError: If `num_cores_per_replica` is not 1, 2, 4, 8, ..., 128.
@@ -135,7 +142,8 @@ class TPUConfig(
               initial_infeed_sleep_secs=None,
               input_partition_dims=None,
               eval_training_input_configuration=InputPipelineConfig.PER_HOST_V1,
-              experimental_host_call_every_n_steps=1):
+              experimental_host_call_every_n_steps=1,
+              experimental_allow_per_host_v2_parallel_get_next=False):
 
     # Check iterations_per_loop.
     util_lib.parse_iterations_per_loop(iterations_per_loop)
@@ -196,7 +204,10 @@ class TPUConfig(
         initial_infeed_sleep_secs=initial_infeed_sleep_secs,
         input_partition_dims=input_partition_dims,
         eval_training_input_configuration=eval_training_input_configuration,
-        experimental_host_call_every_n_steps=experimental_host_call_every_n_steps
+        experimental_host_call_every_n_steps=(
+            experimental_host_call_every_n_steps),
+        experimental_allow_per_host_v2_parallel_get_next=(
+            experimental_allow_per_host_v2_parallel_get_next)
     )
 
 
