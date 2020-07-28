@@ -262,15 +262,12 @@ class _InternalTPUContext(object):
                predict_batch_size,
                use_tpu,
                eval_on_tpu=True,
-               embedding_config_spec=None,
-               allow_per_host_v2_parallel_get_next=False):
+               embedding_config_spec=None):
     self._config = config
     self._train_batch_size = train_batch_size
     self._eval_batch_size = eval_batch_size
     self._predict_batch_size = predict_batch_size
     self._use_tpu = use_tpu
-    self._allow_per_host_v2_parallel_get_next = (
-        allow_per_host_v2_parallel_get_next)
     tf.compat.v1.logging.info('_TPUContext: eval_on_tpu %s', eval_on_tpu)
     if not use_tpu and eval_on_tpu:
       tf.compat.v1.logging.warn('eval_on_tpu ignored because use_tpu is False.')
@@ -883,8 +880,7 @@ class _TPUEstimatorReplicaContext(tf.distribute.ReplicaContext):
 
 def _get_tpu_context(config, train_batch_size, eval_batch_size,
                      predict_batch_size, use_tpu, eval_on_tpu,
-                     embedding_config_spec,
-                     allow_per_host_v2_parallel_get_next=False):
+                     embedding_config_spec):
   """Returns an instance of `_InternalTPUContext`."""
 
   if (config.tpu_config.num_shards == 1 and
@@ -900,5 +896,4 @@ def _get_tpu_context(config, train_batch_size, eval_batch_size,
 
   return _InternalTPUContext(config, train_batch_size, eval_batch_size,
                              predict_batch_size, use_tpu, eval_on_tpu,
-                             embedding_config_spec,
-                             allow_per_host_v2_parallel_get_next)
+                             embedding_config_spec)
