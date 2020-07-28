@@ -863,7 +863,7 @@ class _TPUEstimatorReplicaContext(tf.distribute.ReplicaContext):
   def __enter__(self):
 
     def replica_id_is_zero():
-      return tf.math.equal(self._replica_id_in_sync_group, tf.constant(0))
+      return tf.math.equal(self.replica_id_in_sync_group, tf.constant(0))
 
     if hasattr(summary_ops_v2, '_summary_state'):
       summary_state = summary_ops_v2._summary_state  # pylint: disable=protected-access
