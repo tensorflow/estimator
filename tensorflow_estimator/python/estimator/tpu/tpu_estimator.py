@@ -591,7 +591,7 @@ class TPUInfeedOutfeedSessionHook(tf.compat.v1.train.SessionRunHook):
 
     session.run(
         self._init_ops,
-        options=config_pb2.RunOptions(timeout_in_ms=5 * 60 * 1000))
+        options=config_pb2.RunOptions(timeout_in_ms=30 * 60 * 1000))
 
     if os.environ.get('TPU_SPLIT_COMPILE_AND_EXECUTE', '') == '1':
       tf.compat.v1.logging.info(
