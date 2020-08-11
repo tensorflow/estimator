@@ -20,6 +20,7 @@ package_group(
         "//learning/deepmind/research/...",
         "//learning/tfx/models/uplift/estimators/...",
         "//tensorflow_estimator/...",
+        "//third_party/py/tensorflow_privacy/...",
         "//third_party/tensorflow/python/estimator/...",
     ],
 )
