@@ -104,7 +104,7 @@ HP_IN_GRAPH = {
     'Adam': ['decay', 'learning_rate'],
     'Ftrl': [
         'decay', 'l1_regularization_strength', 'l2_regularization_strength',
-        'learning_rate', 'learning_rate_power'
+        'beta', 'learning_rate', 'learning_rate_power'
     ],
     'RMSProp': ['decay', 'learning_rate', 'momentum', 'rho'],
     'Adagrad': ['decay', 'learning_rate'],
