@@ -239,9 +239,7 @@ class DistributeCoordinatorIntegrationTest(
     self.assertAllEqual((BATCH_SIZE, LABEL_DIMENSION), predicted_proba.shape)
 
   def _make_cross_device_ops(self, num_gpus_per_worker):
-    return cross_device_ops_lib.MultiWorkerAllReduce(
-        ["/job:worker/task:0", "/job:worker/task:1", "/job:worker/task:2"],
-        num_gpus_per_worker)
+    return cross_device_ops_lib.ReductionToOneDevice()
 
   def _get_strategy_object(self,
                            strategy_cls,
