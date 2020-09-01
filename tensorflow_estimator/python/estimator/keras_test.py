@@ -35,6 +35,7 @@ from tensorflow.python.keras.optimizer_v2 import gradient_descent as optimizer_v
 from tensorflow.python.keras.utils import np_utils
 from tensorflow.python.ops.parsing_ops import gen_parsing_ops
 from tensorflow.python.saved_model import utils_impl as saved_model_utils
+from tensorflow.python.saved_model.model_utils import export_output
 from tensorflow.python.training import saver as saver_lib
 from tensorflow_estimator.python.estimator import keras as keras_lib
 from tensorflow_estimator.python.estimator import run_config as run_config_lib
@@ -1012,6 +1013,95 @@ class TestKerasEstimator(tf.test.TestCase, parameterized.TestCase):
     variables_path = saved_model_utils.get_variables_path(saved_model_dir)
     self.assertNotAllClose(
         bias_value, tf.train.load_variable(variables_path, variable_name))
+
+  @parameterized.named_parameters(
+      dict(testcase_name='object_ckpt', checkpoint_format='checkpoint'),
+      dict(testcase_name='name_ckpt', checkpoint_format='saver'))
+  def test_export_keras_estimator_custom_signatures(self, checkpoint_format):
+    inputs_a = np.random.random((320, 1))
+    inputs_b = np.random.random((320, 1))
+    outputs_c = np.random.random((320, 1))
+    outputs_d = np.random.random((320, 1))
+
+    dataset = tf.data.Dataset.from_tensor_slices((
+        {'a': inputs_a, 'b': inputs_b},
+        {'c': outputs_c, 'd': outputs_d})).batch(32)
+    keras_inputs_a = tf.keras.Input(shape=(1,), dtype=tf.float32, name='a')
+    keras_inputs_b = tf.keras.Input(shape=(1,), dtype=tf.float32, name='b')
+    keras_outputs_c = tf.keras.layers.Dense(units=1, name='c')(keras_inputs_a)
+    keras_outputs_d = tf.keras.layers.Dense(
+        units=1, name='d', activation='sigmoid')(keras_inputs_b)
+    keras_model = tf.keras.Model(
+        inputs={'a': keras_inputs_a, 'b': keras_inputs_b},
+        outputs={'c': keras_outputs_c, 'd': keras_outputs_d})
+    keras_model.compile('sgd', {'c': 'mse', 'd': 'binary_crossentropy'}, [])
+    keras_model.fit(dataset)
+
+    est_keras = keras_lib.model_to_estimator(
+        keras_model=keras_model,
+        model_dir=tempfile.mkdtemp(dir=self._base_dir),
+        checkpoint_format=checkpoint_format,
+        export_outputs={'c': export_output.RegressionOutput,
+                        'd': export_output.ClassificationOutput})
+
+    def serving_input_receiver_fn():
+      feature_spec = {
+          'a': tf.io.FixedLenFeature([1], dtype=tf.dtypes.float32),
+          'b': tf.io.FixedLenFeature([1], dtype=tf.dtypes.float32),
+      }
+      return export_lib.build_parsing_serving_input_receiver_fn(feature_spec)
+
+    # Try immediately exporting, testing exported signatures
+    saved_model_dir = est_keras.export_saved_model(
+        tempfile.mkdtemp(dir=self._base_dir), serving_input_receiver_fn())
+    imported_est = tf.saved_model.load(saved_model_dir)
+    imported_signatures = imported_est.signatures
+    assert 'c' in imported_signatures
+    assert 'd' in imported_signatures
+    assert 'serving_default' in imported_signatures
+
+  @parameterized.named_parameters(
+      dict(testcase_name='object_ckpt', checkpoint_format='checkpoint'),
+      dict(testcase_name='name_ckpt', checkpoint_format='saver'))
+  def test_export_keras_estimator_unknown_signatures(self, checkpoint_format):
+    inputs_a = np.random.random((320, 1))
+    inputs_b = np.random.random((320, 1))
+    outputs_c = np.random.random((320, 1))
+    outputs_d = np.random.random((320, 1))
+
+    dataset = tf.data.Dataset.from_tensor_slices((
+        {'a': inputs_a, 'b': inputs_b},
+        {'c': outputs_c, 'd': outputs_d})).batch(32)
+    keras_inputs_a = tf.keras.Input(shape=(1,), dtype=tf.float32, name='a')
+    keras_inputs_b = tf.keras.Input(shape=(1,), dtype=tf.float32, name='b')
+    keras_outputs_c = tf.keras.layers.Dense(units=1, name='c')(keras_inputs_a)
+    keras_outputs_d = tf.keras.layers.Dense(
+        units=1, name='d', activation='sigmoid')(keras_inputs_b)
+    keras_model = tf.keras.Model(
+        inputs={'a': keras_inputs_a, 'b': keras_inputs_b},
+        outputs={'c': keras_outputs_c, 'd': keras_outputs_d})
+    keras_model.compile('sgd', {'c': 'mse', 'd': 'binary_crossentropy'}, [])
+    keras_model.fit(dataset)
+
+    with self.assertRaisesRegex(
+        keras_lib.FormattedKeyError,
+        r'Missed keys'):
+      est_keras = keras_lib.model_to_estimator(
+          keras_model=keras_model,
+          model_dir=tempfile.mkdtemp(dir=self._base_dir),
+          checkpoint_format=checkpoint_format,
+          export_outputs={'c': export_output.RegressionOutput,
+                          'p': export_output.ClassificationOutput})
+      def serving_input_receiver_fn():
+        feature_spec = {
+            'a': tf.io.FixedLenFeature([1], dtype=tf.dtypes.float32),
+            'b': tf.io.FixedLenFeature([1], dtype=tf.dtypes.float32),
+        }
+        return export_lib.build_parsing_serving_input_receiver_fn(feature_spec)
+
+      # Try immediately exporting, testing exported signatures
+      _ = est_keras.export_saved_model(
+          tempfile.mkdtemp(dir=self._base_dir), serving_input_receiver_fn())
 
   def test_export_subclassed_model_retains_model_state(self):
     keras_model, (x_train, y_train), (

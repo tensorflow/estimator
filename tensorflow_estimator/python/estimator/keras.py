@@ -292,7 +292,8 @@ def _convert_keras_metrics_to_estimator(model, metric_names_map=None):
 def _create_keras_model_fn(keras_model,
                            custom_objects=None,
                            save_object_ckpt=False,
-                           metric_names_map=None):
+                           metric_names_map=None,
+                           export_outputs=None):
   """Creates model_fn for keras Estimator.
 
   Args:
@@ -301,6 +302,8 @@ def _create_keras_model_fn(keras_model,
     save_object_ckpt: Whether to save an object-based checkpoint.
     metric_names_map: Optional dictionary mapping Keras model output metric
       names to custom names.
+    export_outputs: Optional dictionary mapping custom names to a subclass of
+      `tf.estimator.export.ExportOutput`.
 
   Returns:
     The model_fn for a keras Estimator.
@@ -377,15 +380,33 @@ def _create_keras_model_fn(keras_model,
       saver._object_restore_saver = trackable_util.frozen_saver(model)
       scaffold = tf.compat.v1.train.Scaffold(saver=saver)
 
+    final_export_outputs = {
+        _DEFAULT_SERVING_KEY: export_lib.PredictOutput(predictions)
+    }
+    if export_outputs is not None:
+      different_keys = set(export_outputs.keys()) - set(model.output_names)
+      if different_keys:
+        raise FormattedKeyError(
+            'The list passed into {obj_name} does not cover requested '
+            '{order_name} keys defined in the keras model.'
+            '\n\tExpected keys: {order_keys}'
+            '\n\t{obj_name} keys: {obj_keys}'
+            '\n\tMissed keys: {different_keys}'.format(
+                order_name=export_outputs,
+                order_keys=set(export_outputs.keys()),
+                obj_name=model.output_names,
+                obj_keys=set(model.output_names),
+                different_keys=different_keys))
+      for key, export_output_cls in export_outputs.items():
+        final_export_outputs[key] = export_output_cls(predictions[key])
+
     return model_fn_lib.EstimatorSpec(
         mode=mode,
         predictions=predictions,
         loss=loss,
         train_op=train_op,
         eval_metric_ops=eval_metric_ops,
-        export_outputs={
-            _DEFAULT_SERVING_KEY: export_lib.PredictOutput(predictions)
-        },
+        export_outputs=final_export_outputs,
         scaffold=scaffold)
 
   return model_fn
@@ -496,7 +517,8 @@ def model_to_estimator(keras_model=None,
                        config=None,
                        checkpoint_format=None,
                        use_v2_estimator=False,
-                       metric_names_map=None):
+                       metric_names_map=None,
+                       export_outputs=None):
   # LINT.ThenChange(//tensorflow/python/keras/estimator/__init__.py)
   """Constructs an `Estimator` instance from given keras model.
 
@@ -529,7 +551,29 @@ def model_to_estimator(keras_model=None,
 
   estimator.train(input_fn, steps=1)
   ```
-  
+
+  Example with customized export signature:
+  ```python
+  inputs = {'a': tf.keras.Input(..., name='a'),
+            'b': tf.keras.Input(..., name='b')}
+  outputs = {'c': tf.keras.layers.Dense(..., name='c')(inputs['a']),
+             'd': tf.keras.layers.Dense(..., name='d')(inputs['b'])}
+  keras_model = tf.keras.Model(inputs, outputs)
+  keras_model.compile(...)
+  export_outputs = {'c': tf.estimator.export.RegressionOutput,
+                    'd': tf.estimator.export.ClassificationOutput}
+
+  estimator = tf.keras.estimator.model_to_estimator(
+      keras_model, export_outputs=export_outputs)
+
+  def input_fn():
+    return dataset_ops.Dataset.from_tensors(
+        ({'features': features, 'sample_weights': sample_weights},
+         targets))
+
+  estimator.train(input_fn, steps=1)
+  ```
+
   Note: We do not support creating weighted metrics in Keras and converting them
   to weighted metrics in the Estimator API using `model_to_estimator`.
   You will have to create these metrics directly on the estimator spec using the
@@ -576,6 +620,21 @@ def model_to_estimator(keras_model=None,
       `['loss', 'out_1_loss', 'out_2_loss', 'out_1_acc', 'out_2_acc']`.
       The model metric names excluding the loss metrics will be
       `['out_1_acc', 'out_2_acc']`.
+    export_outputs: Optional dictionary. This can be used to override the
+      default Keras model output exports in a multi IO model use case and
+      provide custom names for the `export_outputs` in
+      `tf.estimator.EstimatorSpec`. Default is None, which is equivalent to
+      {'serving_default': `tf.estimator.export.PredictOutput`}.
+      A dict `{name: output}` where:
+        * name: An arbitrary name for this output. This becomes the signature
+          name in the SavedModel.
+        * output: an `ExportOutput` object such as `ClassificationOutput`,
+          `RegressionOutput`, or `PredictOutput`. Single-headed models only need
+          to specify one entry in this dictionary. Multi-headed models should
+          specify one entry for each head, one of which must be named using
+          `tf.saved_model.signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY`.
+          If no entry is provided, a default `PredictOutput` mapping to
+          `predictions` will be created.
 
   Returns:
     An Estimator from given keras model.
@@ -630,8 +689,9 @@ def model_to_estimator(keras_model=None,
                      'Please compile the model with `model.compile()` '
                      'before calling `model_to_estimator()`.')
 
-  keras_model_fn = _create_keras_model_fn(keras_model, custom_objects,
-                                          save_object_ckpt, metric_names_map)
+  keras_model_fn = _create_keras_model_fn(
+      keras_model, custom_objects, save_object_ckpt, metric_names_map,
+      export_outputs)
   if _any_weight_initialized(keras_model):
     # Warn if config passed to estimator tries to update GPUOptions. If a
     # session has already been created, the GPUOptions passed to the first
