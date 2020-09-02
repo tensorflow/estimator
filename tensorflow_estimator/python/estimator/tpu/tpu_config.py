@@ -57,6 +57,7 @@ class TPUConfig(
         'eval_training_input_configuration',
         'experimental_host_call_every_n_steps',
         'experimental_allow_per_host_v2_parallel_get_next',
+        'experimental_user_provided_stopping_signals_name',
     ])):
   r"""TPU related configuration required by `TPUEstimator`.
 
@@ -128,6 +129,28 @@ class TPUConfig(
       time, but as a consequence TPUEstimator may non-deterministically
       distribute batches to different cores, rather than guaranteeing round
       robin behavior.
+    experimental_user_provided_stopping_signals_name: If not None, it is the
+      user provided stopping signals name. User can then write a map_fn to add
+      stopping signals with experimental_user_provided_stopping_signals_name as
+      name in their input dataset. Example is as following:
+      def insert_stopping_signal(stop, batch_size):
+        def _map_fn(features):
+          shape = [batch_size, 1]
+          dtype = tf.dtypes.bool
+          if stop is True:
+            features[experimental_user_provided_stopping_signals_name] \
+              = tf.ones(shape=shape, dtype=dtype)
+          else:
+            features[experimental_user_provided_stopping_signals_name] \
+              = tf.zeros(shape=shape, dtype=dtype)
+          return features
+        return _map_fn
+
+      # Insert stop signal which is True.
+      dataset_0 = dataset.map(insert_stopping_signal(stop=True, batch_size=128))
+
+      # Insert stop signal which is False.
+      dataset_1 = dataset.map(insert_stopping_signal(stop=False, batch_size=128))
 
   Raises:
       ValueError: If `num_cores_per_replica` is not 1, 2, 4, 8, ..., 128.
@@ -143,7 +166,8 @@ class TPUConfig(
               input_partition_dims=None,
               eval_training_input_configuration=InputPipelineConfig.PER_HOST_V1,
               experimental_host_call_every_n_steps=1,
-              experimental_allow_per_host_v2_parallel_get_next=False):
+              experimental_allow_per_host_v2_parallel_get_next=False,
+              experimental_user_provided_stopping_signals_name=None):
 
     # Check iterations_per_loop.
     util_lib.parse_iterations_per_loop(iterations_per_loop)
@@ -207,7 +231,9 @@ class TPUConfig(
         experimental_host_call_every_n_steps=(
             experimental_host_call_every_n_steps),
         experimental_allow_per_host_v2_parallel_get_next=(
-            experimental_allow_per_host_v2_parallel_get_next)
+            experimental_allow_per_host_v2_parallel_get_next),
+        experimental_user_provided_stopping_signals_name=(
+          experimental_user_provided_stopping_signals_name),
     )
 
 
