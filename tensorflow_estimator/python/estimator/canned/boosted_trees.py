@@ -1948,10 +1948,13 @@ class BoostedTreesClassifier(_BoostedTreesBase):
 
     # Need to see a large portion of the data before we can build a layer, for
     # example half of data n_batches_per_layer = 0.5 * NUM_EXAMPLES / BATCH_SIZE
+    # Also note that it is usually beneficial to set some regularization, for
+    # example, l2. A good default value is 1./number of examples per layer.
     classifier = estimator.BoostedTreesClassifier(
         feature_columns=[bucketized_feature_1, bucketized_feature_2],
         n_batches_per_layer=n_batches_per_layer,
         n_trees=100,
+        l2_regularization = 1./(n_batches_per_layer*batch_size)
         ... <some other params>
     )
 
@@ -2004,13 +2007,17 @@ class BoostedTreesClassifier(_BoostedTreesBase):
       learning_rate: shrinkage parameter to be used when a tree added to the
         model.
       l1_regularization: regularization multiplier applied to the absolute
-        weights of the tree leafs.
+        weights of the tree leafs. This is a per instance value. A good default
+        is 1./(n_batches_per_layer*batch_size).
       l2_regularization: regularization multiplier applied to the square weights
-        of the tree leafs.
+        of the tree leafs. This is a per instance value. A good default is
+        1./(n_batches_per_layer*batch_size).
       tree_complexity: regularization factor to penalize trees with more leaves.
+        This is a per instance value. A good default is
+        1./(n_batches_per_layer*batch_size).
       min_node_weight: min_node_weight: minimum hessian a node must have for a
-        split to be considered. The value will be compared with
-        `sum(leaf_hessian)/(batch_size * n_batches_per_layer)`.
+        split to be considered. This is a per instance value. The value will be
+        compared with `sum(leaf_hessian)/(batch_size * n_batches_per_layer)`.
       config: `RunConfig` object to configure the runtime settings.
       center_bias: Whether bias centering needs to occur. Bias centering refers
         to the first node in the very first tree returning the prediction that
