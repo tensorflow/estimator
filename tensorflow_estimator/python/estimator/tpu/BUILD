@@ -1,7 +1,7 @@
 # Description: TPUEstimator
 
 # INTERNAL TEST RULE PLACEHOLDER
-load("//tensorflow_estimator:estimator.bzl", "py_test")
+load("//tensorflow_estimator:estimator.bzl", "py_test", "tpu_py_test")
 
 licenses(["notice"])  # Apache 2.0
 
@@ -68,6 +68,25 @@ py_test(
     deps = [
         ":tpu_estimator",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
+tpu_py_test(
+    name = "tpu_estimator_test",
+    size = "medium",
+    timeout = "long",
+    srcs = ["tpu_estimator_test.py"],
+    args = [
+        "--test_num_shards=2",
+    ],
+    disable_experimental = True,
+    malloc = "//third_party/tcmalloc:tcmalloc_or_debug",
+    shard_count = 2,
+    srcs_version = "PY2AND3",
+    deps = [
+        ":tpu_estimator",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+        "//third_party/py/absl/flags",
     ],
 )
 

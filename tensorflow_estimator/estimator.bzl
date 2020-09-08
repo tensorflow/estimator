@@ -9,3 +9,7 @@ def py_test(deps = [], **kwargs):
         }),
         **kwargs
     )
+
+def tpu_py_test(**kwargs):
+    # Skip the tpu test for Estimator oss.
+    pass
