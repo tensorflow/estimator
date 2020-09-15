@@ -941,6 +941,7 @@ py_test(
         ":model_fn",
         ":numpy_io",
         ":run_config",
+        # Placeholder for an internal build dep disabling tf2 behavior
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
         "//tensorflow_estimator/python/estimator:expect_six_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
@@ -2047,6 +2048,7 @@ py_test(
     ],
     deps = [
         ":estimator_py",
+        # Placeholder for an internal build dep disabling tf2 behavior
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
     ],
@@ -2072,6 +2074,7 @@ py_test(
     ],
     deps = [
         ":estimator_py",
+        # Placeholder for an internal build dep disabling tf2 behavior
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
     ],

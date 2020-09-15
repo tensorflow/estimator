@@ -26,7 +26,7 @@ import sys
 import tempfile
 from absl.testing import parameterized
 import numpy as np
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 from tensorflow.python.distribute import central_storage_strategy
 from tensorflow.python.distribute import combinations
 from tensorflow.python.distribute import cross_device_ops as cross_device_ops_lib
@@ -78,7 +78,7 @@ class DistributeCoordinatorIntegrationTest(
   def dataset_input_fn(self, x, y, batch_size, shuffle):
 
     def input_fn():
-      dataset = tf.compat.v1.data.Dataset.from_tensor_slices((x, y))
+      dataset = tf.data.Dataset.from_tensor_slices((x, y))
       if shuffle:
         dataset = dataset.shuffle(batch_size)
       dataset = dataset.repeat(100).batch(batch_size)
@@ -87,7 +87,7 @@ class DistributeCoordinatorIntegrationTest(
     return input_fn
 
   def _get_exporter(self, name, fc):
-    feature_spec = tf.compat.v1.feature_column.make_parse_example_spec(fc)
+    feature_spec = tf.feature_column.make_parse_example_spec(fc)
     serving_input_receiver_fn = (
         export_lib.build_parsing_serving_input_receiver_fn(feature_spec))
     return exporter_lib.LatestExporter(
@@ -102,7 +102,7 @@ class DistributeCoordinatorIntegrationTest(
     loss = None
     global_step_count = None
 
-    for e in tf.compat.v1.train.summary_iterator(event_paths[-1]):
+    for e in tf.train.summary_iterator(event_paths[-1]):
       current_loss = None
       for v in e.summary.value:
         if v.tag == "loss":
@@ -207,7 +207,7 @@ class DistributeCoordinatorIntegrationTest(
 
   def _inspect_train_and_eval_events(self, estimator):
     # Make sure nothing is stuck in limbo.
-    tf.compat.v1.summary.FileWriterCache.clear()
+    tf.summary.FileWriterCache.clear()
 
     # Examine the training events. Use a range to check global step to avoid
     # flakyness due to global step race condition.
@@ -224,13 +224,11 @@ class DistributeCoordinatorIntegrationTest(
     # Examine the export folder.
     export_dir = os.path.join(
         os.path.join(self._model_dir, "export"), EXPORTER_NAME)
-    self.assertTrue(tf.compat.v1.gfile.Exists(export_dir))
+    self.assertTrue(tf.gfile.Exists(export_dir))
 
     # Examine the ckpt for predict.
     def predict_input_fn():
-      return tf.compat.v1.data.Dataset.from_tensor_slices({
-          "x": DATA
-      }).batch(BATCH_SIZE)
+      return tf.data.Dataset.from_tensor_slices({"x": DATA}).batch(BATCH_SIZE)
 
     predicted_proba = np.array([
         x[prediction_keys.PredictionKeys.PREDICTIONS]
@@ -379,8 +377,8 @@ class DistributeCoordinatorIntegrationTest(
   ):
     train_distribute = copy.deepcopy(train_distribute)
     eval_distribute = copy.deepcopy(eval_distribute)
-    with tf.compat.v1.test.mock.patch.object(dc, "_run_std_server",
-                                             self._mock_run_std_server):
+    with tf.test.mock.patch.object(dc, "_run_std_server",
+                                   self._mock_run_std_server):
       self._complete_flow(train_distribute, eval_distribute)
 
   @combinations.generate(
@@ -498,7 +496,7 @@ TF_CONFIG_WITHOUT_TASK = {"cluster": {"chief": ["fake_worker"]}}
 class RunConfigTest(tf.test.TestCase):
 
   def test_previously_unexpected_cluster_spec(self):
-    with tf.compat.v1.test.mock.patch.dict(
+    with tf.test.mock.patch.dict(
         "os.environ", {"TF_CONFIG": json.dumps(TF_CONFIG_WITHOUT_TASK)}):
       run_config_lib.RunConfig(
           experimental_distribute=DistributeConfig(
@@ -514,7 +512,7 @@ class RunConfigTest(tf.test.TestCase):
 
     # When `train_distribute` is not specified, don't use distribute
     # coordinator.
-    with tf.compat.v1.test.mock.patch.dict(
+    with tf.test.mock.patch.dict(
         "os.environ", {"TF_CONFIG": json.dumps(TF_CONFIG_WITH_CHIEF)}):
       self.assertFalse(
           dc_training.should_run_distribute_coordinator(
@@ -522,7 +520,7 @@ class RunConfigTest(tf.test.TestCase):
 
     # When `train_distribute` is specified and TF_CONFIG is detected, use
     # distribute coordinator.
-    with tf.compat.v1.test.mock.patch.dict(
+    with tf.test.mock.patch.dict(
         "os.environ", {"TF_CONFIG": json.dumps(TF_CONFIG_WITH_CHIEF)}):
       config_with_train_distribute = run_config_lib.RunConfig(
           experimental_distribute=DistributeConfig(
@@ -540,7 +538,7 @@ class RunConfigTest(tf.test.TestCase):
             config_with_eval_distribute))
 
     # With a master in the cluster, don't run distribute coordinator.
-    with tf.compat.v1.test.mock.patch.dict(
+    with tf.test.mock.patch.dict(
         "os.environ", {"TF_CONFIG": json.dumps(TF_CONFIG_WITH_MASTER)}):
       config = run_config_lib.RunConfig(
           experimental_distribute=DistributeConfig(
@@ -569,7 +567,7 @@ class RunConfigTest(tf.test.TestCase):
     self.assertIsNone(config._distribute_coordinator_mode)
 
     # With a master in the cluster, don't run distribute coordinator.
-    with tf.compat.v1.test.mock.patch.dict(
+    with tf.test.mock.patch.dict(
         "os.environ", {"TF_CONFIG": json.dumps(TF_CONFIG_WITH_MASTER)}):
       config = run_config_lib.RunConfig(
           train_distribute=tf.distribute.MirroredStrategy())
@@ -577,7 +575,7 @@ class RunConfigTest(tf.test.TestCase):
 
     # When `train_distribute` is not specified, don't use distribute
     # coordinator.
-    with tf.compat.v1.test.mock.patch.dict(
+    with tf.test.mock.patch.dict(
         "os.environ", {"TF_CONFIG": json.dumps(TF_CONFIG_WITH_CHIEF)}):
       config = run_config_lib.RunConfig()
       self.assertFalse(hasattr(config, "_distribute_coordinator_mode"))
@@ -585,7 +583,7 @@ class RunConfigTest(tf.test.TestCase):
   def test_init_run_config_independent_worker(self):
     # When `train_distribute` is specified and TF_CONFIG is detected, use
     # distribute coordinator with INDEPENDENT_WORKER mode.
-    with tf.compat.v1.test.mock.patch.dict(
+    with tf.test.mock.patch.dict(
         "os.environ", {"TF_CONFIG": json.dumps(TF_CONFIG_WITH_CHIEF)}):
       config = run_config_lib.RunConfig(
           train_distribute=tf.distribute.MirroredStrategy())
@@ -606,14 +604,14 @@ class RunConfigTest(tf.test.TestCase):
 
 if __name__ == "__main__":
   # Reduce `recovery_wait_secs` from 30 seconds so the test completes quickly.
-  orig_init = tf.compat.v1.train.SessionManager.__init__
+  orig_init = tf.train.SessionManager.__init__
 
   def new_init(*args, **kwargs):
     kwargs.pop("recovery_wait_secs", None)
     kwargs["recovery_wait_secs"] = 0.5
     orig_init(*args, **kwargs)
 
-  tf.compat.v1.train.SessionManager.__init__ = new_init
+  tf.train.SessionManager.__init__ = new_init
 
-  with tf.compat.v1.test.mock.patch.object(sys, "exit", os._exit):
+  with tf.test.mock.patch.object(sys, "exit", os._exit):
     tf.test.main()
