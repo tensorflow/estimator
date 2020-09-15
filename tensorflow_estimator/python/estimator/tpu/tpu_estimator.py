@@ -510,9 +510,6 @@ class TPUInfeedOutfeedSessionHook(tf.compat.v1.train.SessionRunHook):
       self._should_initialize_tpu = True
     self._outfeed_every_n_steps = outfeed_every_n_steps
 
-    self.user_provided_stopping_signals_name = ctx.user_provided_stopping_signals_name
-    self.stopping_signal = False
-
   def begin(self):
     tf.compat.v1.logging.info('TPU job name %s', self._master_job)
     self._iterations_per_loop_var = _create_or_get_iterations_per_loop()
@@ -554,27 +551,15 @@ class TPUInfeedOutfeedSessionHook(tf.compat.v1.train.SessionRunHook):
     tf.compat.v1.logging.info('Starting outfeed thread controller.')
     status_logger = PeriodicLogger(seconds=60)
     with self._rendezvous.catch_errors(source='outfeed', session=session):
-      stopping_signals = False
       for count, steps in enumerate(queue_ctx.read_iteration_counts()):
         step_counter = 0
         for i in xrange(steps):
           tf.compat.v1.logging.debug('Outfeed dequeue for iteration (%d, %d)',
                                      count, i)
           if step_counter % self._outfeed_every_n_steps == 0:
-            ret = session.run(self._dequeue_ops)
-            if self.user_provided_stopping_signals_name is not None \
-              and self.user_provided_stopping_signals_name in ret:
-              if 'stopping' not in ret[self.user_provided_stopping_signals_name]:
-                raise RuntimeError('ret[{}] must contain key \'stopping\'.').format(self.user_provided_stopping_signals_name)
-              if ret[self.user_provided_stopping_signals_name]['stopping'][0] == True \
-                and stopping_signals == False:
-                stopping_signals = True
-                tf.compat.v1.logging.info('Encountered stop signal at iteration (%d, %d).', count, i)
+            session.run(self._dequeue_ops)
           step_counter += 1
           status_logger.log('Outfeed finished for iteration (%d, %d)', count, i)
-        if stopping_signals == True:
-          tf.compat.v1.logging.info('Set shared stop signal at iteration (%d, %d).', count, i)
-          self.stopping_signal = True
       tf.compat.v1.logging.info('Outfeed thread finished, shutting down.')
 
   def _create_infeed_controller(self, name, target, args):
@@ -626,10 +611,6 @@ class TPUInfeedOutfeedSessionHook(tf.compat.v1.train.SessionRunHook):
           session, shutdown_timeout=watchdog_timeout)
 
   def before_run(self, run_context):
-    if self.stopping_signal == True:
-      tf.compat.v1.logging.info('Throw OutOfRangeError error due to encountering stopping signal in before_run.')
-      raise tf.errors.OutOfRangeError(None, None, 'Stopped by stopping signal.')
-
     iterations = run_context.session.run(self._iterations_per_loop_var)
 
     tf.compat.v1.logging.info('Enqueue next (%d) batch(es) of data to infeed.',
@@ -1833,11 +1814,10 @@ class _ModelFnWrapper(object):
         ]
 
       stopping_signals = None
-      if self._ctx.user_provided_stopping_signals_name is not None \
-          and self._ctx.user_provided_stopping_signals_name in features:
-        sum_stopping_signals = tf.compat.v1.tpu.cross_replica_sum(
-          tf.cast(features[self._ctx.user_provided_stopping_signals_name], tf.int32))
-        stopping_signals = {'stopping': sum_stopping_signals > 0}
+      user_provided_stopping_signals_name = None
+      if self._ctx.customized_tpu_infeed_outfeed_session_hook_class is not None:
+        stopping_signals, user_provided_stopping_signals_name = \
+          self._ctx.customized_tpu_infeed_outfeed_session_hook_class.get_stopping_signals_and_name(features)
 
       # We must run train_op to update the variables prior to running the
       # outfeed.
@@ -1851,7 +1831,7 @@ class _ModelFnWrapper(object):
 
         if stopping_signals is not None:
           identity_fn = lambda **kwargs: kwargs
-          tracer_host_call[self._ctx.user_provided_stopping_signals_name] = [identity_fn, stopping_signals]
+          tracer_host_call[user_provided_stopping_signals_name] = [identity_fn, stopping_signals]
 
         if host_call_fn:
           # Ignore dummy hostcalls (no arguments)
@@ -3323,8 +3303,15 @@ class TPUEstimator(estimator_lib.Estimator):
           with tf.control_dependencies([loss]):
             global_step = tf.identity(tf.compat.v1.train.get_global_step())
           hooks = input_hooks + shutdown_hooks
+
+          if ctx.customized_tpu_infeed_outfeed_session_hook_class is not None:
+            tf.compat.v1.logging.info('Use user implemented tpu infeed outfeed session hook class.')
+            infeed_outfeed_session_hook_class = ctx.customized_tpu_infeed_outfeed_session_hook_class
+          else:
+            infeed_outfeed_session_hook_class = TPUInfeedOutfeedSessionHook
+
           hooks.extend([
-              TPUInfeedOutfeedSessionHook(
+              infeed_outfeed_session_hook_class(
                   ctx,
                   enqueue_ops,
                   host_ops,

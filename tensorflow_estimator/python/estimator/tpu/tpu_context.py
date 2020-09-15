@@ -403,9 +403,9 @@ class _InternalTPUContext(object):
             .experimental_allow_per_host_v2_parallel_get_next)
 
   @property
-  def user_provided_stopping_signals_name(self):
+  def customized_tpu_infeed_outfeed_session_hook_class(self):
     return (self._config.tpu_config
-            .experimental_user_provided_stopping_signals_name)
+            .experimental_customized_tpu_infeed_outfeed_session_hook_class)
 
   @property
   def model_parallelism_enabled(self):
