@@ -1815,9 +1815,9 @@ class _ModelFnWrapper(object):
 
       stopping_signals = None
       user_provided_stopping_signals_name = None
-      if self._ctx.customized_tpu_infeed_outfeed_session_hook_class is not None:
+      if self._ctx.feed_hook is not None:
         stopping_signals, user_provided_stopping_signals_name = \
-          self._ctx.customized_tpu_infeed_outfeed_session_hook_class.get_stopping_signals_and_name(features)
+          self._ctx.feed_hook.get_stopping_signals_and_name(features)
 
       # We must run train_op to update the variables prior to running the
       # outfeed.
@@ -3304,9 +3304,9 @@ class TPUEstimator(estimator_lib.Estimator):
             global_step = tf.identity(tf.compat.v1.train.get_global_step())
           hooks = input_hooks + shutdown_hooks
 
-          if ctx.customized_tpu_infeed_outfeed_session_hook_class is not None:
+          if ctx.feed_hook is not None:
             tf.compat.v1.logging.info('Use user implemented tpu infeed outfeed session hook class.')
-            infeed_outfeed_session_hook_class = ctx.customized_tpu_infeed_outfeed_session_hook_class
+            infeed_outfeed_session_hook_class = ctx.feed_hook
           else:
             infeed_outfeed_session_hook_class = TPUInfeedOutfeedSessionHook
 

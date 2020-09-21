@@ -57,7 +57,7 @@ class TPUConfig(
         'eval_training_input_configuration',
         'experimental_host_call_every_n_steps',
         'experimental_allow_per_host_v2_parallel_get_next',
-        'experimental_customized_tpu_infeed_outfeed_session_hook_class',
+        'experimental_feed_hook',
     ])):
   r"""TPU related configuration required by `TPUEstimator`.
 
@@ -129,13 +129,13 @@ class TPUConfig(
       time, but as a consequence TPUEstimator may non-deterministically
       distribute batches to different cores, rather than guaranteeing round
       robin behavior.
-    experimental_customized_tpu_infeed_outfeed_session_hook_class: This is a class
-      which user can provide to the TPU estimator to override the default 
-      TPUInfeedOutfeedSessionHook implementation and add customized implementatioin
-      to handle infeed outfeed logic. If given class is None, TPU estimator uses default 
-      TPUInfeedOutfeedSessionHook implementation in tpu_estimator.py. If not None, 
-      TPU estimator uses this customized tpu infeed outfeed session hook class rather
-      to override the default one.
+    experimental_feed_hook: This is a class which user can provide to the TPU
+      estimator to override the default TPUInfeedOutfeedSessionHook implementation
+      and add customized implementatioin to handle infeed outfeed logic. If
+      given class is None, TPU estimator uses default TPUInfeedOutfeedSessionHook
+      implementation in tpu_estimator.py. If not None, TPU estimator uses this
+      customized tpu infeed outfeed session hook class rather to override the
+      default one.
 
   Raises:
       ValueError: If `num_cores_per_replica` is not 1, 2, 4, 8, ..., 128.
@@ -152,7 +152,7 @@ class TPUConfig(
               eval_training_input_configuration=InputPipelineConfig.PER_HOST_V1,
               experimental_host_call_every_n_steps=1,
               experimental_allow_per_host_v2_parallel_get_next=False,
-              experimental_customized_tpu_infeed_outfeed_session_hook_class=None):
+              experimental_feed_hook=None):
 
     # Check iterations_per_loop.
     util_lib.parse_iterations_per_loop(iterations_per_loop)
@@ -217,8 +217,8 @@ class TPUConfig(
             experimental_host_call_every_n_steps),
         experimental_allow_per_host_v2_parallel_get_next=(
             experimental_allow_per_host_v2_parallel_get_next),
-        experimental_customized_tpu_infeed_outfeed_session_hook_class=(
-            experimental_customized_tpu_infeed_outfeed_session_hook_class)
+        experimental_feed_hook=(
+            experimental_feed_hook)
     )
 
 
