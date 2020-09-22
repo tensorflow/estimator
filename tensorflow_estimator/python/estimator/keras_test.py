@@ -28,7 +28,6 @@ import tensorflow as tf
 from tensorflow.core.protobuf import config_pb2
 from tensorflow.python import keras
 from tensorflow.python.framework import test_util
-from tensorflow.python.keras import optimizers as optimizer_v1
 from tensorflow.python.keras import testing_utils
 from tensorflow.python.keras.layers import recurrent_v2 as rnn_v2
 from tensorflow.python.keras.optimizer_v2 import gradient_descent as optimizer_v2
@@ -928,13 +927,9 @@ class TestKerasEstimator(tf.test.TestCase, parameterized.TestCase):
     keras_model, (_, _), (_, _), _, _ = get_resource_for_simple_model()
     keras_model.set_weights(weights)
 
-    if tf.executing_eagerly():
-      sgd_optimizer = optimizer_v2.SGD(lr=0.0001, momentum=0.9)
-    else:
-      sgd_optimizer = optimizer_v1.SGD(lr=0.0001, momentum=0.9)
     keras_model.compile(
         loss='categorical_crossentropy',
-        optimizer=sgd_optimizer,
+        optimizer='sgd',
         metrics=['mse', keras.metrics.CategoricalAccuracy()])
     keras_lib.model_to_estimator(keras_model=keras_model, config=self._config)
 

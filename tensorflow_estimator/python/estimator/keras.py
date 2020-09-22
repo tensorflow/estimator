@@ -24,7 +24,6 @@ import tensorflow as tf
 from tensorflow.python.framework import ops
 from tensorflow.python.keras import backend as K
 from tensorflow.python.keras import models
-from tensorflow.python.keras.engine import training_utils
 from tensorflow.python.training.tracking import graph_view
 from tensorflow.python.training.tracking import util as trackable_util
 from tensorflow_estimator.python.estimator import estimator as estimator_lib
@@ -34,6 +33,10 @@ from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 
 _DEFAULT_SERVING_KEY = tf.saved_model.DEFAULT_SERVING_SIGNATURE_DEF_KEY
 
+try:
+  from tensorflow.python.keras.engine import training_utils_v1 as training_utils  # pylint:disable=g-import-not-at-top
+except ImportError:
+  from tensorflow.python.keras.engine import training_utils  # pylint:disable=g-import-not-at-top
 
 class FormattedKeyError(KeyError):
   """KeyError with formatted error message.
