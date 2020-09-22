@@ -1093,6 +1093,8 @@ class EstimatorTrainTest(tf.test.TestCase):
       self.assertEqual(200, mock_sess.call_args[1]['log_step_count_steps'])
 
   def test_hooks_with_distributed_collective_ops(self):
+    if tf.executing_eagerly():
+      self.skipTest('n/a: legacy graph only')
     tf_config = json.dumps({
         'cluster': {
             run_config.TaskType.WORKER: ['', ''],
