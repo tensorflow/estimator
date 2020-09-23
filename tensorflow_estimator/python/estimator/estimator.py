@@ -1366,7 +1366,8 @@ class Estimator(object):
         save_summaries_steps=self._config.save_summary_steps,
         config=self._session_config,
         max_wait_secs=self._config.session_creation_timeout_secs,
-        log_step_count_steps=self._config.log_step_count_steps) as mon_sess:
+        log_step_count_steps=self._config.log_step_count_steps,
+        save_graph_def=self._config.checkpoint_save_graph_def) as mon_sess:
       loss = None
       any_step_done = False
       while not mon_sess.should_stop():
@@ -1439,7 +1440,8 @@ class Estimator(object):
                 self._model_dir,
                 save_secs=self._config.save_checkpoints_secs,
                 save_steps=self._config.save_checkpoints_steps,
-                scaffold=estimator_spec.scaffold)
+                scaffold=estimator_spec.scaffold,
+                save_graph_def=self._config.checkpoint_save_graph_def)
         ]
         saver_hooks = [chief_hooks[0]]
     if saving_listeners:
@@ -1504,7 +1506,8 @@ class Estimator(object):
         save_summaries_steps=save_summary_steps,
         config=self._session_config,
         max_wait_secs=self._config.session_creation_timeout_secs,
-        log_step_count_steps=log_step_count_steps) as mon_sess:
+        log_step_count_steps=log_step_count_steps,
+        save_graph_def=self._config.checkpoint_save_graph_def) as mon_sess:
       loss = None
       any_step_done = False
       while not mon_sess.should_stop():

@@ -36,22 +36,13 @@ _VALID_DEVICE_FN_ARGS = set(['op'])
 
 # A list of the property names in RunConfig that the user is allowed to change.
 _DEFAULT_REPLACEABLE_LIST = [
-    'model_dir',
-    'tf_random_seed',
-    'save_summary_steps',
-    'save_checkpoints_steps',
-    'save_checkpoints_secs',
-    'session_config',
-    'keep_checkpoint_max',
-    'keep_checkpoint_every_n_hours',
-    'log_step_count_steps',
-    'train_distribute',
-    'device_fn',
-    'protocol',
-    'eval_distribute',
-    'experimental_distribute',
-    'experimental_max_worker_delay_secs',
-    'session_creation_timeout_secs',
+    'model_dir', 'tf_random_seed', 'save_summary_steps',
+    'save_checkpoints_steps', 'save_checkpoints_secs', 'session_config',
+    'keep_checkpoint_max', 'keep_checkpoint_every_n_hours',
+    'log_step_count_steps', 'train_distribute', 'device_fn', 'protocol',
+    'eval_distribute', 'experimental_distribute',
+    'experimental_max_worker_delay_secs', 'session_creation_timeout_secs',
+    'checkpoint_save_graph_def'
 ]
 
 _SAVE_CKPT_ERR = (
@@ -370,7 +361,8 @@ class RunConfig(object):
                eval_distribute=None,
                experimental_distribute=None,
                experimental_max_worker_delay_secs=None,
-               session_creation_timeout_secs=7200):
+               session_creation_timeout_secs=7200,
+               checkpoint_save_graph_def=True):
     """Constructs a RunConfig.
 
     All distributed training related properties `cluster_spec`, `is_chief`,
@@ -529,6 +521,10 @@ class RunConfig(object):
         with MonitoredTrainingSession. Defaults to 7200 seconds, but users may
         want to set a lower value to detect problems with variable / session
         (re)-initialization more quickly.
+      checkpoint_save_graph_def: Whether to save the GraphDef and MetaGraphDef
+        to `checkpoint_dir`. The GraphDef is saved after the session is created
+        as `graph.pbtxt`. MetaGraphDefs are saved out for every checkpoint as
+        `model.ckpt-*.meta`.
 
     Raises:
       ValueError: If both `save_checkpoints_steps` and `save_checkpoints_secs`
@@ -571,7 +567,8 @@ class RunConfig(object):
         eval_distribute=eval_distribute,
         experimental_distribute=experimental_distribute,
         experimental_max_worker_delay_secs=experimental_max_worker_delay_secs,
-        session_creation_timeout_secs=session_creation_timeout_secs)
+        session_creation_timeout_secs=session_creation_timeout_secs,
+        checkpoint_save_graph_def=checkpoint_save_graph_def)
 
     # TODO(frankchn,priyag): Eventually use distributed coordinator for TPUs.
     if ((train_distribute and
@@ -829,6 +826,10 @@ class RunConfig(object):
   @property
   def save_checkpoints_steps(self):
     return self._save_checkpoints_steps
+
+  @property
+  def checkpoint_save_graph_def(self):
+    return self._checkpoint_save_graph_def
 
   @property
   def keep_checkpoint_max(self):

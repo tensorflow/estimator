@@ -3337,7 +3337,8 @@ class TPUEstimator(estimator_lib.Estimator):
                 self.model_dir,
                 save_secs=self._config.save_checkpoints_secs,
                 save_steps=self._config.save_checkpoints_steps,
-                scaffold=scaffold)
+                scaffold=scaffold,
+                save_graph_def=self._config.checkpoint_save_graph_def)
             if self._iterations_per_training_loop.unit == 'count':
               checkpoint_hook._set_steps_per_run(  # pylint: disable=protected-access
                   self._iterations_per_training_loop.value)
@@ -3350,6 +3351,8 @@ class TPUEstimator(estimator_lib.Estimator):
               checkpoint_hook._set_steps_per_run(  # pylint: disable=protected-access
                   100000)
             chief_hooks.append(checkpoint_hook)
+          else:
+            tf.compat.v1.logging.info('Bypassing TPUEstimator hook')
 
           tf.compat.v1.summary.scalar(model_fn_lib.LOSS_METRIC_KEY, loss)
           with tf.control_dependencies([loss]):

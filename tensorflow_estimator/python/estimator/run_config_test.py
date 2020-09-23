@@ -89,6 +89,7 @@ class RunConfigTest(tf.test.TestCase):
     self.assertIsNone(config.device_fn)
     self.assertIsNone(config.experimental_max_worker_delay_secs)
     self.assertEqual(7200, config.session_creation_timeout_secs)
+    self.assertTrue(config.checkpoint_save_graph_def)
 
   def test_model_dir(self):
     empty_config = run_config_lib.RunConfig()
@@ -109,7 +110,8 @@ class RunConfigTest(tf.test.TestCase):
         keep_checkpoint_max=16,
         keep_checkpoint_every_n_hours=17,
         device_fn=device_fn,
-        session_creation_timeout_secs=18)
+        session_creation_timeout_secs=18,
+        checkpoint_save_graph_def=False)
     self.assertEqual(11, config.tf_random_seed)
     self.assertEqual(12, config.save_summary_steps)
     self.assertEqual(14, config.save_checkpoints_secs)
@@ -118,6 +120,7 @@ class RunConfigTest(tf.test.TestCase):
     self.assertEqual(17, config.keep_checkpoint_every_n_hours)
     self.assertEqual(device_fn, config.device_fn)
     self.assertEqual(18, config.session_creation_timeout_secs)
+    self.assertFalse(config.checkpoint_save_graph_def)
 
   def test_replace_none_value(self):
     config = run_config_lib.RunConfig().replace(
