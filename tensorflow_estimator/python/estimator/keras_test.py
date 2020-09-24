@@ -30,7 +30,6 @@ from tensorflow.python import keras
 from tensorflow.python.framework import test_util
 from tensorflow.python.keras import testing_utils
 from tensorflow.python.keras.layers import recurrent_v2 as rnn_v2
-from tensorflow.python.keras.optimizer_v2 import gradient_descent as optimizer_v2
 from tensorflow.python.keras.utils import np_utils
 from tensorflow.python.ops.parsing_ops import gen_parsing_ops
 from tensorflow.python.saved_model import utils_impl as saved_model_utils
