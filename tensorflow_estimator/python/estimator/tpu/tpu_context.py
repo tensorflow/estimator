@@ -403,6 +403,10 @@ class _InternalTPUContext(object):
             .experimental_allow_per_host_v2_parallel_get_next)
 
   @property
+  def feed_hook(self):
+    return (self._config.tpu_config.experimental_feed_hook)
+
+  @property
   def model_parallelism_enabled(self):
     return self._model_parallelism_enabled
 

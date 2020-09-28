@@ -1813,6 +1813,12 @@ class _ModelFnWrapper(object):
                 scaled_gradients, tf.compat.v1.train.get_global_step())
         ]
 
+      stopping_signals = None
+      user_provided_stopping_signals_name = None
+      if self._ctx.feed_hook is not None:
+        stopping_signals, user_provided_stopping_signals_name = \
+          self._ctx.feed_hook.get_stopping_signals_and_name(features)
+
       # We must run train_op to update the variables prior to running the
       # outfeed.
       with tf.control_dependencies([train_op] + apply_sparse_grads):
@@ -1822,6 +1828,12 @@ class _ModelFnWrapper(object):
         if (isinstance(estimator_spec, model_fn_lib._TPUEstimatorSpec)  # pylint: disable=protected-access
             and estimator_spec.host_call is not None):
           host_call_fn, host_call_args = estimator_spec.host_call
+
+        if stopping_signals is not None:
+          identity_fn = lambda **kwargs: kwargs
+          tracer_host_call[user_provided_stopping_signals_name] = [
+              identity_fn, stopping_signals
+          ]
 
         if host_call_fn:
           # Ignore dummy hostcalls (no arguments)
@@ -3293,8 +3305,16 @@ class TPUEstimator(estimator_lib.Estimator):
           with tf.control_dependencies([loss]):
             global_step = tf.identity(tf.compat.v1.train.get_global_step())
           hooks = input_hooks + shutdown_hooks
+
+          if ctx.feed_hook is not None:
+            tf.compat.v1.logging.info(
+                'Use user implemented tpu infeed outfeed session hook class.')
+            infeed_outfeed_session_hook_class = ctx.feed_hook
+          else:
+            infeed_outfeed_session_hook_class = TPUInfeedOutfeedSessionHook
+
           hooks.extend([
-              TPUInfeedOutfeedSessionHook(
+              infeed_outfeed_session_hook_class(
                   ctx,
                   enqueue_ops,
                   host_ops,
