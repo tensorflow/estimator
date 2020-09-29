@@ -1347,9 +1347,7 @@ def _bt_model_fn(features,
                 gradients, logits, name='Hessians')[0]
           else:
             # TODO(crawles): support diagonal hessian.
-            hessians = tf.reshape(
-                parallel_for_gradients.batch_jacobian(gradients, logits),
-                [-1, logits_dimension * logits_dimension])
+            hessians = _compute_full_hessian(gradients, logits)
         # TODO(youngheek): perhaps storage could be optimized by storing stats
         # with the dimension max_splits_per_layer, instead of max_splits (for
         # the entire tree).
@@ -1477,6 +1475,33 @@ def per_example_maxent_loss(labels, weights, logits, num_classes, eps=1e-15):
     return unweighted_loss, tf.no_op()
   else:
     return unweighted_loss * weights, tf.no_op()
+
+
+def _compute_full_hessian(grads, logits):
+  """Computes hessians for full-hessian multiclass strategy."""
+  logits_dimension = tf.shape(logits)[1]
+  gradients_list = tf.compat.v1.unstack(
+      grads, num=logits_dimension, axis=1)
+  hessian_rows = []
+
+  for row in range(logits_dimension):
+    # If current row is i, K is number of classes,each row returns a tensor of
+    # size batch_size x K representing for each example dx_i dx_1, dx_i dx_2
+    # etc dx_i dx_K
+    hessian_row = tf.compat.v1.gradients(
+        gradients_list[row],
+        logits,
+        name='Hessian_%d' % row,
+        colocate_gradients_with_ops=False,
+        gate_gradients=0,
+        aggregation_method=None)
+
+    # hessian_row is of dimension 1, batch_size, K, => trim first dimension
+    # to get batch_size x K
+    hessian_row = tf.compat.v1.squeeze(tf.compat.v1.unstack(hessian_row), [0])
+    hessian_rows.append(hessian_row)
+  stacked = tf.compat.v1.stack(hessian_rows, axis=1)
+  return tf.compat.v1.reshape(stacked, (-1, logits_dimension**2))
 
 
 def _multiclass_head(

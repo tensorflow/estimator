@@ -30,7 +30,6 @@ from tensorflow.python.feature_column import feature_column as feature_column_ol
 from tensorflow.python.feature_column import feature_column_lib as feature_column
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import test_util
-from tensorflow.python.framework import test_util
 from tensorflow.python.ops import boosted_trees_ops
 from tensorflow.python.ops import control_flow_util
 from tensorflow.python.ops import gen_boosted_trees_ops
@@ -3366,14 +3365,12 @@ class ModelFnTests(tf.test.TestCase):
     tf.compat.v1.reset_default_graph()
     expected_first, expected_second, expected_third = (
         self._get_expected_ensembles_for_classification())
-    with self.cached_session() as sess:
-      # Train with train_in_memory mode.
-      with sess.graph.as_default():
-        train_op, ensemble_serialized = self._get_train_op_and_ensemble(
-            boosted_trees._create_classification_head(n_classes=2),
-            run_config.RunConfig(),
-            is_classification=True,
-            train_in_memory=True)
+    with ops.Graph().as_default(), self.cached_session() as sess:
+      train_op, ensemble_serialized = self._get_train_op_and_ensemble(
+          boosted_trees._create_classification_head(n_classes=2),
+          run_config.RunConfig(),
+          is_classification=True,
+          train_in_memory=True)
       _, serialized = sess.run([train_op, ensemble_serialized])
       # Validate the trained ensemble.
       ensemble_proto = boosted_trees_pb2.TreeEnsemble()
@@ -3399,17 +3396,15 @@ class ModelFnTests(tf.test.TestCase):
     expected_buckets = [[-2.001, -2.0001, -1.999, 1., 12.5],
                         [-3., 0., 0.4995, 0.5, 2.],
                         [-100., 3., 20., 50., 102.75]]
-    with self.cached_session() as sess:
-      # Train with train_in_memory mode.
-      with sess.graph.as_default():
-        train_op, ensemble_serialized, buckets = (
-            self._get_train_op_and_ensemble_and_boundaries(
-                boosted_trees._create_classification_head(n_classes=2),
-                run_config.RunConfig(),
-                is_classification=True,
-                train_in_memory=False,
-                # We are dealing with numeric values that will be quantized.
-                use_numeric_columns=True))
+    with ops.Graph().as_default(), self.cached_session() as sess:
+      train_op, ensemble_serialized, buckets = (
+          self._get_train_op_and_ensemble_and_boundaries(
+              boosted_trees._create_classification_head(n_classes=2),
+              run_config.RunConfig(),
+              is_classification=True,
+              train_in_memory=False,
+              # We are dealing with numeric values that will be quantized.
+              use_numeric_columns=True))
       _, serialized, evaluated_buckets = sess.run(
           [train_op, ensemble_serialized, buckets])
       # First an ensemble didn't change
@@ -3441,17 +3436,15 @@ class ModelFnTests(tf.test.TestCase):
     expected_buckets = [[-2.001, -2.0001, -1.999, 1., 12.5],
                         [-3., 0., 0.4995, 0.5, 2.],
                         [-100., 3., 20., 50., 102.75]]
-    with self.cached_session() as sess:
-      # Train with train_in_memory mode.
-      with sess.graph.as_default():
-        train_op, ensemble_serialized, buckets = (
-            self._get_train_op_and_ensemble_and_boundaries(
-                boosted_trees._create_classification_head(n_classes=2),
-                run_config.RunConfig(),
-                is_classification=True,
-                train_in_memory=True,
-                # We are dealing with numeric values that will be quantized.
-                use_numeric_columns=True))
+    with ops.Graph().as_default(), self.cached_session() as sess:
+      train_op, ensemble_serialized, buckets = (
+          self._get_train_op_and_ensemble_and_boundaries(
+              boosted_trees._create_classification_head(n_classes=2),
+              run_config.RunConfig(),
+              is_classification=True,
+              train_in_memory=True,
+              # We are dealing with numeric values that will be quantized.
+              use_numeric_columns=True))
       _, serialized, evaluated_buckets = sess.run(
           [train_op, ensemble_serialized, buckets])
       # First an ensemble didn't change
@@ -3483,14 +3476,13 @@ class ModelFnTests(tf.test.TestCase):
     expected_first, expected_second, expected_third, expected_forth = (
         self._get_expected_ensembles_for_classification_with_bias())
 
-    with self.cached_session() as sess:
-      with sess.graph.as_default():
-        train_op, ensemble_serialized = self._get_train_op_and_ensemble(
-            boosted_trees._create_classification_head(n_classes=2),
-            run_config.RunConfig(),
-            is_classification=True,
-            train_in_memory=True,
-            center_bias=True)
+    with ops.Graph().as_default(), self.cached_session() as sess:
+      train_op, ensemble_serialized = self._get_train_op_and_ensemble(
+          boosted_trees._create_classification_head(n_classes=2),
+          run_config.RunConfig(),
+          is_classification=True,
+          train_in_memory=True,
+          center_bias=True)
 
       # 4 iterations to center bias.
       for _ in range(4):
@@ -3523,14 +3515,12 @@ class ModelFnTests(tf.test.TestCase):
     tf.compat.v1.reset_default_graph()
     expected_first, expected_second, expected_third = (
         self._get_expected_ensembles_for_classification())
-    with self.cached_session() as sess:
-      # Train without train_in_memory mode.
-      with sess.graph.as_default():
-        train_op, ensemble_serialized = self._get_train_op_and_ensemble(
-            boosted_trees._create_classification_head(n_classes=2),
-            run_config.RunConfig(),
-            is_classification=True,
-            train_in_memory=False)
+    with ops.Graph().as_default(), self.cached_session() as sess:
+      train_op, ensemble_serialized = self._get_train_op_and_ensemble(
+          boosted_trees._create_classification_head(n_classes=2),
+          run_config.RunConfig(),
+          is_classification=True,
+          train_in_memory=False)
       _, serialized = sess.run([train_op, ensemble_serialized])
       # Validate the trained ensemble.
       ensemble_proto = boosted_trees_pb2.TreeEnsemble()
@@ -3556,14 +3546,13 @@ class ModelFnTests(tf.test.TestCase):
     expected_first, expected_second, expected_third, expected_forth = (
         self._get_expected_ensembles_for_classification_with_bias())
 
-    with self.cached_session() as sess:
-      with sess.graph.as_default():
-        train_op, ensemble_serialized = self._get_train_op_and_ensemble(
-            boosted_trees._create_classification_head(n_classes=2),
-            run_config.RunConfig(),
-            is_classification=True,
-            train_in_memory=False,
-            center_bias=True)
+    with ops.Graph().as_default(), self.cached_session() as sess:
+      train_op, ensemble_serialized = self._get_train_op_and_ensemble(
+          boosted_trees._create_classification_head(n_classes=2),
+          run_config.RunConfig(),
+          is_classification=True,
+          train_in_memory=False,
+          center_bias=True)
       # 4 iterations to center bias.
       for _ in range(4):
         _, serialized = sess.run([train_op, ensemble_serialized])
@@ -3594,14 +3583,12 @@ class ModelFnTests(tf.test.TestCase):
     tf.compat.v1.reset_default_graph()
     expected_first, expected_second, expected_third = (
         self._get_expected_ensembles_for_regression())
-    with self.cached_session() as sess:
-      # Train with train_in_memory mode.
-      with sess.graph.as_default():
-        train_op, ensemble_serialized = self._get_train_op_and_ensemble(
-            boosted_trees._create_regression_head(label_dimension=1),
-            run_config.RunConfig(),
-            is_classification=False,
-            train_in_memory=True)
+    with ops.Graph().as_default(), self.cached_session() as sess:
+      train_op, ensemble_serialized = self._get_train_op_and_ensemble(
+          boosted_trees._create_regression_head(label_dimension=1),
+          run_config.RunConfig(),
+          is_classification=False,
+          train_in_memory=True)
       _, serialized = sess.run([train_op, ensemble_serialized])
       # Validate the trained ensemble.
       ensemble_proto = boosted_trees_pb2.TreeEnsemble()
@@ -3624,15 +3611,13 @@ class ModelFnTests(tf.test.TestCase):
     tf.compat.v1.reset_default_graph()
     expected_first, expected_second, expected_third, expected_forth = (
         self._get_expected_ensembles_for_regression_with_bias())
-    with self.cached_session() as sess:
-      # Train with train_in_memory mode.
-      with sess.graph.as_default():
-        train_op, ensemble_serialized = self._get_train_op_and_ensemble(
-            boosted_trees._create_regression_head(label_dimension=1),
-            run_config.RunConfig(),
-            is_classification=False,
-            train_in_memory=True,
-            center_bias=True)
+    with ops.Graph().as_default(), self.cached_session() as sess:
+      train_op, ensemble_serialized = self._get_train_op_and_ensemble(
+          boosted_trees._create_regression_head(label_dimension=1),
+          run_config.RunConfig(),
+          is_classification=False,
+          train_in_memory=True,
+          center_bias=True)
       # 3 iterations to center bias.
       for _ in range(3):
         _, serialized = sess.run([train_op, ensemble_serialized])
@@ -3664,14 +3649,12 @@ class ModelFnTests(tf.test.TestCase):
     tf.compat.v1.reset_default_graph()
     expected_first, expected_second, expected_third = (
         self._get_expected_ensembles_for_regression())
-    with self.cached_session() as sess:
-      # Train without train_in_memory mode.
-      with sess.graph.as_default():
-        train_op, ensemble_serialized = self._get_train_op_and_ensemble(
-            boosted_trees._create_regression_head(label_dimension=1),
-            run_config.RunConfig(),
-            is_classification=False,
-            train_in_memory=False)
+    with ops.Graph().as_default(), self.cached_session() as sess:
+      train_op, ensemble_serialized = self._get_train_op_and_ensemble(
+          boosted_trees._create_regression_head(label_dimension=1),
+          run_config.RunConfig(),
+          is_classification=False,
+          train_in_memory=False)
       _, serialized = sess.run([train_op, ensemble_serialized])
       # Validate the trained ensemble.
       ensemble_proto = boosted_trees_pb2.TreeEnsemble()
@@ -3694,15 +3677,13 @@ class ModelFnTests(tf.test.TestCase):
     tf.compat.v1.reset_default_graph()
     expected_first, expected_second, expected_third, expected_forth = (
         self._get_expected_ensembles_for_regression_with_bias())
-    with self.cached_session() as sess:
-      # Train with train_in_memory mode.
-      with sess.graph.as_default():
-        train_op, ensemble_serialized = self._get_train_op_and_ensemble(
-            boosted_trees._create_regression_head(label_dimension=1),
-            run_config.RunConfig(),
-            is_classification=False,
-            train_in_memory=False,
-            center_bias=True)
+    with ops.Graph().as_default(), self.cached_session() as sess:
+      train_op, ensemble_serialized = self._get_train_op_and_ensemble(
+          boosted_trees._create_regression_head(label_dimension=1),
+          run_config.RunConfig(),
+          is_classification=False,
+          train_in_memory=False,
+          center_bias=True)
       # 3 iterations to center the bias (because we are using regularization).
       for _ in range(3):
         _, serialized = sess.run([train_op, ensemble_serialized])
