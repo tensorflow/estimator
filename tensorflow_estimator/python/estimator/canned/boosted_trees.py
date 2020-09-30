@@ -1347,7 +1347,7 @@ def _bt_model_fn(features,
                 gradients, logits, name='Hessians')[0]
           else:
             # TODO(crawles): support diagonal hessian.
-            hessians = _compute_full_hessian(gradients, logits)
+            hessians = _compute_full_hessian(gradients, logits, logits_dimension)
         # TODO(youngheek): perhaps storage could be optimized by storing stats
         # with the dimension max_splits_per_layer, instead of max_splits (for
         # the entire tree).
@@ -1477,9 +1477,8 @@ def per_example_maxent_loss(labels, weights, logits, num_classes, eps=1e-15):
     return unweighted_loss * weights, tf.no_op()
 
 
-def _compute_full_hessian(grads, logits):
+def _compute_full_hessian(grads, logits, logits_dimension):
   """Computes hessians for full-hessian multiclass strategy."""
-  logits_dimension = tf.shape(logits)[1]
   gradients_list = tf.compat.v1.unstack(
       grads, num=logits_dimension, axis=1)
   hessian_rows = []
