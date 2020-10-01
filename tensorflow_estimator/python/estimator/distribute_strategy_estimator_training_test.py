@@ -255,7 +255,7 @@ class DistributeCoordinatorIntegrationTest(
           num_gpus_per_worker=context.num_gpus(),
           cross_device_ops=self._make_cross_device_ops(
               num_gpus_per_worker=context.num_gpus()))
-    elif strategy_cls == tf.distribute.experimental.ParameterServerStrategy:
+    elif strategy_cls == tf.compat.v1.distribute.experimental.ParameterServerStrategy:
       assert cluster_spec is not None
       cluster_resolver = SimpleClusterResolver(
           cluster_spec=multi_worker_util.normalize_cluster_spec(cluster_spec),
@@ -274,7 +274,7 @@ class DistributeCoordinatorIntegrationTest(
           train_distribute_cls=[
               tf.distribute.experimental.MultiWorkerMirroredStrategy,
               tf.distribute.MirroredStrategy,
-              tf.distribute.experimental.ParameterServerStrategy
+              tf.compat.v1.distribute.experimental.ParameterServerStrategy
           ],
           eval_distribute_cls=[
               None,
@@ -288,7 +288,7 @@ class DistributeCoordinatorIntegrationTest(
 
     cluster_spec = copy.deepcopy(self._cluster_spec)
     if (train_distribute_cls !=
-        tf.distribute.experimental.ParameterServerStrategy):
+        tf.compat.v1.distribute.experimental.ParameterServerStrategy):
       cluster_spec.pop("ps", None)
 
     train_distribute = self._get_strategy_object(
@@ -386,7 +386,7 @@ class DistributeCoordinatorIntegrationTest(
           mode=["graph"],
           train_distribute_cls=[
               tf.distribute.experimental.MultiWorkerMirroredStrategy,
-              tf.distribute.experimental.ParameterServerStrategy,
+              tf.compat.v1.distribute.experimental.ParameterServerStrategy,
           ],
           eval_distribute_cls=[
               None,
@@ -402,7 +402,7 @@ class DistributeCoordinatorIntegrationTest(
       self.skipTest("`CollectiveAllReduceStrategy` needs at least two towers.")
 
     if (train_distribute_cls ==
-        tf.distribute.experimental.ParameterServerStrategy):
+        tf.compat.v1.distribute.experimental.ParameterServerStrategy):
       cluster_spec = multi_worker_test_base.create_cluster_spec(
           num_workers=3, num_ps=2, has_eval=True)
       # 3 workers, 2 ps and 1 evaluator.
