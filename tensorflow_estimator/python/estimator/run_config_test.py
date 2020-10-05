@@ -22,7 +22,9 @@ import json
 import tensorflow as tf
 from tensorflow.core.protobuf import config_pb2
 from tensorflow.core.protobuf import rewriter_config_pb2
+from tensorflow.python.distribute import parameter_server_strategy_v2
 from tensorflow_estimator.python.estimator import run_config as run_config_lib
+
 
 _TEST_DIR = 'test_dir'
 _MASTER = 'master_'
@@ -256,6 +258,23 @@ class RunConfigTest(tf.test.TestCase):
     with self.assertRaisesRegexp(ValueError,
                                  _EXPERIMENTAL_MAX_WORKER_DELAY_SECS_ERR):
       run_config_lib.RunConfig(experimental_max_worker_delay_secs='5')
+
+  def test_incompatible_train_strategy(self):
+    with self.assertRaisesRegex(
+        ValueError, 'Please use `tf.compat.v1.distribut'
+        'e.experimental.ParameterServerStrategy`'):
+      run_config_lib.RunConfig(
+          train_distribute=parameter_server_strategy_v2
+          .ParameterServerStrategyV2.__new__(
+              parameter_server_strategy_v2.ParameterServerStrategyV2))
+
+  def test_incompatible_eval_strategy(self):
+    with self.assertRaisesRegex(
+        ValueError, 'Please use `tf.compat.v1.distribut'
+        'e.experimental.ParameterServerStrategy`'):
+      run_config_lib.RunConfig(
+          eval_distribute=parameter_server_strategy_v2.ParameterServerStrategyV2
+          .__new__(parameter_server_strategy_v2.ParameterServerStrategyV2))
 
 
 class RunConfigDistributedSettingTest(tf.test.TestCase):

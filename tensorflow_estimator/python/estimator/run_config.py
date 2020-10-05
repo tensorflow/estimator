@@ -27,9 +27,11 @@ import tensorflow as tf
 from tensorflow.core.protobuf import config_pb2
 from tensorflow.core.protobuf import rewriter_config_pb2
 from tensorflow.python.distribute import estimator_training as distribute_coordinator_training
+from tensorflow.python.distribute import parameter_server_strategy_v2
 from tensorflow.python.util import compat_internal
 from tensorflow.python.util import function_utils
 from tensorflow.python.util.tf_export import estimator_export
+
 
 _USE_DEFAULT = object()
 _VALID_DEVICE_FN_ARGS = set(['op'])
@@ -542,6 +544,8 @@ class RunConfig(object):
           save_checkpoints_secs is not None):
       raise ValueError(_SAVE_CKPT_ERR)
 
+    self._verify_strategy_compatibility(train_distribute, eval_distribute)
+
     tf_config = json.loads(os.environ.get(_TF_CONFIG_ENV, '{}'))
     if tf_config:
       tf.compat.v1.logging.info('TF_CONFIG environment variable: %s', tf_config)
@@ -582,6 +586,15 @@ class RunConfig(object):
     else:
       self._init_distributed_setting_from_environment_var(tf_config)
       self._maybe_overwrite_session_config_for_distributed_training()
+
+  def _verify_strategy_compatibility(self, train_distribute, eval_distribute):
+    if ((train_distribute is not None and train_distribute.__class__ ==
+         parameter_server_strategy_v2.ParameterServerStrategyV2) or
+        (eval_distribute is not None and eval_distribute.__class__ ==
+         parameter_server_strategy_v2.ParameterServerStrategyV2)):
+      raise ValueError('Please use `tf.compat.v1.distribute.experimental.Param'
+                       'eterServerStrategy` for parameter server strategy with '
+                       'estimator.')
 
   def _maybe_overwrite_session_config_for_distributed_training(self):
     """Overwrites the session_config for distributed training.
