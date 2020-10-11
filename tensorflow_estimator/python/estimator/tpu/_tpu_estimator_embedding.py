@@ -32,6 +32,8 @@ from tensorflow.python.tpu import tpu_embedding
 from tensorflow.python.tpu.tpu_embedding import AdagradParameters
 from tensorflow.python.tpu.tpu_embedding import AdamParameters
 from tensorflow.python.tpu.tpu_embedding import FtrlParameters
+from tensorflow.python.tpu.tpu_embedding import MomentumParameters
+from tensorflow.python.tpu.tpu_embedding import RMSPropParameters
 from tensorflow.python.tpu.tpu_embedding import StochasticGradientDescentParameters
 from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
@@ -48,8 +50,15 @@ _EMBEDDING_COLUMN_CLASSES = (core_fc._EmbeddingColumn,
                              core_fc_lib.EmbeddingColumn,
                              core_fc._SharedEmbeddingColumn)
 _SUPPORTED_FEATURE_COLUMNS = (core_fc._NumericColumn, core_fc_lib.NumericColumn)
-_SUPPORTED_OPTIMIZERS = (AdagradParameters, AdamParameters, FtrlParameters,
-                         StochasticGradientDescentParameters)
+
+_SUPPORTED_OPTIMIZERS = (
+    AdagradParameters,
+    AdamParameters,
+    FtrlParameters,
+    StochasticGradientDescentParameters,
+    MomentumParameters,
+    RMSPropParameters,
+)
 
 # pylint: enable=protected-access
 
@@ -89,6 +98,14 @@ def _get_slot_variable_names(scope_name, var_name, optimization_parameters):
     return tpu_embedding.FtrlSlotVariableName(
         '{}{}/Ftrl'.format(scope_name, var_name),  # accumulator
         '{}{}/Ftrl_1'.format(scope_name, var_name))  # linear
+  elif isinstance(optimization_parameters, MomentumParameters):
+    return tpu_embedding.MomentumSlotVariableName('{}{}/Momentum'.format(
+        scope_name, var_name))
+  elif isinstance(optimization_parameters, RMSPropParameters):
+    return tpu_embedding.RMSPropSlotVariableNames(
+        ms='{}{}/RMSProp/ms'.format(scope_name, var_name),
+        mom='{}{}/RMSProp/mom'.format(scope_name, var_name),
+    )
   elif isinstance(
       optimization_parameters,
       tf.compat.v1.tpu.experimental.StochasticGradientDescentParameters):
