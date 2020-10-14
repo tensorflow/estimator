@@ -226,7 +226,10 @@ py_test(
     python_version = "PY3",
     shard_count = 4,
     srcs_version = "PY2AND3",
-    tags = ["notsan"],
+    tags = [
+        "notap",  # TODO(b/170896944): flaky, broken
+        "notsan",
+    ],
     deps = [
         ":dnn",
         ":estimator",
