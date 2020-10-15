@@ -486,6 +486,9 @@ py_test(
     python_version = "PY3",
     shard_count = 8,
     srcs_version = "PY2AND3",
+    tags = [
+        "notap",  # TODO(b/170974352): Flaky timeout
+    ],
     deps = [
         ":inputs",
         ":kmeans",
