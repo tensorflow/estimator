@@ -1252,7 +1252,9 @@ class TensorPacker(object):
         dtype = tensor.dtype
         if (len(shape) == 2 and shape[1] is not None and
             shape[1] <= self._small_feature_dim_size):
-          tf.compat.v1.logging.info('Found small feature: %s %s', name, shape)
+          tf.compat.v1.logging.log_first_n(
+              tf.compat.v1.logging.INFO,
+              'Found small feature: %s %s', 1, name, shape)
           if tensor.dtype not in self._small_feature_names:
             self._small_feature_names[dtype] = []
             self._small_feature_sizes[dtype] = []
