@@ -201,7 +201,7 @@ class EmbeddingConfigSpec(
         'optimization_parameters', 'clipping_limit',
         'pipeline_execution_with_tensor_core',
         'experimental_gradient_multiplier_fn', 'feature_to_config_dict',
-        'table_to_config_dict', 'partition_strategy'
+        'table_to_config_dict', 'partition_strategy', 'profile_data_directory'
     ])):
   """Class to keep track of the specification for TPU embeddings.
 
@@ -252,7 +252,8 @@ class EmbeddingConfigSpec(
               experimental_gradient_multiplier_fn=None,
               feature_to_config_dict=None,
               table_to_config_dict=None,
-              partition_strategy='div'):
+              partition_strategy='div',
+              profile_data_directory=None):
     """Creates an `EmbeddingConfigSpec` instance.
 
     Args:
@@ -268,16 +269,31 @@ class EmbeddingConfigSpec(
         `tpu_embedding_configuration.proto` for details.
       experimental_gradient_multiplier_fn: (Optional) A Fn taking global step as
         input returning the current multiplier for all embedding gradients.
-      feature_to_config_dict: A dictionary mapping features names to instances
-        of the class `FeatureConfig`. Either features_columns or the pair of
+      feature_to_config_dict: A dictionary mapping feature names to instances of
+        the class `FeatureConfig`. Either features_columns or the pair of
         `feature_to_config_dict` and `table_to_config_dict` must be specified.
-      table_to_config_dict: A dictionary mapping features names to instances of
+      table_to_config_dict: A dictionary mapping feature names to instances of
         the class `TableConfig`. Either features_columns or the pair of
         `feature_to_config_dict` and `table_to_config_dict` must be specified.
       partition_strategy: A string, determining how tensors are sharded to the
         tpu hosts. See `tf.nn.safe_embedding_lookup_sparse` for more details.
         Allowed value are `"div"` and `"mod"'. If `"mod"` is used, evaluation
         and exporting the model to CPU will not work as expected.
+      profile_data_directory: Directory where embedding lookup statistics are
+        stored. These statistics summarize information about the inputs to the
+        embedding lookup operation, in particular, the average number of
+        embedding IDs per example and how well the embedding IDs are load
+        balanced across the system. The lookup statistics are used during TPU
+        initialization for embedding table partitioning. Collection of lookup
+        statistics is done at runtime by  profiling the embedding inputs: only
+        3% of input samples are profiled to minimize host CPU overhead. Once
+        a suitable number of samples are profiled, the lookup statistics are
+        saved to table-specific files in the profile data directory generally
+        at the end of a TPU training loop. The filename corresponding to each
+        table is obtained by hashing table specific parameters (e.g., table
+        name and number of features) and global configuration parameters (e.g.,
+        sharding strategy and task count). The same profile data directory can
+        be shared among several models to reuse embedding lookup statistics.
 
     Returns:
       An `EmbeddingConfigSpec` instance.
@@ -354,7 +370,8 @@ class EmbeddingConfigSpec(
         experimental_gradient_multiplier_fn=experimental_gradient_multiplier_fn,
         feature_to_config_dict=feature_to_config_dict,
         table_to_config_dict=table_to_config_dict,
-        partition_strategy=partition_strategy)
+        partition_strategy=partition_strategy,
+        profile_data_directory=profile_data_directory)
 
 
 class EmbeddingConfig(object):
@@ -441,6 +458,8 @@ class EmbeddingConfig(object):
         pipeline_execution_with_tensor_core=self._embedding_config_spec
         .pipeline_execution_with_tensor_core,
         partition_strategy=self._partition_strategy,
+        profile_data_directory=self._embedding_config_spec
+        .profile_data_directory,
         master_job_name=master_job_name)
     return tpu_embedding_
 
