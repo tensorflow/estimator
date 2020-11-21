@@ -4323,6 +4323,16 @@ def model_fn_inference_on_tpu(model_fn,
                               params=None,
                               batch_config=None):
   """Convenience wrapper for export_saved_model API v2 for a model_fn.
+  Make sure to set
+  `export_saved_model_api_version=tpu_estimator.ExportSavedModelApiVersion.V2`
+  when initializing TPUEstimator (default API version is V1). This is because
+  1) `tpu.rewrite` (or `tpu.compile`) shouldn't be called in a nested way
+      (otherwise validation will throw error like
+      "NotImplementedError: tpu_shard_context cannot be nested.")
+  2) When using V1 API, Estimator calls `tpu.rewrite` so
+     using `model_fn_inference_on_tpu` will trigger a nested call.
+     When using V2 API, users of Estimator needs to call `tpu.rewrite` (which
+     the wrapper does).
 
   It attempts to execute the entire model function on the TPU for prediction.
   Note that this does not support features which are SparseTensors. If you have
@@ -4482,6 +4492,16 @@ def inference_on_tpu(computation,
                      allowed_batch_sizes=None,
                      max_enqueued_batches=100):
   """Convenient wrapper for export_saved_model API v2 to wrap TPU computation.
+  Make sure to set
+  `export_saved_model_api_version=tpu_estimator.ExportSavedModelApiVersion.V2`
+  when initializing TPUEstimator (default API version is V1). This is because
+  1) `tpu.rewrite` (or `tpu.compile`) shouldn't be called in a nested way
+      (otherwise validation will throw error like
+      "NotImplementedError: tpu_shard_context cannot be nested.")
+  2) When using V1 API, Estimator calls `tpu.rewrite` so
+     using `model_fn_inference_on_tpu` will trigger a nested call.
+     When using V2 API, users of Estimator needs to call `tpu.rewrite` (which
+     the wrapper does).
 
   It puts computation on TPU, add batching around it and round robin computation
   between TPU cores.
