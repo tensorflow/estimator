@@ -752,16 +752,20 @@ class _InternalTPUContext(object):
         raise ValueError(
             'eval batch size {} must be divisible by number of replicas {}'
             .format(self._eval_batch_size, num_replicas))
-      if num_hosts != 1 and not (
-          self.is_input_broadcast_with_iterators()) and not (
-              num_replicas == 1 and self.is_input_per_host_with_iterators()):
+      if (num_hosts != 1 and
+          not self.is_input_broadcast_with_iterators() and
+          not self.is_input_per_host_with_iterators()):
         raise ValueError(
             'TPUEstimator.evaluate is only supported under three conditions: '
             '1. num_hosts=1; 2. BROADCAST mode; '
-            '3. PER_HOST_V2 mode with num_replicas=1. '
+            '3. PER_HOST_V2 mode. '
             'mode: {}; num_hosts: {}; num_replicas=1:{}'.format(
                 self._config.tpu_config.per_host_input_for_training, num_hosts,
                 num_replicas))
+      if num_replicas > 1 and self.is_input_per_host_with_iterators():
+        tf.compat.v1.logging.warn('Running TPUEstimator.evaluate for input mode'
+                                  ' PER_HOST_V2 and num_hosts %d',
+                                  self.num_replicas)
     else:
       assert mode == model_fn_lib.ModeKeys.PREDICT
       if self._predict_batch_size is None:

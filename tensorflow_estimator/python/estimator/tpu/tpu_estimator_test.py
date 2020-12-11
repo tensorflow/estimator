@@ -1839,7 +1839,6 @@ class TPUEstimatorValidationTest(parameterized.TestCase, test.TestCase):
 
   @parameterized.parameters(
       (tpu_config.InputPipelineConfig.PER_HOST_V1, 'evaluate'),
-      (tpu_config.InputPipelineConfig.PER_HOST_V2, 'evaluate'),
       (tpu_config.InputPipelineConfig.PER_HOST_V1, 'predict'),
       (tpu_config.InputPipelineConfig.PER_HOST_V2, 'predict'))
   def test_error_num_hosts_and_replicas_larger_than_1_in_eval_and_predict_mode(
@@ -1876,6 +1875,40 @@ class TPUEstimatorValidationTest(parameterized.TestCase, test.TestCase):
           est.evaluate(_input_fn, steps=1)
         else:
           list(est.predict(_input_fn))
+
+  def test_evaluate_1host_and_replicas_larger_than_1_with_PER_HOST_V2(
+      self):
+    fake_num_cores = 32
+
+    def _input_fn(params):
+      batch_size = params['batch_size']
+      x = np.random.normal(size=[batch_size, 20]).astype(np.float32)
+      return dummy_input_fn_with_dataset(batch_size, repeat=False, x=x)
+
+    with test.mock.patch.object(
+        tpu_system_metadata_lib,
+        '_query_tpu_system_metadata',
+        side_effect=self._query_system):
+
+      run_config = create_run_config(
+          iterations_per_loop=4,
+          num_shards=fake_num_cores // 2,
+          per_host_input_for_training=tpu_config.InputPipelineConfig.PER_HOST_V2
+      )
+
+      est = tpu_estimator.TPUEstimator(
+          model_fn=get_model_fn(),
+          config=run_config,
+          train_batch_size=32,
+          eval_batch_size=32,
+          predict_batch_size=32,
+          use_tpu=True)
+
+      # This exception is ok as we do not have sufficient TPU cores to run the
+      # model.
+      with self.assertRaisesRegex(errors.InvalidArgumentError,
+                                  'there are only 2 cores in the TPU topology'):
+        est.evaluate(_input_fn, steps=1)
 
   @parameterized.parameters(
       (tpu_config.InputPipelineConfig.BROADCAST, 'evaluate'),
