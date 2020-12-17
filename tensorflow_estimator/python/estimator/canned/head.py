@@ -395,8 +395,8 @@ def _get_weights_and_check_match_logits(features,
           key=weight_column, shape=(1,))
     if not isinstance(
         weight_column,
-        (feature_column_lib.NumericColumn, feature_column._NumericColumn)):  # pylint: disable=protected-access
-      raise TypeError('Weight column must be either a string or _NumericColumn.'
+        (feature_column_lib.DenseColumn, feature_column._DenseColumn)):  # pylint: disable=protected-access
+      raise TypeError('Weight column must be either a string or _DenseColumn.'
                       ' Given type: {}.'.format(type(weight_column)))
     weights = weight_column._get_dense_tensor(  # pylint: disable=protected-access
         feature_column._LazyBuilder(features))  # pylint: disable=protected-access
