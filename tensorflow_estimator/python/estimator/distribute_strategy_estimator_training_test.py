@@ -405,13 +405,13 @@ class DistributeCoordinatorIntegrationTest(
         tf.compat.v1.distribute.experimental.ParameterServerStrategy):
       cluster_spec = multi_worker_test_base.create_cluster_spec(
           num_workers=3, num_ps=2, has_eval=True)
-      # 3 workers, 2 ps and 1 evaluator.
-      self._barrier = dc._Barrier(6)
+      # 3 workers, 2 ps.
+      self._barrier = dc._Barrier(5)
     else:
       cluster_spec = multi_worker_test_base.create_cluster_spec(
           num_workers=3, num_ps=0, has_eval=True)
-      # 3 workers and 1 evaluator.
-      self._barrier = dc._Barrier(4)
+      # 3 workers.
+      self._barrier = dc._Barrier(3)
 
     train_distribute = self._get_strategy_object(
         train_distribute_cls, cluster_spec=cluster_spec)
@@ -459,8 +459,8 @@ class DistributeCoordinatorIntegrationTest(
 
     cluster_spec = multi_worker_test_base.create_cluster_spec(
         num_workers=3, num_ps=0, has_eval=True)
-    # 3 workers and 1 evaluator.
-    self._barrier = dc._Barrier(4)
+    # 3 workers.
+    self._barrier = dc._Barrier(3)
     threads = self.run_multiple_tasks_in_threads(self._independent_worker_fn,
                                                  cluster_spec, train_distribute,
                                                  eval_distribute)
