@@ -82,7 +82,26 @@ tpu_py_test(
     disable_experimental = True,
     malloc = "//third_party/tcmalloc:tcmalloc_or_debug",
     shard_count = 2,
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
+    deps = [
+        ":tpu_estimator",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+        "//third_party/py/absl/flags",
+    ],
+)
+
+tpu_py_test(
+    name = "tpu_estimator_evaluation_test",
+    size = "medium",
+    timeout = "long",
+    srcs = ["tpu_estimator_evaluation_test.py"],
+    args = [
+        "--test_num_shards=2",
+    ],
+    disable_experimental = True,
+    malloc = "//third_party/tcmalloc:tcmalloc_or_debug",
+    shard_count = 2,
+    srcs_version = "PY3",
     deps = [
         ":tpu_estimator",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
