@@ -109,6 +109,60 @@ tpu_py_test(
     ],
 )
 
+tpu_py_test(
+    name = "tpu_estimator_export_test",
+    size = "medium",
+    srcs = ["tpu_estimator_export_test.py"],
+    args = [
+        "--test_num_shards=2",
+    ],
+    disable_experimental = True,
+    malloc = "//third_party/tcmalloc:tcmalloc_or_debug",
+    shard_count = 2,
+    srcs_version = "PY3",
+    deps = [
+        ":tpu_estimator",
+        "//tensorflow_estimator/python/estimator:expect_absl_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
+tpu_py_test(
+    name = "tpu_estimator_gradients_test",
+    size = "medium",
+    srcs = [
+        "tpu_estimator_gradients_test.py",
+    ],
+    args = [
+        "--test_num_shards=2",
+        "--xla_jf_conv_full_precision=true",
+    ],
+    # TODO(b/140117863): Fatal error from hardware
+    disable_experimental = True,
+    disable_mlir_bridge = False,
+    malloc = "//third_party/tcmalloc:tcmalloc_or_debug",
+    shard_count = 2,
+    srcs_version = "PY3",
+    deps = [
+        ":tpu_estimator",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
+tpu_py_test(
+    name = "tpu_estimator_input_v2_test",
+    size = "medium",
+    srcs = ["tpu_estimator_input_v2_test.py"],
+    disable_experimental = True,
+    malloc = "//third_party/tcmalloc:tcmalloc_or_debug",
+    srcs_version = "PY3",
+    deps = [
+        ":tpu_estimator",
+        "//tensorflow_estimator/python/estimator:expect_absl_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
 py_test(
     name = "autotuning_iterations_per_loop_test",
     size = "small",
