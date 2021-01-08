@@ -163,6 +163,37 @@ tpu_py_test(
     ],
 )
 
+tpu_py_test(
+    name = "tpu_estimator_integration_test",
+    size = "medium",
+    srcs = ["tpu_estimator_integration_test.py"],
+    args = [
+        "--test_num_shards=2",
+    ],
+    disable_experimental = True,
+    malloc = "//third_party/tcmalloc:tcmalloc_or_debug",
+    srcs_version = "PY3",
+    deps = [
+        ":tpu_estimator",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
+tpu_py_test(
+    name = "tpu_estimator_model_parallelism_test",
+    size = "medium",
+    srcs = ["tpu_estimator_model_parallelism_test.py"],
+    args = [
+    ],
+    disable_experimental = True,
+    malloc = "//third_party/tcmalloc:tcmalloc_or_debug",
+    srcs_version = "PY3",
+    deps = [
+        ":tpu_estimator",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+    ],
+)
+
 py_test(
     name = "autotuning_iterations_per_loop_test",
     size = "small",
