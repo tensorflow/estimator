@@ -91,6 +91,29 @@ tpu_py_test(
 )
 
 tpu_py_test(
+    name = "tpu_estimator_embedding_test",
+    size = "medium",
+    timeout = "long",
+    srcs = [
+        "tpu_estimator_embedding_test.py",
+    ],
+    args = [
+        "--test_num_shards=2",
+    ],
+    # TODO(b/140117863): Hanging, then timeout
+    disable_experimental = True,
+    malloc = "//third_party/tcmalloc:tcmalloc_or_debug",
+    shard_count = 4,
+    srcs_version = "PY3",
+    deps = [
+        ":tpu_estimator",
+        "//tensorflow_estimator/python/estimator:expect_absl_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+        "//third_party/py/absl/flags",
+    ],
+)
+
+tpu_py_test(
     name = "tpu_estimator_evaluation_test",
     size = "medium",
     timeout = "long",
