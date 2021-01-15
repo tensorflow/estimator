@@ -446,8 +446,17 @@ def _summaries(eval_dir):
   if tf.compat.v1.gfile.Exists(eval_dir):
     for event_file in tf.compat.v1.gfile.Glob(
         os.path.join(eval_dir, _EVENT_FILE_GLOB_PATTERN)):
-      for event in tf.compat.v1.train.summary_iterator(event_file):
-        yield event
+      try:
+        for event in tf.compat.v1.train.summary_iterator(event_file):
+          tf.compat.v1.logging.info('Yielding event: %s', event)
+          yield event
+      except tf.errors.DataLossError as e:
+        # Upon DataLossError, we ignore the rest of the file and go to the next
+        # one.
+        tf.compat.v1.logging.warning(
+            'Ignoring data corruption error encountered while reading file: '
+            '%s; original error raised by `tf.train.summary_iterator`: %s',
+            event_file, e)
 
 
 def _get_or_create_stop_var():

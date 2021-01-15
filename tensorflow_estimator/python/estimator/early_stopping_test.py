@@ -22,6 +22,7 @@ import os
 import tempfile
 
 from absl.testing import parameterized
+from absl.testing.absltest import mock
 import tensorflow as tf
 from tensorflow.python.eager import context
 from tensorflow_estimator.python.estimator import early_stopping
@@ -89,6 +90,38 @@ class ReadEvalMetricsTest(tf.test.TestCase):
                 'accuracy': 6
             },
         }, early_stopping.read_eval_metrics(eval_dir))
+
+  def test_data_loss_error_ignored(self):
+    eval_dir = tempfile.mkdtemp()
+    _write_events(
+        eval_dir,
+        [
+            # steps, loss, accuracy
+            (1000, 1, 2),
+            (2000, 3, 4),
+            (3000, 5, 6),
+        ])
+
+    orig_tf_train_summary_iterator = tf.compat.v1.train.summary_iterator
+
+    def _summary_iterator(*args, **kwargs):
+      for event in orig_tf_train_summary_iterator(*args, **kwargs):
+        yield event
+        # Raise an error for one of the files after yielding a summary event.
+        if event.HasField('summary'):
+          raise tf.errors.DataLossError(None, None, 'testing data loss')
+
+    with mock.patch.object(tf.compat.v1.train,
+                           'summary_iterator') as mock_summary_iterator:
+      mock_summary_iterator.side_effect = _summary_iterator
+      eval_results = early_stopping.read_eval_metrics(eval_dir)
+
+    self.assertEqual({
+        1000: {
+            'loss': 1,
+            'accuracy': 2
+        }
+    }, eval_results)
 
   def test_read_eval_metrics_when_no_events(self):
     eval_dir = tempfile.mkdtemp()
