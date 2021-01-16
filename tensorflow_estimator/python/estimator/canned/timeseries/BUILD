@@ -9,7 +9,7 @@ py_library(
     srcs = [
         "feature_keys.py",
     ],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = ["//tensorflow_estimator/python/estimator:expect_tensorflow_installed"],
 )
 
@@ -18,7 +18,7 @@ py_library(
     srcs = [
         "saved_model_utils.py",
     ],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":feature_keys",
         ":head",
@@ -32,7 +32,7 @@ py_library(
     srcs = [
         "model.py",
     ],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":feature_keys",
         ":math_utils",
@@ -45,7 +45,7 @@ py_library(
     srcs = [
         "estimators.py",
     ],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":ar_model",
         ":feature_keys",
@@ -83,7 +83,7 @@ py_library(
     srcs = [
         "head.py",
     ],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":feature_keys",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
@@ -117,7 +117,7 @@ py_library(
     srcs = [
         "model_utils.py",
     ],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":feature_keys",
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
@@ -130,7 +130,7 @@ py_library(
     srcs = [
         "state_management.py",
     ],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":feature_keys",
         ":math_utils",
@@ -144,7 +144,7 @@ py_library(
     srcs = [
         "ar_model.py",
     ],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":feature_keys",
         ":model",
@@ -192,7 +192,7 @@ py_library(
     srcs = [
         "math_utils.py",
     ],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":feature_keys",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",

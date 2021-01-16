@@ -25,7 +25,7 @@ py_library(
         "__init__.py",
         "python/utils/sdca_ops.py",
     ],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":sharded_mutable_dense_hashtable_py",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
@@ -54,7 +54,7 @@ py_test(
 py_library(
     name = "sharded_mutable_dense_hashtable_py",
     srcs = ["python/utils/sharded_mutable_dense_hashtable.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",

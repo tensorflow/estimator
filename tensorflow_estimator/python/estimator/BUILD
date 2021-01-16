@@ -22,7 +22,7 @@ py_library(
     srcs = [
         "estimator_lib.py",
     ],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     visibility = ["//visibility:public"],
     deps = [
         ":base_head",
@@ -69,7 +69,7 @@ py_library(
 py_library(
     name = "exporter",
     srcs = ["exporter.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":gc",
         ":metric_keys",
@@ -96,7 +96,7 @@ py_test(
 py_library(
     name = "extenders",
     srcs = ["extenders.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":estimator",
         ":mode_keys",
@@ -125,7 +125,7 @@ py_test(
 py_library(
     name = "gc",
     srcs = ["gc.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
@@ -148,7 +148,7 @@ py_test(
 py_library(
     name = "hooks",
     srcs = ["hooks/hooks.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
@@ -172,7 +172,7 @@ py_test(
 py_library(
     name = "model_fn",
     srcs = ["model_fn.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":mode_keys",
         "//tensorflow_estimator/python/estimator:expect_six_installed",
@@ -198,7 +198,7 @@ py_test(
 py_library(
     name = "mode_keys",
     srcs = ["mode_keys.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
@@ -208,7 +208,7 @@ py_library(
 py_library(
     name = "training",
     srcs = ["training.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":estimator",
         ":exporter",
@@ -245,7 +245,7 @@ py_test(
 py_library(
     name = "run_config",
     srcs = ["run_config.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         "//tensorflow_estimator/python/estimator:expect_six_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
@@ -269,7 +269,7 @@ py_test(
 py_library(
     name = "baseline",
     srcs = ["canned/baseline.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":estimator",
         ":head",
@@ -399,7 +399,7 @@ py_test(
 py_library(
     name = "boosted_trees",
     srcs = ["canned/boosted_trees.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":boosted_trees_utils",
         ":estimator",
@@ -438,7 +438,7 @@ py_test(
 py_library(
     name = "boosted_trees_utils",
     srcs = ["canned/boosted_trees_utils.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":estimator",
         ":head",
@@ -470,7 +470,7 @@ py_test(
 py_library(
     name = "kmeans",
     srcs = ["canned/kmeans.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":estimator",
         ":head",
@@ -500,7 +500,7 @@ py_test(
 py_library(
     name = "dnn",
     srcs = ["canned/dnn.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":estimator",
         ":head",
@@ -517,7 +517,7 @@ py_library(
 py_library(
     name = "dnn_testing_utils",
     srcs = ["canned/dnn_testing_utils.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     visibility = ["//visibility:public"],
     deps = [
         ":estimator",
@@ -538,7 +538,7 @@ py_library(
 py_library(
     name = "dnn_testing_utils_v1",
     srcs = ["canned/v1/dnn_testing_utils_v1.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":estimator",
         ":head",
@@ -690,7 +690,7 @@ py_test(
 py_library(
     name = "dnn_linear_combined",
     srcs = ["canned/dnn_linear_combined.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":dnn",
         ":estimator",
@@ -818,7 +818,7 @@ py_test(
 py_library(
     name = "checkpoint_converter",
     srcs = ["tools/checkpoint_converter.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
@@ -828,7 +828,7 @@ py_library(
 py_library(
     name = "analytics_tools",
     srcs = ["tools/analytics.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
 )
 
 py_test(
@@ -856,7 +856,7 @@ py_library(
     srcs = [
         "util.py",
     ],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
@@ -884,7 +884,7 @@ py_library(
     srcs = [
         "early_stopping.py",
     ],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":export_export",
         ":model_fn",
@@ -919,7 +919,7 @@ py_library(
     srcs = [
         "estimator.py",
     ],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":export",
         ":mode_keys",
@@ -960,7 +960,7 @@ py_library(
     srcs = [
         "canned/parsing_utils.py",
     ],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         "//tensorflow_estimator/python/estimator:expect_six_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
@@ -983,7 +983,7 @@ py_test(
 py_library(
     name = "export_output",
     srcs = ["export/export_output.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
     ],
@@ -994,7 +994,7 @@ py_library(
     srcs = [
         "export/export_lib.py",
     ],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":export_export",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
@@ -1006,7 +1006,7 @@ py_library(
     srcs = [
         "export/export.py",
     ],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":util",
         "//tensorflow_estimator/python/estimator:expect_six_installed",
@@ -1032,7 +1032,7 @@ py_library(
     srcs = [
         "export/function.py",
     ],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":mode_keys",
         ":model_fn",
@@ -1056,7 +1056,7 @@ py_test(
 py_library(
     name = "head",
     srcs = ["canned/head.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":export_output",
         ":metric_keys",
@@ -1098,7 +1098,7 @@ py_test(
 py_library(
     name = "head_utils",
     srcs = ["head/head_utils.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":binary_class_head",
         ":multi_class_head",
@@ -1110,7 +1110,7 @@ py_library(
 py_library(
     name = "base_head",
     srcs = ["head/base_head.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":export_output",
         ":head",
@@ -1133,7 +1133,7 @@ py_library(
     name = "base_head_test_lib",
     testonly = True,
     srcs = ["head/base_head_test.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":base_head",
         ":binary_class_head",
@@ -1149,7 +1149,7 @@ py_library(
 py_library(
     name = "binary_class_head",
     srcs = ["head/binary_class_head.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":base_head",
         ":export_output",
@@ -1192,7 +1192,7 @@ py_test(
 py_library(
     name = "multi_head",
     srcs = ["head/multi_head.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":base_head",
         ":export_output",
@@ -1230,7 +1230,7 @@ py_test(
 py_library(
     name = "multi_class_head",
     srcs = ["head/multi_class_head.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":base_head",
         ":export_output",
@@ -1268,7 +1268,7 @@ py_test(
 py_library(
     name = "multi_label_head",
     srcs = ["head/multi_label_head.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":base_head",
         ":export_output",
@@ -1306,7 +1306,7 @@ py_test(
 py_library(
     name = "regression_head",
     srcs = ["head/regression_head.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":base_head",
         ":export_output",
@@ -1347,7 +1347,7 @@ py_test(
 py_library(
     name = "sequential_head",
     srcs = ["head/sequential_head.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":base_head",
         ":mode_keys",
@@ -1382,7 +1382,7 @@ py_test(
 py_library(
     name = "inputs",
     srcs = ["inputs/inputs.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":numpy_io",
         ":pandas_io",
@@ -1394,7 +1394,7 @@ py_library(
 py_library(
     name = "linear",
     srcs = ["canned/linear.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":binary_class_head",
         ":estimator",
@@ -1412,7 +1412,7 @@ py_library(
 py_library(
     name = "linear_testing_utils",
     srcs = ["canned/linear_testing_utils.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     visibility = ["//visibility:public"],
     deps = [
         ":estimator",
@@ -1433,7 +1433,7 @@ py_library(
 py_library(
     name = "linear_testing_utils_v1",
     srcs = ["canned/v1/linear_testing_utils_v1.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":estimator",
         ":export_export",
@@ -1569,7 +1569,7 @@ py_test(
 py_library(
     name = "metric_keys",
     srcs = ["canned/metric_keys.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":model_fn",
     ],
@@ -1578,7 +1578,7 @@ py_library(
 py_library(
     name = "numpy_io",
     srcs = ["inputs/numpy_io.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":inputs_queues",
     ],
@@ -1601,7 +1601,7 @@ py_test(
 py_library(
     name = "optimizers",
     srcs = ["canned/optimizers.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         "//tensorflow_estimator/python/estimator:expect_six_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
@@ -1652,7 +1652,7 @@ py_test(
 py_library(
     name = "pandas_io",
     srcs = ["inputs/pandas_io.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":inputs_queues",
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
@@ -1678,7 +1678,7 @@ py_test(
 py_library(
     name = "prediction_keys",
     srcs = ["canned/prediction_keys.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [],
 )
 
@@ -1689,7 +1689,7 @@ py_library(
         "inputs/queues/feeding_functions.py",
         "inputs/queues/feeding_queue_runner.py",
     ],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
         "//tensorflow_estimator/python/estimator:expect_pandas_installed",
@@ -1734,7 +1734,7 @@ py_test(
 py_library(
     name = "keras",
     srcs = ["keras.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":estimator",
         ":export",
@@ -1806,7 +1806,7 @@ py_test(
 py_library(
     name = "saved_model_estimator",
     srcs = ["canned/saved_model_estimator.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":estimator",
         ":export",
@@ -1841,7 +1841,7 @@ py_test(
 py_library(
     name = "basic_session_run_hooks",
     srcs = ["hooks/basic_session_run_hooks.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
@@ -1863,7 +1863,7 @@ py_test(
 py_library(
     name = "session_run_hook",
     srcs = ["hooks/session_run_hook.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
@@ -1875,7 +1875,7 @@ py_library(
     srcs = [
         "hooks/fake_summary_writer.py",
     ],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
@@ -1886,7 +1886,7 @@ py_library(
 py_library(
     name = "rnn",
     srcs = ["canned/rnn.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":binary_class_head",
         ":estimator",
@@ -1932,6 +1932,7 @@ py_test(
 
 py_library(
     name = "expect_absl_installed",
+    srcs_version = "PY3",
     # This is a dummy rule used as a absl dependency in open-source.
     # We expect absl to already be installed on the system, e.g. via
     # `pip install absl`
@@ -1940,6 +1941,7 @@ py_library(
 
 py_library(
     name = "expect_numpy_installed",
+    srcs_version = "PY3",
     # This is a dummy rule used as a numpy dependency in open-source.
     # We expect numpy to already be installed on the system, e.g. via
     # `pip install numpy`
@@ -1956,6 +1958,7 @@ py_library(
 
 py_library(
     name = "expect_h5py_installed",
+    srcs_version = "PY3",
     # This is a dummy rule used as a numpy dependency in open-source.
     # We expect h5py to already be installed on the system, e.g. via
     # `pip install h5py'
@@ -1964,6 +1967,7 @@ py_library(
 
 py_library(
     name = "expect_six_installed",
+    srcs_version = "PY3",
     # This is a dummy rule used as a numpy dependency in open-source.
     # We expect six to already be installed on the system, e.g. via
     # `pip install six`
@@ -1972,6 +1976,7 @@ py_library(
 
 py_library(
     name = "expect_tensorboard_installed",
+    srcs_version = "PY3",
     # This is a dummy rule used as a tensorboard dependency in open-source.
     # We expect tensorboard to already be installed on the system, e.g. via
     # `pip install tensorboard`.
@@ -1980,6 +1985,7 @@ py_library(
 
 py_library(
     name = "expect_tensorflow_installed",
+    srcs_version = "PY3",
     # This is a dummy rule used as a numpy dependency in open-source.
     # We expect tensorflow to already be installed on the system, e.g. via
     # `pip install tensorflow` or `pip install tensorflow_gpu`
@@ -1988,6 +1994,7 @@ py_library(
 
 py_library(
     name = "expect_tensorflow_keras_installed",
+    srcs_version = "PY3",
     # This is a dummy rule used as a numpy dependency in open-source.
     # We expect tensorflow to already be installed on the system, e.g. via
     # `pip install tensorflow` or `pip install tensorflow_gpu`

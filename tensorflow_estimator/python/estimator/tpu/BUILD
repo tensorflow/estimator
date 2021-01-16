@@ -23,7 +23,7 @@ py_library(
         "tpu_estimator.py",
         "util.py",
     ],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         "//tensorflow_estimator/python/estimator",
         "//tensorflow_estimator/python/estimator:analytics_tools",
