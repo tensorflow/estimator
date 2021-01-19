@@ -63,7 +63,7 @@ py_test(
         "estimators_test.py",
     ],
     python_version = "PY3",
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     tags = [
         "notap",  # TODO(b/132129465): Re-enable.
     ],
@@ -97,7 +97,7 @@ py_test(
     ],
     python_version = "PY3",
     shard_count = 4,
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":estimators",
         ":feature_keys",
@@ -160,7 +160,7 @@ py_test(
     ],
     python_version = "PY3",
     shard_count = 4,
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":ar_model",
         ":estimators",
@@ -177,7 +177,7 @@ py_test(
     ],
     python_version = "PY3",
     shard_count = 4,
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":ar_model",
         ":estimators",
@@ -205,7 +205,7 @@ py_test(
         "math_utils_test.py",
     ],
     python_version = "PY3",
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":feature_keys",
         ":math_utils",

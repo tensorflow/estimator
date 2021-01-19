@@ -84,7 +84,7 @@ py_test(
     size = "medium",
     srcs = ["exporter_test.py"],
     python_version = "PY3",
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":estimator",
         ":exporter",
@@ -110,7 +110,7 @@ py_test(
     size = "medium",
     srcs = ["extenders_test.py"],
     python_version = "PY3",
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     tags = ["notsan"],  # b/62863147
     deps = [
         ":extenders",
@@ -137,7 +137,7 @@ py_test(
     size = "small",
     srcs = ["gc_test.py"],
     python_version = "PY3",
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":gc",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
@@ -159,7 +159,7 @@ py_test(
     name = "hooks_test",
     srcs = ["hooks/hooks_test.py"],
     python_version = "PY3",
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":estimator_py",
         ":hooks",
@@ -186,7 +186,7 @@ py_test(
     size = "small",
     srcs = ["model_fn_test.py"],
     python_version = "PY3",
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":export_output",
         ":model_fn",
@@ -225,7 +225,7 @@ py_test(
     srcs = ["training_test.py"],
     python_version = "PY3",
     shard_count = 4,
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     tags = [
         "notap",  # TODO(b/170896944): flaky, broken
         "notsan",
@@ -258,7 +258,7 @@ py_test(
     size = "small",
     srcs = ["run_config_test.py"],
     python_version = "PY3",
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":run_config",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
@@ -289,7 +289,7 @@ py_test(
     srcs = ["canned/baseline_test.py"],
     python_version = "PY3",
     shard_count = 4,
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     tags = [
         "no_pip",
         "noasan",  # test flakily times out in asan mode.
@@ -318,7 +318,7 @@ py_test(
     srcs = ["canned/v1/baseline_test_v1.py"],
     python_version = "PY3",
     shard_count = 4,
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     tags = [
         "no_pip",
         "noasan",  # test flakily times out in asan mode.
@@ -347,7 +347,7 @@ py_test(
     srcs = ["canned/baseline_estimator_test.py"],
     python_version = "PY3",
     shard_count = 4,
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     tags = [
         "no_pip",
         "noasan",  # test flakily times out in asan mode.
@@ -375,7 +375,7 @@ py_test(
     srcs = ["canned/v1/baseline_estimator_test_v1.py"],
     python_version = "PY3",
     shard_count = 4,
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     tags = [
         "no_pip",
         "noasan",  # test flakily times out in asan mode.
@@ -416,7 +416,7 @@ py_test(
     srcs = ["canned/boosted_trees_test.py"],
     python_version = "PY3",
     shard_count = 32,
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     tags = [
         "manual",
         "no_oss",
@@ -454,7 +454,7 @@ py_test(
     srcs = ["canned/boosted_trees_utils_test.py"],
     python_version = "PY3",
     shard_count = 2,
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     tags = [
         "optonly",
     ],
@@ -485,7 +485,7 @@ py_test(
     srcs = ["canned/kmeans_test.py"],
     python_version = "PY3",
     shard_count = 8,
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     tags = [
         "notap",  # TODO(b/170974352): Flaky timeout
     ],
@@ -561,7 +561,7 @@ py_test(
     srcs = ["canned/v1/dnn_test_fc_v1_v1.py"],
     python_version = "PY3",
     shard_count = 4,
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     tags = [
         "no_pip",
         "notsan",  # b/67510291
@@ -588,7 +588,7 @@ py_test(
     srcs = ["canned/dnn_test_fc_v2.py"],
     python_version = "PY3",
     shard_count = 8,
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     tags = [
         "no_pip",
         "notsan",  # b/67510291
@@ -615,7 +615,7 @@ py_test(
     srcs = ["canned/v1/dnn_test_fc_v2_v1.py"],
     python_version = "PY3",
     shard_count = 4,
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     tags = [
         "no_pip",
         "notsan",  # b/67510291
@@ -641,7 +641,7 @@ py_test(
     size = "medium",
     srcs = ["canned/dnn_estimator_test.py"],
     python_version = "PY3",
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     tags = [
         "no_pip",
         "notsan",
@@ -667,7 +667,7 @@ py_test(
     size = "medium",
     srcs = ["canned/v1/dnn_estimator_test_v1.py"],
     python_version = "PY3",
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     tags = [
         "no_pip",
         "notsan",
@@ -712,7 +712,7 @@ py_test(
     srcs = ["canned/dnn_linear_combined_estimator_test.py"],
     python_version = "PY3",
     shard_count = 3,
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     tags = [
         "no_pip",
         "notsan",
@@ -738,7 +738,7 @@ py_test(
     srcs = ["canned/v1/dnn_linear_combined_estimator_test_v1.py"],
     python_version = "PY3",
     shard_count = 3,
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     tags = [
         "no_pip",
         "notsan",
@@ -764,7 +764,7 @@ py_test(
     srcs = ["canned/dnn_linear_combined_test.py"],
     python_version = "PY3",
     shard_count = 32,
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     tags = [
         "no_oss",  # TODO(b/143323557)
         "no_pip",
@@ -793,7 +793,7 @@ py_test(
     srcs = ["canned/v1/dnn_linear_combined_test_v1.py"],
     python_version = "PY3",
     shard_count = 16,
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     tags = [
         "no_pip",
         "notsan",  # TODO(b/67510291)
@@ -836,7 +836,7 @@ py_test(
     srcs = ["tools/checkpoint_converter_test.py"],
     python_version = "PY3",
     shard_count = 4,
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":checkpoint_converter",
         ":dnn",
@@ -867,7 +867,7 @@ py_test(
     name = "util_test",
     srcs = ["util_test.py"],
     python_version = "PY3",
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     tags = ["notsan"],  # b/67510291
     deps = [
         ":util",
@@ -903,7 +903,7 @@ py_test(
         "early_stopping_test.py",
     ],
     python_version = "PY3",
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     tags = [
         "notap",  # TODO(b/134928532): Reenable this test.
     ],
@@ -938,7 +938,7 @@ py_test(
     srcs = ["estimator_test.py"],
     python_version = "PY3",
     shard_count = 4,
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     tags = ["notsan"],  # b/67510291
     deps = [
         ":estimator",
@@ -972,7 +972,7 @@ py_test(
     name = "parsing_utils_test",
     srcs = ["canned/parsing_utils_test.py"],
     python_version = "PY3",
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":parsing_utils",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
@@ -1019,7 +1019,7 @@ py_test(
     size = "small",
     srcs = ["export/export_test.py"],
     python_version = "PY3",
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":export_export",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
@@ -1045,7 +1045,7 @@ py_test(
     size = "small",
     srcs = ["export/function_test.py"],
     python_version = "PY3",
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":export",
         ":function",
@@ -1074,7 +1074,7 @@ py_test(
     srcs = ["canned/head_test.py"],
     python_version = "PY3",
     shard_count = 4,
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     tags = [
         "manual",
         "no_pip",
@@ -1125,7 +1125,7 @@ py_test(
     size = "small",
     srcs = ["head/base_head_test.py"],
     python_version = "PY3",
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [":base_head_test_lib"],
 )
 
@@ -1168,7 +1168,7 @@ py_test(
     srcs = ["head/binary_class_head_test.py"],
     python_version = "PY3",
     shard_count = 4,
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     tags = [
         "manual",
         "no_pip",
@@ -1211,7 +1211,7 @@ py_test(
     srcs = ["head/multi_head_test.py"],
     python_version = "PY3",
     shard_count = 4,
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":head_utils",
         ":metric_keys",
@@ -1249,7 +1249,7 @@ py_test(
     srcs = ["head/multi_class_head_test.py"],
     python_version = "PY3",
     shard_count = 4,
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":dnn",
         ":head_utils",
@@ -1287,7 +1287,7 @@ py_test(
     srcs = ["head/multi_label_head_test.py"],
     python_version = "PY3",
     shard_count = 4,
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":dnn",
         ":head_utils",
@@ -1325,7 +1325,7 @@ py_test(
     srcs = ["head/regression_head_test.py"],
     python_version = "PY3",
     shard_count = 4,
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     tags = [
         "manual",
         "notap",  # b/148804861
@@ -1362,7 +1362,7 @@ py_test(
     size = "medium",
     srcs = ["head/sequential_head_test.py"],
     python_version = "PY3",
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":binary_class_head",
         ":head_utils",
@@ -1455,7 +1455,7 @@ py_test(
     size = "medium",
     srcs = ["canned/linear_estimator_test.py"],
     python_version = "PY3",
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     tags = [
         "no_pip",
         "notsan",
@@ -1479,7 +1479,7 @@ py_test(
     size = "medium",
     srcs = ["canned/v1/linear_estimator_test_v1.py"],
     python_version = "PY3",
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     tags = [
         "no_pip",
         "notsan",
@@ -1504,7 +1504,7 @@ py_test(
     srcs = ["canned/linear_test.py"],
     python_version = "PY3",
     shard_count = 8,
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     tags = [
         "no_pip",
         "notsan",  # b/67510291
@@ -1531,7 +1531,7 @@ py_test(
     data = [":vocabulary_testdata"],
     python_version = "PY3",
     shard_count = 8,
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     tags = [
         "no_cuda_on_cpu_tap",
         "no_pip",
@@ -1553,7 +1553,7 @@ py_test(
     srcs = ["canned/v1/linear_test_v1.py"],
     python_version = "PY3",
     shard_count = 8,
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     tags = [
         "no_pip",
         "notsan",  # b/67510291
@@ -1589,7 +1589,7 @@ py_test(
     size = "small",
     srcs = ["inputs/numpy_io_test.py"],
     python_version = "PY3",
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":numpy_io",
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
@@ -1614,7 +1614,7 @@ py_test(
     size = "small",
     srcs = ["canned/optimizers_test.py"],
     python_version = "PY3",
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":optimizers",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
@@ -1627,7 +1627,7 @@ py_test(
     size = "small",
     srcs = ["canned/optimizers_test_v2.py"],
     python_version = "PY3",
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":optimizers",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
@@ -1639,7 +1639,7 @@ py_test(
     size = "medium",
     srcs = ["object_checkpointing_test.py"],
     python_version = "PY3",
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":estimator",
         ":model_fn",
@@ -1665,7 +1665,7 @@ py_test(
     size = "small",
     srcs = ["inputs/pandas_io_test.py"],
     python_version = "PY3",
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":pandas_io",
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
@@ -1706,7 +1706,7 @@ py_test(
         "inputs/queues/feeding_functions_test.py",
     ],
     python_version = "PY3",
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":inputs_queues",
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
@@ -1721,7 +1721,7 @@ py_test(
     size = "small",
     srcs = ["inputs/queues/feeding_queue_runner_test.py"],
     python_version = "PY3",
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":inputs_queues",
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
@@ -1752,7 +1752,7 @@ py_test(
     srcs = ["keras_test.py"],
     python_version = "PY3",
     shard_count = 8,
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     tags = [
         "no_windows",
         "notsan",  # b/67510291
@@ -1793,7 +1793,7 @@ py_test(
     name = "keras_distribute_strategy_test",
     srcs = ["keras_distribute_strategy_test.py"],
     python_version = "PY3",
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     tags = ["notsan"],
     deps = [
         ":keras",
@@ -1823,7 +1823,7 @@ py_test(
     size = "medium",
     srcs = ["canned/saved_model_estimator_test.py"],
     python_version = "PY3",
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     tags = [
         "notsan",
     ],
@@ -1853,7 +1853,7 @@ py_test(
     size = "medium",
     srcs = ["hooks/basic_session_run_hooks_test.py"],
     python_version = "PY3",
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":estimator_py",
         ":fake_summary_writer",
@@ -1904,7 +1904,7 @@ py_test(
     size = "medium",
     srcs = ["canned/rnn_test.py"],
     python_version = "PY3",
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     tags = [
         "no_oss",  # b/140934549
         "no_pip",
@@ -2010,7 +2010,7 @@ py_test(
     srcs = ["distribute_strategy_estimator_integration_test.py"],
     main = "distribute_strategy_estimator_integration_test.py",
     python_version = "PY3",
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     tags = [
         "tf_integration_test",
     ],
@@ -2028,7 +2028,7 @@ py_test(
     srcs = ["distribute_strategy_estimator_integration_test.py"],
     main = "distribute_strategy_estimator_integration_test.py",
     python_version = "PY3",
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     tags = [
         "cuda",
         "gpu",
@@ -2051,7 +2051,7 @@ py_test(
     main = "distribute_strategy_estimator_training_test.py",
     python_version = "PY3",
     shard_count = 48,
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     tags = [
         "no_oss",  # b/140933379
         # TODO(b/118768923): Re-enable {a,m,t}san test.
@@ -2074,7 +2074,7 @@ py_test(
     main = "distribute_strategy_estimator_training_test.py",
     python_version = "PY3",
     shard_count = 48,
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     tags = [
         # TODO(b/118768923): Re-enable {a,m,t}san test.
         "noasan",
@@ -2098,7 +2098,7 @@ py_test(
     size = "medium",
     srcs = ["canned/canned_estimator_ds_integration_test.py"],
     python_version = "PY3",
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     tags = [
         "notap",  # TODO(b/161835009): Re-enable.
     ],
@@ -2115,7 +2115,7 @@ py_test(
     srcs = ["canned/canned_estimator_ds_integration_test.py"],
     main = "canned/canned_estimator_ds_integration_test.py",
     python_version = "PY3",
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     tags = [
         "cuda",
         "gpu",

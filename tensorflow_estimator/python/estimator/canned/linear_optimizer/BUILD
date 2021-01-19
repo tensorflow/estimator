@@ -10,7 +10,7 @@ py_test(
     srcs = ["python/sdca_test.py"],
     python_version = "PY3",
     shard_count = 4,
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         "//tensorflow_estimator/python/estimator",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
@@ -39,7 +39,7 @@ py_test(
     srcs = ["python/utils/sdca_ops_test.py"],
     python_version = "PY3",
     shard_count = 4,
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     tags = [
         "no_gpu",
         "no_pip_gpu",
@@ -66,7 +66,7 @@ py_test(
     size = "small",
     srcs = ["python/utils/sharded_mutable_dense_hashtable_test.py"],
     python_version = "PY3",
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":sharded_mutable_dense_hashtable_py",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",

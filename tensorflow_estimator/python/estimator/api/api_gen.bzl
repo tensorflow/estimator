@@ -87,7 +87,7 @@ def gen_api_init_files(
         srcs = ["//tensorflow_estimator/python/estimator/api:create_python_api_wrapper.py"],
         main = "//tensorflow_estimator/python/estimator/api:create_python_api_wrapper.py",
         python_version = "PY3",
-        srcs_version = "PY2AND3",
+        srcs_version = "PY3",
         visibility = ["//visibility:public"],
         deps = package_deps,
     )
