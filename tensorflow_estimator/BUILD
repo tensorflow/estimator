@@ -19,6 +19,7 @@ package_group(
         "//learning/brain/...",
         "//learning/deepmind/research/...",
         "//learning/tfx/models/uplift/estimators/...",
+        "//nlp/nlx/i18n/pangloss/...",
         "//tensorflow_estimator/...",
         "//third_party/py/tensorflow_privacy/...",
         "//third_party/tensorflow/python/estimator/...",
