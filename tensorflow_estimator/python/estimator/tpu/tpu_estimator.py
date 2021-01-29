@@ -2659,35 +2659,7 @@ class TPUEstimator(estimator_lib.Estimator):
   In V2, `export_saved_model()` sets up `params['use_tpu']` flag to let the user
   know if the code is exporting to TPU (or not). When `params['use_tpu']` is
   `True`, users need to call `tpu.rewrite()`, `TPUPartitionedCallOp` and/or
-  `batch_function()`. Alternatively use `inference_on_tpu()` which is a
-  convenience wrapper of the three.
-
-  ```
-    def model_fn(features, labels, mode, config, params):
-      ...
-      # This could be some pre-processing on CPU like calls to input layer with
-      # embedding columns.
-      x2 = features['x'] * 2
-
-      def computation(input_tensor):
-        return layers.dense(
-            input_tensor, 1, kernel_initializer=init_ops.zeros_initializer())
-
-      inputs = [x2]
-      if params['use_tpu']:
-        predictions = array_ops.identity(
-            tpu_estimator.inference_on_tpu(computation, inputs,
-            num_batch_threads=1, max_batch_size=2, batch_timeout_micros=100),
-            name='predictions')
-      else:
-        predictions = array_ops.identity(
-            computation(*inputs), name='predictions')
-      key = signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY
-      export_outputs = {
-          key: export_lib.PredictOutput({'prediction': predictions})
-      }
-      ...
-  ```
+  `batch_function()`.
 
   TIP: V2 is recommended as it is more flexible (eg: batching, etc).
   """
@@ -2766,10 +2738,7 @@ class TPUEstimator(estimator_lib.Estimator):
         2 corresponds to V2. (Defaults to V1). With
         V1, `export_saved_model()` adds rewrite() and TPUPartitionedCallOp() for
         user; while in v2, user is expected to add rewrite(),
-        TPUPartitionedCallOp() etc in their model_fn. A helper function
-        `inference_on_tpu` is provided for V2. brn_tpu_estimator.py includes
-        examples for both versions i.e. TPUEstimatorExportTest and
-        TPUEstimatorExportV2Test.
+        TPUPartitionedCallOp() etc in their model_fn.
 
     Raises:
       ValueError: `params` has reserved keys already.
@@ -4323,6 +4292,8 @@ def model_fn_inference_on_tpu(model_fn,
                               params=None,
                               batch_config=None):
   """Convenience wrapper for export_saved_model API v2 for a model_fn.
+  WARNING:THIS METHOD IS DEPRECATED AND NOT PART OF THE APIS.
+
   Make sure to set
   `export_saved_model_api_version=tpu_estimator.ExportSavedModelApiVersion.V2`
   when initializing TPUEstimator (default API version is V1). This is because
@@ -4492,6 +4463,9 @@ def inference_on_tpu(computation,
                      allowed_batch_sizes=None,
                      max_enqueued_batches=100):
   """Convenient wrapper for export_saved_model API v2 to wrap TPU computation.
+
+  WARNING: THIS METHOD IS DEPRECATED AND NOT PART OF THE APIS.
+
   Make sure to set
   `export_saved_model_api_version=tpu_estimator.ExportSavedModelApiVersion.V2`
   when initializing TPUEstimator (default API version is V1). This is because
