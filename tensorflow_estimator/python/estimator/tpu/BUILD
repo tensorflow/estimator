@@ -227,3 +227,16 @@ py_test(
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
     ],
 )
+
+tpu_py_test(
+    name = "tpu_enqueue_sequence_test",
+    size = "medium",
+    srcs = ["tpu_enqueue_sequence_test.py"],
+    python_version = "PY3",
+    srcs_version = "PY3",
+    deps = [
+        ":tpu_estimator",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
+        "//third_party/tensorflow/contrib/summary",
+    ],
+)
