@@ -264,7 +264,6 @@ class BestExporter(Exporter):
     self._event_file_pattern = event_file_pattern
     self._model_dir = None
     self._best_eval_result = None
-    self._has_exported = False
 
     self._exports_to_keep = exports_to_keep
     if exports_to_keep is not None and exports_to_keep <= 0:
@@ -291,8 +290,8 @@ class BestExporter(Exporter):
           full_event_file_pattern)
 
     if (self._best_eval_result is None or
-        # check if this is the first export.
-        not self._has_exported or self._compare_fn(
+        # remove first export to avoid exporting worse model
+        self._compare_fn(
             best_eval_result=self._best_eval_result,
             current_eval_result=eval_result)):
       tf.compat.v1.logging.info('Performing best model export.')
@@ -302,7 +301,6 @@ class BestExporter(Exporter):
                                                         eval_result,
                                                         is_the_final_export)
       self._garbage_collect_exports(export_path)
-      self._has_exported = True
 
     return export_result
 
