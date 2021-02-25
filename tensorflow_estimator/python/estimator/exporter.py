@@ -20,6 +20,8 @@ from __future__ import print_function
 
 import abc
 import os
+import six
+
 import tensorflow as tf
 from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator import gc
@@ -115,6 +117,20 @@ class _SavedModelExporter(Exporter):
         checkpoint_path=checkpoint_path)
 
     return export_result
+
+
+def _dict_to_str(dictionary):
+  """Get a `str` representation of a `dict`.
+
+  Args:
+    dictionary: The `dict` to be represented as `str`.
+
+  Returns:
+    A `str` representing the `dictionary`.
+  """
+  return ', '.join('%s = %s' % (k, v)
+                   for k, v in sorted(six.iteritems(dictionary))
+                   if not isinstance(v, six.binary_type))
 
 
 def _loss_smaller(best_eval_result, current_eval_result):
@@ -303,6 +319,9 @@ class BestExporter(Exporter):
                                                         is_the_final_export)
       self._garbage_collect_exports(export_path)
       self._has_exported = True
+
+    if is_the_final_export:
+      tf.compat.v1.logging.info('Final best export evaluation result: %s', _dict_to_str(self._best_eval_result))
 
     return export_result
 
