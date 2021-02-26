@@ -3322,8 +3322,12 @@ class TPUEstimator(estimator_lib.Estimator):
             hooks.extend(training_hooks)
 
           chief_hooks = []
-          if (self._config.save_checkpoints_secs or
-              self._config.save_checkpoints_steps):
+          has_saver_hook = any(
+              isinstance(hook, tf.compat.v1.train.CheckpointSaverHook)
+              for hook in hooks)
+          if (not has_saver_hook and
+              (self._config.save_checkpoints_secs or
+               self._config.save_checkpoints_steps)):
             checkpoint_hook = tf.compat.v1.train.CheckpointSaverHook(
                 self.model_dir,
                 save_secs=self._config.save_checkpoints_secs,
