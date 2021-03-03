@@ -2359,6 +2359,17 @@ class _OutfeedHostCallHook(tf.compat.v1.train.SessionRunHook):
     session.run(self._finalize_ops)
 
 
+class _NotSaver(object):
+  """What to pass instead of a saver object if you don't want saving."""
+
+  def __init__(self, message):
+    self._message = message
+
+  def save(self, *args, **kwargs):
+    del args, kwargs
+    tf.compat.v1.logging.info(self._message)
+
+
 class ExamplesPerSecondHook(tf.compat.v1.train.StepCounterHook):
   """Calculate and report global_step/sec and examples/sec during runtime."""
 
@@ -3220,6 +3231,9 @@ class TPUEstimator(estimator_lib.Estimator):
         if mode == model_fn_lib.ModeKeys.TRAIN:
           compile_op, loss, host_call, scaffold_fn, training_hooks = (
               _train_on_tpu_system(ctx, model_fn_wrapper, dequeue_fn))
+          has_saver_hook = training_hooks and any(
+              isinstance(hook, tf.compat.v1.train.CheckpointSaverHook)
+              for hook in training_hooks)
           if ctx.embedding_config:
             g = tf.compat.v1.get_default_graph()
             table_to_config_dict = (
@@ -3268,10 +3282,17 @@ class TPUEstimator(estimator_lib.Estimator):
                                shutdown_mode)
 
             if finalizer_hooks:
+              if has_saver_hook:
+                saver = _NotSaver(
+                    'No save on shutdown when there are user-defined '
+                    'CheckpointSaverHooks')
+              else:
+                saver = None  # Yes automatic save on shutdown.
               shutdown_hooks.append(
                   session_support.GracefulShutdownHook(
                       checkpoint_prefix=self.model_dir + '/model.ckpt',
-                      on_shutdown_hooks=finalizer_hooks))
+                      on_shutdown_hooks=finalizer_hooks,
+                      saver=saver))
 
           with tf.control_dependencies([loss]):
             global_step = tf.identity(tf.compat.v1.train.get_global_step())
@@ -3322,9 +3343,6 @@ class TPUEstimator(estimator_lib.Estimator):
             hooks.extend(training_hooks)
 
           chief_hooks = []
-          has_saver_hook = any(
-              isinstance(hook, tf.compat.v1.train.CheckpointSaverHook)
-              for hook in hooks)
           if (not has_saver_hook and
               (self._config.save_checkpoints_secs or
                self._config.save_checkpoints_steps)):
