@@ -1681,7 +1681,7 @@ class Estimator(object):
 
     For a detailed guide, see
     [SavedModel from
-    Estimators](https://tensorflow.org/guide/saved_model#savedmodels_from_estimators).
+    Estimators.](https://www.tensorflow.org/guide/estimator#savedmodels_from_estimators).
 
     This method builds a new graph by first calling the
     `serving_input_receiver_fn` to obtain feature `Tensor`s, and then calling
