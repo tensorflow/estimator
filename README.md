@@ -8,7 +8,9 @@ Estimators encapsulate training, evaluation, prediction, and exporting for your 
 
 ## Getting Started
 
-See our Estimator [getting started guide](https://www.tensorflow.org/guide/estimators) for an introduction to the Estimator APIs.
+See our Estimator
+[getting started guide](https://www.tensorflow.org/guide/estimator) for an
+introduction to the Estimator APIs.
 
 ## Installation
 
