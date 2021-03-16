@@ -655,9 +655,9 @@ class Estimator(object):
     # pylint: disable=line-too-long
     """Exports inference graph as a `SavedModel` into the given dir.
 
-    For a detailed guide, see
-    [SavedModel from
-    Estimators](https://tensorflow.org/guide/saved_model#savedmodels_from_estimators).
+    For a detailed guide on SavedModel, see
+    [Using the SavedModel format]
+    (https://tensorflow.org/guide/saved_model#savedmodels_from_estimators).
 
     This method builds a new graph by first calling the
     `serving_input_receiver_fn` to obtain feature `Tensor`s, and then calling
