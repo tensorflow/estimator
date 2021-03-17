@@ -780,9 +780,7 @@ class _TrainingExecutor(object):
     if config.session_config is None:
       session_config = config_pb2.ConfigProto(log_device_placement=False)
     else:
-      session_config = config_pb2.ConfigProto(
-          log_device_placement=False,
-          gpu_options=config.session_config.gpu_options)
+      session_config = config.session_config
 
     server = server_lib.Server(
         config.cluster_spec,
