@@ -96,7 +96,7 @@ class Estimator(object):
   constructor enforces this). Subclasses should use `model_fn` to configure
   the base class, and may add methods implementing specialized functionality.
 
-  See [estimators](https://tensorflow.org/guide/estimators) for more
+  See [estimators](https://tensorflow.org/guide/estimator) for more
   information.
 
   To warm-start an `Estimator`:
