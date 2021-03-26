@@ -22,6 +22,7 @@ import functools
 import glob
 import json
 import os
+import socket
 import tempfile
 
 import numpy as np
@@ -29,7 +30,9 @@ import six
 import tensorflow.compat.v1 as tf
 from google.protobuf import text_format
 
+from absl.testing import parameterized
 from tensorflow.core.protobuf import rewriter_config_pb2
+from tensorflow.python.framework import combinations
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import test_util
 from tensorflow.python.keras import losses as losses_module
@@ -38,13 +41,16 @@ from tensorflow.python.lib.io import file_io
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops.random_ops import random_uniform
 from tensorflow.python.platform import tf_logging as logging
+from tensorflow.python.platform import gfile
+from tensorflow.python.profiler import profiler_v2 as profiler
 from tensorflow.python.saved_model import loader_impl
 from tensorflow.python.saved_model import tag_constants
 from tensorflow.python.saved_model import utils_impl as saved_model_utils
 from tensorflow.python.training import checkpoint_state_pb2
 from tensorflow.python.training import saver_test_utils
-from tensorflow.python.training import training
+from tensorflow.python.training import training 
 from tensorflow.python.util import function_utils
+from tensorflow_estimator.python.estimator import training as estimator_training
 from tensorflow_estimator.python.estimator import estimator
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
 from tensorflow_estimator.python.estimator import run_config
@@ -1224,6 +1230,50 @@ class EstimatorGetVariablesTest(tf.test.TestCase):
     self.assertEqual(1., est.get_variable_value('one'))
     self.assertEqual(3., est.get_variable_value('three'))
 
+class EstimatorTraceTest(tf.test.TestCase, parameterized.TestCase):
+
+  def setUp(self):
+    self._profiler_dir = os.path.join(self.get_temp_dir(), "profiler")
+
+  expected_features = {'x': 42., 'y': 43.}
+  expected_labels = 44.
+  model_fn_call_count = [0]
+  input_fn=_make_input_fn(expected_features, expected_labels)
+
+  class ModelFn(object):
+    def __call__(self, features, labels):
+      EstimatorTraceTest.model_fn_call_count[0] += 1
+      return _estimator_spec(EstimatorTraceTest.expected_features, EstimatorTraceTest.expected_labels, features,
+                             labels, ModeKeys.TRAIN)
+
+  def assert_profiler_captures_steps(self):
+    profile_dir = os.path.join(self._profiler_dir, "plugins", "profile")
+    run = gfile.ListDirectory(profile_dir)[0]
+    hostname = socket.gethostname()
+    overview_page = os.path.join(profile_dir, run,  hostname + '.overview_page.pb')
+    with open(overview_page, 'r', encoding='latin-1') as f:
+       overview_page_content = f.read()
+       # Asserts step time is profiled
+       self.assertIn("PerGenericStepDetails", overview_page_content)
+       self.assertNotIn("No step time measured", overview_page_content)
+
+  @combinations.generate(
+      combinations.combine(
+          use_train_and_evaluate=[True, False]))
+  def test_profiler_traces_steps(self, use_train_and_evaluate):
+    est = estimator.EstimatorV2(
+        model_fn=EstimatorTraceTest.ModelFn(), config=run_config.RunConfig())
+    steps = 1 
+    profiler.start(self._profiler_dir)
+    if use_train_and_evaluate:
+      estimator_training.train_and_evaluate(
+          est, estimator_training.TrainSpec(EstimatorTraceTest.input_fn, max_steps=steps),
+          estimator_training.EvalSpec(EstimatorTraceTest.input_fn))
+    else:
+      est.train(input_fn=EstimatorTraceTest.input_fn, steps=steps)
+    profiler.stop()
+    # With https://github.com/tensorflow/estimator/pull/68, estimator should be able to work with profiler
+    self.assert_profiler_captures_steps()
 
 class EstimatorDatasetIntegrationTest(tf.test.TestCase):
   """Tests dataset integration."""

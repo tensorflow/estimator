@@ -941,6 +941,7 @@ py_test(
     srcs_version = "PY3",
     tags = ["notsan"],  # b/67510291
     deps = [
+        ":estimator_py",
         ":estimator",
         ":export",
         ":mode_keys",
