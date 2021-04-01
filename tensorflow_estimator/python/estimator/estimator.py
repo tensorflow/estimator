@@ -1373,7 +1373,7 @@ class Estimator(object):
       loss = None
       current_step = 0
       while not mon_sess.should_stop():
-        current_step = current_step+1
+        current_step += 1 
         # just as keras(https://github.com/tensorflow/tensorflow/blob/v2.4.1/tensorflow/python/keras/engine/training.py#L1093),
         # trace should be enabled for every step
         with trace.Trace('train', step_num=current_step, _r=1):
@@ -1516,7 +1516,7 @@ class Estimator(object):
       loss = None
       current_step = 0
       while not mon_sess.should_stop():
-        current_step = current_step+1
+        current_step += 1
         # just as keras(https://github.com/tensorflow/tensorflow/blob/v2.4.1/tensorflow/python/keras/engine/training.py#L1093),
         # trace should be enabled for every step
         with trace.Trace('train', step_num=current_step, _r=1):
