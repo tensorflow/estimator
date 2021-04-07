@@ -26,7 +26,6 @@ from tensorflow.python.feature_column import feature_column_lib
 from tensorflow.python.feature_column.feature_column import _LazyBuilder
 from tensorflow.python.feature_column.feature_column import _NumericColumn
 from tensorflow.python.framework import ops
-from tensorflow.python.keras.utils import losses_utils
 from tensorflow.python.util import function_utils
 from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator.canned import metric_keys
@@ -901,8 +900,9 @@ def create_estimator_spec_train_op(
         validate_trainable_variables(trainable_variables)
         # Scale loss by number of replicas.
         if loss_reduction == tf.keras.losses.Reduction.SUM_OVER_BATCH_SIZE:
-          regularized_training_loss = losses_utils.scale_loss_for_distribution(
-              regularized_training_loss)
+          num_replicas = tf.distribute.get_strategy().num_replicas_in_sync
+          if num_replicas > 1:
+            regularized_training_loss *= (1. / num_replicas)
         train_op = optimizer.get_updates(regularized_training_loss,
                                          trainable_variables)[0]
       elif train_op_fn is not None:

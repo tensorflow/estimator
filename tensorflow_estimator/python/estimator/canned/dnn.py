@@ -23,7 +23,6 @@ import tensorflow as tf
 from tensorflow.python.feature_column import feature_column
 from tensorflow.python.feature_column import feature_column_lib
 from tensorflow.python.framework import ops
-from tensorflow.python.keras.layers import normalization as keras_norm
 from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator import estimator
 from tensorflow_estimator.python.estimator.canned import head as head_lib
@@ -323,7 +322,7 @@ class _DNNModelV2(tf.keras.Model):
           batch_norm_name = hidden_shared_name + '/batchnorm_%d' % layer_id
           # TODO(scottzhu): Change back to use BatchNormalization when the
           # cleanup is done.
-          batch_norm_layer = keras_norm.BatchNormalizationBase(
+          batch_norm_layer = tf.keras.layers.BatchNormalization(
               # The default momentum 0.99 actually crashes on certain
               # problem, so here we use 0.999, which is the default of
               # tf.contrib.layers.batch_norm.

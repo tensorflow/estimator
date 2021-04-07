@@ -20,7 +20,6 @@ from __future__ import print_function
 
 import tensorflow as tf
 from tensorflow.python.framework import ops
-from tensorflow.python.keras import metrics
 from tensorflow.python.keras.utils import losses_utils
 from tensorflow.python.ops import lookup_ops
 from tensorflow.python.util.tf_export import estimator_export
@@ -350,12 +349,14 @@ class MultiClassHead(base_head.Head):
     with ops.name_scope('metrics', values=(regularization_losses,)):
       # Mean metric.
       eval_metrics = {}
-      eval_metrics[self._loss_mean_key] = metrics.Mean(name=keys.LOSS_MEAN)
+      eval_metrics[self._loss_mean_key] = tf.keras.metrics.Mean(
+          name=keys.LOSS_MEAN)
       if regularization_losses is not None:
-        eval_metrics[self._loss_regularization_key] = metrics.Mean(
+        eval_metrics[self._loss_regularization_key] = tf.keras.metrics.Mean(
             name=keys.LOSS_REGULARIZATION)
       # Accuracy metric.
-      eval_metrics[self._accuracy_key] = metrics.Accuracy(name=keys.ACCURACY)
+      eval_metrics[self._accuracy_key] = tf.keras.metrics.Accuracy(
+          name=keys.ACCURACY)
     return eval_metrics
 
   def update_metrics(self,

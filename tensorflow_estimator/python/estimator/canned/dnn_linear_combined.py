@@ -22,7 +22,6 @@ import math
 
 import six
 import tensorflow as tf
-from tensorflow.python.keras.utils import losses_utils
 from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator import estimator
 from tensorflow_estimator.python.estimator.canned import dnn
@@ -201,7 +200,9 @@ def _dnn_linear_combined_model_fn_v2(
     train_ops = []
     # Scale loss by number of replicas.
     if loss_reduction == tf.keras.losses.Reduction.SUM_OVER_BATCH_SIZE:
-      loss = losses_utils.scale_loss_for_distribution(loss)
+      num_replicas = tf.distribute.get_strategy().num_replicas_in_sync
+      if num_replicas > 1:
+        loss *= (1. / num_replicas)
 
     if dnn_logits is not None:
       train_ops.extend(dnn_optimizer.get_updates(loss, dnn_trainable_variables))

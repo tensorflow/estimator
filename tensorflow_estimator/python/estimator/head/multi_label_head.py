@@ -21,7 +21,6 @@ from __future__ import print_function
 import six
 import tensorflow as tf
 from tensorflow.python.framework import ops
-from tensorflow.python.keras import metrics
 from tensorflow.python.keras.utils import losses_utils
 from tensorflow.python.ops import lookup_ops
 from tensorflow.python.util.tf_export import estimator_export
@@ -404,25 +403,29 @@ class MultiLabelHead(base_head.Head):
     with ops.name_scope(None, 'metrics', (regularization_losses,)):
       # Mean metric.
       eval_metrics = {}
-      eval_metrics[self._loss_mean_key] = metrics.Mean(name=keys.LOSS_MEAN)
+      eval_metrics[self._loss_mean_key] = tf.keras.metrics.Mean(
+          name=keys.LOSS_MEAN)
       # The default summation_method is "interpolation" in the AUC metric.
-      eval_metrics[self._auc_key] = metrics.AUC(name=keys.AUC)
-      eval_metrics[self._auc_pr_key] = metrics.AUC(curve='PR', name=keys.AUC_PR)
+      eval_metrics[self._auc_key] = tf.keras.metrics.AUC(name=keys.AUC)
+      eval_metrics[self._auc_pr_key] = tf.keras.metrics.AUC(
+          curve='PR', name=keys.AUC_PR)
       if regularization_losses is not None:
-        eval_metrics[self._loss_regularization_key] = metrics.Mean(
+        eval_metrics[self._loss_regularization_key] = tf.keras.metrics.Mean(
             name=keys.LOSS_REGULARIZATION)
       for i, threshold in enumerate(self._thresholds):
-        eval_metrics[self._accuracy_keys[i]] = metrics.BinaryAccuracy(
+        eval_metrics[self._accuracy_keys[i]] = tf.keras.metrics.BinaryAccuracy(
             name=self._accuracy_keys[i], threshold=threshold)
         eval_metrics[self._precision_keys[i]] = (
-            metrics.Precision(
+            tf.keras.metrics.Precision(
                 name=self._precision_keys[i], thresholds=threshold))
-        eval_metrics[self._recall_keys[i]] = metrics.Recall(
+        eval_metrics[self._recall_keys[i]] = tf.keras.metrics.Recall(
             name=self._recall_keys[i], thresholds=threshold)
       for i in range(len(self._classes_for_class_based_metrics)):
-        eval_metrics[self._prob_keys[i]] = metrics.Mean(name=self._prob_keys[i])
-        eval_metrics[self._auc_keys[i]] = metrics.AUC(name=self._auc_keys[i])
-        eval_metrics[self._auc_pr_keys[i]] = metrics.AUC(
+        eval_metrics[self._prob_keys[i]] = tf.keras.metrics.Mean(
+            name=self._prob_keys[i])
+        eval_metrics[self._auc_keys[i]] = tf.keras.metrics.AUC(
+            name=self._auc_keys[i])
+        eval_metrics[self._auc_pr_keys[i]] = tf.keras.metrics.AUC(
             curve='PR', name=self._auc_pr_keys[i])
     return eval_metrics
 

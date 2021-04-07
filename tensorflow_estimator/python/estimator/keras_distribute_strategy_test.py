@@ -24,7 +24,6 @@ import tensorflow as tf
 from tensorflow.python import keras
 from tensorflow.python.distribute import strategy_combinations
 from tensorflow.python.eager import test
-from tensorflow.python.keras import testing_utils
 from tensorflow.python.ops.parsing_ops import gen_parsing_ops
 from tensorflow_estimator.python.estimator import keras as keras_lib
 from tensorflow_estimator.python.estimator import run_config as run_config_lib
@@ -80,7 +79,7 @@ def multi_inputs_multi_outputs_model():
 
 def get_ds_train_input_fn():
   np.random.seed(_RANDOM_SEED)
-  (x_train, y_train), _ = testing_utils.get_test_data(
+  (x_train, y_train), _ = get_test_data(
       train_samples=_TRAIN_SIZE,
       test_samples=50,
       input_shape=_INPUT_SIZE,
@@ -94,7 +93,7 @@ def get_ds_train_input_fn():
 
 def get_ds_test_input_fn():
   np.random.seed(_RANDOM_SEED)
-  _, (x_test, y_test) = testing_utils.get_test_data(
+  _, (x_test, y_test) = get_test_data(
       train_samples=_TRAIN_SIZE,
       test_samples=50,
       input_shape=_INPUT_SIZE,
@@ -107,19 +106,19 @@ def get_ds_test_input_fn():
 
 
 def get_multi_inputs_multi_outputs_data():
-  (a_train, c_train), (a_test, c_test) = testing_utils.get_test_data(
+  (a_train, c_train), (a_test, c_test) = get_test_data(
       train_samples=_TRAIN_SIZE,
       test_samples=50,
       input_shape=(16,),
       num_classes=3,
       random_seed=_RANDOM_SEED)
-  (b_train, d_train), (b_test, d_test) = testing_utils.get_test_data(
+  (b_train, d_train), (b_test, d_test) = get_test_data(
       train_samples=_TRAIN_SIZE,
       test_samples=50,
       input_shape=(16,),
       num_classes=2,
       random_seed=_RANDOM_SEED)
-  (m_train, _), (m_test, _) = testing_utils.get_test_data(
+  (m_train, _), (m_test, _) = get_test_data(
       train_samples=_TRAIN_SIZE,
       test_samples=50,
       input_shape=(8,),
@@ -288,6 +287,23 @@ class TestEstimatorDistributionStrategy(tf.test.TestCase,
       est_keras.train(input_fn=train_input_fn, steps=_TRAIN_SIZE / 16)
       eval_results = est_keras.evaluate(input_fn=eval_input_fn, steps=1)
       self.assertLess(eval_results['loss'], baseline_eval_results['loss'])
+
+
+def get_test_data(train_samples,
+                  test_samples,
+                  input_shape,
+                  num_classes,
+                  random_seed=None):
+  if random_seed is not None:
+    np.random.seed(random_seed)
+  num_sample = train_samples + test_samples
+  templates = 2 * num_classes * np.random.random((num_classes,) + input_shape)
+  y = np.random.randint(0, num_classes, size=(num_sample,))
+  x = np.zeros((num_sample,) + input_shape, dtype=np.float32)
+  for i in range(num_sample):
+    x[i] = templates[y[i]] + np.random.normal(loc=0, scale=1., size=input_shape)
+  return ((x[:train_samples], y[:train_samples]),
+          (x[train_samples:], y[train_samples:]))
 
 
 if __name__ == '__main__':

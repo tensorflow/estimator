@@ -21,7 +21,6 @@ from __future__ import print_function
 import tensorflow as tf
 
 from tensorflow.python.framework import ops
-from tensorflow.python.keras import metrics
 from tensorflow.python.keras.utils import losses_utils
 from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator import model_fn
@@ -258,13 +257,15 @@ class RegressionHead(base_head.Head):
     with ops.name_scope('metrics', values=(regularization_losses,)):
       keys = metric_keys.MetricKeys
       eval_metrics = {}
-      eval_metrics[self._loss_mean_key] = metrics.Mean(name=keys.LOSS_MEAN)
-      eval_metrics[self._prediction_mean_key] = metrics.Mean(
+      eval_metrics[self._loss_mean_key] = tf.keras.metrics.Mean(
+          name=keys.LOSS_MEAN)
+      eval_metrics[self._prediction_mean_key] = tf.keras.metrics.Mean(
           name=keys.PREDICTION_MEAN)
-      eval_metrics[self._label_mean_key] = metrics.Mean(name=keys.LABEL_MEAN)
+      eval_metrics[self._label_mean_key] = tf.keras.metrics.Mean(
+          name=keys.LABEL_MEAN)
 
       if regularization_losses is not None:
-        eval_metrics[self._loss_regularization_key] = metrics.Mean(
+        eval_metrics[self._loss_regularization_key] = tf.keras.metrics.Mean(
             name=keys.LOSS_REGULARIZATION)
     return eval_metrics
 

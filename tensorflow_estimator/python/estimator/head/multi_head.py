@@ -21,7 +21,6 @@ from __future__ import print_function
 import six
 import tensorflow as tf
 from tensorflow.python.framework import ops
-from tensorflow.python.keras import metrics
 from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator import model_fn
 from tensorflow_estimator.python.estimator.canned import metric_keys
@@ -358,12 +357,12 @@ class MultiHead(base_head.Head):
     keys = metric_keys.MetricKeys
     # Add regularization loss metric for multi_head.
     if regularization_losses is not None:
-      eval_metrics[self._loss_regularization_key] = metrics.Mean(
+      eval_metrics[self._loss_regularization_key] = tf.keras.metrics.Mean(
           name=keys.LOSS_REGULARIZATION)
     with ops.name_scope('merge_eval'):
       # Loss metric is not added by default in each head.
       for loss_key in self._loss_keys:
-        eval_metrics[loss_key] = metrics.Mean(name=loss_key)
+        eval_metrics[loss_key] = tf.keras.metrics.Mean(name=loss_key)
     return eval_metrics
 
   def update_metrics(self,

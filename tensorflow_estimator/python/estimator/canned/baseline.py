@@ -54,7 +54,6 @@ import tensorflow as tf
 from tensorflow.python.feature_column import feature_column as feature_column_v1
 from tensorflow.python.feature_column import feature_column_v2
 from tensorflow.python.framework import ops
-from tensorflow.python.keras.utils import losses_utils
 from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator import estimator
 from tensorflow_estimator.python.estimator.canned import head as head_lib
@@ -277,7 +276,9 @@ def _baseline_model_fn_v2(
   def train_op_fn(loss):
     # Scale loss by number of replicas.
     if loss_reduction == tf.keras.losses.Reduction.SUM_OVER_BATCH_SIZE:
-      loss = losses_utils.scale_loss_for_distribution(loss)
+      num_replicas = tf.distribute.get_strategy().num_replicas_in_sync
+      if num_replicas > 1:
+        loss *= (1. / num_replicas)
     return opt.get_updates(loss, trainable_variables)[0]
 
   return head.create_estimator_spec(

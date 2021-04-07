@@ -29,7 +29,6 @@ from tensorflow.core.example import example_pb2
 from tensorflow.core.example import feature_pb2
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import test_util
-from tensorflow.python.keras import layers as keras_layers
 from tensorflow_estimator.python.estimator import model_fn
 from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.canned import parsing_utils
@@ -153,7 +152,7 @@ class RNNLayerFnTest(tf.test.TestCase, parameterized.TestCase):
       mock_layer_type.assert_called_once_with(
           units=11, return_sequences='return-seq-value')
 
-  @tf.compat.v1.test.mock.patch.object(keras_layers, 'RNN')
+  @tf.compat.v1.test.mock.patch.object(tf.keras.layers, 'RNN')
   def testCustomCellProvided(self, mock_rnn_layer_type):
     """Tests behavior when a custom cell type is provided."""
     mock_custom_cell = tf.compat.v1.test.mock.Mock()
@@ -172,7 +171,7 @@ class RNNLayerFnTest(tf.test.TestCase, parameterized.TestCase):
     self.assertLen(layer.cell.cells, 2)
     self.assertIsInstance(layer.cell.cells[0], tf.keras.layers.SimpleRNNCell)
 
-  @tf.compat.v1.test.mock.patch.object(keras_layers, 'RNN')
+  @tf.compat.v1.test.mock.patch.object(tf.keras.layers, 'RNN')
   def testCustomCellFnProvided(self, mock_rnn_layer_type):
     """Tests behavior when a custom cell function is provided."""
     mock_cell_fn = tf.compat.v1.test.mock.Mock(return_value='custom-cell')
@@ -198,7 +197,7 @@ def _mock_logits_layer(kernel, bias):
       super(_MockDenseLayer, self).__init__(
           units=units, name=name, activation=activation, **kwargs)
 
-  return tf.compat.v1.test.mock.patch.object(keras_layers, 'Dense',
+  return tf.compat.v1.test.mock.patch.object(tf.keras.layers, 'Dense',
                                              _MockDenseLayer)
 
 
