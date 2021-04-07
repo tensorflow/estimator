@@ -22,6 +22,7 @@ import collections
 import json
 import os
 import tensorflow as tf
+from tensorflow.core.protobuf import config_pb2
 from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator import run_config as run_config_lib
 from tensorflow_estimator.python.estimator.tpu import util as util_lib
@@ -275,7 +276,7 @@ class RunConfig(run_config_lib.RunConfig):
 
       # Merge the cluster_def into the ConfigProto.
       if self._session_config is None:  # pylint: disable=access-member-before-definition
-        self._session_config = tf.compat.v1.ConfigProto(
+        self._session_config = config_pb2.ConfigProto(
             allow_soft_placement=True, isolate_session_state=True)
       if self._session_config.HasField('cluster_def'):
         raise ValueError('You cannot provide a ClusterResolver and '

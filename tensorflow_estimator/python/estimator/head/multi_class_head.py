@@ -136,7 +136,7 @@ class MultiClassHead(base_head.Head):
                n_classes,
                weight_column=None,
                label_vocabulary=None,
-               loss_reduction=tf.keras.losses.Reduction.SUM_OVER_BATCH_SIZE,
+               loss_reduction=losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE,
                loss_fn=None,
                name=None):
     if n_classes is None:

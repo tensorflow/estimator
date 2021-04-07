@@ -24,6 +24,9 @@ import tempfile
 from absl.testing import parameterized
 import numpy as np
 import tensorflow as tf
+from tensorflow.python.distribute import combinations
+from tensorflow.python.distribute import strategy_combinations
+from tensorflow.python.keras import metrics
 from tensorflow_estimator.python.estimator import run_config
 from tensorflow_estimator.python.estimator.canned import dnn
 from tensorflow_estimator.python.estimator.canned import dnn_linear_combined
@@ -52,15 +55,13 @@ class CannedEstimatorDistributionStrategyTest(tf.test.TestCase,
 
     return input_fn
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.combine(
+  @combinations.generate(
+      combinations.combine(
           mode=['graph', 'eager'],
           distribution=[
-              tf.__internal__.distribute.combinations.one_device_strategy,
-              tf.__internal__.distribute.combinations
-              .mirrored_strategy_with_gpu_and_cpu,
-              tf.__internal__.distribute.combinations
-              .mirrored_strategy_with_two_gpus,
+              strategy_combinations.one_device_strategy,
+              strategy_combinations.mirrored_strategy_with_gpu_and_cpu,
+              strategy_combinations.mirrored_strategy_with_two_gpus,
           ],
           estimator_cls=[
               dnn_linear_combined.DNNLinearCombinedRegressorV2,
@@ -105,7 +106,7 @@ class CannedEstimatorDistributionStrategyTest(tf.test.TestCase,
       estimator_kw_args['dnn_feature_columns'] = [fc]
 
     def my_metrics(features):
-      metric = tf.keras.metrics.Mean()
+      metric = metrics.Mean()
       metric.update_state(features['x'])
       return {'mean_x': metric}
 

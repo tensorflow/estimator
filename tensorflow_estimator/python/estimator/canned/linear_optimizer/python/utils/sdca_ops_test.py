@@ -22,6 +22,7 @@ import random
 import threading
 import tensorflow as tf
 from tensorflow.core.example import example_pb2
+from tensorflow.core.protobuf import config_pb2
 from tensorflow.python.eager import context
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import test_util
@@ -207,7 +208,7 @@ class _SDCAModelTest(TensorFlowTestCase):
   """Base SDCA optimizer test class for any loss type."""
 
   def _single_threaded_test_session(self):
-    config = tf.compat.v1.ConfigProto(
+    config = config_pb2.ConfigProto(
         inter_op_parallelism_threads=1, intra_op_parallelism_threads=1)
     return self.test_session(use_gpu=False, config=config)
 

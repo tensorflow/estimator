@@ -14,11 +14,17 @@
 # ==============================================================================
 """Tests to check gradients of TPUEstimator + TPU Embeddings."""
 
+from absl import flags
 import math
 import tempfile
-from absl import flags
+
 import numpy as np
 import tensorflow.compat.v1 as tf
+
+# pylint: disable=g-direct-tensorflow-import
+from tensorflow.python.feature_column import feature_column_lib as fc_lib
+from tensorflow.python.platform import test
+from tensorflow.python.tpu import feature_column_v2 as tpu_fc
 from tensorflow_estimator.python.estimator.tpu import tpu_config
 from tensorflow_estimator.python.estimator.tpu import tpu_estimator
 
@@ -51,7 +57,7 @@ def create_model_fn(feature_columns, optimizer_type='adagrad'):
   def model_fn(features, labels, mode, params):
     del params
 
-    dense_features = tf.keras.layers.DenseFeatures(feature_columns)
+    dense_features = fc_lib.DenseFeatures(feature_columns)
     input_layer = dense_features(features)
     hidden_layer = tf.layers.dense(
         input_layer,
@@ -126,10 +132,13 @@ def get_estimator(use_tpu,
 def get_feature_columns():
   initializer = tf.zeros_initializer()
 
-  column = tf.feature_column.categorical_column_with_identity(
+  column = fc_lib.categorical_column_with_identity(
       key=KEY_NAME, num_buckets=BUCKET_SIZE)
-  embedding_fc = tf.tpu.experimental.embedding_column(
-      column, dimension=EMBEDDING_DIM, combiner='mean', initializer=initializer)
+  embedding_fc = tpu_fc.embedding_column_v2(
+      column,
+      dimension=EMBEDDING_DIM,
+      combiner='mean',
+      initializer=initializer)
 
   all_fc = [embedding_fc]
   return all_fc
@@ -217,7 +226,7 @@ def dense_to_sparse(dense_tensor, out_type, ignore_value=-1):
   return tf.SparseTensor(indices, values, shape)
 
 
-class TPUEstimatorGradientsSimpleTest(tf.test.TestCase):
+class TPUEstimatorGradientsSimpleTest(test.TestCase):
   """Test gradients for different Ids in global batch.
 
   In all examples examined by this test, in one global batch, each embedding ID
@@ -495,7 +504,7 @@ class TPUEstimatorGradientsSimpleTest(tf.test.TestCase):
         tpu_hook.bias_values, cpu_hook.bias_values, atol=tol, rtol=tol)
 
 
-class TPUEstimatorGradientsWithIdCollisionTest(tf.test.TestCase):
+class TPUEstimatorGradientsWithIdCollisionTest(test.TestCase):
 
   def setUp(self):
     self._model_dir = tempfile.mkdtemp()
@@ -876,4 +885,4 @@ class TPUEstimatorGradientsWithIdCollisionTest(tf.test.TestCase):
 
 if __name__ == '__main__':
   tf.disable_v2_behavior()
-  tf.test.main()
+  test.main()

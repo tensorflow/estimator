@@ -26,6 +26,8 @@ import numpy as np
 import six
 import tensorflow as tf
 from tensorflow.python.framework import ops
+from tensorflow.python.keras.optimizer_v2 import optimizer_v2
+from tensorflow.python.keras.utils import losses_utils
 from tensorflow_estimator.python.estimator.canned import baseline
 from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.export import export
@@ -63,7 +65,7 @@ def _baseline_estimator_fn(weight_column=None, label_dimension=1, **kwargs):
       head=regression_head.RegressionHead(
           weight_column=weight_column,
           label_dimension=label_dimension,
-          loss_reduction=tf.keras.losses.Reduction.SUM_OVER_BATCH_SIZE),
+          loss_reduction=losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE),
       **kwargs)
 
 
@@ -79,7 +81,7 @@ def mock_optimizer_v2(testcase, expected_loss=None):
   """
   expected_var_names = ['%s:0' % BIAS_NAME]
 
-  class _Optimizer(tf.keras.optimizers.Optimizer):
+  class _Optimizer(optimizer_v2.OptimizerV2):
 
     def get_updates(self, loss, params):
       trainable_vars = params

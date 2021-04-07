@@ -22,6 +22,8 @@ import numpy as np
 import six
 import tensorflow as tf
 from tensorflow.python.framework import test_util
+from tensorflow.python.keras.optimizer_v2 import optimizer_v2
+from tensorflow.python.keras.utils import losses_utils
 from tensorflow_estimator.python.estimator.canned import dnn
 from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.canned import prediction_keys
@@ -48,7 +50,7 @@ class MultiClassHead(tf.test.TestCase):
           n_classes=3, loss_reduction='invalid_loss_reduction')
     with self.assertRaisesRegexp(ValueError, r'Invalid loss_reduction: none'):
       head_lib.MultiClassHead(
-          n_classes=3, loss_reduction=tf.keras.losses.Reduction.NONE)
+          n_classes=3, loss_reduction=losses_utils.ReductionV2.NONE)
 
   def test_loss_fn_arg_labels_missing(self):
 
@@ -949,7 +951,7 @@ class MultiClassHead(tf.test.TestCase):
   def test_train_create_loss_loss_reduction(self):
     """Tests create_loss with loss_reduction."""
     head = head_lib.MultiClassHead(
-        n_classes=3, loss_reduction=tf.keras.losses.Reduction.SUM)
+        n_classes=3, loss_reduction=losses_utils.ReductionV2.SUM)
 
     logits = np.array((
         (10, 0, 0),
@@ -1578,7 +1580,7 @@ class MultiClassHeadForEstimator(tf.test.TestCase):
     n_classes = 3
     head = head_lib.MultiClassHead(n_classes)
 
-    class _Optimizer(tf.keras.optimizers.Optimizer):
+    class _Optimizer(optimizer_v2.OptimizerV2):
 
       def get_updates(self, loss, params):
         del params
@@ -1632,7 +1634,7 @@ class MultiClassHeadForEstimator(tf.test.TestCase):
     features = {'x': np.array(((42,),), dtype=np.int32)}
     expected_train_result = 'my_train_op'
 
-    class _Optimizer(tf.keras.optimizers.Optimizer):
+    class _Optimizer(optimizer_v2.OptimizerV2):
 
       def get_updates(self, loss, params):
         del params

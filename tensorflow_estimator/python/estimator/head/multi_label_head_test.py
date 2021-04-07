@@ -22,6 +22,8 @@ import numpy as np
 import six
 import tensorflow as tf
 from tensorflow.python.framework import test_util
+from tensorflow.python.keras.optimizer_v2 import optimizer_v2
+from tensorflow.python.keras.utils import losses_utils
 from tensorflow_estimator.python.estimator.canned import dnn
 from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.canned import prediction_keys
@@ -83,7 +85,7 @@ class MultiLabelHead(tf.test.TestCase):
           n_classes=3, loss_reduction='invalid_loss_reduction')
     with self.assertRaisesRegexp(ValueError, r'Invalid loss_reduction: none'):
       head_lib.MultiLabelHead(
-          n_classes=3, loss_reduction=tf.keras.losses.Reduction.NONE)
+          n_classes=3, loss_reduction=losses_utils.ReductionV2.NONE)
 
   def test_loss_fn_arg_labels_missing(self):
 
@@ -753,7 +755,7 @@ class MultiLabelHead(tf.test.TestCase):
     head = head_lib.MultiLabelHead(
         n_classes,
         weight_column='example_weights',
-        loss_reduction=tf.keras.losses.Reduction.SUM)
+        loss_reduction=losses_utils.ReductionV2.SUM)
 
     logits = np.array([[-10., 10.], [-15., 10.]], dtype=np.float32)
     labels = np.array([[1, 0], [1, 1]], dtype=np.int64)
@@ -1261,7 +1263,7 @@ class MultiLabelHeadForEstimator(tf.test.TestCase):
   def test_invalid_trainable_variables(self):
     head = head_lib.MultiLabelHead(n_classes=2)
 
-    class _Optimizer(tf.keras.optimizers.Optimizer):
+    class _Optimizer(optimizer_v2.OptimizerV2):
 
       def get_updates(self, loss, params):
         del params
@@ -1311,7 +1313,7 @@ class MultiLabelHeadForEstimator(tf.test.TestCase):
     expected_loss = 8.75
     expected_train_result = 'my_train_op'
 
-    class _Optimizer(tf.keras.optimizers.Optimizer):
+    class _Optimizer(optimizer_v2.OptimizerV2):
 
       def get_updates(self, loss, params):
         del params

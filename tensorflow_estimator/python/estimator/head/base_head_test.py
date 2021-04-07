@@ -20,7 +20,9 @@ from __future__ import print_function
 
 import numpy as np
 import tensorflow as tf
+from tensorflow.core.framework import summary_pb2
 from tensorflow.python.framework import test_util
+from tensorflow.python.keras.optimizer_v2 import optimizer_v2
 from tensorflow_estimator.python.estimator import model_fn
 from tensorflow_estimator.python.estimator.head import base_head
 from tensorflow_estimator.python.estimator.head import binary_class_head as head_lib
@@ -42,7 +44,7 @@ def _assert_simple_summaries(test_case,
     summary_str: Serialized `summary_pb2.Summary`.
     tol: Tolerance for relative and absolute.
   """
-  summary = tf.compat.v1.Summary()
+  summary = summary_pb2.Summary()
   summary.ParseFromString(summary_str)
   test_case.assertAllClose(
       expected_summaries, {v.tag: v.simple_value for v in summary.value},
@@ -252,7 +254,7 @@ class CreateEstimatorSpecTest(tf.test.TestCase):
     labels = np.array(((1,), (1,),), dtype=np.float64)
     features = {'x': np.array(((42,),), dtype=np.float32)}
 
-    class _Optimizer(tf.keras.optimizers.Optimizer):
+    class _Optimizer(optimizer_v2.OptimizerV2):
 
       def init(self, name, **kwargs):
         super(_Optimizer, self).__init__(name, **kwargs)

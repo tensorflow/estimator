@@ -19,6 +19,8 @@ from __future__ import division
 from __future__ import print_function
 
 import tensorflow as tf
+
+from tensorflow.core.framework import summary_pb2
 from tensorflow_estimator.python.estimator.head import binary_class_head
 from tensorflow_estimator.python.estimator.head import multi_class_head
 
@@ -87,7 +89,7 @@ def _assert_simple_summaries(test_case,
     summary_str: Serialized `summary_pb2.Summary`.
     tol: Tolerance for relative and absolute.
   """
-  summary = tf.compat.v1.Summary()
+  summary = summary_pb2.Summary()
   summary.ParseFromString(summary_str)
   test_case.assertAllClose(
       expected_summaries, {v.tag: v.simple_value for v in summary.value},

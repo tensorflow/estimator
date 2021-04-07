@@ -20,8 +20,14 @@ from __future__ import print_function
 
 import six
 import tensorflow as tf
+
 from tensorflow.python.feature_column import feature_column_lib as fc
 from tensorflow.python.framework import ops
+from tensorflow.python.keras import activations
+from tensorflow.python.keras import layers as keras_layers
+from tensorflow.python.keras import models
+from tensorflow.python.keras.layers import recurrent_v2
+from tensorflow.python.keras.utils import losses_utils
 from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator import estimator
 from tensorflow_estimator.python.estimator import model_fn
@@ -43,15 +49,15 @@ _LSTM_KEY = 'lstm'
 _GRU_KEY = 'gru'
 
 _CELL_TYPE_TO_LAYER_MAPPING = {
-    _LSTM_KEY: tf.keras.layers.LSTM,
-    _GRU_KEY: tf.keras.layers.GRU,
-    _SIMPLE_RNN_KEY: tf.keras.layers.SimpleRNN
+    _LSTM_KEY: recurrent_v2.LSTM,
+    _GRU_KEY: recurrent_v2.GRU,
+    _SIMPLE_RNN_KEY: keras_layers.SimpleRNN
 }
 
 _CELL_TYPES = {
-    _LSTM_KEY: tf.keras.layers.LSTMCell,
-    _GRU_KEY: tf.keras.layers.GRUCell,
-    _SIMPLE_RNN_KEY: tf.keras.layers.SimpleRNNCell
+    _LSTM_KEY: recurrent_v2.LSTMCell,
+    _GRU_KEY: recurrent_v2.GRUCell,
+    _SIMPLE_RNN_KEY: keras_layers.SimpleRNNCell
 }
 
 # Indicates no value was provided by the user to a kwarg.
@@ -100,7 +106,7 @@ def _make_rnn_cell_fn(units, cell_type=_SIMPLE_RNN_KEY):
   return rnn_cell_fn
 
 
-class RNNModel(tf.keras.Model):
+class RNNModel(models.Model):
   """A Keras RNN model.
 
   Composition of layers to compute logits from RNN model, along with training
@@ -165,14 +171,14 @@ class RNNModel(tf.keras.Model):
     self._return_sequences = return_sequences
     self._sequence_feature_columns = sequence_feature_columns
     self._context_feature_columns = context_feature_columns
-    self._sequence_features_layer = tf.keras.experimental.SequenceFeatures(
+    self._sequence_features_layer = fc.SequenceFeatures(
         sequence_feature_columns)
     self._dense_features_layer = None
     if context_feature_columns:
       self._dense_features_layer = tf.compat.v1.keras.layers.DenseFeatures(
           context_feature_columns)
     self._rnn_layer = rnn_layer
-    self._logits_layer = tf.keras.layers.Dense(
+    self._logits_layer = keras_layers.Dense(
         units=units, activation=activation, name='logits')
 
   def call(self, inputs, training=None):
@@ -231,8 +237,7 @@ class RNNModel(tf.keras.Model):
     }
     config['units'] = self._logits_layer.units
     config['return_sequences'] = self._return_sequences
-    config['activation'] = tf.keras.activations.serialize(
-        self._logits_layer.activation)
+    config['activation'] = activations.serialize(self._logits_layer.activation)
     config['sequence_feature_columns'] = fc.serialize_feature_columns(
         self._sequence_feature_columns)
     config['context_feature_columns'] = (
@@ -252,7 +257,7 @@ class RNNModel(tf.keras.Model):
     Returns:
       A RNNModel.
     """
-    rnn_layer = tf.keras.layers.deserialize(
+    rnn_layer = keras_layers.deserialize(
         config.pop('rnn_layer'), custom_objects=custom_objects)
     sequence_feature_columns = fc.deserialize_feature_columns(
         config.pop('sequence_feature_columns'), custom_objects=custom_objects)
@@ -260,7 +265,7 @@ class RNNModel(tf.keras.Model):
     if context_feature_columns:
       context_feature_columns = fc.deserialize_feature_columns(
           context_feature_columns, custom_objects=custom_objects)
-    activation = tf.keras.activations.deserialize(
+    activation = activations.deserialize(
         config.pop('activation', None), custom_objects=custom_objects)
     return cls(
         rnn_layer=rnn_layer,
@@ -358,8 +363,7 @@ def _make_rnn_layer(rnn_cell_fn, units, cell_type, return_sequences):
       cell_type = _SIMPLE_RNN_KEY
     rnn_cell_fn = _make_rnn_cell_fn(units, cell_type)
 
-  return tf.keras.layers.RNN(
-      cell=rnn_cell_fn(), return_sequences=return_sequences)
+  return keras_layers.RNN(cell=rnn_cell_fn(), return_sequences=return_sequences)
 
 
 @estimator_export('estimator.experimental.RNNEstimator', v1=[])
@@ -580,7 +584,7 @@ class RNNClassifier(RNNEstimator):
                weight_column=None,
                label_vocabulary=None,
                optimizer='Adagrad',
-               loss_reduction=tf.keras.losses.Reduction.SUM_OVER_BATCH_SIZE,
+               loss_reduction=losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE,
                sequence_mask='sequence_mask',
                config=None):
     """Initializes a `RNNClassifier` instance.

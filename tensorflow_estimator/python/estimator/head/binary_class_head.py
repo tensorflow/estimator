@@ -22,6 +22,7 @@ import tensorflow as tf
 from tensorflow.python.framework import ops
 from tensorflow.python.keras.utils import losses_utils
 from tensorflow.python.ops import lookup_ops
+from tensorflow.python.ops import weights_broadcast_ops
 from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator import model_fn
 from tensorflow_estimator.python.estimator.canned import metric_keys
@@ -143,7 +144,7 @@ class BinaryClassHead(base_head.Head):
                weight_column=None,
                thresholds=None,
                label_vocabulary=None,
-               loss_reduction=tf.keras.losses.Reduction.SUM_OVER_BATCH_SIZE,
+               loss_reduction=losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE,
                loss_fn=None,
                name=None):
     if label_vocabulary is not None and not isinstance(label_vocabulary,
@@ -433,7 +434,7 @@ class BinaryClassHead(base_head.Head):
   def _update_auc(self, auc_metric, labels, predictions, weights=None):
     predictions = tf.cast(predictions, dtype=tf.dtypes.float32)
     if weights is not None:
-      weights = tf.__internal__.ops.broadcast_weights(weights, predictions)
+      weights = weights_broadcast_ops.broadcast_weights(weights, predictions)
     auc_metric.update_state(
         y_true=labels, y_pred=predictions, sample_weight=weights)
 
