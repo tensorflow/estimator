@@ -21,7 +21,6 @@ from __future__ import print_function
 import numpy as np
 import six
 import tensorflow as tf
-from tensorflow.core.framework import summary_pb2
 from tensorflow.python.framework import test_util
 from tensorflow_estimator.python.estimator import model_fn
 from tensorflow_estimator.python.estimator.canned import head as head_lib
@@ -57,7 +56,7 @@ def _assert_simple_summaries(test_case,
     summary_str: Serialized `summary_pb2.Summary`.
     tol: Tolerance for relative and absolute.
   """
-  summary = summary_pb2.Summary()
+  summary = tf.compat.v1.Summary()
   summary.ParseFromString(summary_str)
   test_case.assertAllClose(
       expected_summaries, {v.tag: v.simple_value for v in summary.value},

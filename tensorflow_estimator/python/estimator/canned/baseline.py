@@ -235,7 +235,7 @@ def _baseline_model_fn_v2(
     optimizer,
     weight_column=None,
     config=None,
-    loss_reduction=losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE):
+    loss_reduction=tf.keras.losses.Reduction.SUM_OVER_BATCH_SIZE):
   """Model_fn for baseline models.
 
   Args:
@@ -276,7 +276,7 @@ def _baseline_model_fn_v2(
 
   def train_op_fn(loss):
     # Scale loss by number of replicas.
-    if loss_reduction == losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE:
+    if loss_reduction == tf.keras.losses.Reduction.SUM_OVER_BATCH_SIZE:
       loss = losses_utils.scale_loss_for_distribution(loss)
     return opt.get_updates(loss, trainable_variables)[0]
 
@@ -349,7 +349,7 @@ class BaselineClassifierV2(estimator.EstimatorV2):
                label_vocabulary=None,
                optimizer='Ftrl',
                config=None,
-               loss_reduction=losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE):
+               loss_reduction=tf.keras.losses.Reduction.SUM_OVER_BATCH_SIZE):
     """Initializes a BaselineClassifier instance.
 
     Args:
@@ -581,7 +581,7 @@ class BaselineRegressorV2(estimator.EstimatorV2):
                weight_column=None,
                optimizer='Ftrl',
                config=None,
-               loss_reduction=losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE):
+               loss_reduction=tf.keras.losses.Reduction.SUM_OVER_BATCH_SIZE):
     """Initializes a BaselineRegressor instance.
 
     Args:

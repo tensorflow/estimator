@@ -29,13 +29,7 @@ from tensorflow.core.example import example_pb2
 from tensorflow.core.example import feature_pb2
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import test_util
-from tensorflow.python.keras import activations
 from tensorflow.python.keras import layers as keras_layers
-from tensorflow.python.keras import losses
-from tensorflow.python.keras.layers import recurrent_v2
-from tensorflow.python.keras.optimizer_v2 import adam
-from tensorflow.python.keras.optimizer_v2 import optimizer_v2
-from tensorflow.python.keras.utils import losses_utils
 from tensorflow_estimator.python.estimator import model_fn
 from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.canned import parsing_utils
@@ -136,12 +130,12 @@ class RNNLayerFnTest(tf.test.TestCase, parameterized.TestCase):
   def testDefaultCellProvided(self, cell_type):
     """Tests behavior when the default cell type is provided."""
     layer = _make_rnn_layer(cell_type=cell_type, units=[1])
-    self.assertIsInstance(layer, keras_layers.RNN)
-    self.assertIsInstance(layer.cell, keras_layers.SimpleRNNCell)
+    self.assertIsInstance(layer, tf.keras.layers.RNN)
+    self.assertIsInstance(layer.cell, tf.keras.layers.SimpleRNNCell)
 
-  @parameterized.parameters([('gru', recurrent_v2.GRU),
-                             ('lstm', recurrent_v2.LSTM),
-                             ('simple_rnn', keras_layers.SimpleRNN)])
+  @parameterized.parameters([('gru', tf.keras.layers.GRU),
+                             ('lstm', tf.keras.layers.LSTM),
+                             ('simple_rnn', tf.keras.layers.SimpleRNN)])
   def testSpecificLayerTypeProvided(self, cell_type, layer_type):
     """Tests specific layer type for GRU and LSTM."""
     layer = _make_rnn_layer(cell_type=cell_type, units=1)
@@ -173,10 +167,10 @@ class RNNLayerFnTest(tf.test.TestCase, parameterized.TestCase):
   def testMultipleCellsProvided(self):
     """Tests behavior when multiple cells are provided."""
     layer = _make_rnn_layer(cell_type='simple_rnn', units=[1, 2])
-    self.assertIsInstance(layer, keras_layers.RNN)
-    self.assertIsInstance(layer.cell, keras_layers.StackedRNNCells)
+    self.assertIsInstance(layer, tf.keras.layers.RNN)
+    self.assertIsInstance(layer.cell, tf.keras.layers.StackedRNNCells)
     self.assertLen(layer.cell.cells, 2)
-    self.assertIsInstance(layer.cell.cells[0], keras_layers.SimpleRNNCell)
+    self.assertIsInstance(layer.cell.cells[0], tf.keras.layers.SimpleRNNCell)
 
   @tf.compat.v1.test.mock.patch.object(keras_layers, 'RNN')
   def testCustomCellFnProvided(self, mock_rnn_layer_type):
@@ -191,7 +185,7 @@ class RNNLayerFnTest(tf.test.TestCase, parameterized.TestCase):
 def _mock_logits_layer(kernel, bias):
   """Sets initialization values to dense `logits` layers used in context."""
 
-  class _MockDenseLayer(keras_layers.Dense):
+  class _MockDenseLayer(tf.keras.layers.Dense):
 
     def __init__(self, units, activation, name):
       kwargs = {}
@@ -251,7 +245,7 @@ class RNNLogitFnTest(tf.test.TestCase, parameterized.TestCase):
                    return_sequences=False,
                    training=False):
     """Tests that the expected logits are calculated."""
-    rnn_layer = keras_layers.SimpleRNN(
+    rnn_layer = tf.keras.layers.SimpleRNN(
         2,
         return_sequences=return_sequences,
         kernel_initializer=tf.compat.v1.initializers.constant(self.kernel),
@@ -598,7 +592,7 @@ class RNNLogitFnTest(tf.test.TestCase, parameterized.TestCase):
   def testTrainingMode(self, mode, expected_training_mode):
     """Tests that `training` argument is properly used."""
 
-    class _MockRNNCell(keras_layers.SimpleRNNCell):
+    class _MockRNNCell(tf.keras.layers.SimpleRNNCell):
       """Used to test that `training` argument is properly used."""
 
       def __init__(self, test_case):
@@ -651,7 +645,7 @@ class RNNModelTest(tf.test.TestCase, parameterized.TestCase):
                           optimizer='Adam',
                           **kwargs):
     """Initializes and compiles a RNN model with specific weights."""
-    rnn_layer = keras_layers.SimpleRNN(
+    rnn_layer = tf.keras.layers.SimpleRNN(
         2,
         return_sequences=return_sequences,
         kernel_initializer=tf.compat.v1.initializers.constant(self.kernel),
@@ -663,12 +657,12 @@ class RNNModelTest(tf.test.TestCase, parameterized.TestCase):
           units=1,
           rnn_layer=rnn_layer,
           sequence_feature_columns=self.sequence_feature_columns,
-          activation=activations.sigmoid,
+          activation=tf.keras.activations.sigmoid,
           return_sequences=return_sequences,
           **kwargs)
       model.compile(
           optimizer=optimizer,
-          loss=losses.BinaryCrossentropy(reduction='sum'),
+          loss=tf.keras.losses.BinaryCrossentropy(reduction='sum'),
           metrics=['accuracy'])
     return model
 
@@ -686,13 +680,13 @@ class RNNModelTest(tf.test.TestCase, parameterized.TestCase):
     ]
     model = rnn.RNNModel(
         units=1,
-        rnn_layer=keras_layers.SimpleRNN(2),
+        rnn_layer=tf.keras.layers.SimpleRNN(2),
         sequence_feature_columns=sequence_feature_columns,
-        activation=activations.sigmoid,
+        activation=tf.keras.activations.sigmoid,
         context_feature_columns=context_feature_columns)
     model.compile(
         optimizer='Adam',
-        loss=losses.BinaryCrossentropy(reduction='sum'),
+        loss=tf.keras.losses.BinaryCrossentropy(reduction='sum'),
         metrics=['accuracy'])
 
     model.predict(
@@ -727,7 +721,7 @@ class RNNModelTest(tf.test.TestCase, parameterized.TestCase):
     ]
     model = rnn.RNNModel(
         units=11,
-        rnn_layer=keras_layers.SimpleRNN(3),
+        rnn_layer=tf.keras.layers.SimpleRNN(3),
         sequence_feature_columns=sequence_feature_columns,
         return_sequences=True,
         name='rnn-model',
@@ -755,7 +749,7 @@ class RNNModelTest(tf.test.TestCase, parameterized.TestCase):
 
   def testModelConfigWithActivation(self):
     """Tests store / restore from config with logits activation."""
-    init_kwargs = self._testModelConfig(activation=activations.sigmoid)
+    init_kwargs = self._testModelConfig(activation=tf.keras.activations.sigmoid)
     self.assertEqual(init_kwargs['activation'].__name__, 'sigmoid')
 
   def testModelConfigWithContextFeatures(self):
@@ -808,8 +802,9 @@ class RNNModelTest(tf.test.TestCase, parameterized.TestCase):
         [[[0.191731], [0.353593]], [[0.5049296], [0.5049296]]],
         atol=1e-4)
 
-  @parameterized.named_parameters(('StringOptimizer', 'Adam'),
-                                  ('OptimizerInstance', adam.Adam()))
+  @parameterized.named_parameters(
+      ('StringOptimizer', 'Adam'),
+      ('OptimizerInstance', tf.keras.optimizers.Adam()))
   def DISABLED_testTraining(self, optimizer):  # See b/129842600.
     """Tests the loss computed in training step."""
     model = self._get_compiled_model(optimizer=optimizer)
@@ -926,7 +921,7 @@ class RNNClassifierTrainingTest(tf.test.TestCase):
                  LOGITS_BIAS_NAME, LOGITS_WEIGHTS_NAME)
     expected_var_names = ['%s:0' % name for name in var_names]
 
-    class _Optimizer(optimizer_v2.OptimizerV2):
+    class _Optimizer(tf.keras.optimizers.Optimizer):
       """Mock optimizer checking that loss has the proper value."""
 
       def __init__(self, test_case):
@@ -1010,8 +1005,8 @@ class RNNClassifierTrainingTest(tf.test.TestCase):
     n_classes = 2
 
     def rnn_cell_fn():
-      cells = [keras_layers.SimpleRNNCell(units=n) for n in cell_units]
-      return keras_layers.StackedRNNCells(cells)
+      cells = [tf.keras.layers.SimpleRNNCell(units=n) for n in cell_units]
+      return tf.keras.layers.StackedRNNCells(cells)
 
     est = rnn.RNNClassifier(
         sequence_feature_columns=[embed],
@@ -1176,7 +1171,7 @@ class RNNClassifierTrainingTest(tf.test.TestCase):
         expected_loss=0.559831,
         return_sequences=True,
         weight_column='weights',
-        loss_reduction=losses_utils.ReductionV2.SUM)
+        loss_reduction=tf.keras.losses.Reduction.SUM)
 
   def testDefaultGradientClipping(self):
     """Tests that optimizer applies default gradient clipping value."""
@@ -1599,7 +1594,7 @@ class BaseRNNClassificationIntegrationTest(object):
     self._testNumpyInputFn(optimizer='Adam')
 
   def testNumpyInputFnOptimizerInstance(self):
-    self._testNumpyInputFn(optimizer=adam.Adam())
+    self._testNumpyInputFn(optimizer=tf.keras.optimizers.Adam())
 
   def testParseExampleInputFn(self):
     """Tests complete flow with input_fn constructed from parse_example."""
@@ -1682,8 +1677,8 @@ def _rnn_classifier_dropout_fn(feature_columns, n_classes, cell_units,
   def _rnn_cell_fn():
     cells = []
     for units in cell_units:
-      cells.append(keras_layers.SimpleRNNCell(units, dropout=0.5))
-    return keras_layers.StackedRNNCells(cells)
+      cells.append(tf.keras.layers.SimpleRNNCell(units, dropout=0.5))
+    return tf.keras.layers.StackedRNNCells(cells)
 
   return rnn.RNNClassifier(
       rnn_cell_fn=_rnn_cell_fn,

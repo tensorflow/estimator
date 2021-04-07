@@ -16,23 +16,11 @@
 
 from absl import flags
 import numpy as np
-import tensorflow.compat.v1 as tf
-
-# pylint: disable=g-direct-tensorflow-import
-from tensorflow.python import data as dataset_lib
-from tensorflow.python.data.ops import dataset_ops
-from tensorflow.python.layers import layers
-from tensorflow.python.ops import array_ops
-from tensorflow.python.ops import init_ops
-from tensorflow.python.ops import metrics as metrics_lib
-from tensorflow.python.ops.losses import losses
-from tensorflow.python.platform import test
-from tensorflow.python.training import evaluation
-from tensorflow.python.training import session_run_hook
-from tensorflow.python.training import training
+import tensorflow as tf
+from tensorflow.python.tpu import tpu_feed
 from tensorflow.python.tpu.device_assignment import device_assignment
 from tensorflow.python.tpu.topology import Topology
-from tensorflow.python.tpu import tpu_feed
+from tensorflow.python.training import evaluation
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
 from tensorflow_estimator.python.estimator.export import export_output
 from tensorflow_estimator.python.estimator.tpu import tpu_config
@@ -53,8 +41,8 @@ _INPUT_PIPELINE_WITH_QUEUE_RUNNER = (
 
 
 def dense_computation(features):
-  return layers.dense(
-      features['x'], 1, kernel_initializer=init_ops.zeros_initializer())
+  return tf.compat.v1.layers.dense(
+      features['x'], 1, kernel_initializer=tf.compat.v1.zeros_initializer())
 
 
 def model_fn_global_step_incrementer(features, labels, mode, params):
@@ -63,10 +51,10 @@ def model_fn_global_step_incrementer(features, labels, mode, params):
   train_op = None
   predictions = dense_computation(features)
   if mode != _PREDICT:
-    loss = losses.mean_squared_error(labels, predictions)
-    optimizer = tf.tpu.CrossShardOptimizer(
-        training.GradientDescentOptimizer(learning_rate=0.5))
-    train_op = optimizer.minimize(loss, training.get_global_step())
+    loss = tf.compat.v1.losses.mean_squared_error(labels, predictions)
+    optimizer = tf.compat.v1.tpu.CrossShardOptimizer(
+        tf.compat.v1.train.GradientDescentOptimizer(learning_rate=0.5))
+    train_op = optimizer.minimize(loss, tf.compat.v1.train.get_global_step())
   return tpu_estimator.TPUEstimatorSpec(
       mode,
       loss=loss,
@@ -84,9 +72,9 @@ def dummy_input_fn_with_dataset(batch_size, repeat=True, x=None):
     x = np.random.normal(size=[batch_size, 1]).astype(np.float32)
   labels = [[2.0]] * batch_size
 
-  dataset1 = dataset_lib.Dataset.from_tensor_slices(x)
-  dataset2 = dataset_lib.Dataset.from_tensor_slices(labels)
-  dataset = dataset_lib.Dataset.zip((dataset1, dataset2))
+  dataset1 = tf.compat.v1.data.Dataset.from_tensor_slices(x)
+  dataset2 = tf.compat.v1.data.Dataset.from_tensor_slices(labels)
+  dataset = tf.compat.v1.data.Dataset.zip((dataset1, dataset2))
   if repeat:
     dataset = dataset.repeat()
   dataset = dataset.batch(batch_size, drop_remainder=True)
@@ -99,7 +87,7 @@ def dummy_input_fn_with_dataset(batch_size, repeat=True, x=None):
 
 def dummy_input_fn(batch_size, repeat=True):
   dataset = dummy_input_fn_with_dataset(batch_size, repeat)
-  iterator = dataset_ops.make_one_shot_iterator(dataset)
+  iterator = tf.compat.v1.data.make_one_shot_iterator(dataset)
   return iterator.get_next()
 
 
@@ -114,7 +102,7 @@ def create_run_config(iterations_per_loop, num_shards, num_cores_per_replica,
           **kwargs))
 
 
-class TPUEstimatorModelParallelismConstructorTest(test.TestCase):
+class TPUEstimatorModelParallelismConstructorTest(tf.test.TestCase):
 
   def test_fail_model_parallelism_for_per_core_input(self):
     run_config = create_run_config(
@@ -129,7 +117,7 @@ class TPUEstimatorModelParallelismConstructorTest(test.TestCase):
           train_batch_size=128)
 
 
-class TPUEstimatorModelParallelismTrainingTest(test.TestCase):
+class TPUEstimatorModelParallelismTrainingTest(tf.test.TestCase):
 
   def _train_and_return_global_steps(self,
                                      iterations_per_loop,
@@ -156,7 +144,7 @@ class TPUEstimatorModelParallelismTrainingTest(test.TestCase):
         train_batch_size=16,
         eval_batch_size=16)
 
-    class _TrainStepCheckHook(session_run_hook.SessionRunHook):
+    class _TrainStepCheckHook(tf.compat.v1.train.SessionRunHook):
       """Check eval step counter after one session.run."""
 
       def __init__(self):
@@ -168,7 +156,8 @@ class TPUEstimatorModelParallelismTrainingTest(test.TestCase):
         return self._global_steps
 
       def after_run(self, run_context, run_values):
-        global_step = run_context.session.run(training.get_global_step())
+        global_step = run_context.session.run(
+            tf.compat.v1.train.get_global_step())
         self._global_steps.append(global_step)
 
     if pre_train_steps:
@@ -190,7 +179,7 @@ class TPUEstimatorModelParallelismTrainingTest(test.TestCase):
     self.assertEqual([15], global_steps_per_loop)
 
 
-class TPUEstimatorModelParallelismEvaluationTest(test.TestCase):
+class TPUEstimatorModelParallelismEvaluationTest(tf.test.TestCase):
 
   def _create_input_fn(self):
 
@@ -205,22 +194,23 @@ class TPUEstimatorModelParallelismEvaluationTest(test.TestCase):
       return tpu_estimator.TPUEstimatorSpec(
           mode=mode, eval_metrics=eval_metrics, loss=loss)
     # Train
-    optimizer = tf.tpu.CrossShardOptimizer(
-        training.GradientDescentOptimizer(learning_rate=0.5))
-    train_op = optimizer.minimize(loss, global_step=training.get_global_step())
+    optimizer = tf.compat.v1.tpu.CrossShardOptimizer(
+        tf.compat.v1.train.GradientDescentOptimizer(learning_rate=0.5))
+    train_op = optimizer.minimize(
+        loss, global_step=tf.compat.v1.train.get_global_step())
     return tpu_estimator.TPUEstimatorSpec(
         mode=mode, train_op=train_op, loss=loss)
 
   def _metric_fn_on_cpu(self, labels, predictions):
     return {
-        'mse': metrics_lib.mean_absolute_error(labels, predictions),
+        'mse': tf.compat.v1.metrics.mean_absolute_error(labels, predictions),
     }
 
   def _model_fn_with_eval_tensor_list(self, features, labels, mode, params):
     del params  # unused.
-    predictions = layers.dense(
-        features['x'], 1, kernel_initializer=init_ops.zeros_initializer())
-    loss = losses.mean_squared_error(labels, predictions)
+    predictions = tf.compat.v1.layers.dense(
+        features['x'], 1, kernel_initializer=tf.compat.v1.zeros_initializer())
+    loss = tf.compat.v1.losses.mean_squared_error(labels, predictions)
 
     return self._create_head(
         mode,
@@ -229,9 +219,9 @@ class TPUEstimatorModelParallelismEvaluationTest(test.TestCase):
 
   def _model_fn_with_eval_dict(self, features, labels, mode, params):
     del params  # unused.
-    predictions = layers.dense(
-        features['x'], 1, kernel_initializer=init_ops.zeros_initializer())
-    loss = losses.mean_squared_error(labels, predictions)
+    predictions = tf.compat.v1.layers.dense(
+        features['x'], 1, kernel_initializer=tf.compat.v1.zeros_initializer())
+    loss = tf.compat.v1.losses.mean_squared_error(labels, predictions)
 
     return self._create_head(
         mode,
@@ -253,7 +243,7 @@ class TPUEstimatorModelParallelismEvaluationTest(test.TestCase):
 
     est.train(self._create_input_fn(), steps=1)
 
-    class _EvalStepCheckHook(session_run_hook.SessionRunHook):
+    class _EvalStepCheckHook(tf.compat.v1.train.SessionRunHook):
       """Check eval step counter after one session.run.
 
       As the evaluation sets the eval iterations as the eval steps, the
@@ -267,9 +257,8 @@ class TPUEstimatorModelParallelismEvaluationTest(test.TestCase):
         self._test_case = test_case
 
       def before_run(self, run_context):
-        return session_run_hook.SessionRunArgs({
-            'eval_steps': evaluation._get_or_create_eval_step()
-        })
+        return tf.compat.v1.train.SessionRunArgs(
+            {'eval_steps': evaluation._get_or_create_eval_step()})
 
       def after_run(self, run_context, run_values):
         eval_steps = run_values.results['eval_steps']
@@ -319,7 +308,7 @@ class TPUEstimatorModelParallelismEvaluationTest(test.TestCase):
       est.train(self._create_input_fn(), steps=1)
 
 
-class TPUEstimatorModelParallelismInFeedTest(test.TestCase):
+class TPUEstimatorModelParallelismInFeedTest(tf.test.TestCase):
 
   def setUp(self):
     self._topology_2x2x2 = Topology(
@@ -340,7 +329,7 @@ class TPUEstimatorModelParallelismInFeedTest(test.TestCase):
         host_id=0,
         input_partition_dims=input_partition_dims,
         device_assignment=ds)
-    x = array_ops.zeros((14, 5))
+    x = tf.zeros((14, 5))
     tensors = partitioned_infeed._check_dims_and_partition_or_replicate_on_host(
         x, dims=input_partition_dims[0])
     self.assertEqual(2, len(tensors))
@@ -358,7 +347,7 @@ class TPUEstimatorModelParallelismInFeedTest(test.TestCase):
         host_id=0,
         input_partition_dims=input_partition_dims,
         device_assignment=ds)
-    x = array_ops.zeros((14, 5))
+    x = tf.zeros((14, 5))
     tensors = partitioned_infeed._check_dims_and_partition_or_replicate_on_host(
         x, dims=input_partition_dims[0])
     self.assertEqual(8, len(tensors))
@@ -376,7 +365,7 @@ class TPUEstimatorModelParallelismInFeedTest(test.TestCase):
         host_id=0,
         input_partition_dims=input_partition_dims,
         device_assignment=ds)
-    x = array_ops.zeros((5, 5))
+    x = tf.zeros((5, 5))
     tensors = partitioned_infeed._check_dims_and_partition_or_replicate_on_host(
         x, dims=input_partition_dims[0])
     self.assertEqual(4, len(tensors))
@@ -385,4 +374,4 @@ class TPUEstimatorModelParallelismInFeedTest(test.TestCase):
     # pylint: enable=protected-access
 
 if __name__ == '__main__':
-  test.main()
+  tf.test.main()

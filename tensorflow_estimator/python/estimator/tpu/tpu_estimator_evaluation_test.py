@@ -17,21 +17,7 @@
 from absl import flags
 import numpy as np
 import tensorflow as tf
-
-
-# pylint: disable=g-direct-tensorflow-import
-from tensorflow.python import data as dataset_lib
-from tensorflow.python.data.ops import dataset_ops
-from tensorflow.python.layers import layers
-from tensorflow.python.ops import init_ops
-from tensorflow.python.ops import metrics as metrics_lib
-from tensorflow.python.ops import string_ops
-from tensorflow.python.ops.losses import losses
-from tensorflow.python.platform import test
-from tensorflow.python.saved_model import signature_constants
 from tensorflow.python.training import evaluation
-from tensorflow.python.training import session_run_hook
-from tensorflow.python.training import training
 
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
 from tensorflow_estimator.python.estimator.export import export_output as export_output_lib
@@ -56,8 +42,8 @@ _INPUT_PIPELINE_WITH_QUEUE_RUNNER = (
 
 
 def dense_computation(features):
-  return layers.dense(
-      features['x'], 1, kernel_initializer=init_ops.zeros_initializer())
+  return tf.compat.v1.layers.dense(
+      features['x'], 1, kernel_initializer=tf.compat.v1.zeros_initializer())
 
 
 def get_model_fn(export_tpu_tensor=True, export_cpu_tensor=False,
@@ -70,13 +56,13 @@ def get_model_fn(export_tpu_tensor=True, export_cpu_tensor=False,
     predictions = dense_computation(features)
     export_outputs = None
     if mode != _PREDICT:
-      loss = losses.mean_squared_error(labels, predictions)
+      loss = tf.compat.v1.losses.mean_squared_error(labels, predictions)
       optimizer = tf.compat.v1.tpu.CrossShardOptimizer(
-          training.GradientDescentOptimizer(learning_rate=0.5))
-      train_op = optimizer.minimize(loss, training.get_global_step())
+          tf.compat.v1.train.GradientDescentOptimizer(learning_rate=0.5))
+      train_op = optimizer.minimize(loss, tf.compat.v1.train.get_global_step())
     else:
       if export_tpu_tensor:
-        key = signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY
+        key = tf.saved_model.DEFAULT_SERVING_SIGNATURE_DEF_KEY
         export_outputs = {
             key: export_output_lib.PredictOutput({
                 'prediction': predictions
@@ -88,7 +74,7 @@ def get_model_fn(export_tpu_tensor=True, export_cpu_tensor=False,
       if export_cpu_tensor:
 
         def host_call(predictions):
-          classes = string_ops.as_string(predictions, name='classes')
+          classes = tf.as_string(predictions, name='classes')
           classification_output = export_output_lib.ClassificationOutput(
               classes=classes)
           export_outputs['classification'] = classification_output
@@ -115,9 +101,9 @@ def dummy_input_fn_with_dataset(batch_size, repeat=True, x=None):
     x = np.random.normal(size=[batch_size, 1]).astype(np.float32)
   labels = [[2.0]] * batch_size
 
-  dataset1 = dataset_lib.Dataset.from_tensor_slices(x)
-  dataset2 = dataset_lib.Dataset.from_tensor_slices(labels)
-  dataset = dataset_lib.Dataset.zip((dataset1, dataset2))
+  dataset1 = tf.compat.v1.data.Dataset.from_tensor_slices(x)
+  dataset2 = tf.compat.v1.data.Dataset.from_tensor_slices(labels)
+  dataset = tf.compat.v1.data.Dataset.zip((dataset1, dataset2))
   if repeat:
     dataset = dataset.repeat()
   dataset = dataset.batch(batch_size, drop_remainder=True)
@@ -130,7 +116,7 @@ def dummy_input_fn_with_dataset(batch_size, repeat=True, x=None):
 
 def dummy_input_fn(batch_size, repeat=True):
   dataset = dummy_input_fn_with_dataset(batch_size, repeat)
-  iterator = dataset_ops.make_one_shot_iterator(dataset)
+  iterator = tf.compat.v1.data.make_one_shot_iterator(dataset)
   return iterator.get_next()
 
 
@@ -144,7 +130,7 @@ def create_run_config(iterations_per_loop, **kwargs):
   )
 
 
-class TPUEstimatorEvaluationTest(test.TestCase):
+class TPUEstimatorEvaluationTest(tf.test.TestCase):
 
   def _create_input_fn(self):
     def _input_fn(params):
@@ -158,9 +144,9 @@ class TPUEstimatorEvaluationTest(test.TestCase):
           mode=mode, eval_metrics=eval_metrics, loss=loss)
     # Train
     optimizer = tf.compat.v1.tpu.CrossShardOptimizer(
-        training.GradientDescentOptimizer(learning_rate=0.5))
-    train_op = optimizer.minimize(loss,
-                                  global_step=training.get_global_step())
+        tf.compat.v1.train.GradientDescentOptimizer(learning_rate=0.5))
+    train_op = optimizer.minimize(
+        loss, global_step=tf.compat.v1.train.get_global_step())
     return tpu_estimator.TPUEstimatorSpec(
         mode=mode, train_op=train_op, loss=loss)
 
@@ -184,32 +170,30 @@ class TPUEstimatorEvaluationTest(test.TestCase):
           mode=mode, eval_metric_ops=eval_metric_ops, loss=loss)
     # Train
     optimizer = tf.compat.v1.tpu.CrossShardOptimizer(
-        training.GradientDescentOptimizer(learning_rate=0.5))
-    train_op = optimizer.minimize(loss,
-                                  global_step=training.get_global_step())
+        tf.compat.v1.train.GradientDescentOptimizer(learning_rate=0.5))
+    train_op = optimizer.minimize(
+        loss, global_step=tf.compat.v1.train.get_global_step())
     return tpu_estimator.TPUEstimatorSpec(
         mode=mode, train_op=train_op, loss=loss)
 
   def _metric_fn_on_cpu(self, labels, predictions):
     return {
-        'mse': metrics_lib.mean_absolute_error(labels, predictions),
+        'mse': tf.compat.v1.metrics.mean_absolute_error(labels, predictions),
     }
 
   def _model_fn_without_eval_metrics(self, features, labels, mode, params):
     del params  # unused.
-    predictions = layers.dense(
-        features['x'], 1,
-        kernel_initializer=init_ops.zeros_initializer())
-    loss = losses.mean_squared_error(labels, predictions)
+    predictions = tf.compat.v1.layers.dense(
+        features['x'], 1, kernel_initializer=tf.compat.v1.zeros_initializer())
+    loss = tf.compat.v1.losses.mean_squared_error(labels, predictions)
 
     return self._create_head(mode, loss, None)
 
   def _model_fn_with_eval_tensor_list(self, features, labels, mode, params):
     del params  # unused.
-    predictions = layers.dense(
-        features['x'], 1,
-        kernel_initializer=init_ops.zeros_initializer())
-    loss = losses.mean_squared_error(labels, predictions)
+    predictions = tf.compat.v1.layers.dense(
+        features['x'], 1, kernel_initializer=tf.compat.v1.zeros_initializer())
+    loss = tf.compat.v1.losses.mean_squared_error(labels, predictions)
 
     return self._create_head(
         mode, loss,
@@ -217,10 +201,9 @@ class TPUEstimatorEvaluationTest(test.TestCase):
 
   def _model_fn_with_eval_dict(self, features, labels, mode, params):
     del params  # unused.
-    predictions = layers.dense(
-        features['x'], 1,
-        kernel_initializer=init_ops.zeros_initializer())
-    loss = losses.mean_squared_error(labels, predictions)
+    predictions = tf.compat.v1.layers.dense(
+        features['x'], 1, kernel_initializer=tf.compat.v1.zeros_initializer())
+    loss = tf.compat.v1.losses.mean_squared_error(labels, predictions)
 
     return self._create_head(
         mode, loss,
@@ -230,10 +213,9 @@ class TPUEstimatorEvaluationTest(test.TestCase):
 
   def _model_fn_with_eval_metric_ops(self, features, labels, mode, params):
     del params  # unused.
-    predictions = layers.dense(
-        features['x'], 1,
-        kernel_initializer=init_ops.zeros_initializer())
-    loss = losses.mean_squared_error(labels, predictions)
+    predictions = tf.compat.v1.layers.dense(
+        features['x'], 1, kernel_initializer=tf.compat.v1.zeros_initializer())
+    loss = tf.compat.v1.losses.mean_squared_error(labels, predictions)
 
     eval_metric_ops = self._metric_fn_on_cpu(labels, predictions)
     return self._create_head_with_eval_metric_ops(
@@ -250,7 +232,7 @@ class TPUEstimatorEvaluationTest(test.TestCase):
 
     est.train(self._create_input_fn(), steps=1)
 
-    class _EvalStepCheckHook(session_run_hook.SessionRunHook):
+    class _EvalStepCheckHook(tf.compat.v1.train.SessionRunHook):
       """Check eval step counter after one session.run.
 
       As the evaluation sets the eval iterations as the eval steps, the
@@ -448,4 +430,4 @@ class TPUEstimatorEvaluationTest(test.TestCase):
 
 
 if __name__ == '__main__':
-  test.main()
+  tf.test.main()

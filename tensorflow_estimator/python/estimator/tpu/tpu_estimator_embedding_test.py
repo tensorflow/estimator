@@ -14,33 +14,15 @@
 # ==============================================================================
 """Tests for TPUEstimator."""
 
-from absl import flags
-from absl.testing import parameterized
 import itertools
 import os
 import tempfile
-
+from absl import flags
+from absl.testing import parameterized
 import numpy as np
-
-# pylint: disable=g-direct-tensorflow-import
-from tensorflow.python import data as dataset_lib
-from tensorflow.python.feature_column import feature_column_lib as fc_lib
-from tensorflow.python.framework import dtypes
-from tensorflow.python.framework import sparse_tensor
-from tensorflow.python.layers import layers
-from tensorflow.python.ops import array_ops
-from tensorflow.python.ops import control_flow_ops
-from tensorflow.python.ops import init_ops
-from tensorflow.python.ops import math_ops
-from tensorflow.python.ops import metrics as metrics_lib
-from tensorflow.python.ops import parsing_ops
-from tensorflow.python.ops import sparse_ops
-from tensorflow.python.ops.losses import losses
-from tensorflow.python.platform import test
+import tensorflow as tf
 from tensorflow.python.tpu import feature_column_v2 as tpu_fc_v2
 from tensorflow.python.tpu import tpu_embedding
-from tensorflow.python.tpu import tpu_optimizer
-from tensorflow.python.training import training
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
 from tensorflow_estimator.python.estimator.export import export
 from tensorflow_estimator.python.estimator.export import export_output as export_output_lib
@@ -65,8 +47,8 @@ _VOCAB_NUM_BUCKETS = 5
 
 
 def dense_computation(features):
-  return layers.dense(
-      features['x'], 1, kernel_initializer=init_ops.zeros_initializer())
+  return tf.compat.v1.layers.dense(
+      features['x'], 1, kernel_initializer=tf.compat.v1.zeros_initializer())
 
 
 def create_run_config(iterations_per_loop, **kwargs):
@@ -79,16 +61,15 @@ def create_run_config(iterations_per_loop, **kwargs):
   )
 
 
-class TPUEstimatorFeatureColumnTestBase(test.TestCase):
+class TPUEstimatorFeatureColumnTestBase(tf.test.TestCase):
 
   def setUp(self):
     self._old_value = tpu_estimator._WRAP_INPUT_FN_INTO_WHILE_LOOP
 
     feature_spec = {
-        'x': parsing_ops.SparseFeature(['ix0', 'ix1'], 'val',
-                                       dtypes.int64, [1, 100]),
-        'y': parsing_ops.SparseFeature(['ix0', 'ix1'], 'val',
-                                       dtypes.int64, [1, 100])}
+        'x': tf.io.SparseFeature(['ix0', 'ix1'], 'val', tf.int64, [1, 100]),
+        'y': tf.io.SparseFeature(['ix0', 'ix1'], 'val', tf.int64, [1, 100])
+    }
     self._serving_input_receiver_fn = (
         export.build_parsing_serving_input_receiver_fn(feature_spec))
     super().setUp()
@@ -110,11 +91,13 @@ class TPUEstimatorFeatureColumnTestBase(test.TestCase):
       sequence_columns, non_sequence_columns = (
           tpu_fc_v2.split_sequence_columns_v2(feature_columns))
       if sequence_columns:
-        sequence_layer = fc_lib.SequenceFeatures(sequence_columns)
+        sequence_layer = tf.keras.experimental.SequenceFeatures(
+            sequence_columns)
         sequence_features, sequence_lengths = sequence_layer(features)
-        sequence_lengths = math_ops.cast(sequence_lengths, dtypes.float32)
+        sequence_lengths = tf.cast(sequence_lengths, tf.float32)
       if non_sequence_columns:
-        dense_layer = fc_lib.DenseFeatures(non_sequence_columns)
+        dense_layer = tf.compat.v1.keras.layers.DenseFeatures(
+            non_sequence_columns)
         input_layer = dense_layer(features)
       if numeric_check:
         # Make predictions the same as input_layer. This is used in some tests
@@ -123,9 +106,9 @@ class TPUEstimatorFeatureColumnTestBase(test.TestCase):
         if sequence_columns:
           # For sequence columns, we return the sequence lengths, so that we can
           # verify that these have been correctly calculated.
-          predictions = array_ops.concat(sequence_lengths, -1)
+          predictions = tf.concat(sequence_lengths, -1)
         else:
-          predictions = array_ops.identity(input_layer)
+          predictions = tf.identity(input_layer)
       else:
         if sequence_columns:
           # At this point we know that all the sequence features have the same
@@ -134,30 +117,31 @@ class TPUEstimatorFeatureColumnTestBase(test.TestCase):
           sequence_entries_per_batch = (
               sequence_features.shape[-1] *
               sequence_columns[0].get_max_sequence_length())
-          flattened = array_ops.reshape(
-              sequence_features, [-1, sequence_entries_per_batch])
-          sequence_lengths = array_ops.expand_dims(sequence_lengths, -1)
-          input_layer = array_ops.concat(
-              [input_layer, flattened, sequence_lengths], -1)
-        predictions = layers.dense(
-            input_layer, 1, kernel_initializer=init_ops.zeros_initializer())
+          flattened = tf.reshape(sequence_features,
+                                 [-1, sequence_entries_per_batch])
+          sequence_lengths = tf.compat.v1.expand_dims(sequence_lengths, -1)
+          input_layer = tf.concat([input_layer, flattened, sequence_lengths],
+                                  -1)
+        predictions = tf.compat.v1.layers.dense(
+            input_layer, 1, kernel_initializer=tf.compat.v1.zeros_initializer())
 
       loss = None
       train_op = None
       eval_metrics = None
       export_outputs = None
       if mode == model_fn_lib.ModeKeys.TRAIN:
-        loss = losses.mean_squared_error(labels, predictions)
-        optimizer = training.AdagradOptimizer(learning_rate=0.5)
-        optimizer = tpu_optimizer.CrossShardOptimizer(optimizer)
+        loss = tf.compat.v1.losses.mean_squared_error(labels, predictions)
+        optimizer = tf.compat.v1.train.AdagradOptimizer(learning_rate=0.5)
+        optimizer = tf.compat.v1.tpu.CrossShardOptimizer(optimizer)
         train_op = optimizer.minimize(
-            loss, global_step=training.get_global_step())
+            loss, global_step=tf.compat.v1.train.get_global_step())
       elif mode == model_fn_lib.ModeKeys.EVAL:
-        loss = losses.mean_squared_error(labels, predictions)
+        loss = tf.compat.v1.losses.mean_squared_error(labels, predictions)
 
         def metric_fn_on_cpu(labels, predictions):
           return {
-              'mse': metrics_lib.mean_absolute_error(labels, predictions),
+              'mse':
+                  tf.compat.v1.metrics.mean_absolute_error(labels, predictions),
           }
 
         eval_metrics = (metric_fn_on_cpu, [labels, predictions])
@@ -205,33 +189,33 @@ class TPUEstimatorFeatureColumnTest(TPUEstimatorFeatureColumnTestBase,
     feature_g = 'g'  # shared sequence
     feature_h = 'h'  # shared non-sequence
 
-    categorical_column_a = fc_lib.categorical_column_with_identity(
+    categorical_column_a = tf.feature_column.categorical_column_with_identity(
         key=feature_a, num_buckets=3)
-    categorical_column_b = fc_lib.categorical_column_with_identity(
+    categorical_column_b = tf.feature_column.categorical_column_with_identity(
         key=feature_b, num_buckets=6)
-    categorical_column_c = fc_lib.categorical_column_with_identity(
+    categorical_column_c = tf.feature_column.categorical_column_with_identity(
         key=feature_c, num_buckets=6)
     weight_feature_key_c = 'c_weight'
-    weighted_column_c = fc_lib.weighted_categorical_column(
+    weighted_column_c = tf.feature_column.weighted_categorical_column(
         categorical_column=categorical_column_c,
         weight_feature_key=weight_feature_key_c)
-    categorical_column_d = fc_lib.categorical_column_with_identity(
+    categorical_column_d = tf.feature_column.categorical_column_with_identity(
         key=feature_d, num_buckets=3)
     weight_feature_key_d = 'd_weight'
-    weighted_column_d = fc_lib.weighted_categorical_column(
+    weighted_column_d = tf.feature_column.weighted_categorical_column(
         categorical_column=categorical_column_d,
         weight_feature_key=weight_feature_key_d)
     sequence_categorical_column_e = (
-        fc_lib.sequence_categorical_column_with_identity(
+        tf.feature_column.sequence_categorical_column_with_identity(
             key=feature_e, num_buckets=7))
     sequence_categorical_column_f = (
-        fc_lib.sequence_categorical_column_with_identity(
+        tf.feature_column.sequence_categorical_column_with_identity(
             key=feature_f, num_buckets=4))
     sequence_categorical_column_g = (
-        fc_lib.sequence_categorical_column_with_identity(
+        tf.feature_column.sequence_categorical_column_with_identity(
             key=feature_g, num_buckets=4))
     categorical_column_h = (
-        fc_lib.categorical_column_with_identity(
+        tf.feature_column.categorical_column_with_identity(
             key=feature_h, num_buckets=4))
 
     table_a = 'tbl_a'
@@ -243,30 +227,32 @@ class TPUEstimatorFeatureColumnTest(TPUEstimatorFeatureColumnTestBase,
     embedding_dimension_d = 2
     embedding_dimension_e = 3
     embedding_dimension_fgh = 4
-    column_a = tpu_fc_v2.embedding_column_v2(
+    column_a = tf.compat.v1.tpu.experimental.embedding_column(
         categorical_column_a,
         dimension=embedding_dimension_a,
         combiner='mean',
         initializer=lambda: 'my_initializer_a')
-    column_b, column_c = tpu_fc_v2.shared_embedding_columns_v2(
+    column_b, column_c = tf.compat.v1.tpu.experimental.shared_embedding_columns(
         [categorical_column_b, weighted_column_c],
         dimension=embedding_dimension_bc,
         combiner='sqrtn',
         initializer=lambda: 'my_initializer_b_c')
-    column_d = tpu_fc_v2.embedding_column_v2(
+    column_d = tf.compat.v1.tpu.experimental.embedding_column(
         weighted_column_d,
         dimension=embedding_dimension_d,
         combiner='mean',
         initializer=lambda: 'my_initializer_d')
-    sequence_column_e = tpu_fc_v2.embedding_column_v2(
+    sequence_column_e = tf.compat.v1.tpu.experimental.embedding_column(
         sequence_categorical_column_e,
         max_sequence_length=3,
         dimension=embedding_dimension_e,
         initializer=lambda: 'my_initializer_e')
     sequence_column_f, sequence_column_g, column_h = (
-        tpu_fc_v2.shared_embedding_columns_v2(
-            [sequence_categorical_column_f, sequence_categorical_column_g,
-             categorical_column_h],
+        tf.compat.v1.tpu.experimental.shared_embedding_columns(
+            [
+                sequence_categorical_column_f, sequence_categorical_column_g,
+                categorical_column_h
+            ],
             max_sequence_lengths=[2, 1, 0],
             dimension=embedding_dimension_fgh,
             initializer=lambda: 'my_initializer_f_g_h'))
@@ -324,36 +310,37 @@ class TPUEstimatorFeatureColumnTest(TPUEstimatorFeatureColumnTestBase,
       input_features = []
       for feature in features:
         if len(features[feature].shape) == 1:
-          input_features.append(array_ops.expand_dims(features[feature], -1))
+          input_features.append(tf.compat.v1.expand_dims(features[feature], -1))
         elif len(features[feature].shape) > 2:
           input_features.append(
-              array_ops.reshape(features[feature],
-                                [features[feature].shape[0], -1]))
+              tf.reshape(features[feature], [features[feature].shape[0], -1]))
         else:
           input_features.append(features[feature])
         input_features = [
-            math_ops.cast(feature, dtypes.float32)
-            for feature in input_features]
-        input_layer = array_ops.concat(input_features, -1)
-        predictions = layers.dense(
-            input_layer, 1, kernel_initializer=init_ops.zeros_initializer())
+            tf.cast(feature, tf.float32) for feature in input_features
+        ]
+        input_layer = tf.concat(input_features, -1)
+        predictions = tf.compat.v1.layers.dense(
+            input_layer, 1, kernel_initializer=tf.compat.v1.zeros_initializer())
 
       loss = None
       train_op = None
       eval_metrics = None
       export_outputs = None
       if mode == model_fn_lib.ModeKeys.TRAIN:
-        loss = losses.mean_squared_error(labels, predictions)
-        optimizer = training.GradientDescentOptimizer(learning_rate=0.5)
-        optimizer = tpu_optimizer.CrossShardOptimizer(optimizer)
+        loss = tf.compat.v1.losses.mean_squared_error(labels, predictions)
+        optimizer = tf.compat.v1.train.GradientDescentOptimizer(
+            learning_rate=0.5)
+        optimizer = tf.compat.v1.tpu.CrossShardOptimizer(optimizer)
         train_op = optimizer.minimize(
-            loss, global_step=training.get_global_step())
+            loss, global_step=tf.compat.v1.train.get_global_step())
       elif mode == model_fn_lib.ModeKeys.EVAL:
-        loss = losses.mean_squared_error(labels, predictions)
+        loss = tf.compat.v1.losses.mean_squared_error(labels, predictions)
 
         def metric_fn_on_cpu(labels, predictions):
           return {
-              'mse': metrics_lib.mean_absolute_error(labels, predictions),
+              'mse':
+                  tf.compat.v1.metrics.mean_absolute_error(labels, predictions),
           }
 
         eval_metrics = (metric_fn_on_cpu, [labels, predictions])
@@ -397,20 +384,20 @@ class TPUEstimatorFeatureColumnTest(TPUEstimatorFeatureColumnTestBase,
       vocab_file = os.path.join(tempfile.mkdtemp(), 'vocab')
       with open(vocab_file, 'w') as f:
         f.write('\n'.join([str(i) for i in range(_VOCAB_SIZE)]))
-      vocab_column = fc_lib.categorical_column_with_vocabulary_file(
+      vocab_column = tf.compat.v1.feature_column.categorical_column_with_vocabulary_file(
           key='x',
           vocabulary_file=vocab_file,
           vocabulary_size=_VOCAB_SIZE,
           num_oov_buckets=_VOCAB_NUM_BUCKETS - _VOCAB_SIZE)
     else:
       vocab_list = [str(i) for i in range(_VOCAB_SIZE)]
-      vocab_column = fc_lib.categorical_column_with_vocabulary_list(
+      vocab_column = tf.feature_column.categorical_column_with_vocabulary_list(
           key='x',
           vocabulary_list=vocab_list,
           num_oov_buckets=_VOCAB_NUM_BUCKETS - _VOCAB_SIZE)
 
     feature_columns = [
-        tpu_fc_v2.embedding_column_v2(
+        tf.compat.v1.tpu.experimental.embedding_column(
             categorical_column=vocab_column,
             dimension=_VOCAB_EMBEDDING_DIM,
             initializer=embedding_initializer),
@@ -446,11 +433,11 @@ class TPUEstimatorFeatureColumnTest(TPUEstimatorFeatureColumnTestBase,
     embedding_init = np.zeros((_VOCAB_SIZE, _VOCAB_EMBEDDING_DIM))
     for i in range(_VOCAB_SIZE):
       embedding_init[i, i] = i + 1
-    embedding_initializer = init_ops.constant_initializer(embedding_init)
+    embedding_initializer = tf.compat.v1.constant_initializer(embedding_init)
 
     def input_fn(params):
       # Data index is [3, 2, 1, 0]
-      feature_data = sparse_tensor.SparseTensor(
+      feature_data = tf.SparseTensor(
           indices=[[i, 0] for i in range(_VOCAB_SIZE)],
           values=[str(_VOCAB_SIZE - 1 - i) for i in range(_VOCAB_SIZE)],
           dense_shape=[_VOCAB_SIZE, 1])
@@ -467,7 +454,7 @@ class TPUEstimatorFeatureColumnTest(TPUEstimatorFeatureColumnTestBase,
       else:
         labels = np.zeros((_VOCAB_SIZE, 1), dtype=np.float32)
 
-      data = dataset_lib.Dataset.from_tensor_slices(({
+      data = tf.compat.v1.data.Dataset.from_tensor_slices(({
           'x': feature_data,
       }, labels))
       data = data.repeat()
@@ -481,13 +468,14 @@ class TPUEstimatorFeatureColumnTest(TPUEstimatorFeatureColumnTestBase,
         embedding_initializer, is_vocabulary_file=is_vocabulary_file)
 
   def test_feature_in_two_embeddings(self):
-    sparse_column = fc_lib.categorical_column_with_identity(
+    sparse_column = tf.feature_column.categorical_column_with_identity(
         key='x', num_buckets=10)
     feature_columns = [
-        tpu_fc_v2.embedding_column_v2(categorical_column=sparse_column,
-                                      dimension=2),
-        tpu_fc_v2.embedding_column_v2(categorical_column=sparse_column,
-                                      dimension=4)]
+        tf.compat.v1.tpu.experimental.embedding_column(
+            categorical_column=sparse_column, dimension=2),
+        tf.compat.v1.tpu.experimental.embedding_column(
+            categorical_column=sparse_column, dimension=4)
+    ]
     with self.assertRaisesRegex(
         ValueError, 'is used with multiple embeddings and this '
         'is not supported.'):
@@ -497,53 +485,60 @@ class TPUEstimatorFeatureColumnTest(TPUEstimatorFeatureColumnTestBase,
 
   def _test_two_features(self, shared_embedding, sequence_column,
                          input_method, use_cpu=False):
-    sparse_column1 = fc_lib.categorical_column_with_identity(
+    sparse_column1 = tf.feature_column.categorical_column_with_identity(
         key='x', num_buckets=10)
     if sequence_column:
-      sparse_column2 = fc_lib.sequence_categorical_column_with_identity(
+      sparse_column2 = tf.feature_column.sequence_categorical_column_with_identity(
           key='y', num_buckets=10)
     else:
-      sparse_column2 = fc_lib.categorical_column_with_identity(
+      sparse_column2 = tf.feature_column.categorical_column_with_identity(
           key='y', num_buckets=10)
 
     if shared_embedding:
       if sequence_column:
-        feature_columns = tpu_fc_v2.shared_embedding_columns_v2(
-            [sparse_column1, sparse_column2], dimension=2,
+        feature_columns = tf.compat.v1.tpu.experimental.shared_embedding_columns(
+            [sparse_column1, sparse_column2],
+            dimension=2,
             max_sequence_lengths=[0, 2])
       else:
-        feature_columns = tpu_fc_v2.shared_embedding_columns_v2(
+        feature_columns = tf.compat.v1.tpu.experimental.shared_embedding_columns(
             [sparse_column1, sparse_column2], dimension=2)
     else:
       if sequence_column:
         feature_columns = [
-            tpu_fc_v2.embedding_column_v2(categorical_column=sparse_column1,
-                                          dimension=2),
-            tpu_fc_v2.embedding_column_v2(categorical_column=sparse_column2,
-                                          dimension=4, max_sequence_length=2)]
+            tf.compat.v1.tpu.experimental.embedding_column(
+                categorical_column=sparse_column1, dimension=2),
+            tf.compat.v1.tpu.experimental.embedding_column(
+                categorical_column=sparse_column2,
+                dimension=4,
+                max_sequence_length=2)
+        ]
       else:
         feature_columns = [
-            tpu_fc_v2.embedding_column_v2(categorical_column=sparse_column1,
-                                          dimension=2),
-            tpu_fc_v2.embedding_column_v2(categorical_column=sparse_column2,
-                                          dimension=4)]
+            tf.compat.v1.tpu.experimental.embedding_column(
+                categorical_column=sparse_column1, dimension=2),
+            tf.compat.v1.tpu.experimental.embedding_column(
+                categorical_column=sparse_column2, dimension=4)
+        ]
 
     def _input_fn(params):
-      feature1_data = dataset_lib.Dataset.from_tensor_slices(
-          sparse_tensor.SparseTensor(
-              indices=[[i, j] for i in range(params['batch_size'])
-                       for j in [0, 1]],
+      feature1_data = tf.compat.v1.data.Dataset.from_tensor_slices(
+          tf.SparseTensor(
+              indices=[
+                  [i, j] for i in range(params['batch_size']) for j in [0, 1]
+              ],
               values=[1] * (2 * params['batch_size']),
               dense_shape=[params['batch_size'], 2]))
-      feature2_data = dataset_lib.Dataset.from_tensor_slices(
-          sparse_tensor.SparseTensor(
-              indices=[[i, j] for i in range(params['batch_size'])
-                       for j in [0, 1]],
+      feature2_data = tf.compat.v1.data.Dataset.from_tensor_slices(
+          tf.SparseTensor(
+              indices=[
+                  [i, j] for i in range(params['batch_size']) for j in [0, 1]
+              ],
               values=[2] * (2 * params['batch_size']),
               dense_shape=[params['batch_size'], 2]))
-      labels_data = dataset_lib.Dataset.from_tensor_slices(
+      labels_data = tf.compat.v1.data.Dataset.from_tensor_slices(
           np.array([[0]] * params['batch_size'], dtype=np.int32))
-      dataset = dataset_lib.Dataset.zip(
+      dataset = tf.compat.v1.data.Dataset.zip(
           (feature1_data, feature2_data, labels_data))
       dataset = dataset.repeat()
       dataset = dataset.batch(params['batch_size'], drop_remainder=True)
@@ -558,8 +553,8 @@ class TPUEstimatorFeatureColumnTest(TPUEstimatorFeatureColumnTestBase,
                                                       use_cpu=use_cpu,
                                                       input_method=input_method)
     est.train(input_fn=_input_fn, steps=1)
-    checkpoint_reader = training.NewCheckpointReader(
-        training.latest_checkpoint(est.config.model_dir))
+    checkpoint_reader = tf.compat.v1.train.NewCheckpointReader(
+        tf.train.latest_checkpoint(est.config.model_dir))
     return checkpoint_reader.get_variable_to_shape_map().keys()
 
   @parameterized.named_parameters(
@@ -590,21 +585,21 @@ class TPUEstimatorFeatureColumnTest(TPUEstimatorFeatureColumnTestBase,
           vocabulary_size=10, dimension=4)
 
     def _input_fn(params):
-      feature1_data = dataset_lib.Dataset.from_tensor_slices(
-          sparse_tensor.SparseTensor(
+      feature1_data = tf.compat.v1.data.Dataset.from_tensor_slices(
+          tf.SparseTensor(
               indices=list(
                   itertools.product(range(params['batch_size']), [0, 1])),
               values=[1] * (2 * params['batch_size']),
               dense_shape=[params['batch_size'], 2]))
-      feature2_data = dataset_lib.Dataset.from_tensor_slices(
-          sparse_tensor.SparseTensor(
+      feature2_data = tf.compat.v1.data.Dataset.from_tensor_slices(
+          tf.SparseTensor(
               indices=list(
                   itertools.product(range(params['batch_size']), [0, 1])),
               values=[2] * (2 * params['batch_size']),
               dense_shape=[params['batch_size'], 2]))
-      labels_data = dataset_lib.Dataset.from_tensor_slices(
+      labels_data = tf.compat.v1.data.Dataset.from_tensor_slices(
           np.array([[0]] * params['batch_size'], dtype=np.int32))
-      dataset = dataset_lib.Dataset.zip(
+      dataset = tf.compat.v1.data.Dataset.zip(
           (feature1_data, feature2_data, labels_data))
       dataset = dataset.repeat()
       dataset = dataset.batch(params['batch_size'], drop_remainder=True)
@@ -621,14 +616,15 @@ class TPUEstimatorFeatureColumnTest(TPUEstimatorFeatureColumnTestBase,
     est.train(input_fn=_input_fn, steps=1)
 
   def test_non_tpu_embedding_column(self):
-    sparse_column = fc_lib.categorical_column_with_identity(
+    sparse_column = tf.feature_column.categorical_column_with_identity(
         key='x', num_buckets=10)
-    sparse_column2 = fc_lib.categorical_column_with_identity(
+    sparse_column2 = tf.feature_column.categorical_column_with_identity(
         key='y', num_buckets=10)
     feature_columns = [
-        tpu_fc_v2.embedding_column_v2(
+        tf.compat.v1.tpu.experimental.embedding_column(
             categorical_column=sparse_column, dimension=2),
-        fc_lib.embedding_column(categorical_column=sparse_column2, dimension=4)
+        tf.feature_column.embedding_column(
+            categorical_column=sparse_column2, dimension=4)
     ]
 
     with self.assertRaisesRegex(TypeError, 'Unsupported feature column'):
@@ -637,16 +633,16 @@ class TPUEstimatorFeatureColumnTest(TPUEstimatorFeatureColumnTestBase,
       est.train(input_fn=(lambda params: 'Not used'), steps=1)
 
   def test_feature_in_embedding_and_shared_embedding(self):
-    sparse_column1 = fc_lib.categorical_column_with_identity(
+    sparse_column1 = tf.feature_column.categorical_column_with_identity(
         key='x', num_buckets=10)
-    sparse_column2 = fc_lib.categorical_column_with_identity(
+    sparse_column2 = tf.feature_column.categorical_column_with_identity(
         key='y', num_buckets=10)
 
     feature_columns = [
-        tpu_fc_v2.embedding_column_v2(categorical_column=sparse_column1,
-                                      dimension=2)
-    ] + tpu_fc_v2.shared_embedding_columns_v2([sparse_column1, sparse_column2],
-                                              dimension=4)
+        tf.compat.v1.tpu.experimental.embedding_column(
+            categorical_column=sparse_column1, dimension=2)
+    ] + tf.compat.v1.tpu.experimental.shared_embedding_columns(
+        [sparse_column1, sparse_column2], dimension=4)
 
     with self.assertRaisesRegex(
         ValueError, 'is used with multiple embeddings and this '
@@ -656,65 +652,66 @@ class TPUEstimatorFeatureColumnTest(TPUEstimatorFeatureColumnTestBase,
       est.train(input_fn=(lambda params: 'Not used'), steps=1)
 
   def test_sequence_column_with_no_max_length(self):
-    sparse_column = fc_lib.sequence_categorical_column_with_identity(
+    sparse_column = tf.feature_column.sequence_categorical_column_with_identity(
         key='x', num_buckets=10)
     with self.assertRaisesRegex(
         ValueError, 'max_sequence_length must be greater than 0 '
         'for sequence columns. Got max_sequence_length'
         '=0 for sequence column x.'):
-      tpu_fc_v2.embedding_column_v2(categorical_column=sparse_column,
-                                    dimension=2)
+      tf.compat.v1.tpu.experimental.embedding_column(
+          categorical_column=sparse_column, dimension=2)
 
   def test_non_sequence_column_with_max_length(self):
-    sparse_column = fc_lib.categorical_column_with_identity(
+    sparse_column = tf.feature_column.categorical_column_with_identity(
         key='x', num_buckets=10)
     with self.assertRaisesRegex(
         ValueError, 'Non zero max_seq_length=2 specified for non '
         'sequence column x.'):
-      tpu_fc_v2.embedding_column_v2(categorical_column=sparse_column,
-                                    dimension=2,
-                                    max_sequence_length=2)
+      tf.compat.v1.tpu.experimental.embedding_column(
+          categorical_column=sparse_column, dimension=2, max_sequence_length=2)
 
   def test_sequence_column_shared_embedding_wrong_max_sequence_length(self):
-    sparse_column_x = fc_lib.sequence_categorical_column_with_identity(
+    sparse_column_x = tf.feature_column.sequence_categorical_column_with_identity(
         key='x', num_buckets=10)
-    sparse_column_y = fc_lib.sequence_categorical_column_with_identity(
+    sparse_column_y = tf.feature_column.sequence_categorical_column_with_identity(
         key='y', num_buckets=10)
     with self.assertRaisesRegex(
         ValueError, 'max_sequence_lengths and categorical_columns must be of'):
-      tpu_fc_v2.shared_embedding_columns_v2(
-          categorical_columns=[sparse_column_x, sparse_column_y], dimension=2,
+      tf.compat.v1.tpu.experimental.shared_embedding_columns(
+          categorical_columns=[sparse_column_x, sparse_column_y],
+          dimension=2,
           max_sequence_lengths=[2])
 
   def test_sequence_column_shared_embedding_non_sequence_with_max_length(self):
-    sparse_column_x = fc_lib.sequence_categorical_column_with_identity(
+    sparse_column_x = tf.feature_column.sequence_categorical_column_with_identity(
         key='x', num_buckets=10)
-    sparse_column_y = fc_lib.categorical_column_with_identity(
+    sparse_column_y = tf.feature_column.categorical_column_with_identity(
         key='y', num_buckets=10)
     with self.assertRaisesRegex(ValueError,
                                 'Non zero max_seq_length=1 specified for non'):
-      tpu_fc_v2.shared_embedding_columns_v2(
-          categorical_columns=[sparse_column_x, sparse_column_y], dimension=2,
+      tf.compat.v1.tpu.experimental.shared_embedding_columns(
+          categorical_columns=[sparse_column_x, sparse_column_y],
+          dimension=2,
           max_sequence_lengths=[2, 1])
 
   def test_sequence_column_shared_embedding_sequence_without_max_length(self):
-    sparse_column_x = fc_lib.sequence_categorical_column_with_identity(
+    sparse_column_x = tf.feature_column.sequence_categorical_column_with_identity(
         key='x', num_buckets=10)
-    sparse_column_y = fc_lib.categorical_column_with_identity(
+    sparse_column_y = tf.feature_column.categorical_column_with_identity(
         key='y', num_buckets=10)
     with self.assertRaisesRegex(ValueError,
                                 'max_sequence_length must be greater than 0'):
-      tpu_fc_v2.shared_embedding_columns_v2(
+      tf.compat.v1.tpu.experimental.shared_embedding_columns(
           categorical_columns=[sparse_column_x, sparse_column_y], dimension=2)
 
   @parameterized.named_parameters(
       ('per_host_v1', _PER_HOST_V1),
       ('per_host_v2', _PER_HOST_V2))
   def test_sequence_column_length(self, input_method):
-    sequence_column = fc_lib.sequence_categorical_column_with_identity(
+    sequence_column = tf.feature_column.sequence_categorical_column_with_identity(
         key='x', num_buckets=10)
     feature_columns = [
-        tpu_fc_v2.embedding_column_v2(
+        tf.compat.v1.tpu.experimental.embedding_column(
             categorical_column=sequence_column,
             dimension=4,
             max_sequence_length=10)
@@ -727,16 +724,14 @@ class TPUEstimatorFeatureColumnTest(TPUEstimatorFeatureColumnTestBase,
       for i in range(params['batch_size']):
         for j in range(sequence_lengths[i]):
           indices.append([i, j])
-      feature_data = dataset_lib.Dataset.from_tensor_slices(
-          sparse_tensor.SparseTensor(
+      feature_data = tf.compat.v1.data.Dataset.from_tensor_slices(
+          tf.SparseTensor(
               indices=indices,
               values=[1] * total,
-              dense_shape=[params['batch_size'], 10])
-      )
-      labels_data = dataset_lib.Dataset.from_tensor_slices(
+              dense_shape=[params['batch_size'], 10]))
+      labels_data = tf.compat.v1.data.Dataset.from_tensor_slices(
           np.array(sequence_lengths, dtype=np.float32))
-      dataset = dataset_lib.Dataset.zip(
-          (feature_data, labels_data))
+      dataset = tf.compat.v1.data.Dataset.zip((feature_data, labels_data))
       dataset = dataset.repeat()
       dataset = dataset.batch(params['batch_size'], drop_remainder=True)
       def _map(x, y):
@@ -800,45 +795,43 @@ class TPUEstimatorFeatureColumnTest(TPUEstimatorFeatureColumnTestBase,
       ('per_host_v1', _PER_HOST_V1),
       ('per_host_v2', _PER_HOST_V2))
   def test_dynamic_learning_rate(self, input_method):
-    sparse_column_a = fc_lib.categorical_column_with_identity(
+    sparse_column_a = tf.feature_column.categorical_column_with_identity(
         key='a', num_buckets=10)
-    sparse_column_b = fc_lib.categorical_column_with_identity(
+    sparse_column_b = tf.feature_column.categorical_column_with_identity(
         key='b', num_buckets=10)
-    sparse_column_c = fc_lib.categorical_column_with_identity(
+    sparse_column_c = tf.feature_column.categorical_column_with_identity(
         key='c', num_buckets=10)
-    sparse_column_d = fc_lib.categorical_column_with_identity(
+    sparse_column_d = tf.feature_column.categorical_column_with_identity(
         key='d', num_buckets=10)
-    sparse_column_e = fc_lib.categorical_column_with_identity(
+    sparse_column_e = tf.feature_column.categorical_column_with_identity(
         key='e', num_buckets=10)
-    sparse_column_f = fc_lib.categorical_column_with_identity(
+    sparse_column_f = tf.feature_column.categorical_column_with_identity(
         key='f', num_buckets=10)
 
     static_lr = 1
     def dynamic_learning_rate(global_step):
-      return control_flow_ops.cond(
-          math_ops.equal(global_step, 0), lambda: 2, lambda: 0)
+      return tf.compat.v1.cond(tf.equal(global_step, 0), lambda: 2, lambda: 0)
 
     def shared_dynamic_learning_rate(global_step):
-      return control_flow_ops.cond(
-          math_ops.equal(global_step, 0), lambda: 3, lambda: 0)
+      return tf.compat.v1.cond(tf.equal(global_step, 0), lambda: 3, lambda: 0)
 
-    embedding_column_static = tpu_fc_v2.embedding_column_v2(
+    embedding_column_static = tf.compat.v1.tpu.experimental.embedding_column(
         categorical_column=sparse_column_a,
         dimension=2,
-        initializer=init_ops.Ones())
-    embedding_column_dynamic = tpu_fc_v2.embedding_column_v2(
+        initializer=tf.compat.v1.ones_initializer())
+    embedding_column_dynamic = tf.compat.v1.tpu.experimental.embedding_column(
         categorical_column=sparse_column_b,
         dimension=2,
-        initializer=init_ops.Ones(),
+        initializer=tf.compat.v1.ones_initializer(),
         learning_rate_fn=dynamic_learning_rate)
-    shared_embedding_columns_static = tpu_fc_v2.shared_embedding_columns_v2(
+    shared_embedding_columns_static = tf.compat.v1.tpu.experimental.shared_embedding_columns(
         [sparse_column_c, sparse_column_d],
         dimension=2,
-        initializer=init_ops.Ones())
-    shared_embedding_columns_dynamic = tpu_fc_v2.shared_embedding_columns_v2(
+        initializer=tf.compat.v1.ones_initializer())
+    shared_embedding_columns_dynamic = tf.compat.v1.tpu.experimental.shared_embedding_columns(
         [sparse_column_e, sparse_column_f],
         dimension=2,
-        initializer=init_ops.Ones(),
+        initializer=tf.compat.v1.ones_initializer(),
         learning_rate_fn=shared_dynamic_learning_rate)
     feature_columns = ([embedding_column_static] + [embedding_column_dynamic] +
                        shared_embedding_columns_static +
@@ -847,15 +840,14 @@ class TPUEstimatorFeatureColumnTest(TPUEstimatorFeatureColumnTestBase,
     def _input_fn(params):
       feature_indices = [[0, 0], [1, 0], [1, 1], [1, 2]]
       feature_values = [3, 0, 1, 2]
-      feature = sparse_tensor.SparseTensor(
-          indices=feature_indices,
-          values=feature_values,
-          dense_shape=[2, 3])
+      feature = tf.SparseTensor(
+          indices=feature_indices, values=feature_values, dense_shape=[2, 3])
       feature_datas = tuple(
-          dataset_lib.Dataset.from_tensor_slices(feature) for _ in range(6))
-      labels_data = dataset_lib.Dataset.from_tensor_slices(
+          tf.compat.v1.data.Dataset.from_tensor_slices(feature)
+          for _ in range(6))
+      labels_data = tf.compat.v1.data.Dataset.from_tensor_slices(
           np.array([[0]] * 2, dtype=np.int32))
-      dataset = dataset_lib.Dataset.zip(feature_datas + (labels_data,))
+      dataset = tf.compat.v1.data.Dataset.zip(feature_datas + (labels_data,))
       dataset = dataset.repeat()
 
       def _map(a, b, c, d, e, f, z):
@@ -870,16 +862,16 @@ class TPUEstimatorFeatureColumnTest(TPUEstimatorFeatureColumnTestBase,
       del params
       assert mode == model_fn_lib.ModeKeys.TRAIN
 
-      dense_layer = fc_lib.DenseFeatures(feature_columns)
+      dense_layer = tf.compat.v1.keras.layers.DenseFeatures(feature_columns)
       input_layer = dense_layer(features)
-      predictions = layers.dense(
-          input_layer, 1, kernel_initializer=init_ops.ones_initializer())
+      predictions = tf.compat.v1.layers.dense(
+          input_layer, 1, kernel_initializer=tf.compat.v1.ones_initializer())
 
-      loss = losses.mean_squared_error(labels, predictions)
-      optimizer = training.AdagradOptimizer(learning_rate=0.5)
-      optimizer = tpu_optimizer.CrossShardOptimizer(optimizer)
+      loss = tf.compat.v1.losses.mean_squared_error(labels, predictions)
+      optimizer = tf.compat.v1.train.AdagradOptimizer(learning_rate=0.5)
+      optimizer = tf.compat.v1.tpu.CrossShardOptimizer(optimizer)
       train_op = optimizer.minimize(
-          loss, global_step=training.get_global_step())
+          loss, global_step=tf.compat.v1.train.get_global_step())
       return tpu_estimator.TPUEstimatorSpec(
           mode=mode,
           train_op=train_op,
@@ -901,8 +893,8 @@ class TPUEstimatorFeatureColumnTest(TPUEstimatorFeatureColumnTestBase,
         embedding_config_spec=embedding_config_spec)
     est.train(input_fn=_input_fn, steps=1)
 
-    checkpoint_reader = training.NewCheckpointReader(
-        training.latest_checkpoint(est.config.model_dir))
+    checkpoint_reader = tf.compat.v1.train.NewCheckpointReader(
+        tf.train.latest_checkpoint(est.config.model_dir))
     embedding_static = checkpoint_reader.get_tensor(
         'dense_features/a_embedding/embedding_weights')
     embedding_dynamic = checkpoint_reader.get_tensor(
@@ -925,8 +917,8 @@ class TPUEstimatorFeatureColumnTest(TPUEstimatorFeatureColumnTestBase,
     # train for another step
     est.train(input_fn=_input_fn, steps=1)
 
-    checkpoint_reader2 = training.NewCheckpointReader(
-        training.latest_checkpoint(est.config.model_dir))
+    checkpoint_reader2 = tf.compat.v1.train.NewCheckpointReader(
+        tf.train.latest_checkpoint(est.config.model_dir))
     embedding_static2 = checkpoint_reader2.get_tensor(
         'dense_features/a_embedding/embedding_weights')
     embedding_dynamic2 = checkpoint_reader2.get_tensor(
@@ -953,9 +945,9 @@ class TPUEstimatorWeightedFeatureColumnTest(TPUEstimatorFeatureColumnTestBase,
   def test_embedding_with_weighted_categorical_column(self, input_method):
     num_buckets = 3
     embedding_dim = 5
-    sparse_id_column = fc_lib.categorical_column_with_identity(
+    sparse_id_column = tf.feature_column.categorical_column_with_identity(
         key='ids', num_buckets=num_buckets)
-    weighted_sparse_id_column = fc_lib.weighted_categorical_column(
+    weighted_sparse_id_column = tf.feature_column.weighted_categorical_column(
         categorical_column=sparse_id_column, weight_feature_key='values')
 
     embedding_init = np.zeros((num_buckets, embedding_dim))
@@ -967,11 +959,11 @@ class TPUEstimatorWeightedFeatureColumnTest(TPUEstimatorFeatureColumnTestBase,
       embedding_init[i, :] = [i + 1] * embedding_dim
 
     feature_columns = [
-        tpu_fc_v2.embedding_column_v2(
+        tf.compat.v1.tpu.experimental.embedding_column(
             categorical_column=weighted_sparse_id_column,
             dimension=embedding_dim,
             combiner='mean',
-            initializer=init_ops.constant_initializer(embedding_init))
+            initializer=tf.compat.v1.constant_initializer(embedding_init))
     ]
 
     def _input_fn(params):
@@ -981,9 +973,9 @@ class TPUEstimatorWeightedFeatureColumnTest(TPUEstimatorFeatureColumnTestBase,
       id_values = (2, 1, 1, 0)
       weight_values = (0.5, 1.0, 0.2, 0.0)
 
-      inputs = sparse_tensor.SparseTensor(
+      inputs = tf.SparseTensor(
           indices=indices, values=id_values, dense_shape=dense_shape)
-      weights = sparse_tensor.SparseTensor(
+      weights = tf.SparseTensor(
           indices=indices, values=weight_values, dense_shape=dense_shape)
 
       # Setup labels so that the loss is zero
@@ -993,7 +985,7 @@ class TPUEstimatorWeightedFeatureColumnTest(TPUEstimatorFeatureColumnTestBase,
         labels[0, j] = (3 * 0.5 + 2 * 1.0) / (0.5 + 1.0)
         labels[1, j] = (2 * 0.2 + 1 * 0.0) / (0.2 + 0.0)
 
-      data = dataset_lib.Dataset.from_tensor_slices(({
+      data = tf.compat.v1.data.Dataset.from_tensor_slices(({
           'ids': inputs,
           'values': weights
       }, labels))
@@ -1014,11 +1006,11 @@ class TPUEstimatorWeightedFeatureColumnTest(TPUEstimatorFeatureColumnTestBase,
       self, input_method):
     num_buckets = 3
     embedding_dim = 5
-    sparse_id_column1 = fc_lib.categorical_column_with_identity(
+    sparse_id_column1 = tf.feature_column.categorical_column_with_identity(
         key='ids1', num_buckets=num_buckets)
-    weighted_sparse_id_column = fc_lib.weighted_categorical_column(
+    weighted_sparse_id_column = tf.feature_column.weighted_categorical_column(
         categorical_column=sparse_id_column1, weight_feature_key='values')
-    sparse_id_column2 = fc_lib.categorical_column_with_identity(
+    sparse_id_column2 = tf.feature_column.categorical_column_with_identity(
         key='ids2', num_buckets=num_buckets)
 
     # Embedding initialized to
@@ -1029,11 +1021,11 @@ class TPUEstimatorWeightedFeatureColumnTest(TPUEstimatorFeatureColumnTestBase,
     for i in range(num_buckets):
       embedding_init[i, :] = [i + 1] * embedding_dim
 
-    feature_columns = tpu_fc_v2.shared_embedding_columns_v2(
+    feature_columns = tf.compat.v1.tpu.experimental.shared_embedding_columns(
         categorical_columns=[weighted_sparse_id_column, sparse_id_column2],
         dimension=embedding_dim,
         combiner='sum',
-        initializer=init_ops.constant_initializer(embedding_init))
+        initializer=tf.compat.v1.constant_initializer(embedding_init))
 
     def _input_fn(params):
       sample_size = 2
@@ -1044,13 +1036,13 @@ class TPUEstimatorWeightedFeatureColumnTest(TPUEstimatorFeatureColumnTestBase,
       id2_indices = ((0, 1), (1, 0), (1, 2))
       id2_values = (1, 2, 0)
 
-      inputs1 = sparse_tensor.SparseTensor(
+      inputs1 = tf.SparseTensor(
           indices=id1_indices, values=id1_values, dense_shape=dense_shape)
-      inputs1_weights = sparse_tensor.SparseTensor(
+      inputs1_weights = tf.SparseTensor(
           indices=id1_indices,
           values=id1_weight_values,
           dense_shape=dense_shape)
-      inputs2 = sparse_tensor.SparseTensor(
+      inputs2 = tf.SparseTensor(
           indices=id2_indices, values=id2_values, dense_shape=dense_shape)
 
       # Setup labels so that the loss is zero
@@ -1062,7 +1054,7 @@ class TPUEstimatorWeightedFeatureColumnTest(TPUEstimatorFeatureColumnTestBase,
         labels[0, j] = 2
         labels[1, j] = 3 + 1
 
-      data = dataset_lib.Dataset.from_tensor_slices(({
+      data = tf.compat.v1.data.Dataset.from_tensor_slices(({
           'ids1': inputs1,
           'ids2': inputs2,
           'values': inputs1_weights
@@ -1080,11 +1072,11 @@ class TPUEstimatorWeightedFeatureColumnTest(TPUEstimatorFeatureColumnTestBase,
   def test_embedding_with_with_weighted_categorical_column_with_vocab_error(
       self):
     vocab_list = [str(i) for i in range(_VOCAB_SIZE)]
-    vocab_column = fc_lib.categorical_column_with_vocabulary_list(
+    vocab_column = tf.feature_column.categorical_column_with_vocabulary_list(
         key='x',
         vocabulary_list=vocab_list,
         num_oov_buckets=_VOCAB_NUM_BUCKETS - _VOCAB_SIZE)
-    weighted_vocab_column = fc_lib.weighted_categorical_column(
+    weighted_vocab_column = tf.feature_column.weighted_categorical_column(
         categorical_column=vocab_column, weight_feature_key='values')
 
     # Embedding initialized to
@@ -1095,10 +1087,10 @@ class TPUEstimatorWeightedFeatureColumnTest(TPUEstimatorFeatureColumnTestBase,
     embedding_init = np.zeros((_VOCAB_SIZE, _VOCAB_EMBEDDING_DIM))
     for i in range(_VOCAB_SIZE):
       embedding_init[i, :] = [i] * _VOCAB_EMBEDDING_DIM
-    embedding_initializer = init_ops.constant_initializer(embedding_init)
+    embedding_initializer = tf.compat.v1.constant_initializer(embedding_init)
 
     feature_columns = [
-        tpu_fc_v2.embedding_column_v2(
+        tf.compat.v1.tpu.experimental.embedding_column(
             categorical_column=weighted_vocab_column,
             dimension=_VOCAB_EMBEDDING_DIM,
             initializer=embedding_initializer),
@@ -1113,12 +1105,12 @@ class TPUEstimatorWeightedFeatureColumnTest(TPUEstimatorFeatureColumnTestBase,
       indices = ((0, 0), (0, 2), (1, 0), (1, 1))
       id_values = [str(id_value) for id_value in (2, 1, 1, 0)]
       weight_values = (0.5, 1.0, 0.2, 0.0)
-      inputs = sparse_tensor.SparseTensor(
+      inputs = tf.SparseTensor(
           indices=indices, values=(id_values), dense_shape=dense_shape)
 
-      inputs = sparse_tensor.SparseTensor(
+      inputs = tf.SparseTensor(
           indices=indices, values=id_values, dense_shape=dense_shape)
-      weights = sparse_tensor.SparseTensor(
+      weights = tf.SparseTensor(
           indices=indices, values=weight_values, dense_shape=dense_shape)
 
       # setup labels to be the same as what input_layer so the loss is zero
@@ -1129,7 +1121,7 @@ class TPUEstimatorWeightedFeatureColumnTest(TPUEstimatorFeatureColumnTestBase,
         labels[0, j] = (2 * 0.5 + 1 * 1.0) / (0.5 + 1.0)
         labels[1, j] = (1 * 0.2 + 3 * 0.0) / (0.2 + 0.0)
 
-      data = dataset_lib.Dataset.from_tensor_slices(({
+      data = tf.compat.v1.data.Dataset.from_tensor_slices(({
           'x': inputs,
           'values': weights,
       }, labels))
@@ -1146,13 +1138,13 @@ class TPUEstimatorWeightedFeatureColumnTest(TPUEstimatorFeatureColumnTestBase,
   def test_embedding_with_weighted_categorical_column_dense_weights_error(self):
     num_buckets = 5
     embedding_dim = 10
-    sparse_id_column = fc_lib.categorical_column_with_identity(
+    sparse_id_column = tf.feature_column.categorical_column_with_identity(
         key='ids', num_buckets=num_buckets)
-    weighted_sparse_id_column = fc_lib.weighted_categorical_column(
+    weighted_sparse_id_column = tf.feature_column.weighted_categorical_column(
         categorical_column=sparse_id_column, weight_feature_key='values')
 
     feature_columns = [
-        tpu_fc_v2.embedding_column_v2(
+        tf.compat.v1.tpu.experimental.embedding_column(
             categorical_column=weighted_sparse_id_column,
             dimension=embedding_dim)
     ]
@@ -1164,15 +1156,15 @@ class TPUEstimatorWeightedFeatureColumnTest(TPUEstimatorFeatureColumnTestBase,
       id_values = (2, 1, 1, 0)
       weight_values = (0.5, 1.0, 0.2, 0.0)
 
-      inputs = sparse_tensor.SparseTensor(
+      inputs = tf.SparseTensor(
           indices=indices, values=id_values, dense_shape=dense_shape)
-      weights = sparse_ops.sparse_tensor_to_dense(
-          sparse_tensor.SparseTensor(
+      weights = tf.sparse.to_dense(
+          tf.SparseTensor(
               indices=indices, values=weight_values, dense_shape=dense_shape))
 
       labels = np.zeros((sample_size, embedding_dim), dtype=np.float32)
 
-      data = dataset_lib.Dataset.from_tensor_slices(({
+      data = tf.compat.v1.data.Dataset.from_tensor_slices(({
           'ids': inputs,
           'values': weights
       }, labels))
@@ -1189,16 +1181,16 @@ class TPUEstimatorWeightedFeatureColumnTest(TPUEstimatorFeatureColumnTestBase,
   def test_embedding_with_weighted_categorical_column_share_weights_error(self):
     num_buckets = 5
     embedding_dim = 10
-    sparse_id_column1 = fc_lib.categorical_column_with_identity(
+    sparse_id_column1 = tf.feature_column.categorical_column_with_identity(
         key='ids1', num_buckets=num_buckets)
-    weighted_sparse_id_column1 = fc_lib.weighted_categorical_column(
+    weighted_sparse_id_column1 = tf.feature_column.weighted_categorical_column(
         categorical_column=sparse_id_column1, weight_feature_key='values')
-    sparse_id_column2 = fc_lib.categorical_column_with_identity(
+    sparse_id_column2 = tf.feature_column.categorical_column_with_identity(
         key='ids2', num_buckets=num_buckets)
-    weighted_sparse_id_column2 = fc_lib.weighted_categorical_column(
+    weighted_sparse_id_column2 = tf.feature_column.weighted_categorical_column(
         categorical_column=sparse_id_column2, weight_feature_key='values')
 
-    feature_columns = tpu_fc_v2.shared_embedding_columns_v2(
+    feature_columns = tf.compat.v1.tpu.experimental.shared_embedding_columns(
         categorical_columns=[
             weighted_sparse_id_column1, weighted_sparse_id_column2
         ],
@@ -1211,16 +1203,16 @@ class TPUEstimatorWeightedFeatureColumnTest(TPUEstimatorFeatureColumnTestBase,
       id_values = (2, 1, 1, 0)
       weight_values = (0.5, 1.0, 0.2, 0.0)
 
-      inputs1 = sparse_tensor.SparseTensor(
+      inputs1 = tf.SparseTensor(
           indices=indices, values=id_values, dense_shape=dense_shape)
-      inputs2 = sparse_tensor.SparseTensor(
+      inputs2 = tf.SparseTensor(
           indices=indices, values=id_values, dense_shape=dense_shape)
-      weights = sparse_tensor.SparseTensor(
+      weights = tf.SparseTensor(
           indices=indices, values=weight_values, dense_shape=dense_shape)
 
       labels = np.zeros((sample_size, embedding_dim), dtype=np.float32)
 
-      data = dataset_lib.Dataset.from_tensor_slices(({
+      data = tf.compat.v1.data.Dataset.from_tensor_slices(({
           'ids1': inputs1,
           'ids2': inputs2,
           'values': weights
@@ -1243,20 +1235,20 @@ class TPUEstimatorWeightedFeatureColumnTest(TPUEstimatorFeatureColumnTestBase,
                                   both_embeddings,
                                   input_method,
                                   use_cpu=False):
-    sparse_column1 = fc_lib.categorical_column_with_identity(
+    sparse_column1 = tf.feature_column.categorical_column_with_identity(
         key='x', num_buckets=10)
-    sparse_column2 = fc_lib.categorical_column_with_identity(
+    sparse_column2 = tf.feature_column.categorical_column_with_identity(
         key='y', num_buckets=10)
 
     if shared_embedding:
-      feature_columns = tpu_fc_v2.shared_embedding_columns_v2(
+      feature_columns = tf.compat.v1.tpu.experimental.shared_embedding_columns(
           [sparse_column1, sparse_column2],
           dimension=2,
           embedding_lookup_device='tpu_tensor_core',
           tensor_core_shape=[None, 2])
     else:
       feature_columns = [
-          tpu_fc_v2.embedding_column_v2(
+          tf.compat.v1.tpu.experimental.embedding_column(
               categorical_column=sparse_column1,
               dimension=2,
               embedding_lookup_device='tpu_tensor_core',
@@ -1264,14 +1256,14 @@ class TPUEstimatorWeightedFeatureColumnTest(TPUEstimatorFeatureColumnTestBase,
       ]
       if both_embeddings:
         feature_columns.append(
-            tpu_fc_v2.embedding_column_v2(
+            tf.compat.v1.tpu.experimental.embedding_column(
                 categorical_column=sparse_column2,
                 dimension=4,
                 embedding_lookup_device='tpu_tensor_core',
                 tensor_core_shape=[None, 2]))
       else:
         feature_columns.append(
-            tpu_fc_v2.embedding_column_v2(
+            tf.compat.v1.tpu.experimental.embedding_column(
                 categorical_column=sparse_column2, dimension=4))
 
     def _input_fn(params):
@@ -1279,19 +1271,19 @@ class TPUEstimatorWeightedFeatureColumnTest(TPUEstimatorFeatureColumnTestBase,
       for i in range(params['batch_size']):
         for j in [0, 1]:
           indices.append([i, j])
-      feature1_data = dataset_lib.Dataset.from_tensor_slices(
-          sparse_tensor.SparseTensor(
+      feature1_data = tf.compat.v1.data.Dataset.from_tensor_slices(
+          tf.SparseTensor(
               indices=indices,
               values=[1] * (2 * params['batch_size']),
               dense_shape=[params['batch_size'], 2]))
-      feature2_data = dataset_lib.Dataset.from_tensor_slices(
-          sparse_tensor.SparseTensor(
+      feature2_data = tf.compat.v1.data.Dataset.from_tensor_slices(
+          tf.SparseTensor(
               indices=indices,
               values=[2] * (2 * params['batch_size']),
               dense_shape=[params['batch_size'], 2]))
-      labels_data = dataset_lib.Dataset.from_tensor_slices(
+      labels_data = tf.compat.v1.data.Dataset.from_tensor_slices(
           np.array([[0]] * params['batch_size'], dtype=np.int32))
-      dataset = dataset_lib.Dataset.zip(
+      dataset = tf.compat.v1.data.Dataset.zip(
           (feature1_data, feature2_data, labels_data))
       dataset = dataset.repeat()
       dataset = dataset.batch(params['batch_size'], drop_remainder=True)
@@ -1305,8 +1297,8 @@ class TPUEstimatorWeightedFeatureColumnTest(TPUEstimatorFeatureColumnTestBase,
     est = self._create_estimator_with_feature_columns(
         feature_columns, use_cpu=use_cpu, input_method=input_method)
     est.train(input_fn=_input_fn, steps=1)
-    checkpoint_reader = training.NewCheckpointReader(
-        training.latest_checkpoint(est.config.model_dir))
+    checkpoint_reader = tf.compat.v1.train.NewCheckpointReader(
+        tf.train.latest_checkpoint(est.config.model_dir))
     return checkpoint_reader.get_variable_to_shape_map().keys()
 
   @parameterized.named_parameters(
@@ -1334,4 +1326,4 @@ class TPUEstimatorWeightedFeatureColumnTest(TPUEstimatorFeatureColumnTestBase,
 
 
 if __name__ == '__main__':
-  test.main()
+  tf.test.main()

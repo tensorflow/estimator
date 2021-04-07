@@ -97,7 +97,7 @@ def _dnn_linear_combined_model_fn_v2(
     config=None,
     batch_norm=False,
     linear_sparse_combiner='sum',
-    loss_reduction=losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE):
+    loss_reduction=tf.keras.losses.Reduction.SUM_OVER_BATCH_SIZE):
   """Deep Neural Net and Linear combined model_fn.
 
   Args:
@@ -200,7 +200,7 @@ def _dnn_linear_combined_model_fn_v2(
     """Returns the op to optimize the loss."""
     train_ops = []
     # Scale loss by number of replicas.
-    if loss_reduction == losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE:
+    if loss_reduction == tf.keras.losses.Reduction.SUM_OVER_BATCH_SIZE:
       loss = losses_utils.scale_loss_for_distribution(loss)
 
     if dnn_logits is not None:
@@ -487,7 +487,7 @@ class DNNLinearCombinedClassifierV2(estimator.EstimatorV2):
                label_vocabulary=None,
                config=None,
                warm_start_from=None,
-               loss_reduction=losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE,
+               loss_reduction=tf.keras.losses.Reduction.SUM_OVER_BATCH_SIZE,
                batch_norm=False,
                linear_sparse_combiner='sum'):
     """Initializes a DNNLinearCombinedClassifier instance.
@@ -987,7 +987,7 @@ class DNNLinearCombinedRegressorV2(estimator.EstimatorV2):
                weight_column=None,
                config=None,
                warm_start_from=None,
-               loss_reduction=losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE,
+               loss_reduction=tf.keras.losses.Reduction.SUM_OVER_BATCH_SIZE,
                batch_norm=False,
                linear_sparse_combiner='sum'):
     """Initializes a DNNLinearCombinedRegressor instance.

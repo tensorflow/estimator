@@ -25,7 +25,6 @@ from tensorflow.python.feature_column import feature_column as core_fc
 from tensorflow.python.feature_column import feature_column_lib as core_fc_lib
 from tensorflow.python.feature_column import utils as fc_utils
 from tensorflow.python.framework import ops
-from tensorflow.python.ops import sparse_ops
 from tensorflow.python.tpu import feature_column as tpu_fc
 from tensorflow.python.tpu import feature_column_v2 as tpu_fc_v2
 from tensorflow.python.tpu import tpu_embedding
@@ -571,7 +570,7 @@ def _split_tensor(tensor, num_splits):
   elif num_splits == 1:
     return [tensor]
   elif isinstance(tensor, tf.sparse.SparseTensor):
-    return sparse_ops.sparse_split_v2(tensor, num_splits, axis=0)
+    return tf.sparse.split(tensor, num_splits, axis=0)
   else:
     return tf.split(tensor, num_splits)
 

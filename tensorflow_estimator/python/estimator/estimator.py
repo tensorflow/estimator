@@ -27,22 +27,16 @@ import numpy as np
 import six
 import tensorflow as tf
 from google.protobuf import message
-from tensorflow.core.framework import summary_pb2
 from tensorflow.python.distribute import estimator_training as distribute_coordinator_training
 from tensorflow.python.eager import context
 from tensorflow.python.eager import monitoring
-from tensorflow.python.framework import ops
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.saved_model import utils_impl as saved_model_utils
-from tensorflow.python.summary import summary
 from tensorflow.python.training import basic_session_run_hooks
-from tensorflow.python.training import checkpoint_management
 from tensorflow.python.training import device_setter
 from tensorflow.python.training import evaluation
 from tensorflow.python.training import training
 from tensorflow.python.training import training_util
-from tensorflow.python.training.tracking import graph_view
-from tensorflow.python.training.tracking import util as trackable_util
 from tensorflow.python.util import compat_internal
 from tensorflow.python.util import deprecation
 from tensorflow.python.util import function_utils
@@ -56,8 +50,8 @@ from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 
 _VALID_MODEL_FN_ARGS = set(
     ['features', 'labels', 'mode', 'params', 'self', 'config'])
-_estimator_api_gauge = monitoring.BoolGauge('/tensorflow/api/estimator',
-                                            'estimator api usage', 'method')
+_estimator_api_gauge = tf.__internal__.monitoring.BoolGauge(
+    '/tensorflow/api/estimator', 'estimator api usage', 'method')
 
 _canned_estimator_api_gauge = monitoring.StringGauge(
     '/tensorflow/api/estimator/canned_estimator',
@@ -268,7 +262,7 @@ class Estimator(object):
       found.
     """
     with context.graph_mode():
-      return checkpoint_management.latest_checkpoint(self.model_dir)
+      return tf.train.latest_checkpoint(self.model_dir)
 
   def train(self,
             input_fn,
@@ -480,7 +474,7 @@ class Estimator(object):
 
       # Check that model has been trained (if nothing has been set explicitly).
       if not checkpoint_path:
-        latest_path = checkpoint_management.latest_checkpoint(self._model_dir)
+        latest_path = tf.train.latest_checkpoint(self._model_dir)
         if not latest_path:
           tf.compat.v1.logging.info(
               'Could not find trained model in model_dir: {}, running '
@@ -598,8 +592,7 @@ class Estimator(object):
       hooks = _check_hooks_type(hooks)
       # Check that model has been trained.
       if not checkpoint_path:
-        checkpoint_path = checkpoint_management.latest_checkpoint(
-            self._model_dir)
+        checkpoint_path = tf.train.latest_checkpoint(self._model_dir)
       if not checkpoint_path:
         tf.compat.v1.logging.info(
             'Could not find trained model in model_dir: {}, running '
@@ -958,9 +951,9 @@ class Estimator(object):
         # and in saving out the metagraph below. This ensures that any
         # Custom Savers stored with the Scaffold are passed through to the
         # SavedModel for restore later.
-        if isinstance(estimator_spec.scaffold.saver, trackable_util.Checkpoint):
+        if isinstance(estimator_spec.scaffold.saver, tf.train.Checkpoint):
           graph_saver = tf.compat.v1.train.Saver(
-              var_list=graph_view.ObjectGraphView(
+              var_list=tf.__internal__.tracking.ObjectGraphView(
                   estimator_spec.scaffold.saver).frozen_saveable_objects(),
               sharded=True)
         else:
@@ -1391,10 +1384,12 @@ class Estimator(object):
     # make another one with the name 'loss' to ensure it shows up in the right
     # graph in TensorBoard.
     if not any([
-        x.op.name == 'loss' for x in ops.get_collection(ops.GraphKeys.SUMMARIES)
+        x.op.name == 'loss'
+        for x in tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.SUMMARIES)
     ]):
-      summary.scalar('loss', estimator_spec.loss)
-    ops.add_to_collection(ops.GraphKeys.LOSSES, estimator_spec.loss)
+      tf.compat.v1.summary.scalar('loss', estimator_spec.loss)
+    tf.compat.v1.add_to_collection(tf.compat.v1.GraphKeys.LOSSES,
+                                   estimator_spec.loss)
     worker_hooks.extend(hooks)
     worker_hooks.append(tf.compat.v1.train.NanTensorHook(estimator_spec.loss))
     if self._config.log_step_count_steps is not None:
@@ -2065,7 +2060,7 @@ def _write_dict_to_summary(output_dir, dictionary, current_global_step):
   tf.compat.v1.logging.info('Saving dict for global step %d: %s',
                             current_global_step, _dict_to_str(dictionary))
   summary_writer = tf.compat.v1.summary.FileWriterCache.get(output_dir)
-  summary_proto = summary_pb2.Summary()
+  summary_proto = tf.compat.v1.Summary()
   for key in dictionary:
     if dictionary[key] is None:
       continue
@@ -2080,7 +2075,7 @@ def _write_dict_to_summary(output_dir, dictionary, current_global_step):
       summary_proto.value.add(tag=key, simple_value=int(dictionary[key]))
     elif isinstance(dictionary[key], six.binary_type):
       try:
-        summ = summary_pb2.Summary.FromString(dictionary[key])
+        summ = tf.compat.v1.Summary.FromString(dictionary[key])
         for i, _ in enumerate(summ.value):
           summ.value[i].tag = '%s/%d' % (key, i)
         summary_proto.value.extend(summ.value)
@@ -2125,7 +2120,7 @@ def _write_checkpoint_path_to_summary(output_dir, checkpoint_path,
   tf.compat.v1.logging.info('Saving \'%s\' summary for global step %d: %s',
                             checkpoint_path_tag, current_global_step,
                             checkpoint_path)
-  summary_proto = summary_pb2.Summary()
+  summary_proto = tf.compat.v1.Summary()
   summary_proto.value.add(
       tag=checkpoint_path_tag,
       tensor=tf.make_tensor_proto(checkpoint_path, dtype=tf.dtypes.string))

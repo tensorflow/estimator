@@ -25,12 +25,8 @@ import tensorflow as tf
 from tensorflow.python.feature_column import feature_column_lib
 from tensorflow.python.feature_column.feature_column import _LazyBuilder
 from tensorflow.python.feature_column.feature_column import _NumericColumn
-from tensorflow.python.framework import dtypes
-from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
-from tensorflow.python.keras.optimizer_v2 import optimizer_v2
 from tensorflow.python.keras.utils import losses_utils
-from tensorflow.python.ops import weights_broadcast_ops
 from tensorflow.python.util import function_utils
 from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator.canned import metric_keys
@@ -649,8 +645,8 @@ def validate_loss_fn_args(loss_fn):
 
 
 def validate_loss_reduction(loss_reduction):
-  if (loss_reduction not in losses_utils.ReductionV2.all() or
-      loss_reduction == losses_utils.ReductionV2.NONE):
+  if (loss_reduction not in tf.keras.losses.Reduction.all() or
+      loss_reduction == tf.keras.losses.Reduction.NONE):
     raise ValueError(
         'Invalid loss_reduction: {}. See `tf.losses.Reduction` for valid '
         'options.'.format(loss_reduction))
@@ -663,7 +659,7 @@ def validate_update_ops(update_ops=None):
 
 
 def validate_v2_optimizer(optimzier):
-  if not isinstance(optimzier, optimizer_v2.OptimizerV2):
+  if not isinstance(optimzier, tf.keras.optimizers.Optimizer):
     raise ValueError(
         'The given optimizer is not a tf.keras.optimizers.Optimizer instance. '
         'Given: {}'.format(optimzier))
@@ -820,7 +816,7 @@ def check_label_range(labels, n_classes, message=None):
 def update_metric_with_broadcast_weights(eval_metric, values, weights):
   values = tf.cast(values, dtype=tf.dtypes.float32)
   if weights is not None:
-    weights = weights_broadcast_ops.broadcast_weights(weights, values)
+    weights = tf.__internal__.ops.broadcast_weights(weights, values)
   eval_metric.update_state(values=values, sample_weight=weights)
 
 
@@ -862,7 +858,7 @@ def create_estimator_spec_train_op(
     train_op_fn=None,
     update_ops=None,
     regularized_training_loss=None,
-    loss_reduction=losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE):
+    loss_reduction=tf.keras.losses.Reduction.SUM_OVER_BATCH_SIZE):
   """Create train_op for estimator_spec.
 
   Args:
@@ -904,7 +900,7 @@ def create_estimator_spec_train_op(
         validate_v2_optimizer(optimizer)
         validate_trainable_variables(trainable_variables)
         # Scale loss by number of replicas.
-        if loss_reduction == losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE:
+        if loss_reduction == tf.keras.losses.Reduction.SUM_OVER_BATCH_SIZE:
           regularized_training_loss = losses_utils.scale_loss_for_distribution(
               regularized_training_loss)
         train_op = optimizer.get_updates(regularized_training_loss,

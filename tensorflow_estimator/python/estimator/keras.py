@@ -21,10 +21,8 @@ from __future__ import print_function
 import os
 import re
 import tensorflow as tf
-from tensorflow.python.framework import ops
 from tensorflow.python.keras import backend as K
 from tensorflow.python.keras import models
-from tensorflow.python.training.tracking import graph_view
 from tensorflow.python.training.tracking import util as trackable_util
 from tensorflow_estimator.python.estimator import estimator as estimator_lib
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
@@ -57,10 +55,10 @@ class FormattedKeyError(KeyError):
 
 def _cast_tensor_to_floatx(x):
   """Cast tensor to keras's floatx dtype if it is not already the same dtype."""
-  if x.dtype == K.floatx():
+  if x.dtype == tf.keras.backend.floatx():
     return x
   else:
-    return tf.cast(x, K.floatx())
+    return tf.cast(x, tf.keras.backend.floatx())
 
 
 def _convert_tensor(x):
@@ -83,7 +81,7 @@ def _any_weight_initialized(keras_model):
   """
   if keras_model is None:
     return False
-  if ops.executing_eagerly_outside_functions():
+  if tf.compat.v1.executing_eagerly_outside_functions():
     return True
   for layer in keras_model.layers:
     for weight in layer.weights:
@@ -220,7 +218,7 @@ def _clone_and_build_model(mode,
     The newly built model.
   """
   # Set to True during training, False for inference or testing.
-  K.set_learning_phase(mode == ModeKeys.TRAIN)
+  tf.keras.backend.set_learning_phase(mode == ModeKeys.TRAIN)
   input_tensors, target_tensors, sample_weight_tensors = (
       _convert_estimator_io_to_keras(keras_model, features, labels))
 
@@ -377,7 +375,7 @@ def _create_keras_model_fn(keras_model,
       model._track_trackable(tf.compat.v1.train.get_global_step(),
                              'estimator_global_step')
       # Create saver that maps variable names to object-checkpoint keys.
-      object_graph = graph_view.ObjectGraphView(model)
+      object_graph = tf.__internal__.tracking.ObjectGraphView(model)
       var_list = object_graph.frozen_saveable_objects()
       saver = tf.compat.v1.train.Saver(var_list=var_list, sharded=True)
       saver._object_restore_saver = trackable_util.frozen_saver(model)
@@ -669,14 +667,14 @@ def model_to_estimator(keras_model=None,
       keras_model_path = _get_file_from_google_storage(keras_model_path,
                                                        config.model_dir)
     tf.compat.v1.logging.info('Loading models from %s', keras_model_path)
-    keras_model = models.load_model(keras_model_path)
+    keras_model = tf.keras.models.load_model(keras_model_path)
   else:
     tf.compat.v1.logging.info('Using the Keras model provided.')
     keras_model = keras_model
 
   if checkpoint_format is None or checkpoint_format == 'checkpoint':
     if not (keras_model._is_graph_network or
-            isinstance(keras_model, models.Sequential)):
+            isinstance(keras_model, tf.keras.Sequential)):
       raise ValueError('Object-based checkpoints are currently not supported '
                        'with subclassed models.')
     save_object_ckpt = True
@@ -706,7 +704,7 @@ def model_to_estimator(keras_model=None,
   else:
     # Pass the config into keras backend's default session.
     sess = tf.compat.v1.Session(config=config.session_config)
-    K.set_session(sess)
+    tf.compat.v1.keras.backend.set_session(sess)
 
   warm_start_path = None
   if keras_model._is_graph_network and config.is_chief:
@@ -736,7 +734,7 @@ def model_to_estimator(keras_model=None,
 
 def _assert_valid_model(model, custom_objects=None):
   is_subclass = (not model._is_graph_network and
-                 not isinstance(model, models.Sequential))
+                 not isinstance(model, tf.keras.Sequential))
   if is_subclass:
     try:
       custom_objects = custom_objects or {}

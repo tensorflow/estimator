@@ -20,10 +20,7 @@ from __future__ import print_function
 
 import numpy as np
 import tensorflow as tf
-from tensorflow.python.eager import context
 from tensorflow.python.framework import test_util
-from tensorflow.python.keras.optimizer_v2 import optimizer_v2
-from tensorflow.python.keras.utils import losses_utils
 from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.canned import prediction_keys
 from tensorflow_estimator.python.estimator.head import head_utils as test_lib
@@ -46,7 +43,7 @@ class RegressionHead(tf.test.TestCase):
         ValueError, r'Invalid loss_reduction: invalid_loss_reduction'):
       head_lib.RegressionHead(loss_reduction='invalid_loss_reduction')
     with self.assertRaisesRegexp(ValueError, r'Invalid loss_reduction: none'):
-      head_lib.RegressionHead(loss_reduction=losses_utils.ReductionV2.NONE)
+      head_lib.RegressionHead(loss_reduction=tf.keras.losses.Reduction.NONE)
 
   def test_loss_fn_arg_labels_missing(self):
 
@@ -536,7 +533,7 @@ class RegressionHead(tf.test.TestCase):
 
   def test_train_create_loss_loss_reduction(self):
     """Tests create_loss with loss_reduction."""
-    head = head_lib.RegressionHead(loss_reduction=losses_utils.ReductionV2.SUM)
+    head = head_lib.RegressionHead(loss_reduction=tf.keras.losses.Reduction.SUM)
     logits = np.array(((45,), (41,),), dtype=np.float32)
     labels = np.array(((43,), (44,),), dtype=np.int32)
     features = {'x': np.array(((42,),), dtype=np.float32)}
@@ -1093,7 +1090,7 @@ class RegressionHead(tf.test.TestCase):
 
   def test_weighted_multi_batch_eval_eager(self):
     """1d label, 1 example, 3 batches."""
-    with context.eager_mode():
+    with tf.__internal__.eager_context.eager_mode():
       head = head_lib.RegressionHead(weight_column='label_weights')
       self.assertEqual(1, head.logits_dimension)
 
@@ -1312,7 +1309,7 @@ class RegressionHeadForEstimator(tf.test.TestCase):
   def test_invalid_trainable_variables(self):
     head = head_lib.RegressionHead()
 
-    class _Optimizer(optimizer_v2.OptimizerV2):
+    class _Optimizer(tf.keras.optimizers.Optimizer):
 
       def get_updates(self, loss, params):
         del params
@@ -1360,7 +1357,7 @@ class RegressionHeadForEstimator(tf.test.TestCase):
     # loss = ((43-45)^2 + (44-41)^2) / 2 = (4 + 9) / 2 = 13 / 2 = 6.5
     expected_loss = 6.5
 
-    class _Optimizer(optimizer_v2.OptimizerV2):
+    class _Optimizer(tf.keras.optimizers.Optimizer):
 
       def get_updates(self, loss, params):
         del params

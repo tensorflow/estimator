@@ -23,10 +23,7 @@ import tensorflow as tf
 from tensorflow.python.feature_column import feature_column
 from tensorflow.python.feature_column import feature_column_lib
 from tensorflow.python.framework import ops
-from tensorflow.python.keras.engine import training
-from tensorflow.python.keras.layers import core as keras_core
 from tensorflow.python.keras.layers import normalization as keras_norm
-from tensorflow.python.keras.utils import losses_utils
 from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator import estimator
 from tensorflow_estimator.python.estimator.canned import head as head_lib
@@ -152,11 +149,11 @@ def dnn_logit_fn_builder_v2(units, hidden_units, feature_columns, activation_fn,
 
 
 def _get_previous_name_scope():
-  current_name_scope = ops.get_name_scope()
+  current_name_scope = tf.__internal__.get_name_scope()
   return current_name_scope.rsplit('/', 1)[0] + '/'
 
 
-class _DNNModel(training.Model):
+class _DNNModel(tf.keras.Model):
   """A DNN Model."""
 
   def __init__(self,
@@ -273,7 +270,7 @@ def _name_from_scope_name(name):
   return name[:-1] if (name and name[-1] == '/') else name
 
 
-class _DNNModelV2(training.Model):
+class _DNNModelV2(tf.keras.Model):
   """A DNN Model."""
 
   def __init__(self,
@@ -312,7 +309,7 @@ class _DNNModelV2(training.Model):
       with ops.name_scope('hiddenlayer_%d' % layer_id) as hidden_layer_scope:
         # Get scope name without the trailing slash.
         hidden_shared_name = _name_from_scope_name(hidden_layer_scope)
-        hidden_layer = keras_core.Dense(
+        hidden_layer = tf.keras.layers.Dense(
             units=num_hidden_units,
             activation=activation_fn,
             kernel_initializer=tf.compat.v1.glorot_uniform_initializer(),
@@ -320,7 +317,7 @@ class _DNNModelV2(training.Model):
         self._hidden_layer_scope_names.append(hidden_shared_name)
         self._hidden_layers.append(hidden_layer)
         if self._dropout is not None:
-          dropout_layer = keras_core.Dropout(rate=self._dropout)
+          dropout_layer = tf.keras.layers.Dropout(rate=self._dropout)
           self._dropout_layers.append(dropout_layer)
         if self._batch_norm:
           batch_norm_name = hidden_shared_name + '/batchnorm_%d' % layer_id
@@ -337,7 +334,7 @@ class _DNNModelV2(training.Model):
 
     with ops.name_scope('logits') as logits_scope:
       logits_shared_name = _name_from_scope_name(logits_scope)
-      self._logits_layer = keras_core.Dense(
+      self._logits_layer = tf.keras.layers.Dense(
           units=units,
           activation=None,
           kernel_initializer=tf.compat.v1.glorot_uniform_initializer(),
@@ -690,7 +687,7 @@ class DNNClassifierV2(estimator.EstimatorV2):
       dropout=None,
       config=None,
       warm_start_from=None,
-      loss_reduction=losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE,
+      loss_reduction=tf.keras.losses.Reduction.SUM_OVER_BATCH_SIZE,
       batch_norm=False,
   ):
     """Initializes a `DNNClassifier` instance.
@@ -1110,7 +1107,7 @@ class DNNRegressorV2(estimator.EstimatorV2):
       dropout=None,
       config=None,
       warm_start_from=None,
-      loss_reduction=losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE,
+      loss_reduction=tf.keras.losses.Reduction.SUM_OVER_BATCH_SIZE,
       batch_norm=False,
   ):
     """Initializes a `DNNRegressor` instance.

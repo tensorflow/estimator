@@ -29,7 +29,6 @@ from tensorflow.core.example import example_pb2
 from tensorflow.core.example import feature_pb2
 from tensorflow.python.feature_column import feature_column
 from tensorflow.python.feature_column import feature_column_v2
-from tensorflow.python.keras.optimizer_v2 import gradient_descent as gradient_descent_v2
 from tensorflow_estimator.python.estimator import estimator
 from tensorflow_estimator.python.estimator.canned import dnn_linear_combined
 from tensorflow_estimator.python.estimator.canned import dnn_testing_utils
@@ -729,8 +728,8 @@ class DNNLinearCombinedTests(tf.test.TestCase):
       shutil.rmtree(self._model_dir)
 
   def test_train_op_calls_both_dnn_and_linear(self, fc_impl):
-    dnn_opt = gradient_descent_v2.SGD(1.)
-    linear_opt = gradient_descent_v2.SGD(1.)
+    dnn_opt = tf.keras.optimizers.SGD(1.)
+    linear_opt = tf.keras.optimizers.SGD(1.)
     x_column = fc_impl.numeric_column('x')
     input_fn = numpy_io.numpy_input_fn(
         x={'x': np.array([[0.], [1.]])},
@@ -838,8 +837,8 @@ class DNNLinearCombinedWarmStartingTest(tf.test.TestCase):
               dnn_feature_columns=[city],
               dnn_hidden_units=[256, 128],
               n_classes=4,
-              dnn_optimizer=gradient_descent_v2.SGD(learning_rate=0.0),
-              linear_optimizer=gradient_descent_v2.SGD(learning_rate=0.0),
+              dnn_optimizer=tf.keras.optimizers.SGD(learning_rate=0.0),
+              linear_optimizer=tf.keras.optimizers.SGD(learning_rate=0.0),
               warm_start_from=dnn_lc_classifier.model_dir))
 
     warm_started_dnn_lc_classifier.train(input_fn=self._input_fn, max_steps=1)
@@ -886,8 +885,8 @@ class DNNLinearCombinedWarmStartingTest(tf.test.TestCase):
               linear_feature_columns=[age],
               dnn_feature_columns=[city],
               dnn_hidden_units=[256, 128],
-              dnn_optimizer=gradient_descent_v2.SGD(learning_rate=0.0),
-              linear_optimizer=gradient_descent_v2.SGD(learning_rate=0.0),
+              dnn_optimizer=tf.keras.optimizers.SGD(learning_rate=0.0),
+              linear_optimizer=tf.keras.optimizers.SGD(learning_rate=0.0),
               warm_start_from=dnn_lc_regressor.model_dir))
 
     warm_started_dnn_lc_regressor.train(input_fn=self._input_fn, max_steps=1)
@@ -929,8 +928,8 @@ class DNNLinearCombinedWarmStartingTest(tf.test.TestCase):
             dnn_feature_columns=[city],
             dnn_hidden_units=[256, 128],
             n_classes=4,
-            linear_optimizer=gradient_descent_v2.SGD(learning_rate=0.0),
-            dnn_optimizer=gradient_descent_v2.SGD(learning_rate=0.0),
+            linear_optimizer=tf.keras.optimizers.SGD(learning_rate=0.0),
+            dnn_optimizer=tf.keras.optimizers.SGD(learning_rate=0.0),
             # The provided regular expression will only warm-start the deep
             # portion of the model.
             warm_start_from=estimator.WarmStartSettings(

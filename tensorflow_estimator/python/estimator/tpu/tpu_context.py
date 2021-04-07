@@ -838,7 +838,7 @@ class _OneCoreTPUContext(_InternalTPUContext):
       return tpu_system_metadata
 
     tpu_system_metadata = (
-        tpu_system_metadata_lib.TPUSystemMetadata(  # pylint: disable=protected-access
+        tf.tpu.experimental.TPUSystemMetadata(  # pylint: disable=protected-access
             num_cores=1,
             num_hosts=1,
             num_of_cores_per_host=1,

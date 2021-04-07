@@ -24,9 +24,6 @@ import tempfile
 import numpy as np
 import six
 import tensorflow as tf
-from tensorflow.python.keras.optimizer_v2 import adagrad as adagrad_v2
-from tensorflow.python.keras.optimizer_v2 import ftrl as ftrl_v2
-from tensorflow.python.keras.utils import losses_utils
 from tensorflow_estimator.python.estimator.canned import dnn_linear_combined
 from tensorflow_estimator.python.estimator.canned import dnn_testing_utils
 from tensorflow_estimator.python.estimator.canned import linear_testing_utils
@@ -50,7 +47,7 @@ def _dnn_only_estimator_fn(hidden_units,
           weight_column=weight_column,
           label_dimension=label_dimension,
           # Tests in core (from which this test inherits) test the sum loss.
-          loss_reduction=losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE),
+          loss_reduction=tf.keras.losses.Reduction.SUM_OVER_BATCH_SIZE),
       model_dir=model_dir,
       dnn_feature_columns=feature_columns,
       dnn_optimizer=optimizer,
@@ -99,7 +96,7 @@ def _linear_only_estimator_fn(feature_columns,
           weight_column=weight_column,
           label_dimension=label_dimension,
           # Tests in core (from which this test inherits) test the sum loss.
-          loss_reduction=losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE),
+          loss_reduction=tf.keras.losses.Reduction.SUM_OVER_BATCH_SIZE),
       model_dir=model_dir,
       linear_feature_columns=feature_columns,
       linear_optimizer=optimizer,
@@ -240,8 +237,8 @@ class DNNLinearCombinedEstimatorIntegrationTest(tf.test.TestCase):
         input_dimension=label_dimension,
         label_dimension=label_dimension,
         batch_size=batch_size,
-        dnn_optimizer=adagrad_v2.Adagrad(0.01),
-        linear_optimizer=ftrl_v2.Ftrl(0.01))
+        dnn_optimizer=tf.keras.optimizers.Adagrad(0.01),
+        linear_optimizer=tf.keras.optimizers.Ftrl(0.01))
 
 
 if __name__ == '__main__':

@@ -19,14 +19,6 @@ from absl.testing import parameterized
 import numpy as np
 import six
 import tensorflow.compat.v1 as tf
-
-# pylint: disable=g-direct-tensorflow-import
-from tensorflow.python import data as dataset_lib
-from tensorflow.python.layers import layers
-from tensorflow.python.ops import init_ops
-from tensorflow.python.ops.losses import losses
-from tensorflow.python.platform import test
-from tensorflow.python.training import training
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
 from tensorflow_estimator.python.estimator.export import export_output
 from tensorflow_estimator.python.estimator.tpu import tpu_config
@@ -49,8 +41,8 @@ def create_run_config(iterations_per_loop, **kwargs):
 
 
 def dense_computation(features):
-  return layers.dense(
-      features, 1, kernel_initializer=init_ops.zeros_initializer())
+  return tf.layers.dense(
+      features, 1, kernel_initializer=tf.zeros_initializer())
 
 
 def model_fn_global_step_incrementer(features, labels, mode, params):
@@ -59,10 +51,10 @@ def model_fn_global_step_incrementer(features, labels, mode, params):
   train_op = None
   predictions = dense_computation(features)
   if mode != _PREDICT:
-    loss = losses.mean_squared_error(labels, predictions)
+    loss = tf.losses.mean_squared_error(labels, predictions)
     optimizer = tf.tpu.CrossShardOptimizer(
-        training.GradientDescentOptimizer(learning_rate=0.5))
-    train_op = optimizer.minimize(loss, training.get_global_step())
+        tf.train.GradientDescentOptimizer(learning_rate=0.5))
+    train_op = optimizer.minimize(loss, tf.train.get_global_step())
   return tpu_estimator.TPUEstimatorSpec(
       mode,
       loss=loss,
@@ -80,9 +72,9 @@ def dummy_input_fn_with_dataset(batch_size, fea_len=1, repeat=True, x=None):
     x = np.random.normal(size=[batch_size, fea_len]).astype(np.float32)
   labels = [[2.0]] * batch_size
 
-  dataset1 = dataset_lib.Dataset.from_tensor_slices(x)
-  dataset2 = dataset_lib.Dataset.from_tensor_slices(labels)
-  dataset = dataset_lib.Dataset.zip((dataset1, dataset2))
+  dataset1 = tf.data.Dataset.from_tensor_slices(x)
+  dataset2 = tf.data.Dataset.from_tensor_slices(labels)
+  dataset = tf.data.Dataset.zip((dataset1, dataset2))
   if repeat:
     dataset = dataset.repeat()
   dataset = dataset.batch(batch_size, drop_remainder=True)
@@ -93,7 +85,7 @@ def dummy_input_fn_with_dataset(batch_size, fea_len=1, repeat=True, x=None):
   return dataset.map(_map)
 
 
-class TpuEstimatorInputV2Test(parameterized.TestCase, test.TestCase):
+class TpuEstimatorInputV2Test(parameterized.TestCase, tf.test.TestCase):
 
   @parameterized.parameters((2, 1), (None, 2))
   def test_batch_size(self, num_cores_per_replica, num_shards):
@@ -207,4 +199,4 @@ class TpuEstimatorInputV2Test(parameterized.TestCase, test.TestCase):
 
 if __name__ == '__main__':
   tf.disable_v2_behavior()
-  test.main()
+  tf.test.main()
