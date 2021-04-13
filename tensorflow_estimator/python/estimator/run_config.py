@@ -24,10 +24,8 @@ import os
 
 import six
 import tensorflow as tf
-from tensorflow.core.protobuf import config_pb2
 from tensorflow.core.protobuf import rewriter_config_pb2
 from tensorflow.python.distribute import estimator_training as distribute_coordinator_training
-from tensorflow.python.distribute import parameter_server_strategy_v2
 from tensorflow.python.util import compat_internal
 from tensorflow.python.util import function_utils
 from tensorflow.python.util.tf_export import estimator_export
@@ -280,7 +278,7 @@ def _validate_properties(run_config):
 
   _validate(
       'session_config',
-      lambda sc: isinstance(sc, config_pb2.ConfigProto),
+      lambda sc: isinstance(sc, tf.compat.v1.ConfigProto),
       message='session_config must be instance of ConfigProto')
 
   _validate(
@@ -329,9 +327,9 @@ def get_default_session_config():
 
   rewrite_opts = rewriter_config_pb2.RewriterConfig(
       meta_optimizer_iterations=rewriter_config_pb2.RewriterConfig.ONE)
-  graph_opts = config_pb2.GraphOptions(rewrite_options=rewrite_opts)
+  graph_opts = tf.compat.v1.GraphOptions(rewrite_options=rewrite_opts)
 
-  return config_pb2.ConfigProto(
+  return tf.compat.v1.ConfigProto(
       allow_soft_placement=True, graph_options=graph_opts)
 
 
@@ -589,9 +587,9 @@ class RunConfig(object):
 
   def _verify_strategy_compatibility(self, train_distribute, eval_distribute):
     if ((train_distribute is not None and train_distribute.__class__ ==
-         parameter_server_strategy_v2.ParameterServerStrategyV2) or
+         tf.compat.v2.distribute.experimental.ParameterServerStrategy) or
         (eval_distribute is not None and eval_distribute.__class__ ==
-         parameter_server_strategy_v2.ParameterServerStrategyV2)):
+         tf.compat.v2.distribute.experimental.ParameterServerStrategy)):
       raise ValueError('Please use `tf.compat.v1.distribute.experimental.Param'
                        'eterServerStrategy` for parameter server strategy with '
                        'estimator.')
@@ -619,7 +617,7 @@ class RunConfig(object):
 
     rewrite_opts = rewriter_config_pb2.RewriterConfig(
         meta_optimizer_iterations=rewriter_config_pb2.RewriterConfig.ONE)
-    graph_opts = config_pb2.GraphOptions(rewrite_options=rewrite_opts)
+    graph_opts = tf.compat.v1.GraphOptions(rewrite_options=rewrite_opts)
 
     device_filters = None
     if self._task_type == TaskType.MASTER:
@@ -635,7 +633,7 @@ class RunConfig(object):
       # TaskType then don't set any device filters.
       return None
 
-    return config_pb2.ConfigProto(
+    return tf.compat.v1.ConfigProto(
         allow_soft_placement=True,
         graph_options=graph_opts,
         device_filters=device_filters)

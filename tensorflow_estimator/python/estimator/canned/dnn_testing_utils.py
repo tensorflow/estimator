@@ -25,11 +25,8 @@ import tempfile
 import numpy as np
 import six
 import tensorflow as tf
-from tensorflow.core.framework import summary_pb2
 from tensorflow.python.feature_column import feature_column_v2
 from tensorflow.python.framework import ops
-from tensorflow.python.keras.optimizer_v2 import gradient_descent
-from tensorflow.python.keras.optimizer_v2 import optimizer_v2
 from tensorflow_estimator.python.estimator import estimator
 from tensorflow_estimator.python.estimator import model_fn
 from tensorflow_estimator.python.estimator.canned import metric_keys
@@ -210,7 +207,7 @@ def mock_optimizer(testcase, hidden_units, expected_loss=None):
       hidden_weights_names + hidden_biases_names +
       [LOGITS_WEIGHTS_NAME + ':0', LOGITS_BIASES_NAME + ':0'])
 
-  class _Optimizer(optimizer_v2.OptimizerV2):
+  class _Optimizer(tf.keras.optimizers.Optimizer):
 
     def get_updates(self, loss, params):
       trainable_vars = params
@@ -933,7 +930,7 @@ class BaseDNNWarmStartingTest(object):
         hidden_units=[256, 128],
         feature_columns=[city],
         n_classes=4,
-        optimizer=gradient_descent.SGD(learning_rate=0.0),
+        optimizer=tf.keras.optimizers.SGD(learning_rate=0.0),
         warm_start_from=dnn_classifier.model_dir)
 
     warm_started_dnn_classifier.train(input_fn=self._input_fn, max_steps=1)
@@ -969,7 +966,7 @@ class BaseDNNWarmStartingTest(object):
     warm_started_dnn_regressor = self._dnn_regressor_fn(
         hidden_units=[256, 128],
         feature_columns=[city],
-        optimizer=gradient_descent.SGD(learning_rate=0.0),
+        optimizer=tf.keras.optimizers.SGD(learning_rate=0.0),
         warm_start_from=dnn_regressor.model_dir)
 
     warm_started_dnn_regressor.train(input_fn=self._input_fn, max_steps=1)
@@ -1007,7 +1004,7 @@ class BaseDNNWarmStartingTest(object):
         hidden_units=[256, 128],
         feature_columns=[city],
         n_classes=4,
-        optimizer=gradient_descent.SGD(learning_rate=0.0),
+        optimizer=tf.keras.optimizers.SGD(learning_rate=0.0),
         # The provided regular expression will only warm-start the city
         # embedding, not the kernels and biases of the hidden weights.
         warm_start_from=estimator.WarmStartSettings(
@@ -1086,7 +1083,7 @@ class BaseDNNWarmStartingTest(object):
         hidden_units=[256, 128],
         feature_columns=[occupation],
         n_classes=4,
-        optimizer=gradient_descent.SGD(learning_rate=0.0),
+        optimizer=tf.keras.optimizers.SGD(learning_rate=0.0),
         warm_start_from=estimator.WarmStartSettings(
             ckpt_to_initialize_from=dnn_classifier.model_dir,
             var_name_to_vocab_info={
@@ -1154,7 +1151,7 @@ class BaseDNNWarmStartingTest(object):
         hidden_units=[256, 128],
         feature_columns=[city],
         n_classes=4,
-        optimizer=gradient_descent.SGD(learning_rate=0.0),
+        optimizer=tf.keras.optimizers.SGD(learning_rate=0.0),
         # The 'city' variable correspond to the 'locality' variable in the
         # previous model.
         warm_start_from=estimator.WarmStartSettings(
@@ -1667,7 +1664,7 @@ class _SummaryHook(tf.compat.v1.train.SessionRunHook):
     return tf.compat.v1.train.SessionRunArgs({'summary': self._summary_op})
 
   def after_run(self, run_context, run_values):
-    s = summary_pb2.Summary()
+    s = tf.compat.v1.summary.Summary()
     s.ParseFromString(run_values.results['summary'])
     self._summaries.append(s)
 

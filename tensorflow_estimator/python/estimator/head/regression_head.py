@@ -135,7 +135,7 @@ class RegressionHead(base_head.Head):
   def __init__(self,
                label_dimension=1,
                weight_column=None,
-               loss_reduction=losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE,
+               loss_reduction=tf.compat.v2.keras.losses.Reduction.SUM_OVER_BATCH_SIZE,
                loss_fn=None,
                inverse_link_fn=None,
                name=None):
@@ -478,7 +478,7 @@ class PoissonRegressionHead(RegressionHead):
   def __init__(self,
                label_dimension=1,
                weight_column=None,
-               loss_reduction=losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE,
+               loss_reduction=tf.compat.v2.keras.losses.Reduction.SUM_OVER_BATCH_SIZE,
                compute_full_loss=True,
                name=None):
     self._compute_full_loss = compute_full_loss
@@ -573,7 +573,7 @@ class LogisticRegressionHead(RegressionHead):
 
   def __init__(self,
                weight_column=None,
-               loss_reduction=losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE,
+               loss_reduction=tf.compat.v2.keras.losses.Reduction.SUM_OVER_BATCH_SIZE,
                name=None):
     super(LogisticRegressionHead, self).__init__(
         label_dimension=1,

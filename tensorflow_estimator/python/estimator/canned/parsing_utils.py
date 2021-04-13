@@ -135,7 +135,7 @@ def classifier_parse_example_spec_v2(feature_columns,
     ValueError: If `weight_column` is not a `NumericColumn` instance.
     ValueError: if label_key is None.
   """
-  parsing_spec = fc.make_parse_example_spec_v2(feature_columns)
+  parsing_spec = tf.compat.v2.feature_column.make_parse_example_spec(feature_columns)
   label_spec = tf.io.FixedLenFeature((1,), label_dtype, label_default)
   return _add_label_and_weight_to_parsing_spec(
       parsing_spec=parsing_spec,
@@ -251,7 +251,7 @@ def regressor_parse_example_spec_v2(feature_columns,
     ValueError: If `weight_column` is not a `NumericColumn` instance.
     ValueError: if label_key is None.
   """
-  parsing_spec = fc.make_parse_example_spec_v2(feature_columns)
+  parsing_spec = tf.compat.v2.feature_column.make_parse_example_spec(feature_columns)
   label_spec = tf.io.FixedLenFeature((label_dimension,), label_dtype,
                                      label_default)
   return _add_label_and_weight_to_parsing_spec(

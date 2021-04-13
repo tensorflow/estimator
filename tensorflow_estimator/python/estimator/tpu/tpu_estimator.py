@@ -36,33 +36,16 @@ from six.moves import xrange  # pylint: disable=redefined-builtin
 
 from tensorflow.core.framework import variable_pb2
 from tensorflow.core.framework.summary_pb2 import Summary
-from tensorflow.core.protobuf import config_pb2
 from tensorflow.core.protobuf.tpu import compilation_result_pb2 as tpu_compilation_result
-from tensorflow.python.client import session as tf_session
-from tensorflow.python.data.ops import dataset_ops
 from tensorflow.python.data.util import nest as data_nest
 from tensorflow.python.distribute.cluster_resolver import tpu_cluster_resolver
-from tensorflow.python.eager import monitoring
-from tensorflow.python.framework import constant_op
-from tensorflow.python.framework import dtypes
-from tensorflow.python.framework import errors
 from tensorflow.python.framework import function
 from tensorflow.python.framework import ops
-from tensorflow.python.ops import array_ops
-from tensorflow.python.ops import batch_ops
-from tensorflow.python.ops import check_ops
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import control_flow_util
-from tensorflow.python.ops import init_ops
-from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import resource_variable_ops
-from tensorflow.python.ops import state_ops
 from tensorflow.python.ops import summary_ops_v2 as contrib_summary
-from tensorflow.python.ops import variable_scope
-from tensorflow.python.ops import variables
 from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.saved_model import tag_constants
-from tensorflow.python.summary import summary
 from tensorflow.python.tpu import functional as tpu_functional
 from tensorflow.python.tpu import preempted_hook
 from tensorflow.python.tpu import session_support
@@ -73,13 +56,8 @@ from tensorflow.python.tpu import tpu_feed
 from tensorflow.python.tpu import tpu_function
 from tensorflow.python.tpu import training_loop
 from tensorflow.python.tpu.ops import tpu_ops
-from tensorflow.python.training import basic_session_run_hooks
 from tensorflow.python.training import evaluation
-from tensorflow.python.training import session_run_hook
-from tensorflow.python.training import training
-from tensorflow.python.training import training_util
 from tensorflow.python.util import function_utils
-from tensorflow.python.util import nest
 from tensorflow.python.util import tf_inspect
 from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator import estimator as estimator_lib
@@ -127,7 +105,7 @@ _RESERVED_PARAMS_KEYS = [_BATCH_SIZE_KEY, _CTX_KEY]
 _WRAP_INPUT_FN_INTO_WHILE_LOOP = False
 
 # Track the adoption of TPUEstimator
-_tpu_estimator_gauge = monitoring.BoolGauge(
+_tpu_estimator_gauge = tf.compat.v2.__internal__.monitoring.BoolGauge(
     '/tensorflow/api/tpu_estimator',
     'Whether the program uses tpu estimator or not.')
 
@@ -525,7 +503,7 @@ class TPUInfeedOutfeedSessionHook(tf.compat.v1.train.SessionRunHook):
     # Get all the writer resources from the initializer, so we know what to
     # flush.
     for op in summary_writer_init_ops:
-      self._finalize_ops.append(contrib_summary.flush(writer=op.inputs[0]))
+      self._finalize_ops.append(tf.compat.v2.summary.flush(writer=op.inputs[0]))
 
   def _run_infeed(self, queue_ctx, session):
     tf.compat.v1.logging.info('Starting infeed thread controller.')
@@ -591,7 +569,7 @@ class TPUInfeedOutfeedSessionHook(tf.compat.v1.train.SessionRunHook):
 
     session.run(
         self._init_ops,
-        options=config_pb2.RunOptions(timeout_in_ms=30 * 60 * 1000))
+        options=tf.compat.v1.RunOptions(timeout_in_ms=30 * 60 * 1000))
 
     if os.environ.get('TPU_SPLIT_COMPILE_AND_EXECUTE', '') == '1':
       tf.compat.v1.logging.info(
@@ -2347,7 +2325,7 @@ class _OutfeedHostCallHook(tf.compat.v1.train.SessionRunHook):
     # flush.
     self._finalize_ops = []
     for op in self._init_ops:
-      self._finalize_ops.append(contrib_summary.flush(writer=op.inputs[0]))
+      self._finalize_ops.append(tf.compat.v2.summary.flush(writer=op.inputs[0]))
 
   def after_create_session(self, session, coord):
     session.run(self._init_ops)
@@ -3915,7 +3893,7 @@ class _Inputs(object):
   @staticmethod
   def from_input_fn(return_values):
     """Returns an `_Inputs` instance according to `input_fn` return value."""
-    if isinstance(return_values, dataset_ops.DatasetV2):
+    if isinstance(return_values, tf.compat.v2.data.Dataset):
       dataset = return_values
       return _Inputs(dataset=dataset)
 
@@ -4531,7 +4509,7 @@ def inference_on_tpu(computation,
     def tpu_computation():
       """Function to feed into the TPUPartitionedCallOp."""
       tensors_on_cpu = tf.compat.v1.tpu.rewrite(computation, args)
-      tpu.prune_unconnected_ops_from_xla(ops.get_default_graph())
+      tpu.prune_unconnected_ops_from_xla(tf.compat.v1.get_default_graph())
       return tensors_on_cpu
 
     return tpu_functional.TPUPartitionedCall(

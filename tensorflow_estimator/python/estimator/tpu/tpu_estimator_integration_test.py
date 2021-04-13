@@ -14,31 +14,14 @@
 # ==============================================================================
 """Tests for TPUEstimator."""
 
-from absl import flags
 import contextlib
 import tempfile
-import tensorflow.compat.v1 as tf
-
+from absl import flags
 import numpy as np
-
+import tensorflow.compat.v1 as tf
 # pylint: disable=g-direct-tensorflow-import
 from tensorflow.core.example import example_pb2
 from tensorflow.core.example import feature_pb2
-from tensorflow.python import data as dataset_lib
-from tensorflow.python.client import session
-from tensorflow.python.data.ops import dataset_ops
-from tensorflow.python.framework import dtypes
-from tensorflow.python.framework import ops
-from tensorflow.python.layers import layers
-from tensorflow.python.ops import init_ops
-from tensorflow.python.ops import metrics as metrics_lib
-from tensorflow.python.ops import parsing_ops
-from tensorflow.python.ops.losses import losses
-from tensorflow.python.platform import gfile
-from tensorflow.python.platform import test
-from tensorflow.python.saved_model import loader
-from tensorflow.python.saved_model import tag_constants
-from tensorflow.python.training import training
 
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
 from tensorflow_estimator.python.estimator.export import export
@@ -64,8 +47,8 @@ _INPUT_PIPELINE_WITH_QUEUE_RUNNER = (
 
 
 def dense_computation(features):
-  return layers.dense(
-      features['x'], 1, kernel_initializer=init_ops.zeros_initializer())
+  return tf.layers.dense(
+      features['x'], 1, kernel_initializer=tf.zeros_initializer())
 
 
 def model_fn_global_step_incrementer(features, labels, mode, params):
@@ -74,10 +57,10 @@ def model_fn_global_step_incrementer(features, labels, mode, params):
   train_op = None
   predictions = dense_computation(features)
   if mode != _PREDICT:
-    loss = losses.mean_squared_error(labels, predictions)
+    loss = tf.losses.mean_squared_error(labels, predictions)
     optimizer = tf.tpu.CrossShardOptimizer(
-        training.GradientDescentOptimizer(learning_rate=0.5))
-    train_op = optimizer.minimize(loss, training.get_global_step())
+        tf.train.GradientDescentOptimizer(learning_rate=0.5))
+    train_op = optimizer.minimize(loss, tf.train.get_global_step())
   return tpu_estimator.TPUEstimatorSpec(
       mode,
       loss=loss,
@@ -95,9 +78,9 @@ def dummy_input_fn_with_dataset(batch_size, repeat=True, x=None):
     x = np.random.normal(size=[batch_size, 1]).astype(np.float32)
   labels = [[2.0]] * batch_size
 
-  dataset1 = dataset_lib.Dataset.from_tensor_slices(x)
-  dataset2 = dataset_lib.Dataset.from_tensor_slices(labels)
-  dataset = dataset_lib.Dataset.zip((dataset1, dataset2))
+  dataset1 = tf.data.Dataset.from_tensor_slices(x)
+  dataset2 = tf.data.Dataset.from_tensor_slices(labels)
+  dataset = tf.data.Dataset.zip((dataset1, dataset2))
   if repeat:
     dataset = dataset.repeat()
   dataset = dataset.batch(batch_size, drop_remainder=True)
@@ -124,7 +107,7 @@ def create_run_config(iterations_per_loop, **kwargs):
   )
 
 
-class TPUEstimatorIntegrationTest(test.TestCase):
+class TPUEstimatorIntegrationTest(tf.test.TestCase):
 
   def setUp(self):
     self._recorded_input_fn_invoke_metadata = {
@@ -226,9 +209,9 @@ class TPUEstimatorIntegrationTest(test.TestCase):
       else:
         self.assertEqual(batch_size, metadata['batch_size'])
 
-      dataset1 = dataset_lib.Dataset.from_tensor_slices(self._data)
-      dataset2 = dataset_lib.Dataset.from_tensor_slices(self._data)
-      dataset = dataset_lib.Dataset.zip((dataset1, dataset2))
+      dataset1 = tf.data.Dataset.from_tensor_slices(self._data)
+      dataset2 = tf.data.Dataset.from_tensor_slices(self._data)
+      dataset = tf.data.Dataset.zip((dataset1, dataset2))
 
       if repeat:
         dataset = dataset.repeat()
@@ -284,9 +267,9 @@ class TPUEstimatorIntegrationTest(test.TestCase):
       if features['x'].shape.is_fully_defined():
         self.assertEqual(batch_size_dict[mode], features['x'].shape[0])
 
-      predictions = layers.dense(
+      predictions = tf.layers.dense(
           features['x'], 1,
-          kernel_initializer=init_ops.ones_initializer())
+          kernel_initializer=tf.ones_initializer())
       export_outputs = {
           'predictions': export_output.RegressionOutput(predictions)
       }
@@ -297,16 +280,16 @@ class TPUEstimatorIntegrationTest(test.TestCase):
             predictions={'predictions': predictions},
             export_outputs=export_outputs)
 
-      loss = losses.mean_squared_error(labels, predictions)
+      loss = tf.losses.mean_squared_error(labels, predictions)
 
       optimizer = tf.tpu.CrossShardOptimizer(
-          training.GradientDescentOptimizer(learning_rate=0.5))
+          tf.train.GradientDescentOptimizer(learning_rate=0.5))
       train_op = optimizer.minimize(loss,
-                                    global_step=training.get_global_step())
+                                    global_step=tf.train.get_global_step())
 
       eval_metrics = (
           lambda labels, predictions: {  # pylint: disable=g-long-lambda
-              'absolute_error': metrics_lib.mean_absolute_error(
+              'absolute_error': tf.metrics.mean_absolute_error(
                   labels, predictions)},
           [labels, predictions])
       return _create_estimator_spec(
@@ -319,9 +302,9 @@ class TPUEstimatorIntegrationTest(test.TestCase):
     return _model_fn
 
   def _test_identity_savedmodel(self, export_dir):
-    with ops.Graph().as_default() as graph:
-      with session.Session(graph=graph) as sess:
-        metagraph_def = loader.load(sess, [tag_constants.SERVING], export_dir)
+    with tf.Graph().as_default() as graph:
+      with tf.Session(graph=graph) as sess:
+        metagraph_def = tf.saved_model.loader.load(sess, [tf.saved_model.SERVING], export_dir)
         fetch = metagraph_def.signature_def['predictions'].outputs['outputs']
         feed = metagraph_def.signature_def['predictions'].inputs['inputs']
         for x in self._data:
@@ -369,7 +352,7 @@ class TPUEstimatorIntegrationTest(test.TestCase):
     # Note: Gradients are all zero. Just testing execution.
     def _input_fn(params):
       dataset = self._make_input_fn(mode=_TRAIN, repeat=True)(params)
-      return dataset_ops.make_one_shot_iterator(dataset).get_next()
+      return tf.data.make_one_shot_iterator(dataset).get_next()
 
     train_input_fn = _input_fn
     est.train(train_input_fn, steps=7)
@@ -390,13 +373,13 @@ class TPUEstimatorIntegrationTest(test.TestCase):
         expected_called_count_for_input_fn, expected_batch_size_for_input_fn)
 
     # EXPORT
-    feature_spec = {'x': parsing_ops.FixedLenFeature([1], dtypes.float32)}
+    feature_spec = {'x': tf.io.FixedLenFeature([1], tf.float32)}
     serving_input_receiver_fn = (
         export.build_parsing_serving_input_receiver_fn(feature_spec))
     with self.export_mode():
       export_dir = est.export_saved_model(
           tempfile.mkdtemp(dir=self.get_temp_dir()), serving_input_receiver_fn)
-    self.assertTrue(gfile.Exists(export_dir))
+    self.assertTrue(tf.gfile.Exists(export_dir))
     self._test_identity_savedmodel(export_dir)
 
   def test_complete_flow_with_per_host_input(self):
@@ -451,13 +434,13 @@ class TPUEstimatorIntegrationTest(test.TestCase):
         expected_called_count_for_input_fn, expected_batch_size_for_input_fn)
 
     # EXPORT
-    feature_spec = {'x': parsing_ops.FixedLenFeature([1], dtypes.float32)}
+    feature_spec = {'x': tf.io.FixedLenFeature([1], tf.float32)}
     serving_input_receiver_fn = (
         export.build_parsing_serving_input_receiver_fn(feature_spec))
     with self.export_mode():
       export_dir = est.export_saved_model(
           tempfile.mkdtemp(dir=self.get_temp_dir()), serving_input_receiver_fn)
-    self.assertTrue(gfile.Exists(export_dir))
+    self.assertTrue(tf.gfile.Exists(export_dir))
     self._test_identity_savedmodel(export_dir)
 
   def test_complete_flow_with_eval_on_tpu(self):
@@ -512,13 +495,13 @@ class TPUEstimatorIntegrationTest(test.TestCase):
         expected_called_count_for_input_fn, expected_batch_size_for_input_fn)
 
     # EXPORT
-    feature_spec = {'x': parsing_ops.FixedLenFeature([1], dtypes.float32)}
+    feature_spec = {'x': tf.io.FixedLenFeature([1], tf.float32)}
     serving_input_receiver_fn = (
         export.build_parsing_serving_input_receiver_fn(feature_spec))
     with self.export_mode():
       export_dir = est.export_saved_model(
           tempfile.mkdtemp(dir=self.get_temp_dir()), serving_input_receiver_fn)
-    self.assertTrue(gfile.Exists(export_dir))
+    self.assertTrue(tf.gfile.Exists(export_dir))
     self._test_identity_savedmodel(export_dir)
 
   def test_complete_flow_with_no_tpu(self):
@@ -569,16 +552,16 @@ class TPUEstimatorIntegrationTest(test.TestCase):
         expected_called_count_for_input_fn, expected_batch_size_for_input_fn)
 
     # EXPORT
-    feature_spec = {'x': parsing_ops.FixedLenFeature([1], dtypes.float32)}
+    feature_spec = {'x': tf.io.FixedLenFeature([1], tf.float32)}
     serving_input_receiver_fn = (
         export.build_parsing_serving_input_receiver_fn(feature_spec))
     with self.export_mode():
       export_dir = est.export_saved_model(
           tempfile.mkdtemp(dir=self.get_temp_dir()), serving_input_receiver_fn)
-    self.assertTrue(gfile.Exists(export_dir))
+    self.assertTrue(tf.gfile.Exists(export_dir))
     self._test_identity_savedmodel(export_dir)
 
 
 if __name__ == '__main__':
   tf.disable_v2_behavior()
-  test.main()
+  tf.test.main()

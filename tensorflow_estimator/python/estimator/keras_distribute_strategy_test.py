@@ -22,12 +22,8 @@ from absl.testing import parameterized
 import numpy as np
 import tensorflow as tf
 from tensorflow.python import keras
-from tensorflow.python.distribute import combinations
 from tensorflow.python.distribute import strategy_combinations
 from tensorflow.python.eager import test
-from tensorflow.python.keras.optimizer_v2 import gradient_descent as gradient_descent_keras
-from tensorflow.python.keras.optimizer_v2 import rmsprop as rmsprop_keras
-from tensorflow.python.keras.utils import np_utils
 from tensorflow.python.ops.parsing_ops import gen_parsing_ops
 from tensorflow_estimator.python.estimator import keras as keras_lib
 from tensorflow_estimator.python.estimator import run_config as run_config_lib
@@ -73,7 +69,7 @@ def multi_inputs_multi_outputs_model():
       inputs=[input_a, input_b, input_m], outputs=[output_c, output_d])
   model.compile(
       loss='categorical_crossentropy',
-      optimizer=gradient_descent_keras.SGD(learning_rate=0.001),
+      optimizer=tf.keras.optimizers.SGD(learning_rate=0.001),
       metrics={
           'dense_2': 'categorical_accuracy',
           'dense_3': 'categorical_accuracy'
@@ -88,7 +84,7 @@ def get_ds_train_input_fn():
       test_samples=50,
       input_shape=_INPUT_SIZE,
       num_classes=_NUM_CLASS)
-  y_train = np_utils.to_categorical(y_train)
+  y_train = tf.keras.utils.to_categorical(y_train)
 
   dataset = tf.compat.v1.data.Dataset.from_tensor_slices((x_train, y_train))
   dataset = dataset.batch(32)
@@ -102,7 +98,7 @@ def get_ds_test_input_fn():
       test_samples=50,
       input_shape=_INPUT_SIZE,
       num_classes=_NUM_CLASS)
-  y_test = np_utils.to_categorical(y_test)
+  y_test = tf.keras.utils.to_categorical(y_test)
 
   dataset = tf.compat.v1.data.Dataset.from_tensor_slices((x_test, y_test))
   dataset = dataset.batch(32)
@@ -129,10 +125,10 @@ def get_multi_inputs_multi_outputs_data():
       num_classes=2,
       random_seed=_RANDOM_SEED)
 
-  c_train = np_utils.to_categorical(c_train)
-  c_test = np_utils.to_categorical(c_test)
-  d_train = np_utils.to_categorical(d_train)
-  d_test = np_utils.to_categorical(d_test)
+  c_train = tf.keras.utils.to_categorical(c_train)
+  c_test = tf.keras.utils.to_categorical(c_test)
+  d_train = tf.keras.utils.to_categorical(d_train)
+  d_test = tf.keras.utils.to_categorical(d_test)
 
   train_data = {
       'input_a': a_train,
@@ -170,10 +166,10 @@ class TestEstimatorDistributionStrategy(tf.test.TestCase,
     if os.path.isdir(self._base_dir):
       tf.compat.v1.gfile.DeleteRecursively(self._base_dir)
 
-  @combinations.generate(
-      combinations.combine(
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.combine(
           distribution=[
-              strategy_combinations.mirrored_strategy_with_cpu_1_and_2,
+              tf.compat.v2.__internal__.distribute.combinations.mirrored_strategy_with_cpu_1_and_2,
           ],
           mode=['graph'],
           cloning=[True, False]))
@@ -183,7 +179,7 @@ class TestEstimatorDistributionStrategy(tf.test.TestCase,
     keras_model.compile(
         loss='categorical_crossentropy',
         metrics=[keras.metrics.CategoricalAccuracy()],
-        optimizer=rmsprop_keras.RMSprop(learning_rate=0.01),
+        optimizer=tf.keras.optimizers.RMSprop(learning_rate=0.01),
         cloning=cloning)
     config = run_config_lib.RunConfig(
         tf_random_seed=_RANDOM_SEED,
@@ -203,10 +199,10 @@ class TestEstimatorDistributionStrategy(tf.test.TestCase,
     tf.compat.v1.summary.FileWriterCache.clear()
     tf.compat.v1.gfile.DeleteRecursively(self._config.model_dir)
 
-  @combinations.generate(
-      combinations.combine(
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.combine(
           distribution=[
-              strategy_combinations.mirrored_strategy_with_cpu_1_and_2,
+              tf.compat.v2.__internal__.distribute.combinations.mirrored_strategy_with_cpu_1_and_2,
           ],
           mode=['graph'],
           cloning=[True, False]))
@@ -216,7 +212,7 @@ class TestEstimatorDistributionStrategy(tf.test.TestCase,
     keras_model.compile(
         loss='categorical_crossentropy',
         metrics=[keras.metrics.CategoricalAccuracy()],
-        optimizer=rmsprop_keras.RMSprop(learning_rate=0.01),
+        optimizer=tf.keras.optimizers.RMSprop(learning_rate=0.01),
         cloning=cloning)
     config = run_config_lib.RunConfig(
         tf_random_seed=_RANDOM_SEED,
@@ -235,10 +231,10 @@ class TestEstimatorDistributionStrategy(tf.test.TestCase,
     tf.compat.v1.summary.FileWriterCache.clear()
     tf.compat.v1.gfile.DeleteRecursively(self._config.model_dir)
 
-  @combinations.generate(
-      combinations.combine(
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.combine(
           distribution=[
-              strategy_combinations.mirrored_strategy_with_cpu_1_and_2,
+              tf.compat.v2.__internal__.distribute.combinations.mirrored_strategy_with_cpu_1_and_2,
           ],
           mode=['graph']))
   def test_multi_inputs_multi_outputs_with_input_fn_as_dict(self, distribution):

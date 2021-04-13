@@ -19,7 +19,6 @@ from __future__ import division
 from __future__ import print_function
 
 import tensorflow as tf
-from tensorflow.python.keras import metrics
 from tensorflow_estimator.python.estimator import model_fn
 from tensorflow_estimator.python.estimator.export import export_output
 from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
@@ -52,7 +51,7 @@ class EstimatorSpecTrainTest(tf.test.TestCase):
       loss = tf.constant(1.)
       predictions = {'loss': loss}
       classes = tf.constant('hello')
-      metric_obj = metrics.Mean()
+      metric_obj = tf.keras.metrics.Mean()
       metric_obj.update_state(loss)
       model_fn.EstimatorSpec(
           mode=ModeKeys.TRAIN,
@@ -190,7 +189,7 @@ class EstimatorSpecEvalTest(tf.test.TestCase):
       loss = tf.constant(1.)
       predictions = {'loss': loss}
       classes = tf.constant('hello')
-      metric_obj = metrics.Mean()
+      metric_obj = tf.keras.metrics.Mean()
       metric_obj.update_state(loss)
       model_fn.EstimatorSpec(
           mode=ModeKeys.EVAL,
@@ -380,7 +379,7 @@ class EstimatorSpecEvalTest(tf.test.TestCase):
 
   def testEvalMetricOpsFromDifferentGraphWithMetricObject(self):
     with tf.Graph().as_default():
-      metric_obj = metrics.Mean()
+      metric_obj = tf.keras.metrics.Mean()
       metric_obj.update_state(tf.constant(1.))
       eval_metric_ops = {'metric': metric_obj}
     with tf.Graph().as_default(), self.cached_session():
@@ -395,7 +394,7 @@ class EstimatorSpecEvalTest(tf.test.TestCase):
 
   def testEvalMetricOpsWithoutUpdates(self):
     with tf.Graph().as_default():
-      eval_metric_ops = {'mean': metrics.Mean()}
+      eval_metric_ops = {'mean': tf.keras.metrics.Mean()}
     with tf.Graph().as_default(), self.cached_session():
       loss = tf.constant(1.)
       with self.assertRaisesRegexp(ValueError, 'Please call update_state(...)'):
@@ -413,7 +412,7 @@ class EstimatorSpecEvalTest(tf.test.TestCase):
           set(variables))
 
     with tf.Graph().as_default():
-      metric_obj = metrics.Mean()
+      metric_obj = tf.keras.metrics.Mean()
       metric_obj.update_state(tf.constant(1.))
       self.assertFalse(
           in_collection(tf.compat.v1.GraphKeys.LOCAL_VARIABLES,
@@ -449,7 +448,7 @@ class EstimatorSpecInferTest(tf.test.TestCase):
       loss = tf.constant(1.)
       predictions = {'loss': loss}
       classes = tf.constant('hello')
-      metric_obj = metrics.Mean()
+      metric_obj = tf.keras.metrics.Mean()
       metric_obj.update_state(loss)
       model_fn.EstimatorSpec(
           mode=ModeKeys.PREDICT,

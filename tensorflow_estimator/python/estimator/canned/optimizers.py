@@ -21,12 +21,6 @@ from __future__ import print_function
 import inspect
 import six
 import tensorflow as tf
-from tensorflow.python.keras.optimizer_v2 import adagrad as adagrad_v2
-from tensorflow.python.keras.optimizer_v2 import adam as adam_v2
-from tensorflow.python.keras.optimizer_v2 import ftrl as ftrl_v2
-from tensorflow.python.keras.optimizer_v2 import gradient_descent as gradient_descent_v2
-from tensorflow.python.keras.optimizer_v2 import optimizer_v2
-from tensorflow.python.keras.optimizer_v2 import rmsprop as rmsprop_v2
 
 _OPTIMIZER_CLS_NAMES = {
     'Adagrad': tf.compat.v1.train.AdagradOptimizer,
@@ -37,11 +31,11 @@ _OPTIMIZER_CLS_NAMES = {
 }
 
 _OPTIMIZER_CLS_NAMES_V2 = {
-    'Adagrad': adagrad_v2.Adagrad,
-    'Adam': adam_v2.Adam,
-    'Ftrl': ftrl_v2.Ftrl,
-    'RMSProp': rmsprop_v2.RMSProp,
-    'SGD': gradient_descent_v2.SGD,
+    'Adagrad': tf.keras.optimizers.Adagrad,
+    'Adam': tf.keras.optimizers.Adam,
+    'Ftrl': tf.keras.optimizers.Ftrl,
+    'RMSProp': tf.keras.optimizers.RMSprop,
+    'SGD': tf.keras.optimizers.SGD,
 }
 
 # The default learning rate of 0.05 is a historical artifact of the initial
@@ -139,7 +133,7 @@ def get_optimizer_instance_v2(opt, learning_rate=None):
             opt, tuple(sorted(six.iterkeys(_OPTIMIZER_CLS_NAMES_V2)))))
   if callable(opt):
     opt = opt()
-  if not isinstance(opt, optimizer_v2.OptimizerV2):
+  if not isinstance(opt, tf.keras.optimizers.Optimizer):
     raise ValueError(
         'The given object is not a tf.keras.optimizers.Optimizer instance.'
         ' Given: {}'.format(opt))

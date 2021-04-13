@@ -21,18 +21,16 @@ from __future__ import print_function
 
 import six
 import tensorflow as tf
-from tensorflow.python.eager import def_function
 from tensorflow.python.eager import function
 from tensorflow.python.eager import wrap_function
 from tensorflow.python.framework import func_graph
 from tensorflow.python.saved_model.model_utils import export_utils
-from tensorflow.python.training.tracking import tracking
 from tensorflow.python.util import function_utils
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
 from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 
 
-class ModelFunction(tracking.AutoTrackable):
+class ModelFunction(tf.compat.v2.__internal__.tracking.AutoTrackable):
   """A checkpointable ModelFunction object.
 
   This object stores a global mapping of variables and functions for each mode.
@@ -150,7 +148,7 @@ def _wrap_and_verify_model_fn(model_fn,
   return wrapped_model_fn, 'labels' in args
 
 
-class EstimatorSpecFunction(def_function.Function):
+class EstimatorSpecFunction(tf.compat.v2.__internal__.function.Function):
   """Wraps graph functions defined for a function returning an EstimatorSpec.
 
   Instances of this class are revivable when attached to a checkpointable

@@ -23,7 +23,6 @@ import tensorflow as tf
 from tensorflow.python.feature_column import feature_column
 from tensorflow.python.feature_column import feature_column_lib
 from tensorflow.python.framework import ops
-from tensorflow.python.keras.utils import losses_utils
 from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator import estimator
 from tensorflow_estimator.python.estimator.canned import head as head_lib
@@ -149,7 +148,7 @@ def dnn_logit_fn_builder_v2(units, hidden_units, feature_columns, activation_fn,
 
 
 def _get_previous_name_scope():
-  current_name_scope = ops.get_name_scope()
+  current_name_scope = tf.compat.v2.__internal__.get_name_scope()
   return current_name_scope.rsplit('/', 1)[0] + '/'
 
 
@@ -687,7 +686,7 @@ class DNNClassifierV2(estimator.EstimatorV2):
       dropout=None,
       config=None,
       warm_start_from=None,
-      loss_reduction=losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE,
+      loss_reduction=tf.compat.v2.keras.losses.Reduction.SUM_OVER_BATCH_SIZE,
       batch_norm=False,
   ):
     """Initializes a `DNNClassifier` instance.
@@ -1107,7 +1106,7 @@ class DNNRegressorV2(estimator.EstimatorV2):
       dropout=None,
       config=None,
       warm_start_from=None,
-      loss_reduction=losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE,
+      loss_reduction=tf.compat.v2.keras.losses.Reduction.SUM_OVER_BATCH_SIZE,
       batch_norm=False,
   ):
     """Initializes a `DNNRegressor` instance.
