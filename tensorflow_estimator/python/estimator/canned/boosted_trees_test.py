@@ -27,6 +27,7 @@ import tensorflow as tf
 from google.protobuf import text_format
 from tensorflow.core.kernels.boosted_trees import boosted_trees_pb2
 from tensorflow.python.feature_column import feature_column as feature_column_old
+from tensorflow.python.feature_column import feature_column_lib as feature_column
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import test_util
 from tensorflow.python.ops import boosted_trees_ops
@@ -1724,7 +1725,7 @@ class BoostedTreesEstimatorTest(tf.test.TestCase):
 
     # Create an arbitrary custom DenseColumn. As long as the column conforms to
     # the FeatureColumn API specifications, it should be supported.
-    class MyCustomDense(tf.compat.v2.__internal__.feature_column.DenseColumn):
+    class MyCustomDense(feature_column.DenseColumn):
 
       def __init__(self, key):
         self.key = key
@@ -3364,7 +3365,7 @@ class ModelFnTests(tf.test.TestCase):
     tf.compat.v1.reset_default_graph()
     expected_first, expected_second, expected_third = (
         self._get_expected_ensembles_for_classification())
-    with tf.Graph().as_default(), self.cached_session() as sess:
+    with ops.Graph().as_default(), self.cached_session() as sess:
       train_op, ensemble_serialized = self._get_train_op_and_ensemble(
           boosted_trees._create_classification_head(n_classes=2),
           run_config.RunConfig(),
@@ -3395,7 +3396,7 @@ class ModelFnTests(tf.test.TestCase):
     expected_buckets = [[-2.001, -2.0001, -1.999, 1., 12.5],
                         [-3., 0., 0.4995, 0.5, 2.],
                         [-100., 3., 20., 50., 102.75]]
-    with tf.Graph().as_default(), self.cached_session() as sess:
+    with ops.Graph().as_default(), self.cached_session() as sess:
       train_op, ensemble_serialized, buckets = (
           self._get_train_op_and_ensemble_and_boundaries(
               boosted_trees._create_classification_head(n_classes=2),
@@ -3435,7 +3436,7 @@ class ModelFnTests(tf.test.TestCase):
     expected_buckets = [[-2.001, -2.0001, -1.999, 1., 12.5],
                         [-3., 0., 0.4995, 0.5, 2.],
                         [-100., 3., 20., 50., 102.75]]
-    with tf.Graph().as_default(), self.cached_session() as sess:
+    with ops.Graph().as_default(), self.cached_session() as sess:
       train_op, ensemble_serialized, buckets = (
           self._get_train_op_and_ensemble_and_boundaries(
               boosted_trees._create_classification_head(n_classes=2),
@@ -3475,7 +3476,7 @@ class ModelFnTests(tf.test.TestCase):
     expected_first, expected_second, expected_third, expected_forth = (
         self._get_expected_ensembles_for_classification_with_bias())
 
-    with tf.Graph().as_default(), self.cached_session() as sess:
+    with ops.Graph().as_default(), self.cached_session() as sess:
       train_op, ensemble_serialized = self._get_train_op_and_ensemble(
           boosted_trees._create_classification_head(n_classes=2),
           run_config.RunConfig(),
@@ -3514,7 +3515,7 @@ class ModelFnTests(tf.test.TestCase):
     tf.compat.v1.reset_default_graph()
     expected_first, expected_second, expected_third = (
         self._get_expected_ensembles_for_classification())
-    with tf.Graph().as_default(), self.cached_session() as sess:
+    with ops.Graph().as_default(), self.cached_session() as sess:
       train_op, ensemble_serialized = self._get_train_op_and_ensemble(
           boosted_trees._create_classification_head(n_classes=2),
           run_config.RunConfig(),
@@ -3545,7 +3546,7 @@ class ModelFnTests(tf.test.TestCase):
     expected_first, expected_second, expected_third, expected_forth = (
         self._get_expected_ensembles_for_classification_with_bias())
 
-    with tf.Graph().as_default(), self.cached_session() as sess:
+    with ops.Graph().as_default(), self.cached_session() as sess:
       train_op, ensemble_serialized = self._get_train_op_and_ensemble(
           boosted_trees._create_classification_head(n_classes=2),
           run_config.RunConfig(),
@@ -3582,7 +3583,7 @@ class ModelFnTests(tf.test.TestCase):
     tf.compat.v1.reset_default_graph()
     expected_first, expected_second, expected_third = (
         self._get_expected_ensembles_for_regression())
-    with tf.Graph().as_default(), self.cached_session() as sess:
+    with ops.Graph().as_default(), self.cached_session() as sess:
       train_op, ensemble_serialized = self._get_train_op_and_ensemble(
           boosted_trees._create_regression_head(label_dimension=1),
           run_config.RunConfig(),
@@ -3610,7 +3611,7 @@ class ModelFnTests(tf.test.TestCase):
     tf.compat.v1.reset_default_graph()
     expected_first, expected_second, expected_third, expected_forth = (
         self._get_expected_ensembles_for_regression_with_bias())
-    with tf.Graph().as_default(), self.cached_session() as sess:
+    with ops.Graph().as_default(), self.cached_session() as sess:
       train_op, ensemble_serialized = self._get_train_op_and_ensemble(
           boosted_trees._create_regression_head(label_dimension=1),
           run_config.RunConfig(),
@@ -3648,7 +3649,7 @@ class ModelFnTests(tf.test.TestCase):
     tf.compat.v1.reset_default_graph()
     expected_first, expected_second, expected_third = (
         self._get_expected_ensembles_for_regression())
-    with tf.Graph().as_default(), self.cached_session() as sess:
+    with ops.Graph().as_default(), self.cached_session() as sess:
       train_op, ensemble_serialized = self._get_train_op_and_ensemble(
           boosted_trees._create_regression_head(label_dimension=1),
           run_config.RunConfig(),
@@ -3676,7 +3677,7 @@ class ModelFnTests(tf.test.TestCase):
     tf.compat.v1.reset_default_graph()
     expected_first, expected_second, expected_third, expected_forth = (
         self._get_expected_ensembles_for_regression_with_bias())
-    with tf.Graph().as_default(), self.cached_session() as sess:
+    with ops.Graph().as_default(), self.cached_session() as sess:
       train_op, ensemble_serialized = self._get_train_op_and_ensemble(
           boosted_trees._create_regression_head(label_dimension=1),
           run_config.RunConfig(),

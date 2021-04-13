@@ -153,7 +153,7 @@ class MultiLabelHead(base_head.Head):
                weight_column=None,
                thresholds=None,
                label_vocabulary=None,
-               loss_reduction=tf.compat.v2.keras.losses.Reduction.SUM_OVER_BATCH_SIZE,
+               loss_reduction=losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE,
                loss_fn=None,
                classes_for_class_based_metrics=None,
                name=None):

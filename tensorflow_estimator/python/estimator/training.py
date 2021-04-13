@@ -25,6 +25,7 @@ import time
 
 import six
 import tensorflow as tf
+from tensorflow.core.protobuf import config_pb2
 from tensorflow.python.distribute import estimator_training as distribute_coordinator_training
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.training import basic_session_run_hooks
@@ -777,9 +778,9 @@ class _TrainingExecutor(object):
     tf.compat.v1.logging.info('Start Tensorflow server.')
 
     if config.session_config is None:
-      session_config = tf.compat.v1.ConfigProto(log_device_placement=False)
+      session_config = config_pb2.ConfigProto(log_device_placement=False)
     else:
-      session_config = tf.compat.v1.ConfigProto(
+      session_config = config_pb2.ConfigProto(
           log_device_placement=False,
           gpu_options=config.session_config.gpu_options)
 

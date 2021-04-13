@@ -22,6 +22,8 @@ import numpy as np
 import six
 import tensorflow as tf
 from tensorflow.python.framework import test_util
+from tensorflow.python.keras.optimizer_v2 import optimizer_v2
+from tensorflow.python.keras.utils import losses_utils
 from tensorflow_estimator.python.estimator.canned import dnn
 from tensorflow_estimator.python.estimator.canned import dnn_testing_utils
 from tensorflow_estimator.python.estimator.canned import metric_keys
@@ -47,7 +49,7 @@ class BinaryClassHeadTest(tf.test.TestCase):
         ValueError, r'Invalid loss_reduction: invalid_loss_reduction'):
       head_lib.BinaryClassHead(loss_reduction='invalid_loss_reduction')
     with self.assertRaisesRegexp(ValueError, r'Invalid loss_reduction: none'):
-      head_lib.BinaryClassHead(loss_reduction=tf.compat.v2.keras.losses.Reduction.NONE)
+      head_lib.BinaryClassHead(loss_reduction=losses_utils.ReductionV2.NONE)
 
   def test_loss_fn_arg_labels_missing(self):
 
@@ -702,7 +704,7 @@ class BinaryClassHeadTest(tf.test.TestCase):
 
   def test_train_create_loss_loss_reduction(self):
     """Tests create_loss with loss_reduction."""
-    head = head_lib.BinaryClassHead(loss_reduction=tf.compat.v2.keras.losses.Reduction.SUM)
+    head = head_lib.BinaryClassHead(loss_reduction=losses_utils.ReductionV2.SUM)
 
     logits = np.array(((45,), (-41,),), dtype=np.float32)
     labels = np.array(((1,), (1,),), dtype=np.float64)
@@ -1432,7 +1434,7 @@ class BinaryClassHeadForEstimator(tf.test.TestCase):
   def test_invalid_trainable_variables(self):
     head = head_lib.BinaryClassHead()
 
-    class _Optimizer(tf.keras.optimizers.Optimizer):
+    class _Optimizer(optimizer_v2.OptimizerV2):
 
       def get_updates(self, loss, params):
         del params
@@ -1479,7 +1481,7 @@ class BinaryClassHeadForEstimator(tf.test.TestCase):
     #      = sum(0, 41) / 2 = 41 / 2 = 20.5
     expected_loss = 20.5
 
-    class _Optimizer(tf.keras.optimizers.Optimizer):
+    class _Optimizer(optimizer_v2.OptimizerV2):
 
       def get_updates(self, loss, params):
         del params

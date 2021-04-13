@@ -22,6 +22,7 @@ import math
 
 import six
 import tensorflow as tf
+from tensorflow.python.keras.utils import losses_utils
 from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator import estimator
 from tensorflow_estimator.python.estimator.canned import dnn
@@ -96,7 +97,7 @@ def _dnn_linear_combined_model_fn_v2(
     config=None,
     batch_norm=False,
     linear_sparse_combiner='sum',
-    loss_reduction=tf.compat.v2.keras.losses.Reduction.SUM_OVER_BATCH_SIZE):
+    loss_reduction=losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE):
   """Deep Neural Net and Linear combined model_fn.
 
   Args:
@@ -199,7 +200,7 @@ def _dnn_linear_combined_model_fn_v2(
     """Returns the op to optimize the loss."""
     train_ops = []
     # Scale loss by number of replicas.
-    if loss_reduction == tf.compat.v2.keras.losses.Reduction.SUM_OVER_BATCH_SIZE:
+    if loss_reduction == losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE:
       num_replicas = tf.distribute.get_strategy().num_replicas_in_sync
       if num_replicas > 1:
         loss *= (1. / num_replicas)
@@ -488,7 +489,7 @@ class DNNLinearCombinedClassifierV2(estimator.EstimatorV2):
                label_vocabulary=None,
                config=None,
                warm_start_from=None,
-               loss_reduction=tf.compat.v2.keras.losses.Reduction.SUM_OVER_BATCH_SIZE,
+               loss_reduction=losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE,
                batch_norm=False,
                linear_sparse_combiner='sum'):
     """Initializes a DNNLinearCombinedClassifier instance.
@@ -988,7 +989,7 @@ class DNNLinearCombinedRegressorV2(estimator.EstimatorV2):
                weight_column=None,
                config=None,
                warm_start_from=None,
-               loss_reduction=tf.compat.v2.keras.losses.Reduction.SUM_OVER_BATCH_SIZE,
+               loss_reduction=losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE,
                batch_norm=False,
                linear_sparse_combiner='sum'):
     """Initializes a DNNLinearCombinedRegressor instance.

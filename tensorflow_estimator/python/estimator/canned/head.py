@@ -24,8 +24,11 @@ import collections
 import six
 import tensorflow as tf
 from tensorflow.python.feature_column import feature_column
+from tensorflow.python.feature_column import feature_column_lib
 from tensorflow.python.framework import ops
 from tensorflow.python.ops import lookup_ops
+from tensorflow.python.ops import string_ops
+from tensorflow.python.ops import weights_broadcast_ops
 from tensorflow.python.util import function_utils
 from tensorflow_estimator.python.estimator import model_fn
 from tensorflow_estimator.python.estimator.canned import metric_keys
@@ -392,7 +395,7 @@ def _get_weights_and_check_match_logits(features,
           key=weight_column, shape=(1,))
     if not isinstance(
         weight_column,
-        (tf.compat.v2.__internal__.feature_column.DenseColumn, feature_column._DenseColumn)):  # pylint: disable=protected-access
+        (feature_column_lib.DenseColumn, feature_column._DenseColumn)):  # pylint: disable=protected-access
       raise TypeError('Weight column must be either a string or _DenseColumn.'
                       ' Given type: {}.'.format(type(weight_column)))
     weights = weight_column._get_dense_tensor(  # pylint: disable=protected-access
@@ -560,7 +563,7 @@ def _indicator_labels_mean(labels, weights=None, name=None):
   with ops.name_scope(name, 'labels_mean', (labels, weights)) as scope:
     labels = tf.cast(labels, name='labels', dtype=tf.dtypes.float32)
     if weights is not None:
-      weights = tf.compat.v2.__internal__.ops.broadcast_weights(weights, labels)
+      weights = weights_broadcast_ops.broadcast_weights(weights, labels)
     return tf.compat.v1.metrics.mean(labels, weights=weights, name=scope)
 
 
@@ -577,7 +580,7 @@ def _all_classes(logits, n_classes, label_vocabulary=None):
   if label_vocabulary:
     classes_list = label_vocabulary
   else:
-    classes_list = tf.as_string(tf.range(n_classes))
+    classes_list = string_ops.as_string(tf.range(n_classes))
   return tf.tile(
       input=tf.compat.v1.expand_dims(input=classes_list, axis=0),
       multiples=[batch_size, 1])
@@ -588,7 +591,7 @@ def _classification_output(scores, n_classes, label_vocabulary=None):
   if label_vocabulary:
     export_class_list = label_vocabulary
   else:
-    export_class_list = tf.as_string(tf.range(n_classes))
+    export_class_list = string_ops.as_string(tf.range(n_classes))
   export_output_classes = tf.tile(
       input=tf.compat.v1.expand_dims(input=export_class_list, axis=0),
       multiples=[batch_size, 1])
@@ -621,7 +624,7 @@ def _predictions_mean(predictions, weights=None, name=None):
     predictions = tf.cast(
         predictions, name='predictions', dtype=tf.dtypes.float32)
     if weights is not None:
-      weights = tf.compat.v2.__internal__.ops.broadcast_weights(weights, predictions)
+      weights = weights_broadcast_ops.broadcast_weights(weights, predictions)
     return tf.compat.v1.metrics.mean(predictions, weights=weights, name=scope)
 
 
@@ -630,7 +633,7 @@ def _auc(labels, predictions, weights=None, curve='ROC', name=None):
     predictions = tf.cast(
         predictions, name='predictions', dtype=tf.dtypes.float32)
     if weights is not None:
-      weights = tf.compat.v2.__internal__.ops.broadcast_weights(weights, predictions)
+      weights = weights_broadcast_ops.broadcast_weights(weights, predictions)
     return tf.compat.v1.metrics.auc(
         labels=labels,
         predictions=predictions,
@@ -1282,7 +1285,7 @@ class _BinaryLogisticHeadWithSigmoidCrossEntropyLoss(_Head):
               name='class_string_lookup')
           classes = table.lookup(class_ids)
         else:
-          classes = tf.as_string(class_ids, name='str_classes')
+          classes = string_ops.as_string(class_ids, name='str_classes')
         predictions = {
             pred_keys.LOGITS: logits,
             pred_keys.LOGISTIC: logistic,

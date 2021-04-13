@@ -22,8 +22,10 @@ import collections
 
 import six
 import tensorflow as tf
+from tensorflow.python.framework import ops
 from tensorflow.python.saved_model import model_utils as export_utils
 from tensorflow.python.tpu import tensor_tracer
+from tensorflow.python.types import core
 from tensorflow.python.util import function_utils
 from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
@@ -548,13 +550,13 @@ def _validate_scaffold(scaffold):
 
 def _check_is_tensor_or_operation(x, name):
   # TODO(b/154650521): Use tf.Tensor instead of core.Tensor.
-  if not isinstance(x, (tf.Operation, tf.compat.v2.__internal__.types.Tensor)):
+  if not isinstance(x, (tf.Operation, core.Tensor)):
     raise TypeError('{} must be Operation or Tensor, given: {}'.format(name, x))
 
 
 def _check_is_tensor(x, tensor_name):
   """Returns `x` if it is a `Tensor`, raises TypeError otherwise."""
-  if not isinstance(x, tf.compat.v2.__internal__.types.Tensor):
+  if not isinstance(x, core.Tensor):
     raise TypeError('{} must be Tensor, given: {}'.format(tensor_name, x))
   return x
 

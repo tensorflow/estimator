@@ -19,7 +19,15 @@ import operator
 import os
 
 import tensorflow as tf
+from tensorflow.python.distribute import distribution_strategy_context
+from tensorflow.python.framework import ops
+from tensorflow.python.ops import array_ops
+from tensorflow.python.ops import init_ops
+from tensorflow.python.ops import variable_scope
 from tensorflow.python.platform import tf_logging
+from tensorflow.python.training import basic_session_run_hooks
+from tensorflow.python.training import session_run_hook
+from tensorflow.python.training import training_util
 from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator import estimator as estimator_lib
 
@@ -519,22 +527,22 @@ class _CheckForStoppingHook(tf.compat.v1.train.SessionRunHook):
       run_context.request_stop()
 
 
-class _MultiWorkerEarlyStoppingHook(tf.compat.v1.train.SessionRunHook):
+class _MultiWorkerEarlyStoppingHook(session_run_hook.SessionRunHook):
   """Hook that requests stop when `should_stop_fn` returns `True`."""
 
   def _get_or_create_stop_var_with_aggregation(self):
-    with tf.compat.v1.variable_scope(
+    with variable_scope.variable_scope(
         name_or_scope='signal_early_stopping',
         values=[],
-        reuse=tf.compat.v1.AUTO_REUSE):
-      return tf.compat.v1.get_variable(
+        reuse=variable_scope.AUTO_REUSE):
+      return variable_scope.get_variable(
           name='STOP',
           shape=[],
           dtype=tf.dtypes.int32,
-          initializer=tf.compat.v1.keras.initializers.constant(0),
-          collections=[tf.compat.v1.GraphKeys.GLOBAL_VARIABLES],
-          synchronization=tf.VariableSynchronization.ON_WRITE,
-          aggregation=tf.compat.v1.VariableAggregation.SUM,
+          initializer=init_ops.constant_initializer(0),
+          collections=[ops.GraphKeys.GLOBAL_VARIABLES],
+          synchronization=variable_scope.VariableSynchronization.ON_WRITE,
+          aggregation=variable_scope.VariableAggregation.SUM,
           trainable=False)
 
   def __init__(self, should_stop_fn, run_every_steps=None):
@@ -542,7 +550,7 @@ class _MultiWorkerEarlyStoppingHook(tf.compat.v1.train.SessionRunHook):
       raise TypeError('`should_stop_fn` must be callable.')
 
     self._should_stop_fn = should_stop_fn
-    self._timer = tf.compat.v1.train.SecondOrStepTimer(
+    self._timer = basic_session_run_hooks.SecondOrStepTimer(
         every_secs=None, every_steps=run_every_steps)
     self._global_step_tensor = None
     self._stop_var = None
@@ -550,15 +558,15 @@ class _MultiWorkerEarlyStoppingHook(tf.compat.v1.train.SessionRunHook):
     self._non_stop_op = None
 
   def begin(self):
-    self._global_step_tensor = tf.compat.v1.train.get_global_step()
+    self._global_step_tensor = training_util.get_global_step()
     self._stop_var = self._get_or_create_stop_var_with_aggregation()
-    assert tf.distribute.in_cross_replica_context()
+    assert distribution_strategy_context.in_cross_replica_context()
 
-    strategy = tf.distribute.get_strategy()
+    strategy = distribution_strategy_context.get_strategy()
     self._stop_placeholder = None
 
     def stop_op_fn(var):
-      placeholder = tf.compat.v1.placeholder_with_default(
+      placeholder = array_ops.placeholder_with_default(
           0, tuple(), name='stop_value')
       if self._stop_placeholder is None:
         self._stop_placeholder = placeholder
@@ -569,7 +577,7 @@ class _MultiWorkerEarlyStoppingHook(tf.compat.v1.train.SessionRunHook):
 
   def before_run(self, run_context):
     del run_context
-    return tf.compat.v1.train.SessionRunArgs({
+    return session_run_hook.SessionRunArgs({
         'global_step': self._global_step_tensor,
         'stop_var': self._stop_var
     })

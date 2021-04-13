@@ -25,6 +25,8 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import test_util
+from tensorflow.python.keras.optimizer_v2 import optimizer_v2
+from tensorflow.python.keras.utils import losses_utils
 from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.canned import prediction_keys
 from tensorflow_estimator.python.estimator.head import binary_class_head as binary_head_lib
@@ -362,12 +364,12 @@ class TestSequentialHead(tf.test.TestCase):
   def test_head_properties(self):
     """Tests that the head's properties are correcly implemented."""
     static_head = binary_head_lib.BinaryClassHead(
-        loss_reduction=tf.compat.v2.keras.losses.Reduction.SUM, name='a_static_head')
+        loss_reduction=losses_utils.ReductionV2.SUM, name='a_static_head')
     head = seq_head_lib.SequentialHeadWrapper(static_head,
                                               'a_sequence_mask_col')
     self.assertEqual(head.name, 'a_static_head_sequential')
     self.assertEqual(head.logits_dimension, 1)
-    self.assertEqual(head.loss_reduction, tf.compat.v2.keras.losses.Reduction.SUM)
+    self.assertEqual(head.loss_reduction, losses_utils.ReductionV2.SUM)
     self.assertEqual(head.input_sequence_mask_key, 'a_sequence_mask_col')
     self.assertEqual(head.static_head.name, 'a_static_head')
 
@@ -404,7 +406,7 @@ class TestSequentialHead(tf.test.TestCase):
     labels = tf.sparse.SparseTensor(
         indices=((0, 0), (0, 1), (1, 0)), values=(0, 1, 2), dense_shape=(2, 2))
 
-    class _Optimizer(tf.keras.optimizers.Optimizer):
+    class _Optimizer(optimizer_v2.OptimizerV2):
 
       def get_updates(self, loss, params):
         del params, loss

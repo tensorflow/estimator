@@ -21,6 +21,11 @@ from __future__ import print_function
 import tensorflow as tf
 
 import os
+from tensorflow.python.keras import backend
+from tensorflow.python.keras.engine import training
+from tensorflow.python.keras.layers import core
+from tensorflow.python.keras.optimizer_v2 import adam
+from tensorflow.python.saved_model import saved_model
 # pylint: disable=g-import-not-at-top
 try:
   from tensorflow.python.training.tracking import util
@@ -33,12 +38,12 @@ from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
 from tensorflow_estimator.python.estimator.export import export_lib
 
 
-class SubclassedModel(tf.keras.models.Model):
+class SubclassedModel(training.Model):
 
   def __init__(self):
     super(SubclassedModel, self).__init__()
-    self.dense_one = tf.keras.layers.Dense(5)
-    self.dense_two = tf.keras.layers.Dense(1)
+    self.dense_one = core.Dense(5)
+    self.dense_two = core.Dense(1)
 
   def call(self, inputs):
     return self.dense_two(self.dense_one(inputs))
@@ -58,7 +63,7 @@ class ObjectCheckpointingTest(tf.test.TestCase):
     def _model_fn(features, labels, mode):
       del labels
       model = SubclassedModel()
-      optimizer = tf.keras.optimizers.Adam(0.01)
+      optimizer = adam.Adam(0.01)
       checkpoint = util.Checkpoint(
           step=tf.compat.v1.train.get_or_create_global_step(),
           optimizer=optimizer,
@@ -104,7 +109,7 @@ class ObjectCheckpointingTest(tf.test.TestCase):
     save_est.train(input_fn, steps=3)
 
     model = SubclassedModel()
-    optimizer = tf.keras.optimizers.Adam(0.01)
+    optimizer = adam.Adam(0.01)
     checkpoint = util.Checkpoint(
         step=tf.Variable(0, dtype=tf.dtypes.int64),
         optimizer=optimizer,
@@ -120,7 +125,7 @@ class ObjectCheckpointingTest(tf.test.TestCase):
     status.assert_consumed()
 
     # The optimizer uses this for some reason...
-    tf.keras.backend.clear_session()
+    backend.clear_session()
 
     load_model_dir = os.path.join(self.get_temp_dir(), 'load_model_dir/')
     checkpoint.step.assign(40)
@@ -142,7 +147,7 @@ class ObjectCheckpointingTest(tf.test.TestCase):
                                               _serving_input_receiver_fn)
 
     # Check the saved model loads and simple inference runs.
-    model = tf.compat.v2.saved_model.load(export_dir)
+    model = saved_model.load(export_dir)
     model.signatures['serving_default'](tf.constant([[1.]]))
 
 

@@ -29,6 +29,7 @@ import tensorflow as tf
 from tensorflow.core.example import example_pb2
 from tensorflow.core.example import feature_pb2
 from tensorflow.python.framework import ops
+from tensorflow.python.keras.optimizer_v2 import optimizer_v2
 from tensorflow_estimator.python.estimator.canned import baseline
 from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.export import export
@@ -117,7 +118,7 @@ def mock_optimizer_v2(testcase, expected_loss=None):
   """
   expected_var_names = ['%s:0' % BIAS_NAME]
 
-  class _Optimizer(tf.keras.optimizers.Optimizer):
+  class _Optimizer(optimizer_v2.OptimizerV2):
 
     def get_updates(self, loss, params):
       trainable_vars = params

@@ -20,6 +20,9 @@ from __future__ import print_function
 
 import tensorflow as tf
 from tensorflow.python.framework import ops
+from tensorflow.python.keras.engine import training
+from tensorflow.python.keras.layers import core
+from tensorflow.python.keras.layers import recurrent_v2
 from tensorflow.python.ops import distributions
 from tensorflow.python.ops import gen_math_ops
 from tensorflow_estimator.python.estimator import estimator_lib
@@ -29,7 +32,7 @@ from tensorflow_estimator.python.estimator.canned.timeseries.feature_keys import
 from tensorflow_estimator.python.estimator.canned.timeseries.feature_keys import TrainEvalFeatures
 
 
-class LSTMPredictionModel(tf.keras.models.Model):
+class LSTMPredictionModel(training.Model):
   """A simple encoder/decoder model using an LSTM.
 
   This model does not operate on its own, but rather is a plugin to
@@ -53,12 +56,12 @@ class LSTMPredictionModel(tf.keras.models.Model):
       num_units: The number of units in the encoder and decoder LSTM cells.
     """
     super(LSTMPredictionModel, self).__init__()
-    self._encoder = tf.compat.v2.keras.layers.LSTM(
+    self._encoder = recurrent_v2.LSTM(
         num_units, name="encoder", dtype=self.dtype, return_state=True)
-    self._decoder = tf.compat.v2.keras.layers.LSTM(
+    self._decoder = recurrent_v2.LSTM(
         num_units, name="decoder", dtype=self.dtype, return_sequences=True)
-    self._mean_transform = tf.keras.layers.Dense(num_features, name="mean_transform")
-    self._covariance_transform = tf.keras.layers.Dense(
+    self._mean_transform = core.Dense(num_features, name="mean_transform")
+    self._covariance_transform = core.Dense(
         num_features, name="covariance_transform")
 
   def call(self, input_window_features, output_window_features):

@@ -20,6 +20,7 @@ from __future__ import print_function
 
 import json
 import tensorflow as tf
+from tensorflow.core.protobuf import config_pb2
 from tensorflow_estimator.python.estimator import run_config as run_config_lib
 from tensorflow_estimator.python.estimator.tpu import tpu_config as tpu_config_lib
 from tensorflow_estimator.python.estimator.tpu import util as util_lib
@@ -37,7 +38,7 @@ class TPURunConfigTest(tf.test.TestCase):
     self.assertIsNone(run_config.session_config)
 
   def test_no_session_config_overwrite_in_local_case(self):
-    session_config = tf.compat.v1.ConfigProto(allow_soft_placement=True)
+    session_config = config_pb2.ConfigProto(allow_soft_placement=True)
     run_config = tpu_config_lib.RunConfig(session_config=session_config)
     self.assertEqual(session_config, run_config.session_config)
 
@@ -68,7 +69,7 @@ class TPURunConfigTest(tf.test.TestCase):
         }
     }
     with _set_tf_config_env_variable(tf_config):
-      session_config = tf.compat.v1.ConfigProto(allow_soft_placement=True)
+      session_config = config_pb2.ConfigProto(allow_soft_placement=True)
       run_config = tpu_config_lib.RunConfig(session_config=session_config)
       self.assertEqual(session_config, run_config.session_config)
 
