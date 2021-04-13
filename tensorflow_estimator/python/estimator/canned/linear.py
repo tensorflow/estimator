@@ -26,9 +26,6 @@ from tensorflow.python.feature_column import feature_column
 from tensorflow.python.feature_column import feature_column_lib
 from tensorflow.python.feature_column import feature_column_v2 as fc_v2
 from tensorflow.python.framework import ops
-from tensorflow.python.keras.optimizer_v2 import ftrl as ftrl_v2
-from tensorflow.python.keras.utils import losses_utils
-from tensorflow.python.ops import resource_variable_ops
 from tensorflow.python.ops import variable_scope
 from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator import estimator
@@ -181,7 +178,7 @@ class LinearSDCA(object):
     """Returns the training operation of an SdcaModel optimizer."""
 
     batch_size = tf.compat.v1.shape(targets)[0]
-    cache = feature_column_lib.FeatureTransformationCache(features)
+    cache = tf.compat.v2.__internal__.feature_column.FeatureTransformationCache(features)
 
     # Iterate over all feature columns and create appropriate lists for dense
     # and sparse features as well as dense and sparse weights (variables) for
@@ -197,7 +194,7 @@ class LinearSDCA(object):
         # list of Variables here larger than 1.
         sparse_feature_with_values_weights.append(
             state_manager.get_variable(column, 'weights'))
-      elif isinstance(column, feature_column_lib.DenseColumn):
+      elif isinstance(column, tf.compat.v2.__internal__.feature_column.DenseColumn):
         if column.variable_shape.ndims != 1:
           raise ValueError('Column %s has rank %d, larger than 1.' %
                            (type(column).__name__, column.variable_shape.ndims))
@@ -243,7 +240,7 @@ class LinearSDCA(object):
 
 def _get_default_optimizer_v2(feature_columns):
   learning_rate = min(_LEARNING_RATE, 1.0 / math.sqrt(len(feature_columns)))
-  return ftrl_v2.Ftrl(learning_rate=learning_rate)
+  return tf.keras.optimizers.Ftrl(learning_rate=learning_rate)
 
 
 def _get_default_optimizer(feature_columns):
@@ -264,7 +261,7 @@ def _get_expanded_variable_list(var_list):
   returned_list = []
   for variable in var_list:
     if (isinstance(variable, tf.Variable) or
-        resource_variable_ops.is_resource_variable(variable) or
+        tf.compat.v2.__internal__.ops.is_resource_variable(variable) or
         isinstance(variable, tf.Tensor)):
       returned_list.append(variable)  # Single variable/tensor case.
     else:  # Must be a PartitionedVariable, so convert into a list.
@@ -866,7 +863,7 @@ class LinearClassifierV2(estimator.EstimatorV2):
                optimizer='Ftrl',
                config=None,
                warm_start_from=None,
-               loss_reduction=losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE,
+               loss_reduction=tf.compat.v2.keras.losses.Reduction.SUM_OVER_BATCH_SIZE,
                sparse_combiner='sum'):
     """Construct a `LinearClassifier` estimator object.
 
@@ -1299,7 +1296,7 @@ class LinearRegressorV2(estimator.EstimatorV2):
                optimizer='Ftrl',
                config=None,
                warm_start_from=None,
-               loss_reduction=losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE,
+               loss_reduction=tf.compat.v2.keras.losses.Reduction.SUM_OVER_BATCH_SIZE,
                sparse_combiner='sum'):
     """Initializes a `LinearRegressor` instance.
 
@@ -1431,7 +1428,7 @@ class _LinearModelLayer(tf.keras.layers.Layer):
 
     self._feature_columns = fc_v2._normalize_feature_columns(feature_columns)  # pylint: disable=protected-access
     for column in self._feature_columns:
-      if not isinstance(column, (fc_v2.DenseColumn, fc_v2.CategoricalColumn)):
+      if not isinstance(column, (tf.compat.v2.__internal__.feature_column.DenseColumn, fc_v2.CategoricalColumn)):
         raise ValueError(
             'Items of feature_columns must be either a '
             'DenseColumn or CategoricalColumn. Given: {}'.format(column))
@@ -1439,7 +1436,7 @@ class _LinearModelLayer(tf.keras.layers.Layer):
     self._units = units
     self._sparse_combiner = sparse_combiner
 
-    self._state_manager = fc_v2._StateManagerImpl(self, self.trainable)  # pylint: disable=protected-access
+    self._state_manager = tf.compat.v2.__internal__.feature_column.StateManager(self, self.trainable)  # pylint: disable=protected-access
     self.bias = None
 
   def build(self, _):
@@ -1478,7 +1475,7 @@ class _LinearModelLayer(tf.keras.layers.Layer):
           # TODO(rohanj): Get rid of this hack once we have a mechanism for
           # specifying a default partitioner for an entire layer. In that case,
           # the default getter for Layers should work.
-          getter=variable_scope.get_variable)
+          getter=tf.compat.v1.get_variable)
 
     super(_LinearModelLayer, self).build(None)
 
@@ -1487,7 +1484,7 @@ class _LinearModelLayer(tf.keras.layers.Layer):
       raise ValueError('We expected a dictionary here. Instead we got: {}'
                        .format(features))
     with ops.name_scope(self.name):
-      transformation_cache = fc_v2.FeatureTransformationCache(features)
+      transformation_cache = tf.compat.v2.__internal__.feature_column.FeatureTransformationCache(features)
       weighted_sums = []
       for column in self._feature_columns:
         with ops.name_scope(

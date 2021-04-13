@@ -56,12 +56,6 @@ import argparse
 import sys
 import tensorflow as tf
 from google.protobuf import text_format
-from tensorflow.core.framework import graph_pb2
-from tensorflow.python.keras.optimizer_v2 import adagrad
-from tensorflow.python.keras.optimizer_v2 import adam
-from tensorflow.python.keras.optimizer_v2 import ftrl
-from tensorflow.python.keras.optimizer_v2 import gradient_descent
-from tensorflow.python.keras.optimizer_v2 import rmsprop
 
 # Optimizer name mapping from v1 to v2.
 OPT_NAME_V1_TO_V2 = {
@@ -113,11 +107,11 @@ HP_IN_GRAPH = {
 
 # optimizer v2 instance.
 OPT_V2_INSTANCE = {
-    'Adagrad': adagrad.Adagrad(),
-    'Adam': adam.Adam(),
-    'Ftrl': ftrl.Ftrl(),
-    'RMSProp': rmsprop.RMSprop(),
-    'SGD': gradient_descent.SGD(),
+    'Adagrad': tf.keras.optimizers.Adagrad(),
+    'Adam': tf.keras.optimizers.Adam(),
+    'Ftrl': tf.keras.optimizers.Ftrl(),
+    'RMSProp': tf.keras.optimizers.RMSprop(),
+    'SGD': tf.keras.optimizers.SGD(),
 }
 
 
@@ -204,7 +198,7 @@ def _convert_hyper_params_in_graph(graph_from_path, opt_name_v1, var_map,
                                    var_names_map):
   """Generates hyper parameters for optimizer v2 from graph.pbtxt."""
   with tf.io.gfile.GFile(graph_from_path) as f:
-    graph_def = text_format.Parse(f.read(), graph_pb2.GraphDef())
+    graph_def = text_format.Parse(f.read(), tf.compat.v1.GraphDef())
 
   # In keras optimizer, the hyper parameters are also stored in the checkpoint,
   # while v1 checkpoint doesn't contain any hyper parameters. For the

@@ -22,8 +22,6 @@ import numpy as np
 import six
 import tensorflow as tf
 from tensorflow.python.framework import test_util
-from tensorflow.python.keras.optimizer_v2 import optimizer_v2
-from tensorflow.python.keras.utils import losses_utils
 from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.canned import prediction_keys
 from tensorflow_estimator.python.estimator.head import head_utils as test_lib
@@ -604,7 +602,7 @@ class MultiHeadTest(tf.test.TestCase):
 
     expected_train_result = 'my_train_op'
 
-    class _Optimizer(optimizer_v2.OptimizerV2):
+    class _Optimizer(tf.keras.optimizers.Optimizer):
 
       def get_updates(self, loss, params):
         del params
@@ -835,9 +833,9 @@ class MultiHeadForEstimator(tf.test.TestCase):
     head1 = multi_label_head.MultiLabelHead(
         n_classes=2,
         name='head1',
-        loss_reduction=losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE)
+        loss_reduction=tf.compat.v2.keras.losses.Reduction.SUM_OVER_BATCH_SIZE)
     head2 = multi_label_head.MultiLabelHead(
-        n_classes=3, name='head2', loss_reduction=losses_utils.ReductionV2.AUTO)
+        n_classes=3, name='head2', loss_reduction=tf.compat.v2.keras.losses.Reduction.AUTO)
     multi_head = multi_head_lib.MultiHead([head1, head2])
     logits = {
         'head1':

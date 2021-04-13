@@ -25,7 +25,6 @@ import tempfile
 import numpy as np
 import six
 import tensorflow as tf
-from tensorflow.core.framework import summary_pb2
 from tensorflow.python.feature_column import feature_column
 from tensorflow.python.framework import ops
 from tensorflow_estimator.python.estimator import estimator
@@ -1648,7 +1647,7 @@ class _SummaryHook(tf.compat.v1.train.SessionRunHook):
     return tf.compat.v1.train.SessionRunArgs({'summary': self._summary_op})
 
   def after_run(self, run_context, run_values):
-    s = summary_pb2.Summary()
+    s = tf.compat.v1.summary.Summary()
     s.ParseFromString(run_values.results['summary'])
     self._summaries.append(s)
 

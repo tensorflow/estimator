@@ -22,46 +22,32 @@ import os
 
 from absl.testing import parameterized
 import numpy as np
-
-from tensorflow.core.protobuf import config_pb2
+import tensorflow as tf
 from tensorflow.core.protobuf import rewriter_config_pb2
-from tensorflow.python.client import session
 from tensorflow.python.feature_column import feature_column_v2 as fc
-from tensorflow.python.framework import constant_op
-from tensorflow.python.framework import dtypes
-from tensorflow.python.framework import errors
-from tensorflow.python.framework import ops
-from tensorflow.python.framework import sparse_tensor
 from tensorflow.python.framework import test_util
-from tensorflow.python.ops import array_ops
-from tensorflow.python.ops import lookup_ops
-from tensorflow.python.ops import parsing_ops
-from tensorflow.python.ops import variable_scope
-from tensorflow.python.ops import variables as variables_lib
 from tensorflow.python.platform import flags
-from tensorflow.python.platform import test
-from tensorflow.python.training import rmsprop
 from tensorflow_estimator.python.estimator.canned import linear
 
 
 def _initialized_session(config=None):
-  sess = session.Session(config=config)
-  sess.run(variables_lib.global_variables_initializer())
-  sess.run(lookup_ops.tables_initializer())
+  sess = tf.compat.v1.Session(config=config)
+  sess.run(tf.compat.v1.initializers.global_variables())
+  sess.run(tf.compat.v1.tables_initializer())
   return sess
 
 
 def get_linear_model_bias(name='linear_model'):
-  with variable_scope.variable_scope(name, reuse=True):
-    return variable_scope.get_variable('bias_weights')
+  with tf.compat.v1.variable_scope(name, reuse=True):
+    return tf.compat.v1.get_variable('bias_weights')
 
 
 def get_linear_model_column_var(column, name='linear_model'):
-  return ops.get_collection(ops.GraphKeys.GLOBAL_VARIABLES,
+  return tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.GLOBAL_VARIABLES,
                             name + '/' + column.name)[0]
 
 
-class BaseFeatureColumnForTests(fc.FeatureColumn):
+class BaseFeatureColumnForTests(tf.compat.v2.__internal__.feature_column.FeatureColumn):
   """A base FeatureColumn useful to avoid boiler-plate in tests.
 
   Provides dummy implementations for abstract methods that raise ValueError in
@@ -80,12 +66,12 @@ class BaseFeatureColumnForTests(fc.FeatureColumn):
     raise ValueError('Should not use this method.')
 
 
-class SortableFeatureColumnTest(test.TestCase):
+class SortableFeatureColumnTest(tf.test.TestCase):
 
   @test_util.run_deprecated_v1
   def test_linear_model(self):
-    price = fc.numeric_column('price')
-    with ops.Graph().as_default():
+    price = tf.feature_column.numeric_column('price')
+    with tf.Graph().as_default():
       features = {'price': [[1.], [5.]]}
       model = linear.LinearModel([price])
       predictions = model(features)
@@ -99,8 +85,8 @@ class SortableFeatureColumnTest(test.TestCase):
 
   @test_util.run_deprecated_v1
   def test_linear_model_sanitizes_scope_names(self):
-    price = fc.numeric_column('price > 100')
-    with ops.Graph().as_default():
+    price = tf.feature_column.numeric_column('price > 100')
+    with tf.Graph().as_default():
       features = {'price > 100': [[1.], [5.]]}
       model = linear.LinearModel([price])
       predictions = model(features)
@@ -113,13 +99,13 @@ class SortableFeatureColumnTest(test.TestCase):
         self.assertAllClose([[10.], [50.]], self.evaluate(predictions))
 
 
-class BucketizedColumnTest(test.TestCase):
+class BucketizedColumnTest(tf.test.TestCase):
 
   def test_linear_model_one_input_value(self):
     """Tests linear_model() for input with shape=[1]."""
-    price = fc.numeric_column('price', shape=[1])
-    bucketized_price = fc.bucketized_column(price, boundaries=[0, 2, 4, 6])
-    with ops.Graph().as_default():
+    price = tf.feature_column.numeric_column('price', shape=[1])
+    bucketized_price = tf.feature_column.bucketized_column(price, boundaries=[0, 2, 4, 6])
+    with tf.Graph().as_default():
       features = {'price': [[-1.], [1.], [5.], [6.]]}
       model = linear.LinearModel([bucketized_price])
       predictions = model(features)
@@ -145,9 +131,9 @@ class BucketizedColumnTest(test.TestCase):
 
   def test_linear_model_two_input_values(self):
     """Tests linear_model() for input with shape=[2]."""
-    price = fc.numeric_column('price', shape=[2])
-    bucketized_price = fc.bucketized_column(price, boundaries=[0, 2, 4, 6])
-    with ops.Graph().as_default():
+    price = tf.feature_column.numeric_column('price', shape=[2])
+    bucketized_price = tf.feature_column.bucketized_column(price, boundaries=[0, 2, 4, 6])
+    with tf.Graph().as_default():
       features = {'price': [[-1., 1.], [5., 6.]]}
       model = linear.LinearModel([bucketized_price])
       predictions = model(features)
@@ -173,25 +159,25 @@ class BucketizedColumnTest(test.TestCase):
         self.assertAllClose([[81.], [141.]], self.evaluate(predictions))
 
 
-class HashedCategoricalColumnTest(test.TestCase):
+class HashedCategoricalColumnTest(tf.test.TestCase):
 
   @test_util.run_deprecated_v1
   def test_linear_model(self):
-    wire_column = fc.categorical_column_with_hash_bucket('wire', 4)
+    wire_column = tf.feature_column.categorical_column_with_hash_bucket('wire', 4)
     self.assertEqual(4, wire_column.num_buckets)
-    with ops.Graph().as_default():
+    with tf.Graph().as_default():
       model = linear.LinearModel((wire_column,))
       predictions = model({
           wire_column.name:
-              sparse_tensor.SparseTensorValue(
+              tf.compat.v1.SparseTensorValue(
                   indices=((0, 0), (1, 0), (1, 1)),
                   values=('marlo', 'skywalker', 'omar'),
                   dense_shape=(2, 2))
       })
       wire_var, bias = model.variables
 
-      self.evaluate(variables_lib.global_variables_initializer())
-      self.evaluate(lookup_ops.tables_initializer())
+      self.evaluate(tf.compat.v1.initializers.global_variables())
+      self.evaluate(tf.compat.v1.tables_initializer())
 
       self.assertAllClose((0.,), self.evaluate(bias))
       self.assertAllClose(((0.,), (0.,), (0.,), (0.,)), self.evaluate(wire_var))
@@ -202,7 +188,7 @@ class HashedCategoricalColumnTest(test.TestCase):
       self.assertAllClose(((4.,), (6.,)), self.evaluate(predictions))
 
 
-class CrossedColumnTest(test.TestCase):
+class CrossedColumnTest(tf.test.TestCase):
 
   @test_util.run_deprecated_v1
   def test_linear_model(self):
@@ -210,16 +196,16 @@ class CrossedColumnTest(test.TestCase):
 
     Uses data from test_get_sparse_tensors_simple.
     """
-    a = fc.numeric_column('a', dtype=dtypes.int32, shape=(2,))
-    b = fc.bucketized_column(a, boundaries=(0, 1))
-    crossed = fc.crossed_column([b, 'c'], hash_bucket_size=5, hash_key=5)
-    with ops.Graph().as_default():
+    a = tf.feature_column.numeric_column('a', dtype=tf.int32, shape=(2,))
+    b = tf.feature_column.bucketized_column(a, boundaries=(0, 1))
+    crossed = tf.feature_column.crossed_column([b, 'c'], hash_bucket_size=5, hash_key=5)
+    with tf.Graph().as_default():
       model = linear.LinearModel((crossed,))
       predictions = model({
           'a':
-              constant_op.constant(((-1., .5), (.5, 1.))),
+              tf.compat.v2.constant(((-1., .5), (.5, 1.))),
           'c':
-              sparse_tensor.SparseTensor(
+              tf.sparse.SparseTensor(
                   indices=((0, 0), (1, 0), (1, 1)),
                   values=['cA', 'cB', 'cC'],
                   dense_shape=(2, 2)),
@@ -254,9 +240,9 @@ class CrossedColumnTest(test.TestCase):
       def parse_example_spec(self):
         return {
             self.name:
-                parsing_ops.VarLenFeature(dtypes.int32),
+                tf.io.VarLenFeature(tf.int32),
             '{}_weights'.format(self.name):
-                parsing_ops.VarLenFeature(dtypes.float32),
+                tf.io.VarLenFeature(tf.float32),
         }
 
       @property
@@ -275,32 +261,32 @@ class CrossedColumnTest(test.TestCase):
             id_tensor=ids_and_weights[0], weight_tensor=ids_and_weights[1])
 
     t = _TestColumnWithWeights()
-    crossed = fc.crossed_column([t, 'c'], hash_bucket_size=5, hash_key=5)
-    with ops.Graph().as_default():
+    crossed = tf.feature_column.crossed_column([t, 'c'], hash_bucket_size=5, hash_key=5)
+    with tf.Graph().as_default():
       with self.assertRaisesRegexp(
           ValueError,
           'crossed_column does not support weight_tensor.*{}'.format(t.name)):
         model = linear.LinearModel((crossed,))
         model({
             t.name:
-                sparse_tensor.SparseTensor(
+                tf.sparse.SparseTensor(
                     indices=((0, 0), (1, 0), (1, 1)),
                     values=[0, 1, 2],
                     dense_shape=(2, 2)),
             '{}_weights'.format(t.name):
-                sparse_tensor.SparseTensor(
+                tf.sparse.SparseTensor(
                     indices=((0, 0), (1, 0), (1, 1)),
                     values=[1., 10., 2.],
                     dense_shape=(2, 2)),
             'c':
-                sparse_tensor.SparseTensor(
+                tf.sparse.SparseTensor(
                     indices=((0, 0), (1, 0), (1, 1)),
                     values=['cA', 'cB', 'cC'],
                     dense_shape=(2, 2)),
         })
 
 
-class LinearModelTest(test.TestCase):
+class LinearModelTest(tf.test.TestCase):
 
   def test_raises_if_empty_feature_columns(self):
     with self.assertRaisesRegexp(ValueError,
@@ -337,26 +323,26 @@ class LinearModelTest(test.TestCase):
   def test_does_not_support_dict_columns(self):
     with self.assertRaisesRegexp(
         ValueError, 'Expected feature_columns to be iterable, found dict.'):
-      linear.LinearModel(feature_columns={'a': fc.numeric_column('a')})
+      linear.LinearModel(feature_columns={'a': tf.feature_column.numeric_column('a')})
 
   def test_raises_if_duplicate_name(self):
     with self.assertRaisesRegexp(
         ValueError, 'Duplicate feature column name found for columns'):
       linear.LinearModel(
-          feature_columns=[fc.numeric_column('a'),
-                           fc.numeric_column('a')])
+          feature_columns=[tf.feature_column.numeric_column('a'),
+                           tf.feature_column.numeric_column('a')])
 
   def test_not_dict_input_features(self):
-    price = fc.numeric_column('price')
-    with ops.Graph().as_default():
+    price = tf.feature_column.numeric_column('price')
+    with tf.Graph().as_default():
       features = [[1.], [5.]]
       model = linear.LinearModel([price])
       with self.assertRaisesRegexp(ValueError, 'We expected a dictionary here'):
         model(features)
 
   def test_dense_bias(self):
-    price = fc.numeric_column('price')
-    with ops.Graph().as_default():
+    price = tf.feature_column.numeric_column('price')
+    with tf.Graph().as_default():
       features = {'price': [[1.], [5.]]}
       model = linear.LinearModel([price])
       predictions = model(features)
@@ -368,9 +354,9 @@ class LinearModelTest(test.TestCase):
         self.assertAllClose([[15.], [55.]], self.evaluate(predictions))
 
   def test_sparse_bias(self):
-    wire_cast = fc.categorical_column_with_hash_bucket('wire_cast', 4)
-    with ops.Graph().as_default():
-      wire_tensor = sparse_tensor.SparseTensor(
+    wire_cast = tf.feature_column.categorical_column_with_hash_bucket('wire_cast', 4)
+    with tf.Graph().as_default():
+      wire_tensor = tf.sparse.SparseTensor(
           values=['omar', 'stringer', 'marlo'],  # hashed to = [2, 0, 3]
           indices=[[0, 0], [1, 0], [1, 1]],
           dense_shape=[2, 2])
@@ -387,10 +373,10 @@ class LinearModelTest(test.TestCase):
         self.assertAllClose([[1005.], [10015.]], self.evaluate(predictions))
 
   def test_dense_and_sparse_bias(self):
-    wire_cast = fc.categorical_column_with_hash_bucket('wire_cast', 4)
-    price = fc.numeric_column('price')
-    with ops.Graph().as_default():
-      wire_tensor = sparse_tensor.SparseTensor(
+    wire_cast = tf.feature_column.categorical_column_with_hash_bucket('wire_cast', 4)
+    price = tf.feature_column.numeric_column('price')
+    with tf.Graph().as_default():
+      wire_tensor = tf.sparse.SparseTensor(
           values=['omar', 'stringer', 'marlo'],  # hashed to = [2, 0, 3]
           indices=[[0, 0], [1, 0], [1, 1]],
           dense_shape=[2, 2])
@@ -407,7 +393,7 @@ class LinearModelTest(test.TestCase):
   def test_dense_and_sparse_column(self):
     """When the column is both dense and sparse, uses sparse tensors."""
 
-    class _DenseAndSparseColumn(BaseFeatureColumnForTests, fc.DenseColumn,
+    class _DenseAndSparseColumn(BaseFeatureColumnForTests, tf.compat.v2.__internal__.feature_column.DenseColumn,
                                 fc.CategoricalColumn):
 
       @property
@@ -420,7 +406,7 @@ class LinearModelTest(test.TestCase):
 
       @property
       def parse_example_spec(self):
-        return {self.name: parsing_ops.VarLenFeature(self.dtype)}
+        return {self.name: tf.io.VarLenFeature(self.dtype)}
 
       def transform_feature(self, transformation_cache, state_manager):
         return transformation_cache.get(self.name, state_manager)
@@ -437,15 +423,15 @@ class LinearModelTest(test.TestCase):
         return 4
 
       def get_sparse_tensors(self, transformation_cache, state_manager):
-        sp_tensor = sparse_tensor.SparseTensor(
+        sp_tensor = tf.sparse.SparseTensor(
             indices=[[0, 0], [1, 0], [1, 1]],
             values=[2, 0, 3],
             dense_shape=[2, 2])
         return fc.CategoricalColumn.IdWeightPair(sp_tensor, None)
 
     dense_and_sparse_column = _DenseAndSparseColumn()
-    with ops.Graph().as_default():
-      sp_tensor = sparse_tensor.SparseTensor(
+    with tf.Graph().as_default():
+      sp_tensor = tf.sparse.SparseTensor(
           values=['omar', 'stringer', 'marlo'],
           indices=[[0, 0], [1, 0], [1, 1]],
           dense_shape=[2, 2])
@@ -461,8 +447,8 @@ class LinearModelTest(test.TestCase):
         self.assertAllClose([[1005.], [10015.]], self.evaluate(predictions))
 
   def test_dense_multi_output(self):
-    price = fc.numeric_column('price')
-    with ops.Graph().as_default():
+    price = tf.feature_column.numeric_column('price')
+    with tf.Graph().as_default():
       features = {'price': [[1.], [5.]]}
       model = linear.LinearModel([price], units=3)
       predictions = model(features)
@@ -476,9 +462,9 @@ class LinearModelTest(test.TestCase):
                             self.evaluate(predictions))
 
   def test_sparse_multi_output(self):
-    wire_cast = fc.categorical_column_with_hash_bucket('wire_cast', 4)
-    with ops.Graph().as_default():
-      wire_tensor = sparse_tensor.SparseTensor(
+    wire_cast = tf.feature_column.categorical_column_with_hash_bucket('wire_cast', 4)
+    with tf.Graph().as_default():
+      wire_tensor = tf.sparse.SparseTensor(
           values=['omar', 'stringer', 'marlo'],  # hashed to = [2, 0, 3]
           indices=[[0, 0], [1, 0], [1, 1]],
           dense_shape=[2, 2])
@@ -498,8 +484,8 @@ class LinearModelTest(test.TestCase):
                             self.evaluate(predictions))
 
   def test_dense_multi_dimension(self):
-    price = fc.numeric_column('price', shape=2)
-    with ops.Graph().as_default():
+    price = tf.feature_column.numeric_column('price', shape=2)
+    with tf.Graph().as_default():
       features = {'price': [[1., 2.], [5., 6.]]}
       model = linear.LinearModel([price])
       predictions = model(features)
@@ -510,10 +496,10 @@ class LinearModelTest(test.TestCase):
         self.assertAllClose([[210.], [650.]], self.evaluate(predictions))
 
   def test_sparse_multi_rank(self):
-    wire_cast = fc.categorical_column_with_hash_bucket('wire_cast', 4)
-    with ops.Graph().as_default():
-      wire_tensor = array_ops.sparse_placeholder(dtypes.string)
-      wire_value = sparse_tensor.SparseTensorValue(
+    wire_cast = tf.feature_column.categorical_column_with_hash_bucket('wire_cast', 4)
+    with tf.Graph().as_default():
+      wire_tensor = tf.compat.v1.sparse_placeholder(tf.string)
+      wire_value = tf.compat.v1.SparseTensorValue(
           values=['omar', 'stringer', 'marlo', 'omar'],  # hashed = [2, 0, 3, 2]
           indices=[[0, 0, 0], [0, 1, 0], [1, 0, 0], [1, 0, 1]],
           dense_shape=[2, 2, 2])
@@ -532,9 +518,9 @@ class LinearModelTest(test.TestCase):
             predictions.eval(feed_dict={wire_tensor: wire_value}))
 
   def test_sparse_combiner(self):
-    wire_cast = fc.categorical_column_with_hash_bucket('wire_cast', 4)
-    with ops.Graph().as_default():
-      wire_tensor = sparse_tensor.SparseTensor(
+    wire_cast = tf.feature_column.categorical_column_with_hash_bucket('wire_cast', 4)
+    with tf.Graph().as_default():
+      wire_tensor = tf.sparse.SparseTensor(
           values=['omar', 'stringer', 'marlo'],  # hashed to = [2, 0, 3]
           indices=[[0, 0], [1, 0], [1, 1]],
           dense_shape=[2, 2])
@@ -548,9 +534,9 @@ class LinearModelTest(test.TestCase):
         self.assertAllClose([[1005.], [5010.]], self.evaluate(predictions))
 
   def test_sparse_combiner_sqrtn(self):
-    wire_cast = fc.categorical_column_with_hash_bucket('wire_cast', 4)
-    with ops.Graph().as_default():
-      wire_tensor = sparse_tensor.SparseTensor(
+    wire_cast = tf.feature_column.categorical_column_with_hash_bucket('wire_cast', 4)
+    with tf.Graph().as_default():
+      wire_tensor = tf.sparse.SparseTensor(
           values=['omar', 'stringer', 'marlo'],  # hashed to = [2, 0, 3]
           indices=[[0, 0], [1, 0], [1, 1]],
           dense_shape=[2, 2])
@@ -564,17 +550,17 @@ class LinearModelTest(test.TestCase):
         self.assertAllClose([[1005.], [7083.139]], self.evaluate(predictions))
 
   def test_sparse_combiner_with_negative_weights(self):
-    wire_cast = fc.categorical_column_with_hash_bucket('wire_cast', 4)
-    wire_cast_weights = fc.weighted_categorical_column(wire_cast, 'weights')
+    wire_cast = tf.feature_column.categorical_column_with_hash_bucket('wire_cast', 4)
+    wire_cast_weights = tf.feature_column.weighted_categorical_column(wire_cast, 'weights')
 
-    with ops.Graph().as_default():
-      wire_tensor = sparse_tensor.SparseTensor(
+    with tf.Graph().as_default():
+      wire_tensor = tf.sparse.SparseTensor(
           values=['omar', 'stringer', 'marlo'],  # hashed to = [2, 0, 3]
           indices=[[0, 0], [1, 0], [1, 1]],
           dense_shape=[2, 2])
       features = {
           'wire_cast': wire_tensor,
-          'weights': constant_op.constant([[1., 1., -1.0]])
+          'weights': tf.compat.v2.constant([[1., 1., -1.0]])
       }
       model = linear.LinearModel([wire_cast_weights], sparse_combiner='sum')
       predictions = model(features)
@@ -585,8 +571,8 @@ class LinearModelTest(test.TestCase):
         self.assertAllClose([[1005.], [-9985.]], self.evaluate(predictions))
 
   def test_dense_multi_dimension_multi_output(self):
-    price = fc.numeric_column('price', shape=2)
-    with ops.Graph().as_default():
+    price = tf.feature_column.numeric_column('price', shape=2)
+    with tf.Graph().as_default():
       features = {'price': [[1., 2.], [5., 6.]]}
       model = linear.LinearModel([price], units=3)
       predictions = model(features)
@@ -600,8 +586,8 @@ class LinearModelTest(test.TestCase):
                             self.evaluate(predictions))
 
   def test_raises_if_shape_mismatch(self):
-    price = fc.numeric_column('price', shape=2)
-    with ops.Graph().as_default():
+    price = tf.feature_column.numeric_column('price', shape=2)
+    with tf.Graph().as_default():
       features = {'price': [[1.], [5.]]}
       with self.assertRaisesRegexp(
           Exception,
@@ -610,8 +596,8 @@ class LinearModelTest(test.TestCase):
         model(features)
 
   def test_dense_reshaping(self):
-    price = fc.numeric_column('price', shape=[1, 2])
-    with ops.Graph().as_default():
+    price = tf.feature_column.numeric_column('price', shape=[1, 2])
+    with tf.Graph().as_default():
       features = {'price': [[[1., 2.]], [[5., 6.]]]}
       model = linear.LinearModel([price])
       predictions = model(features)
@@ -624,9 +610,9 @@ class LinearModelTest(test.TestCase):
         self.assertAllClose([[210.], [650.]], self.evaluate(predictions))
 
   def test_dense_multi_column(self):
-    price1 = fc.numeric_column('price1', shape=2)
-    price2 = fc.numeric_column('price2')
-    with ops.Graph().as_default():
+    price1 = tf.feature_column.numeric_column('price1', shape=2)
+    price2 = tf.feature_column.numeric_column('price2')
+    with tf.Graph().as_default():
       features = {'price1': [[1., 2.], [5., 6.]], 'price2': [[3.], [4.]]}
       model = linear.LinearModel([price1, price2])
       predictions = model(features)
@@ -642,59 +628,59 @@ class LinearModelTest(test.TestCase):
         self.assertAllClose([[3217.], [4657.]], self.evaluate(predictions))
 
   def test_dense_trainable_default(self):
-    price = fc.numeric_column('price')
-    with ops.Graph().as_default() as g:
+    price = tf.feature_column.numeric_column('price')
+    with tf.Graph().as_default() as g:
       features = {'price': [[1.], [5.]]}
       model = linear.LinearModel([price])
       model(features)
       price_var, bias = model.variables
-      trainable_vars = g.get_collection(ops.GraphKeys.TRAINABLE_VARIABLES)
+      trainable_vars = g.get_collection(tf.compat.v1.GraphKeys.TRAINABLE_VARIABLES)
       self.assertIn(bias, trainable_vars)
       self.assertIn(price_var, trainable_vars)
 
   def test_sparse_trainable_default(self):
-    wire_cast = fc.categorical_column_with_hash_bucket('wire_cast', 4)
-    with ops.Graph().as_default() as g:
-      wire_tensor = sparse_tensor.SparseTensor(
+    wire_cast = tf.feature_column.categorical_column_with_hash_bucket('wire_cast', 4)
+    with tf.Graph().as_default() as g:
+      wire_tensor = tf.sparse.SparseTensor(
           values=['omar'], indices=[[0, 0]], dense_shape=[1, 1])
       features = {'wire_cast': wire_tensor}
       model = linear.LinearModel([wire_cast])
       model(features)
-      trainable_vars = g.get_collection(ops.GraphKeys.TRAINABLE_VARIABLES)
+      trainable_vars = g.get_collection(tf.compat.v1.GraphKeys.TRAINABLE_VARIABLES)
       wire_cast_var, bias = model.variables
       self.assertIn(bias, trainable_vars)
       self.assertIn(wire_cast_var, trainable_vars)
 
   def test_dense_trainable_false(self):
-    price = fc.numeric_column('price')
-    with ops.Graph().as_default() as g:
+    price = tf.feature_column.numeric_column('price')
+    with tf.Graph().as_default() as g:
       features = {'price': [[1.], [5.]]}
       model = linear.LinearModel([price], trainable=False)
       model(features)
-      trainable_vars = g.get_collection(ops.GraphKeys.TRAINABLE_VARIABLES)
+      trainable_vars = g.get_collection(tf.compat.v1.GraphKeys.TRAINABLE_VARIABLES)
       self.assertEqual([], trainable_vars)
 
   def test_sparse_trainable_false(self):
-    wire_cast = fc.categorical_column_with_hash_bucket('wire_cast', 4)
-    with ops.Graph().as_default() as g:
-      wire_tensor = sparse_tensor.SparseTensor(
+    wire_cast = tf.feature_column.categorical_column_with_hash_bucket('wire_cast', 4)
+    with tf.Graph().as_default() as g:
+      wire_tensor = tf.sparse.SparseTensor(
           values=['omar'], indices=[[0, 0]], dense_shape=[1, 1])
       features = {'wire_cast': wire_tensor}
       model = linear.LinearModel([wire_cast], trainable=False)
       model(features)
-      trainable_vars = g.get_collection(ops.GraphKeys.TRAINABLE_VARIABLES)
+      trainable_vars = g.get_collection(tf.compat.v1.GraphKeys.TRAINABLE_VARIABLES)
       self.assertEqual([], trainable_vars)
 
   def test_column_order(self):
-    price_a = fc.numeric_column('price_a')
-    price_b = fc.numeric_column('price_b')
-    wire_cast = fc.categorical_column_with_hash_bucket('wire_cast', 4)
-    with ops.Graph().as_default():
+    price_a = tf.feature_column.numeric_column('price_a')
+    price_b = tf.feature_column.numeric_column('price_b')
+    wire_cast = tf.feature_column.categorical_column_with_hash_bucket('wire_cast', 4)
+    with tf.Graph().as_default():
       features = {
           'price_a': [[1.]],
           'price_b': [[3.]],
           'wire_cast':
-              sparse_tensor.SparseTensor(
+              tf.sparse.SparseTensor(
                   values=['omar'], indices=[[0, 0]], dense_shape=[1, 1])
       }
       model = linear.LinearModel([price_a, wire_cast, price_b])
@@ -705,12 +691,12 @@ class LinearModelTest(test.TestCase):
       self.assertIn('price_b', my_vars[1].name)
       self.assertIn('wire_cast', my_vars[2].name)
 
-    with ops.Graph().as_default():
+    with tf.Graph().as_default():
       features = {
           'price_a': [[1.]],
           'price_b': [[3.]],
           'wire_cast':
-              sparse_tensor.SparseTensor(
+              tf.sparse.SparseTensor(
                   values=['omar'], indices=[[0, 0]], dense_shape=[1, 1])
       }
       model = linear.LinearModel([wire_cast, price_b, price_a])
@@ -722,17 +708,17 @@ class LinearModelTest(test.TestCase):
       self.assertIn('wire_cast', my_vars[2].name)
 
   def test_variable_names(self):
-    price1 = fc.numeric_column('price1')
-    dense_feature = fc.numeric_column('dense_feature')
-    dense_feature_bucketized = fc.bucketized_column(
+    price1 = tf.feature_column.numeric_column('price1')
+    dense_feature = tf.feature_column.numeric_column('dense_feature')
+    dense_feature_bucketized = tf.feature_column.bucketized_column(
         dense_feature, boundaries=[0.])
-    some_sparse_column = fc.categorical_column_with_hash_bucket(
+    some_sparse_column = tf.feature_column.categorical_column_with_hash_bucket(
         'sparse_feature', hash_bucket_size=5)
-    some_embedding_column = fc.embedding_column(
+    some_embedding_column = tf.feature_column.embedding_column(
         some_sparse_column, dimension=10)
     all_cols = [price1, dense_feature_bucketized, some_embedding_column]
 
-    with ops.Graph().as_default():
+    with tf.Graph().as_default():
       model = linear.LinearModel(all_cols)
       features = {
           'price1': [[3.], [4.]],
@@ -741,7 +727,7 @@ class LinearModelTest(test.TestCase):
       }
       model(features)
       for var in model.variables:
-        self.assertIsInstance(var, variables_lib.VariableV1)
+        self.assertIsInstance(var, tf.compat.v1.Variable)
       variable_names = [var.name for var in model.variables]
       self.assertCountEqual([
           'linear_model/dense_feature_bucketized/weights:0',
@@ -752,11 +738,11 @@ class LinearModelTest(test.TestCase):
       ], variable_names)
 
   def test_fit_and_predict(self):
-    columns = [fc.numeric_column('a')]
+    columns = [tf.feature_column.numeric_column('a')]
 
     model = linear.LinearModel(columns)
     model.compile(
-        optimizer=rmsprop.RMSPropOptimizer(1e-3),
+        optimizer=tf.compat.v1.train.RMSPropOptimizer(1e-3),
         loss='binary_crossentropy',
         metrics=['accuracy'])
 
@@ -768,9 +754,9 @@ class LinearModelTest(test.TestCase):
     model.predict(x, batch_size=5)
 
   def test_static_batch_size_mismatch(self):
-    price1 = fc.numeric_column('price1')
-    price2 = fc.numeric_column('price2')
-    with ops.Graph().as_default():
+    price1 = tf.feature_column.numeric_column('price1')
+    price2 = tf.feature_column.numeric_column('price2')
+    with tf.Graph().as_default():
       features = {
           'price1': [[1.], [5.], [7.]],  # batchsize = 3
           'price2': [[3.], [4.]]  # batchsize = 2
@@ -782,12 +768,12 @@ class LinearModelTest(test.TestCase):
       model(features)
 
   def test_subset_of_static_batch_size_mismatch(self):
-    price1 = fc.numeric_column('price1')
-    price2 = fc.numeric_column('price2')
-    price3 = fc.numeric_column('price3')
-    with ops.Graph().as_default():
+    price1 = tf.feature_column.numeric_column('price1')
+    price2 = tf.feature_column.numeric_column('price2')
+    price3 = tf.feature_column.numeric_column('price3')
+    with tf.Graph().as_default():
       features = {
-          'price1': array_ops.placeholder(dtype=dtypes.int64),  # batchsize = 3
+          'price1': tf.compat.v1.placeholder(dtype=tf.int64),  # batchsize = 3
           'price2': [[3.], [4.]],  # batchsize = 2
           'price3': [[3.], [4.], [5.]]  # batchsize = 3
       }
@@ -798,28 +784,28 @@ class LinearModelTest(test.TestCase):
         model(features)
 
   def test_runtime_batch_size_mismatch(self):
-    price1 = fc.numeric_column('price1')
-    price2 = fc.numeric_column('price2')
-    with ops.Graph().as_default():
+    price1 = tf.feature_column.numeric_column('price1')
+    price2 = tf.feature_column.numeric_column('price2')
+    with tf.Graph().as_default():
       features = {
-          'price1': array_ops.placeholder(dtype=dtypes.int64),  # batchsize = 3
+          'price1': tf.compat.v1.placeholder(dtype=tf.int64),  # batchsize = 3
           'price2': [[3.], [4.]]  # batchsize = 2
       }
       model = linear.LinearModel([price1, price2])
       predictions = model(features)
       with _initialized_session() as sess:
-        with self.assertRaisesRegexp(errors.OpError,
+        with self.assertRaisesRegexp(tf.errors.OpError,
                                      'must have the same size and shape'):
           sess.run(
               predictions, feed_dict={features['price1']: [[1.], [5.], [7.]]})
 
   def test_runtime_batch_size_matches(self):
-    price1 = fc.numeric_column('price1')
-    price2 = fc.numeric_column('price2')
-    with ops.Graph().as_default():
+    price1 = tf.feature_column.numeric_column('price1')
+    price2 = tf.feature_column.numeric_column('price2')
+    with tf.Graph().as_default():
       features = {
-          'price1': array_ops.placeholder(dtype=dtypes.int64),  # batchsize = 2
-          'price2': array_ops.placeholder(dtype=dtypes.int64),  # batchsize = 2
+          'price1': tf.compat.v1.placeholder(dtype=tf.int64),  # batchsize = 2
+          'price2': tf.compat.v1.placeholder(dtype=tf.int64),  # batchsize = 2
       }
       model = linear.LinearModel([price1, price2])
       predictions = model(features)
@@ -833,25 +819,25 @@ class LinearModelTest(test.TestCase):
 
   @test_util.run_deprecated_v1
   def test_with_1d_sparse_tensor(self):
-    price = fc.numeric_column('price')
-    price_buckets = fc.bucketized_column(
+    price = tf.feature_column.numeric_column('price')
+    price_buckets = tf.feature_column.bucketized_column(
         price, boundaries=[
             0.,
             10.,
             100.,
         ])
-    body_style = fc.categorical_column_with_vocabulary_list(
+    body_style = tf.feature_column.categorical_column_with_vocabulary_list(
         'body-style', vocabulary_list=['hardtop', 'wagon', 'sedan'])
 
     # Provides 1-dim tensor and dense tensor.
     features = {
         'price':
-            constant_op.constant([
+            tf.compat.v2.constant([
                 -1.,
                 12.,
             ]),
         'body-style':
-            sparse_tensor.SparseTensor(
+            tf.sparse.SparseTensor(
                 indices=((0,), (1,)),
                 values=('sedan', 'hardtop'),
                 dense_shape=(2,)),
@@ -873,29 +859,29 @@ class LinearModelTest(test.TestCase):
 
   @test_util.run_deprecated_v1
   def test_with_1d_unknown_shape_sparse_tensor(self):
-    price = fc.numeric_column('price')
-    price_buckets = fc.bucketized_column(
+    price = tf.feature_column.numeric_column('price')
+    price_buckets = tf.feature_column.bucketized_column(
         price, boundaries=[
             0.,
             10.,
             100.,
         ])
-    body_style = fc.categorical_column_with_vocabulary_list(
+    body_style = tf.feature_column.categorical_column_with_vocabulary_list(
         'body-style', vocabulary_list=['hardtop', 'wagon', 'sedan'])
-    country = fc.categorical_column_with_vocabulary_list(
+    country = tf.feature_column.categorical_column_with_vocabulary_list(
         'country', vocabulary_list=['US', 'JP', 'CA'])
 
     # Provides 1-dim tensor and dense tensor.
     features = {
-        'price': array_ops.placeholder(dtypes.float32),
-        'body-style': array_ops.sparse_placeholder(dtypes.string),
-        'country': array_ops.placeholder(dtypes.string),
+        'price': tf.compat.v1.placeholder(tf.float32),
+        'body-style': tf.compat.v1.sparse_placeholder(tf.string),
+        'country': tf.compat.v1.placeholder(tf.string),
     }
     self.assertIsNone(features['price'].shape.ndims)
     self.assertIsNone(features['body-style'].get_shape().ndims)
 
     price_data = np.array([-1., 12.])
-    body_style_data = sparse_tensor.SparseTensorValue(
+    body_style_data = tf.compat.v1.SparseTensorValue(
         indices=((0,), (1,)), values=('sedan', 'hardtop'), dense_shape=(2,))
     country_data = np.array(['US', 'CA'])
 
@@ -918,9 +904,9 @@ class LinearModelTest(test.TestCase):
 
   @test_util.run_deprecated_v1
   def test_with_rank_0_feature(self):
-    price = fc.numeric_column('price')
+    price = tf.feature_column.numeric_column('price')
     features = {
-        'price': constant_op.constant(0),
+        'price': tf.compat.v2.constant(0),
     }
     self.assertEqual(0, features['price'].shape.ndims)
 
@@ -931,7 +917,7 @@ class LinearModelTest(test.TestCase):
 
     # Dynamic rank 0 should fail
     features = {
-        'price': array_ops.placeholder(dtypes.float32),
+        'price': tf.compat.v1.placeholder(tf.float32),
     }
     model = linear.LinearModel([price])
     net = model(features)
@@ -941,8 +927,8 @@ class LinearModelTest(test.TestCase):
         sess.run(net, feed_dict={features['price']: np.array(1)})
 
   def test_multiple_linear_models(self):
-    price = fc.numeric_column('price')
-    with ops.Graph().as_default():
+    price = tf.feature_column.numeric_column('price')
+    with tf.Graph().as_default():
       features1 = {'price': [[1.], [5.]]}
       features2 = {'price': [[2.], [10.]]}
       model1 = linear.LinearModel([price])
@@ -962,7 +948,7 @@ class LinearModelTest(test.TestCase):
         self.assertAllClose([[25.], [105.]], self.evaluate(predictions2))
 
 
-class VocabularyFileCategoricalColumnTest(test.TestCase):
+class VocabularyFileCategoricalColumnTest(tf.test.TestCase):
 
   def setUp(self):
     super(VocabularyFileCategoricalColumnTest, self).setUp()
@@ -980,25 +966,25 @@ class VocabularyFileCategoricalColumnTest(test.TestCase):
   # TODO(scottzhu): Reenable test once the issue for reading test file is fixed.
   @test_util.run_deprecated_v1
   def DISABLED_test_linear_model(self):
-    wire_column = fc.categorical_column_with_vocabulary_file(
+    wire_column = tf.compat.v1.feature_column.categorical_column_with_vocabulary_file(
         key='wire',
         vocabulary_file=self._wire_vocabulary_file_name,
         vocabulary_size=self._wire_vocabulary_size,
         num_oov_buckets=1)
     self.assertEqual(4, wire_column.num_buckets)
-    with ops.Graph().as_default():
+    with tf.Graph().as_default():
       model = linear.LinearModel((wire_column,))
       predictions = model({
           wire_column.name:
-              sparse_tensor.SparseTensorValue(
+              tf.compat.v1.SparseTensorValue(
                   indices=((0, 0), (1, 0), (1, 1)),
                   values=('marlo', 'skywalker', 'omar'),
                   dense_shape=(2, 2))
       })
       wire_var, bias = model.variables
 
-      self.evaluate(variables_lib.global_variables_initializer())
-      self.evaluate(lookup_ops.tables_initializer())
+      self.evaluate(tf.compat.v1.initializers.global_variables())
+      self.evaluate(tf.compat.v1.tables_initializer())
 
       self.assertAllClose((0.,), self.evaluate(bias))
       self.assertAllClose(((0.,), (0.,), (0.,), (0.,)), self.evaluate(wire_var))
@@ -1009,28 +995,28 @@ class VocabularyFileCategoricalColumnTest(test.TestCase):
       self.assertAllClose(((3.,), (5.,)), self.evaluate(predictions))
 
 
-class VocabularyListCategoricalColumnTest(test.TestCase):
+class VocabularyListCategoricalColumnTest(tf.test.TestCase):
 
   @test_util.run_deprecated_v1
   def test_linear_model(self):
-    wire_column = fc.categorical_column_with_vocabulary_list(
+    wire_column = tf.feature_column.categorical_column_with_vocabulary_list(
         key='aaa',
         vocabulary_list=('omar', 'stringer', 'marlo'),
         num_oov_buckets=1)
     self.assertEqual(4, wire_column.num_buckets)
-    with ops.Graph().as_default():
+    with tf.Graph().as_default():
       model = linear.LinearModel((wire_column,))
       predictions = model({
           wire_column.name:
-              sparse_tensor.SparseTensorValue(
+              tf.compat.v1.SparseTensorValue(
                   indices=((0, 0), (1, 0), (1, 1)),
                   values=('marlo', 'skywalker', 'omar'),
                   dense_shape=(2, 2))
       })
       wire_var, bias = model.variables
 
-      self.evaluate(variables_lib.global_variables_initializer())
-      self.evaluate(lookup_ops.tables_initializer())
+      self.evaluate(tf.compat.v1.initializers.global_variables())
+      self.evaluate(tf.compat.v1.tables_initializer())
 
       self.assertAllClose((0.,), self.evaluate(bias))
       self.assertAllClose(((0.,), (0.,), (0.,), (0.,)), self.evaluate(wire_var))
@@ -1041,25 +1027,25 @@ class VocabularyListCategoricalColumnTest(test.TestCase):
       self.assertAllClose(((3.,), (5.,)), self.evaluate(predictions))
 
 
-class IdentityCategoricalColumnTest(test.TestCase):
+class IdentityCategoricalColumnTest(tf.test.TestCase):
 
   @test_util.run_deprecated_v1
   def test_linear_model(self):
-    column = fc.categorical_column_with_identity(key='aaa', num_buckets=3)
+    column = tf.feature_column.categorical_column_with_identity(key='aaa', num_buckets=3)
     self.assertEqual(3, column.num_buckets)
-    with ops.Graph().as_default():
+    with tf.Graph().as_default():
       model = linear.LinearModel((column,))
       predictions = model({
           column.name:
-            sparse_tensor.SparseTensorValue(
+            tf.compat.v1.SparseTensorValue(
                 indices=((0, 0), (1, 0), (1, 1)),
                 values=(0, 2, 1),
                 dense_shape=(2, 2))
       })
       weight_var, bias = model.variables
 
-      self.evaluate(variables_lib.global_variables_initializer())
-      self.evaluate(lookup_ops.tables_initializer())
+      self.evaluate(tf.compat.v1.initializers.global_variables())
+      self.evaluate(tf.compat.v1.tables_initializer())
 
       self.assertAllClose((0.,), self.evaluate(bias))
       self.assertAllClose(((0.,), (0.,), (0.,)), self.evaluate(weight_var))
@@ -1070,16 +1056,16 @@ class IdentityCategoricalColumnTest(test.TestCase):
       self.assertAllClose(((1.,), (5.,)), self.evaluate(predictions))
 
 
-class IndicatorColumnTest(test.TestCase):
+class IndicatorColumnTest(tf.test.TestCase):
 
   @test_util.run_deprecated_v1
   def test_linear_model(self):
-    animal = fc.indicator_column(
-        fc.categorical_column_with_identity('animal', num_buckets=4))
-    with ops.Graph().as_default():
+    animal = tf.feature_column.indicator_column(
+        tf.feature_column.categorical_column_with_identity('animal', num_buckets=4))
+    with tf.Graph().as_default():
       features = {
           'animal':
-              sparse_tensor.SparseTensor(
+              tf.sparse.SparseTensor(
                   indices=[[0, 0], [0, 1]], values=[1, 2], dense_shape=[1, 2])
       }
 
@@ -1087,8 +1073,8 @@ class IndicatorColumnTest(test.TestCase):
       predictions = model(features)
       weight_var, _ = model.variables
 
-      self.evaluate(variables_lib.global_variables_initializer())
-      self.evaluate(lookup_ops.tables_initializer())
+      self.evaluate(tf.compat.v1.initializers.global_variables())
+      self.evaluate(tf.compat.v1.tables_initializer())
 
       # All should be zero-initialized.
       self.assertAllClose([[0.], [0.], [0.], [0.]], self.evaluate(weight_var))
@@ -1097,14 +1083,14 @@ class IndicatorColumnTest(test.TestCase):
       self.assertAllClose([[2. + 3.]], self.evaluate(predictions))
 
 
-class EmbeddingColumnTest(test.TestCase, parameterized.TestCase):
+class EmbeddingColumnTest(tf.test.TestCase, parameterized.TestCase):
 
   @test_util.run_deprecated_v1
   def test_linear_model(self):
     # Inputs.
     batch_size = 4
     vocabulary_size = 3
-    sparse_input = sparse_tensor.SparseTensorValue(
+    sparse_input = tf.compat.v1.SparseTensorValue(
         # example 0, ids [2]
         # example 1, ids [0, 1]
         # example 2, ids []
@@ -1120,19 +1106,19 @@ class EmbeddingColumnTest(test.TestCase, parameterized.TestCase):
 
     def _initializer(shape, dtype, partition_info=None):
       self.assertAllEqual(embedding_shape, shape)
-      self.assertEqual(dtypes.float32, dtype)
+      self.assertEqual(tf.float32, dtype)
       self.assertIsNone(partition_info)
       return zeros_embedding_values
 
     # Build columns.
-    categorical_column = fc.categorical_column_with_identity(
+    categorical_column = tf.feature_column.categorical_column_with_identity(
         key='aaa', num_buckets=vocabulary_size)
-    embedding_column = fc.embedding_column(
+    embedding_column = tf.feature_column.embedding_column(
         categorical_column,
         dimension=embedding_dimension,
         initializer=_initializer)
 
-    with ops.Graph().as_default():
+    with tf.Graph().as_default():
       model = linear.LinearModel((embedding_column,))
       predictions = model({categorical_column.name: sparse_input})
       expected_var_names = (
@@ -1142,10 +1128,10 @@ class EmbeddingColumnTest(test.TestCase, parameterized.TestCase):
       )
       self.assertCountEqual(
           expected_var_names,
-          [v.name for v in ops.get_collection(ops.GraphKeys.GLOBAL_VARIABLES)])
+          [v.name for v in tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.GLOBAL_VARIABLES)])
       trainable_vars = {
           v.name: v
-          for v in ops.get_collection(ops.GraphKeys.TRAINABLE_VARIABLES)
+          for v in tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.TRAINABLE_VARIABLES)
       }
       self.assertCountEqual(expected_var_names, trainable_vars.keys())
       bias = trainable_vars['linear_model/bias_weights:0']
@@ -1153,8 +1139,8 @@ class EmbeddingColumnTest(test.TestCase, parameterized.TestCase):
           'linear_model/aaa_embedding/embedding_weights:0']
       linear_weights = trainable_vars['linear_model/aaa_embedding/weights:0']
 
-      self.evaluate(variables_lib.global_variables_initializer())
-      self.evaluate(lookup_ops.tables_initializer())
+      self.evaluate(tf.compat.v1.initializers.global_variables())
+      self.evaluate(tf.compat.v1.tables_initializer())
 
       # Predictions with all zero weights.
       self.assertAllClose(np.zeros((1,)), self.evaluate(bias))
@@ -1182,7 +1168,7 @@ class EmbeddingColumnTest(test.TestCase, parameterized.TestCase):
                           self.evaluate(predictions))
 
 
-class SharedEmbeddingColumnTest(test.TestCase, parameterized.TestCase):
+class SharedEmbeddingColumnTest(tf.test.TestCase, parameterized.TestCase):
 
   @test_util.run_deprecated_v1
   def test_linear_model(self):
@@ -1206,21 +1192,21 @@ class SharedEmbeddingColumnTest(test.TestCase, parameterized.TestCase):
 
     def _initializer(shape, dtype, partition_info=None):
       self.assertAllEqual(embedding_shape, shape)
-      self.assertEqual(dtypes.float32, dtype)
+      self.assertEqual(tf.float32, dtype)
       self.assertIsNone(partition_info)
       return zeros_embedding_values
 
     # Build columns.
-    categorical_column_a = fc.categorical_column_with_identity(
+    categorical_column_a = tf.feature_column.categorical_column_with_identity(
         key='aaa', num_buckets=vocabulary_size)
-    categorical_column_b = fc.categorical_column_with_identity(
+    categorical_column_b = tf.feature_column.categorical_column_with_identity(
         key='bbb', num_buckets=vocabulary_size)
-    embedding_column_a, embedding_column_b = fc.shared_embedding_columns_v2(
+    embedding_column_a, embedding_column_b = tf.compat.v2.feature_column.shared_embeddings(
         [categorical_column_a, categorical_column_b],
         dimension=embedding_dimension,
         initializer=_initializer)
 
-    with ops.Graph().as_default():
+    with tf.Graph().as_default():
       model = linear.LinearModel((embedding_column_a, embedding_column_b))
       predictions = model({
           categorical_column_a.name: input_a,
@@ -1237,10 +1223,10 @@ class SharedEmbeddingColumnTest(test.TestCase, parameterized.TestCase):
       )
       self.assertCountEqual(
           expected_var_names,
-          [v.name for v in ops.get_collection(ops.GraphKeys.GLOBAL_VARIABLES)])
+          [v.name for v in tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.GLOBAL_VARIABLES)])
       trainable_vars = {
           v.name: v
-          for v in ops.get_collection(ops.GraphKeys.TRAINABLE_VARIABLES)
+          for v in tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.TRAINABLE_VARIABLES)
       }
       self.assertCountEqual(expected_var_names, trainable_vars.keys())
       bias = trainable_vars['linear_model/bias_weights:0']
@@ -1250,8 +1236,8 @@ class SharedEmbeddingColumnTest(test.TestCase, parameterized.TestCase):
       linear_weights_b = trainable_vars[
           'linear_model/bbb_shared_embedding/weights:0']
 
-      self.evaluate(variables_lib.global_variables_initializer())
-      self.evaluate(lookup_ops.tables_initializer())
+      self.evaluate(tf.compat.v1.initializers.global_variables())
+      self.evaluate(tf.compat.v1.tables_initializer())
 
       # Predictions with all zero weights.
       self.assertAllClose(np.zeros((1,)), self.evaluate(bias))
@@ -1283,32 +1269,32 @@ class SharedEmbeddingColumnTest(test.TestCase, parameterized.TestCase):
       self.assertAllClose([[94. + 13.], [29.]], self.evaluate(predictions))
 
 
-class WeightedCategoricalColumnTest(test.TestCase):
+class WeightedCategoricalColumnTest(tf.test.TestCase):
 
   @test_util.run_deprecated_v1
   def test_linear_model(self):
-    column = fc.weighted_categorical_column(
-        categorical_column=fc.categorical_column_with_identity(
+    column = tf.feature_column.weighted_categorical_column(
+        categorical_column=tf.feature_column.categorical_column_with_identity(
             key='ids', num_buckets=3),
         weight_feature_key='values')
-    with ops.Graph().as_default():
+    with tf.Graph().as_default():
       model = linear.LinearModel((column,))
       predictions = model({
           'ids':
-              sparse_tensor.SparseTensorValue(
+              tf.compat.v1.SparseTensorValue(
                   indices=((0, 0), (1, 0), (1, 1)),
                   values=(0, 2, 1),
                   dense_shape=(2, 2)),
           'values':
-              sparse_tensor.SparseTensorValue(
+              tf.compat.v1.SparseTensorValue(
                   indices=((0, 0), (1, 0), (1, 1)),
                   values=(.5, 1., .1),
                   dense_shape=(2, 2))
       })
       weight_var, bias = model.variables
 
-      self.evaluate(variables_lib.global_variables_initializer())
-      self.evaluate(lookup_ops.tables_initializer())
+      self.evaluate(tf.compat.v1.initializers.global_variables())
+      self.evaluate(tf.compat.v1.tables_initializer())
 
       self.assertAllClose((0.,), self.evaluate(bias))
       self.assertAllClose(((0.,), (0.,), (0.,)), self.evaluate(weight_var))
@@ -1320,37 +1306,37 @@ class WeightedCategoricalColumnTest(test.TestCase):
       self.assertAllClose(((.5,), (3.2,)), self.evaluate(predictions))
 
   def test_linear_model_mismatched_shape(self):
-    column = fc.weighted_categorical_column(
-        categorical_column=fc.categorical_column_with_identity(
+    column = tf.feature_column.weighted_categorical_column(
+        categorical_column=tf.feature_column.categorical_column_with_identity(
             key='ids', num_buckets=3),
         weight_feature_key='values')
-    with ops.Graph().as_default():
+    with tf.Graph().as_default():
       with self.assertRaisesRegexp(ValueError,
                                    r'Dimensions.*are not compatible'):
         model = linear.LinearModel((column,))
         model({
             'ids':
-                sparse_tensor.SparseTensorValue(
+                tf.compat.v1.SparseTensorValue(
                     indices=((0, 0), (1, 0), (1, 1)),
                     values=(0, 2, 1),
                     dense_shape=(2, 2)),
             'values':
-                sparse_tensor.SparseTensorValue(
+                tf.compat.v1.SparseTensorValue(
                     indices=((0, 0), (0, 1), (1, 0), (1, 1)),
                     values=(.5, 11., 1., .1),
                     dense_shape=(2, 2))
         })
 
   def test_linear_model_mismatched_dense_values(self):
-    column = fc.weighted_categorical_column(
-        categorical_column=fc.categorical_column_with_identity(
+    column = tf.feature_column.weighted_categorical_column(
+        categorical_column=tf.feature_column.categorical_column_with_identity(
             key='ids', num_buckets=3),
         weight_feature_key='values')
-    with ops.Graph().as_default():
+    with tf.Graph().as_default():
       model = linear.LinearModel((column,), sparse_combiner='mean')
       predictions = model({
           'ids':
-              sparse_tensor.SparseTensorValue(
+              tf.compat.v1.SparseTensorValue(
                   indices=((0, 0), (1, 0), (1, 1)),
                   values=(0, 2, 1),
                   dense_shape=(2, 2)),
@@ -1358,23 +1344,23 @@ class WeightedCategoricalColumnTest(test.TestCase):
       })
       # Disabling the constant folding optimizer here since it changes the
       # error message differently on CPU and GPU.
-      config = config_pb2.ConfigProto()
+      config = tf.compat.v1.ConfigProto()
       config.graph_options.rewrite_options.constant_folding = (
           rewriter_config_pb2.RewriterConfig.OFF)
       with _initialized_session(config):
-        with self.assertRaisesRegexp(errors.OpError, 'Incompatible shapes'):
+        with self.assertRaisesRegexp(tf.errors.OpError, 'Incompatible shapes'):
           self.evaluate(predictions)
 
   def test_linear_model_mismatched_dense_shape(self):
-    column = fc.weighted_categorical_column(
-        categorical_column=fc.categorical_column_with_identity(
+    column = tf.feature_column.weighted_categorical_column(
+        categorical_column=tf.feature_column.categorical_column_with_identity(
             key='ids', num_buckets=3),
         weight_feature_key='values')
-    with ops.Graph().as_default():
+    with tf.Graph().as_default():
       model = linear.LinearModel((column,))
       predictions = model({
           'ids':
-              sparse_tensor.SparseTensorValue(
+              tf.compat.v1.SparseTensorValue(
                   indices=((0, 0), (1, 0), (1, 1)),
                   values=(0, 2, 1),
                   dense_shape=(2, 2)),
@@ -1382,8 +1368,8 @@ class WeightedCategoricalColumnTest(test.TestCase):
       })
       weight_var, bias = model.variables
 
-      self.evaluate(variables_lib.global_variables_initializer())
-      self.evaluate(lookup_ops.tables_initializer())
+      self.evaluate(tf.compat.v1.initializers.global_variables())
+      self.evaluate(tf.compat.v1.tables_initializer())
 
       self.assertAllClose((0.,), self.evaluate(bias))
       self.assertAllClose(((0.,), (0.,), (0.,)), self.evaluate(weight_var))
@@ -1396,15 +1382,15 @@ class WeightedCategoricalColumnTest(test.TestCase):
 
 
 @test_util.run_all_in_graph_and_eager_modes
-class LinearModelLayerSerializationTest(test.TestCase, parameterized.TestCase):
+class LinearModelLayerSerializationTest(tf.test.TestCase, parameterized.TestCase):
 
   @parameterized.named_parameters(
       ('default', 1, 'sum', None, None),
       ('trainable', 6, 'mean', True, 'trainable'),
       ('not_trainable', 10, 'sum', False, 'frozen'))
   def test_get_config(self, units, sparse_combiner, trainable, name):
-    cols = [fc.numeric_column('a'),
-            fc.categorical_column_with_identity(key='b', num_buckets=3)]
+    cols = [tf.feature_column.numeric_column('a'),
+            tf.feature_column.categorical_column_with_identity(key='b', num_buckets=3)]
     layer = linear._LinearModelLayer(
         cols, units=units, sparse_combiner=sparse_combiner,
         trainable=trainable, name=name)
@@ -1425,10 +1411,10 @@ class LinearModelLayerSerializationTest(test.TestCase, parameterized.TestCase):
       ('trainable', 6, 'mean', True, 'trainable'),
       ('not_trainable', 10, 'sum', False, 'frozen'))
   def test_from_config(self, units, sparse_combiner, trainable, name):
-    cols = [fc.numeric_column('a'),
-            fc.categorical_column_with_vocabulary_list(
+    cols = [tf.feature_column.numeric_column('a'),
+            tf.feature_column.categorical_column_with_vocabulary_list(
                 'b', vocabulary_list=('1', '2', '3')),
-            fc.categorical_column_with_hash_bucket(
+            tf.feature_column.categorical_column_with_hash_bucket(
                 key='c', hash_bucket_size=3)]
     orig_layer = linear._LinearModelLayer(
         cols, units=units, sparse_combiner=sparse_combiner,
@@ -1449,4 +1435,4 @@ class LinearModelLayerSerializationTest(test.TestCase, parameterized.TestCase):
 
 
 if __name__ == '__main__':
-  test.main()
+  tf.test.main()

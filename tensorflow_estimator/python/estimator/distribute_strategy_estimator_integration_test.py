@@ -23,11 +23,6 @@ import tempfile
 from absl.testing import parameterized
 import numpy as np
 import tensorflow as tf
-from tensorflow.python.data.ops import dataset_ops
-from tensorflow.python.distribute import combinations
-from tensorflow.python.distribute import strategy_combinations
-from tensorflow.python.training import basic_session_run_hooks
-from tensorflow.python.training import training_util
 from tensorflow_estimator.python.estimator import estimator as estimator_lib
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
 from tensorflow_estimator.python.estimator import run_config
@@ -55,13 +50,13 @@ class DNNLinearCombinedClassifierIntegrationTest(tf.test.TestCase,
 
     return input_fn
 
-  @combinations.generate(
-      combinations.combine(
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.combine(
           mode=['graph'],
           distribution=[
-              strategy_combinations.one_device_strategy,
-              strategy_combinations.mirrored_strategy_with_gpu_and_cpu,
-              strategy_combinations.mirrored_strategy_with_two_gpus
+              tf.compat.v2.__internal__.distribute.combinations.one_device_strategy,
+              tf.compat.v2.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
+              tf.compat.v2.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus
           ],
           use_train_and_evaluate=[True, False]))
   def test_estimator_with_strategy_hooks(self, distribution,
@@ -72,14 +67,14 @@ class DNNLinearCombinedClassifierIntegrationTest(tf.test.TestCase,
       return {'feature': tensor}, tensor
 
     def input_fn():
-      return dataset_ops.Dataset.from_tensors(
+      return tf.data.Dataset.from_tensors(
           [1.]).repeat(10).batch(5).map(_input_map_fn)
 
     def model_fn(features, labels, mode):
       del features, labels
-      global_step = training_util.get_global_step()
+      global_step = tf.compat.v1.train.get_global_step()
       if mode == model_fn_lib.ModeKeys.TRAIN:
-        train_hook1 = basic_session_run_hooks.StepCounterHook(
+        train_hook1 = tf.compat.v1.train.StepCounterHook(
             every_n_steps=1, output_dir=self.get_temp_dir())
         train_hook2 = tf.compat.v1.test.mock.MagicMock(
             wraps=tf.compat.v1.train.SessionRunHook(),
@@ -90,7 +85,7 @@ class DNNLinearCombinedClassifierIntegrationTest(tf.test.TestCase,
             train_op=global_step.assign_add(1),
             training_hooks=[train_hook1, train_hook2])
       if mode == model_fn_lib.ModeKeys.EVAL:
-        eval_hook1 = basic_session_run_hooks.StepCounterHook(
+        eval_hook1 = tf.compat.v1.train.StepCounterHook(
             every_n_steps=1, output_dir=self.get_temp_dir())
         eval_hook2 = tf.compat.v1.test.mock.MagicMock(
             wraps=tf.compat.v1.train.SessionRunHook(),
@@ -110,13 +105,13 @@ class DNNLinearCombinedClassifierIntegrationTest(tf.test.TestCase,
       estimator.train(input_fn, steps=num_steps)
       estimator.evaluate(input_fn, steps=num_steps)
 
-  @combinations.generate(
-      combinations.combine(
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.combine(
           mode=['graph'],
           distribution=[
-              strategy_combinations.one_device_strategy,
-              strategy_combinations.mirrored_strategy_with_gpu_and_cpu,
-              strategy_combinations.mirrored_strategy_with_two_gpus
+              tf.compat.v2.__internal__.distribute.combinations.one_device_strategy,
+              tf.compat.v2.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
+              tf.compat.v2.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus
           ],
           use_train_and_evaluate=[True, False]))
   def test_complete_flow_with_mode(self, distribution, use_train_and_evaluate):

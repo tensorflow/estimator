@@ -20,7 +20,6 @@ from __future__ import print_function
 
 import time
 import tensorflow as tf
-from tensorflow.python.data.ops import dataset_ops
 from tensorflow.python.util import function_utils
 
 fn_args = function_utils.fn_args
@@ -55,8 +54,8 @@ def parse_input_fn_result(result):
     ValueError: if the result is a list or tuple of length != 2.
   """
   input_hooks = []
-  if isinstance(result, dataset_ops.DatasetV2):
-    iterator = dataset_ops.make_initializable_iterator(result)
+  if isinstance(result, tf.compat.v2.data.Dataset):
+    iterator = tf.compat.v1.data.make_initializable_iterator(result)
     input_hooks.append(_DatasetInitializerHook(iterator))
     result = iterator.get_next()
   return parse_iterator_result(result) + (input_hooks,)

@@ -34,7 +34,6 @@ from tensorflow.python.ops import boosted_trees_ops
 from tensorflow.python.ops import cond_v2
 from tensorflow.python.ops import lookup_ops
 from tensorflow.python.ops.array_ops import identity as tf_identity
-from tensorflow.python.ops.parallel_for import gradients as parallel_for_gradients
 from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator import estimator
 from tensorflow_estimator.python.estimator.canned import boosted_trees_utils
@@ -74,7 +73,7 @@ def _is_numeric_column(feature_column):
     return True
   # For other dense columns, the dtype is used.
   if isinstance(feature_column,
-                (feature_column_lib.DenseColumn, fc_old._DenseColumn)):
+                (tf.compat.v2.__internal__.feature_column.DenseColumn, fc_old._DenseColumn)):
     # NOTE: GBDT requires that all DenseColumns expose a dtype attribute
     return feature_column.dtype.is_floating
   else:
@@ -135,7 +134,7 @@ def _apply_feature_transformations(features, feature_columns):
       v1_columns.append(fc)
 
   if v2_columns:
-    state_manager = feature_column_v2._StateManagerImpl(
+    state_manager = tf.compat.v2.__internal__.feature_column.StateManager(
         layer=None, trainable=False)
 
     transformed_columns = feature_column_v2._transform_features_v2(
@@ -233,7 +232,7 @@ def _get_transformed_features_and_merge_with_previously_transformed(
       ]
       result_features.extend(unstacked)
     elif isinstance(column,
-                    (feature_column_lib.DenseColumn, fc_old._DenseColumn)):
+                    (tf.compat.v2.__internal__.feature_column.DenseColumn, fc_old._DenseColumn)):
       source_name = column.name
       tensor = transformed_features[column]
       # TODO(tanzheny): Add support for multi dim with rank > 1
@@ -348,7 +347,7 @@ def _group_features_by_num_buckets_and_split_type(sorted_feature_columns,
           (feature_idx, _INEQUALITY_SPLIT))
       feature_idx += 1
     elif isinstance(column,
-                    (feature_column_lib.DenseColumn, fc_old._DenseColumn)):
+                    (tf.compat.v2.__internal__.feature_column.DenseColumn, fc_old._DenseColumn)):
       num_float_features = _get_variable_shape(
           column)[0] if _get_variable_shape(column).as_list() else 1
       for _ in range(num_float_features):
@@ -401,7 +400,7 @@ def _calculate_num_features(sorted_feature_columns):
         (fc_old._BucketizedColumn, feature_column_lib.BucketizedColumn)):
       num_features += 1
     elif isinstance(column,
-                    (feature_column_lib.DenseColumn, fc_old._DenseColumn)):
+                    (tf.compat.v2.__internal__.feature_column.DenseColumn, fc_old._DenseColumn)):
       num_features += _get_variable_shape(column)[0] if _get_variable_shape(
           column).as_list() else 1
     elif isinstance(
@@ -457,7 +456,7 @@ def _generate_feature_col_name_mapping(sorted_feature_columns):
         (feature_column_lib.BucketizedColumn, fc_old._BucketizedColumn)):
       names.append(column.name)
     elif isinstance(column,
-                    (fc_old._DenseColumn, feature_column_lib.DenseColumn)):
+                    (fc_old._DenseColumn, tf.compat.v2.__internal__.feature_column.DenseColumn)):
       num_float_features = _get_variable_shape(
           column)[0] if _get_variable_shape(column).as_list() else 1
       for _ in range(num_float_features):

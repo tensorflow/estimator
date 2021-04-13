@@ -22,10 +22,6 @@ import os
 import numpy as np
 import tensorflow as tf
 from tensorflow.python import keras
-from tensorflow.python.keras.optimizer_v2 import adam
-from tensorflow.python.keras.optimizer_v2 import gradient_descent
-from tensorflow.python.keras.premade import linear
-from tensorflow.python.keras.premade import wide_deep
 from tensorflow_estimator.python.estimator import keras as keras_lib
 from tensorflow_estimator.python.estimator import run_config as run_config_lib
 from tensorflow_estimator.python.estimator.inputs import numpy_io
@@ -109,11 +105,11 @@ class KerasPremadeModelTest(tf.test.TestCase):
         name='symbol', shape=3, dtype=tf.dtypes.string)
     feature_layer = tf.compat.v1.keras.layers.DenseFeatures([ind_column])
     h = feature_layer({'symbol': keras_input})
-    linear_model = linear.LinearModel(units=1)
+    linear_model = tf.keras.experimental.LinearModel(units=1)
     h = linear_model(h)
 
-    model = keras.Model(inputs=keras_input, outputs=h)
-    opt = gradient_descent.SGD(0.1)
+    model = tf.keras.models.Model(inputs=keras_input, outputs=h)
+    opt = tf.keras.optimizers.SGD(0.1)
     model.compile(opt, 'mse', ['mse'])
     train_input_fn = numpy_io.numpy_input_fn(
         x={'symbol': data}, y=y, num_epochs=20, shuffle=False)
@@ -131,8 +127,8 @@ class KerasPremadeModelTest(tf.test.TestCase):
     (x_train,
      y_train), _, train_inp_fn, eval_inp_fn = get_resource_for_simple_model()
 
-    linear_model = linear.LinearModel(units=1)
-    opt = gradient_descent.SGD(0.1)
+    linear_model = tf.keras.experimental.LinearModel(units=1)
+    opt = tf.keras.optimizers.SGD(0.1)
     linear_model.compile(opt, 'mse', ['mse'])
     linear_model.fit(x_train, y_train, epochs=10)
 
@@ -165,21 +161,21 @@ class KerasPremadeModelTest(tf.test.TestCase):
 
     # build linear part with feature layer.
     linear_feature_layer = tf.compat.v1.keras.layers.DenseFeatures([ind_column])
-    linear_model = linear.LinearModel(
+    linear_model = tf.keras.experimental.LinearModel(
         units=1, name='Linear', kernel_initializer='zeros')
-    combined_linear = keras.Sequential([linear_feature_layer, linear_model])
+    combined_linear = tf.keras.models.Sequential([linear_feature_layer, linear_model])
 
     # build dnn part with feature layer.
     dnn_feature_layer = tf.compat.v1.keras.layers.DenseFeatures([ind_column])
     dense_layer = keras.layers.Dense(
         units=1, name='DNNDense', kernel_initializer='zeros')
-    combined_dnn = keras.Sequential([dnn_feature_layer, dense_layer])
+    combined_dnn = tf.keras.models.Sequential([dnn_feature_layer, dense_layer])
 
     # build and compile wide deep.
-    wide_deep_model = wide_deep.WideDeepModel(combined_linear, combined_dnn)
+    wide_deep_model = tf.keras.experimental.WideDeepModel(combined_linear, combined_dnn)
     wide_deep_model._set_inputs({'symbol': keras_input})
-    sgd_opt = gradient_descent.SGD(0.1)
-    adam_opt = adam.Adam(0.1)
+    sgd_opt = tf.keras.optimizers.SGD(0.1)
+    adam_opt = tf.keras.optimizers.Adam(0.1)
     wide_deep_model.compile([sgd_opt, adam_opt], 'mse', ['mse'])
 
     # build estimator.

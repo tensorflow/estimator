@@ -20,9 +20,7 @@ from __future__ import print_function
 
 import json
 import tensorflow as tf
-from tensorflow.core.protobuf import config_pb2
 from tensorflow.core.protobuf import rewriter_config_pb2
-from tensorflow.python.distribute import parameter_server_strategy_v2
 from tensorflow_estimator.python.estimator import run_config as run_config_lib
 
 
@@ -101,7 +99,7 @@ class RunConfigTest(tf.test.TestCase):
     self.assertEqual(_TEST_DIR, new_config.model_dir)
 
   def test_replace_with_allowed_properties(self):
-    session_config = config_pb2.ConfigProto(allow_soft_placement=True)
+    session_config = tf.compat.v1.ConfigProto(allow_soft_placement=True)
     device_fn = lambda op: '/cpu:0'
 
     config = run_config_lib.RunConfig().replace(
@@ -194,7 +192,7 @@ class RunConfigTest(tf.test.TestCase):
       config.replace(experimental_max_worker_delay_secs='5')
 
   def test_init_with_allowed_properties(self):
-    session_config = config_pb2.ConfigProto(allow_soft_placement=True)
+    session_config = tf.compat.v1.ConfigProto(allow_soft_placement=True)
     device_fn = lambda op: '/cpu:0'
 
     config = run_config_lib.RunConfig(
@@ -264,17 +262,17 @@ class RunConfigTest(tf.test.TestCase):
         ValueError, 'Please use `tf.compat.v1.distribut'
         'e.experimental.ParameterServerStrategy`'):
       run_config_lib.RunConfig(
-          train_distribute=parameter_server_strategy_v2
-          .ParameterServerStrategyV2.__new__(
-              parameter_server_strategy_v2.ParameterServerStrategyV2))
+          train_distribute=tf.compat.v2.distribute.experimental
+          .ParameterServerStrategy.__new__(
+              tf.compat.v2.distribute.experimental.ParameterServerStrategy))
 
   def test_incompatible_eval_strategy(self):
     with self.assertRaisesRegex(
         ValueError, 'Please use `tf.compat.v1.distribut'
         'e.experimental.ParameterServerStrategy`'):
       run_config_lib.RunConfig(
-          eval_distribute=parameter_server_strategy_v2.ParameterServerStrategyV2
-          .__new__(parameter_server_strategy_v2.ParameterServerStrategyV2))
+          eval_distribute=tf.compat.v2.distribute.experimental.ParameterServerStrategy
+          .__new__(tf.compat.v2.distribute.experimental.ParameterServerStrategy))
 
 
 class RunConfigDistributedSettingTest(tf.test.TestCase):
@@ -1111,8 +1109,8 @@ class RunConfigSessionConfigTest(tf.test.TestCase):
 
     rewrite_opts = rewriter_config_pb2.RewriterConfig(
         meta_optimizer_iterations=rewriter_config_pb2.RewriterConfig.ONE)
-    graph_opts = config_pb2.GraphOptions(rewrite_options=rewrite_opts)
-    expected_session_config = config_pb2.ConfigProto(
+    graph_opts = tf.compat.v1.GraphOptions(rewrite_options=rewrite_opts)
+    expected_session_config = tf.compat.v1.ConfigProto(
         allow_soft_placement=True,
         graph_options=graph_opts,
         device_filters=expected_device_filters)
