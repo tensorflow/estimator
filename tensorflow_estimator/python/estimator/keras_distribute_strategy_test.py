@@ -21,7 +21,6 @@ import os
 from absl.testing import parameterized
 import numpy as np
 import tensorflow as tf
-from tensorflow.python import keras
 from tensorflow.python.distribute import strategy_combinations
 from tensorflow.python.eager import test
 from tensorflow.python.ops.parsing_ops import gen_parsing_ops
@@ -35,37 +34,39 @@ _NUM_CLASS = 2
 
 
 def simple_sequential_model():
-  model = keras.models.Sequential()
-  model.add(keras.layers.Dense(16, activation='relu', input_shape=_INPUT_SIZE))
-  model.add(keras.layers.Dropout(0.1))
-  model.add(keras.layers.Dense(_NUM_CLASS, activation='softmax'))
+  model = tf.keras.models.Sequential()
+  model.add(tf.keras.layers.Dense(16, activation='relu', input_shape=_INPUT_SIZE))
+  model.add(tf.keras.layers.Dropout(0.1))
+  model.add(tf.keras.layers.Dense(_NUM_CLASS, activation='softmax'))
   return model
 
 
 def simple_functional_model():
-  a = keras.layers.Input(shape=_INPUT_SIZE)
-  b = keras.layers.Dense(16, activation='relu')(a)
-  b = keras.layers.Dropout(0.1)(b)
-  b = keras.layers.Dense(_NUM_CLASS, activation='softmax')(b)
-  model = keras.models.Model(inputs=[a], outputs=[b])
+  a = tf.keras.layers.Input(shape=_INPUT_SIZE)
+  b = tf.keras.layers.Dense(16, activation='relu')(a)
+  b = tf.keras.layers.Dropout(0.1)(b)
+  b = tf.keras.layers.Dense(_NUM_CLASS, activation='softmax')(b)
+  model = tf.keras.models.Model(inputs=[a], outputs=[b])
   return model
 
 
 def multi_inputs_multi_outputs_model():
-  input_a = keras.layers.Input(shape=(16,), name='input_a')
-  input_b = keras.layers.Input(shape=(16,), name='input_b')
-  input_m = keras.layers.Input(shape=(8,), dtype='string', name='input_m')
-  dense = keras.layers.Dense(8, name='dense_1')
+  input_a = tf.keras.layers.Input(shape=(16,), name='input_a')
+  input_b = tf.keras.layers.Input(shape=(16,), name='input_b')
+  input_m = tf.keras.layers.Input(shape=(8,), dtype='string', name='input_m')
+  dense = tf.keras.layers.Dense(8, name='dense_1')
 
   interm_a = dense(input_a)
   # Read m
-  interm_m = keras.layers.Lambda(gen_parsing_ops.string_to_number)(input_m)
-  interm_s = keras.layers.Lambda(lambda k: k[0] * k[1])([interm_m, interm_a])
+  interm_m = tf.keras.layers.Lambda(gen_parsing_ops.string_to_number)(input_m)
+  interm_s = tf.keras.layers.Lambda(lambda k: k[0] * k[1])([interm_m, interm_a])
   interm_b = dense(input_b)
-  merged = keras.layers.concatenate([interm_s, interm_b], name='merge')
-  output_c = keras.layers.Dense(3, activation='softmax', name='dense_2')(merged)
-  output_d = keras.layers.Dense(2, activation='softmax', name='dense_3')(merged)
-  model = keras.models.Model(
+  merged = tf.keras.layers.concatenate([interm_s, interm_b], name='merge')
+  output_c = tf.keras.layers.Dense(3, activation='softmax', name='dense_2')(
+      merged)
+  output_d = tf.keras.layers.Dense(2, activation='softmax', name='dense_3')(
+      merged)
+  model = tf.keras.models.Model(
       inputs=[input_a, input_b, input_m], outputs=[output_c, output_d])
   model.compile(
       loss='categorical_crossentropy',
@@ -178,7 +179,7 @@ class TestEstimatorDistributionStrategy(tf.test.TestCase,
     keras_model = simple_functional_model()
     keras_model.compile(
         loss='categorical_crossentropy',
-        metrics=[keras.metrics.CategoricalAccuracy()],
+        metrics=[tf.keras.metrics.CategoricalAccuracy()],
         optimizer=tf.keras.optimizers.RMSprop(learning_rate=0.01),
         cloning=cloning)
     config = run_config_lib.RunConfig(
@@ -211,7 +212,7 @@ class TestEstimatorDistributionStrategy(tf.test.TestCase,
     keras_model = simple_sequential_model()
     keras_model.compile(
         loss='categorical_crossentropy',
-        metrics=[keras.metrics.CategoricalAccuracy()],
+        metrics=[tf.keras.metrics.CategoricalAccuracy()],
         optimizer=tf.keras.optimizers.RMSprop(learning_rate=0.01),
         cloning=cloning)
     config = run_config_lib.RunConfig(

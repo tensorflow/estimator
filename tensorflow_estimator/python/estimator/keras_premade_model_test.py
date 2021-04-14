@@ -21,7 +21,6 @@ import os
 
 import numpy as np
 import tensorflow as tf
-from tensorflow.python import keras
 from tensorflow_estimator.python.estimator import keras as keras_lib
 from tensorflow_estimator.python.estimator import run_config as run_config_lib
 from tensorflow_estimator.python.estimator.inputs import numpy_io
@@ -86,7 +85,7 @@ class KerasPremadeModelTest(tf.test.TestCase):
     tf.compat.v1.summary.FileWriterCache.clear()
     if os.path.isdir(self._base_dir):
       tf.compat.v1.gfile.DeleteRecursively(self._base_dir)
-    keras.backend.clear_session()
+    tf.keras.backend.clear_session()
     super(KerasPremadeModelTest, self).tearDown()
 
   def test_train_premade_linear_model_with_dense_features(self):
@@ -101,7 +100,7 @@ class KerasPremadeModelTest(tf.test.TestCase):
     cat_column = tf.feature_column.categorical_column_with_vocabulary_list(
         key='symbol', vocabulary_list=vocab_list)
     ind_column = tf.feature_column.indicator_column(cat_column)
-    keras_input = keras.layers.Input(
+    keras_input = tf.keras.layers.Input(
         name='symbol', shape=3, dtype=tf.dtypes.string)
     feature_layer = tf.compat.v1.keras.layers.DenseFeatures([ind_column])
     h = feature_layer({'symbol': keras_input})
@@ -156,7 +155,7 @@ class KerasPremadeModelTest(tf.test.TestCase):
     ind_column = tf.feature_column.indicator_column(cat_column)
     # TODO(tanzheny): use emb column for dense part once b/139667019 is fixed.
     # emb_column = feature_column.embedding_column(cat_column, dimension=5)
-    keras_input = keras.layers.Input(
+    keras_input = tf.keras.layers.Input(
         name='symbol', shape=3, dtype=tf.dtypes.string)
 
     # build linear part with feature layer.
@@ -167,7 +166,7 @@ class KerasPremadeModelTest(tf.test.TestCase):
 
     # build dnn part with feature layer.
     dnn_feature_layer = tf.compat.v1.keras.layers.DenseFeatures([ind_column])
-    dense_layer = keras.layers.Dense(
+    dense_layer = tf.keras.layers.Dense(
         units=1, name='DNNDense', kernel_initializer='zeros')
     combined_dnn = tf.keras.models.Sequential([dnn_feature_layer, dense_layer])
 
