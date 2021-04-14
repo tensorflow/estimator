@@ -18,6 +18,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import collections
 import os
 import re
 import tensorflow as tf
@@ -31,10 +32,6 @@ from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 
 _DEFAULT_SERVING_KEY = tf.saved_model.DEFAULT_SERVING_SIGNATURE_DEF_KEY
 
-try:
-  from tensorflow.python.keras.engine import training_utils_v1 as training_utils  # pylint:disable=g-import-not-at-top
-except ImportError:
-  from tensorflow.python.keras.engine import training_utils  # pylint:disable=g-import-not-at-top
 
 class FormattedKeyError(KeyError):
   """KeyError with formatted error message.
@@ -242,7 +239,7 @@ def _clone_and_build_model(mode,
       optimizer_config=optimizer_config)
 
   if sample_weight_tensors is not None:
-    sample_weight_tensors = training_utils.standardize_sample_weights(
+    sample_weight_tensors = standardize_sample_weights(
         sample_weight_tensors, clone.output_names)
     # Update calculated loss (model.total_loss) to include sample weights.
     clone._compile_weights_loss_and_weighted_metrics(sample_weight_tensors)
@@ -744,3 +741,52 @@ def _assert_valid_model(model, custom_objects=None):
       raise ValueError(
           'Subclassed `Model`s passed to `model_to_estimator` must '
           'implement `Model.get_config` and `Model.from_config`.')
+
+
+def standardize_sample_weights(x_weight, output_names):
+  """Maps `sample_weight` or `class_weight` to model outputs.
+
+  Args:
+      x_weight: User-provided `sample_weight` or `class_weight` argument.
+      output_names: List of output names (strings) in the model.
+
+  Returns:
+      A list of `sample_weight` or `class_weight` where there are exactly
+          one element per model output.
+
+  Raises:
+      ValueError: In case of invalid user-provided argument.
+  """
+  if x_weight is None or (isinstance(x_weight, (list, tuple)) and
+                          len(x_weight) == 0):  # pylint: disable=g-explicit-length-test
+    return [None for _ in output_names]
+  if len(output_names) == 1:
+    if isinstance(x_weight, (list, tuple)) and len(x_weight) == 1:
+      return x_weight
+    if isinstance(x_weight, dict) and output_names[0] in x_weight:
+      return [x_weight[output_names[0]]]
+    else:
+      return [x_weight]
+  if isinstance(x_weight, (list, tuple)):
+    if len(x_weight) != len(output_names):
+      raise ValueError('Provided `sample_weights` was a list of ' +
+                       str(len(x_weight)) + ' elements, but the model has ' +
+                       str(len(output_names)) + ' outputs. '
+                       'You should provide one `sample_weights`'
+                       'array per model output.')
+    return x_weight
+  if isinstance(x_weight, collections.abc.Mapping):
+    unknown = set(x_weight.keys()).difference(output_names)
+    if unknown:
+      raise ValueError('Unknown entries in sample_weights dictionary: {}. '
+                       'Only expected following keys: {}'.format(
+                           list(unknown), output_names))
+    x_weights = []
+    for name in output_names:
+      x_weights.append(x_weight.get(name))
+    return x_weights
+  else:
+    raise TypeError('The model has multiple outputs, so `sample_weights` '
+                    'should be either a list or a dict. '
+                    'Provided `sample_weights` type not understood: ' +
+                    str(x_weight))
