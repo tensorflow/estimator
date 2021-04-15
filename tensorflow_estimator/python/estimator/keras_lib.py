@@ -21,6 +21,7 @@ from __future__ import print_function
 import collections
 import os
 import re
+import time
 import tensorflow as tf
 from tensorflow.python.training.tracking import util as trackable_util
 from tensorflow_estimator.python.estimator import estimator as estimator_lib
@@ -426,7 +427,12 @@ def _save_first_checkpoint(keras_model, custom_objects, config,
   keras_model_dir = os.path.join(config.model_dir, 'keras')
   # Load weights and save to checkpoint if there is no checkpoint
   latest_path = tf.train.latest_checkpoint(keras_model_dir)
-  if not latest_path:
+  if not config.is_chief:
+    while not latest_path:
+      tf.compat.v1.logging.info("Waiting for checkpoint to be ready.")
+      time.sleep(1)
+      latest_path = tf.train.latest_checkpoint(keras_model_dir)
+  elif not latest_path:
     keras_weights = None
     if _any_weight_initialized(keras_model):
       keras_weights = keras_model.get_weights()
