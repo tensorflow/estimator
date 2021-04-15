@@ -778,12 +778,12 @@ class TestKerasEstimator(tf.test.TestCase, parameterized.TestCase):
 
   def test_custom_objects(self):
 
-    def relu6(x):
+    def custom_relu(x):
       return tf.keras.backend.relu(x, max_value=6)
 
-    keras_model = simple_functional_model(activation=relu6)
+    keras_model = simple_functional_model(activation=custom_relu)
     keras_model.compile(loss='categorical_crossentropy', optimizer='adam')
-    custom_objects = {'relu6': relu6}
+    custom_objects = {'custom_relu': custom_relu}
 
     (x_train, y_train), _ = get_test_data(
         train_samples=_TRAIN_SIZE,
@@ -799,7 +799,7 @@ class TestKerasEstimator(tf.test.TestCase, parameterized.TestCase):
         shuffle=False,
         num_epochs=None,
         batch_size=16)
-    with self.assertRaisesRegexp(ValueError, 'relu6'):
+    with self.assertRaisesRegex(ValueError, 'custom_relu'):
       est = keras_lib.model_to_estimator(
           keras_model=keras_model,
           model_dir=tempfile.mkdtemp(dir=self._base_dir))
