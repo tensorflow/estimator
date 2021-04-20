@@ -22,8 +22,6 @@ import collections
 import os
 import re
 import tensorflow as tf
-from tensorflow.python.keras import backend as K
-from tensorflow.python.keras import models
 from tensorflow.python.training.tracking import util as trackable_util
 from tensorflow_estimator.python.estimator import estimator as estimator_lib
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
@@ -226,9 +224,9 @@ def _clone_and_build_model(mode,
     # Set iterations to the global step created by tf.train.create_global_step()
     # which is automatically run in the estimator framework.
     global_step = tf.compat.v1.train.get_or_create_global_step()
-    K.track_variable(global_step)
+    tf.compat.v2.keras.__internal__.backend.track_variable(global_step)
 
-  clone = models.clone_and_build_model(
+  clone = tf.compat.v2.keras.__internal__.models.clone_and_build_model(
       keras_model,
       input_tensors,
       target_tensors,
@@ -365,7 +363,8 @@ def _create_keras_model_fn(keras_model,
         hasattr(keras_model, '_original_attributes_cache') and
         keras_model._original_attributes_cache is not None):
       # To avoid `model_fn` being destructive for the initial model argument.
-      models.in_place_subclassed_model_state_restoration(keras_model)
+      (tf.compat.v2.keras.__internal__.models.
+       in_place_subclassed_model_state_restoration(keras_model))
 
     scaffold = None
     if save_object_ckpt:
@@ -453,7 +452,7 @@ def _save_first_checkpoint(keras_model, custom_objects, config,
           model.set_weights(keras_weights)
         # model._make_train_function() will potentially create the optimizer
         # variable, which will require another variable initialization.
-        K._initialize_variables(sess)  # pylint: disable=protected-access
+        tf.compat.v2.keras.__internal__.backend.initialize_variables(sess)
 
         if save_object_ckpt:
           model._track_trackable(  # pylint: disable=protected-access

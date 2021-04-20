@@ -21,7 +21,6 @@ from __future__ import print_function
 import six
 import tensorflow as tf
 from tensorflow.python.framework import ops
-from tensorflow.python.keras.utils import losses_utils
 from tensorflow.python.ops import lookup_ops
 from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator import model_fn
@@ -351,7 +350,7 @@ class MultiLabelHead(base_head.Head):
       processed_labels = self._processed_labels(logits, labels)
       unweighted_loss, weights = self._unweighted_loss_and_weights(
           logits, processed_labels, features)
-      training_loss = losses_utils.compute_weighted_loss(
+      training_loss = tf.compat.v2.keras.__internal__.losses.compute_weighted_loss(
           unweighted_loss,
           sample_weight=weights,
           reduction=self._loss_reduction)
