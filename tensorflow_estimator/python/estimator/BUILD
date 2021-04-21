@@ -942,6 +942,7 @@ py_test(
     tags = ["notsan"],  # b/67510291
     deps = [
         ":estimator",
+        ":estimator_py",
         ":export",
         ":mode_keys",
         ":model_fn",

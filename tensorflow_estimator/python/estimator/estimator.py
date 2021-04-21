@@ -33,6 +33,7 @@ from tensorflow.python.eager import context
 from tensorflow.python.eager import monitoring
 from tensorflow.python.framework import ops
 from tensorflow.python.platform import tf_logging as logging
+from tensorflow.python.profiler import trace
 from tensorflow.python.saved_model import utils_impl as saved_model_utils
 from tensorflow.python.summary import summary
 from tensorflow.python.training import basic_session_run_hooks
@@ -1354,6 +1355,7 @@ class Estimator(object):
     if saving_listener:
       raise ValueError('Saving listenor is not supported by the current '
                        'Distribution Strategies.')
+    #TODO: consolidate code duplication in _train_with_estimator_spec
     with training.MonitoredTrainingSession(
         master=self._config.master,
         is_chief=self._config.is_chief,
@@ -1369,13 +1371,16 @@ class Estimator(object):
         log_step_count_steps=self._config.log_step_count_steps,
         save_graph_def=self._config.checkpoint_save_graph_def) as mon_sess:
       loss = None
-      any_step_done = False
+      current_step = 0
       while not mon_sess.should_stop():
-        _, loss = mon_sess.run([estimator_spec.train_op, estimator_spec.loss])
-        any_step_done = True
-    if not any_step_done:
-      tf.compat.v1.logging.warn('Training with estimator made no steps. '
-                                'Perhaps input is empty or misspecified.')
+        current_step += 1
+        # just as keras(https://github.com/tensorflow/tensorflow/blob/v2.4.1/tensorflow/python/keras/engine/training.py#L1093),
+        # trace should be enabled for every step
+        with trace.Trace('train', step_num=current_step, _r=1):
+          _, loss = mon_sess.run([estimator_spec.train_op, estimator_spec.loss])
+      if current_step == 0:
+        tf.compat.v1.logging.warn('Training with estimator made no steps. '
+                                  'Perhaps input is empty or misspecified.')
     return loss
 
   def _train_with_estimator_spec(self, estimator_spec, worker_hooks, hooks,
@@ -1509,13 +1514,16 @@ class Estimator(object):
         log_step_count_steps=log_step_count_steps,
         save_graph_def=self._config.checkpoint_save_graph_def) as mon_sess:
       loss = None
-      any_step_done = False
+      current_step = 0
       while not mon_sess.should_stop():
-        _, loss = mon_sess.run([estimator_spec.train_op, estimator_spec.loss])
-        any_step_done = True
-    if not any_step_done:
-      tf.compat.v1.logging.warn('Training with estimator made no steps. '
-                                'Perhaps input is empty or misspecified.')
+        current_step += 1
+        # just as keras(https://github.com/tensorflow/tensorflow/blob/v2.4.1/tensorflow/python/keras/engine/training.py#L1093),
+        # trace should be enabled for every step
+        with trace.Trace('train', step_num=current_step, _r=1):
+          _, loss = mon_sess.run([estimator_spec.train_op, estimator_spec.loss])
+      if current_step == 0:
+        tf.compat.v1.logging.warn('Training with estimator made no steps. '
+                                  'Perhaps input is empty or misspecified.')
     return loss
 
   def _evaluate_build_graph(self, input_fn, hooks=None, checkpoint_path=None):
