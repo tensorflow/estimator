@@ -308,7 +308,7 @@ def train_and_evaluate(estimator, train_spec, eval_spec):
   (non-distributed) and distributed configurations. The default distribution
   configuration is parameter server-based between-graph replication. For other
   types of distribution configurations such as all-reduce training, please use
-  [DistributionStrategies](https://github.com/tensorflow/tensorflow/tree/master/tensorflow/contrib/distribute).
+  [DistributionStrategies](https://github.com/tensorflow/tensorflow/tree/master/tensorflow/python/distribute).
 
   Overfitting: In order to avoid overfitting, it is recommended to set up the
   training `input_fn` to shuffle the training data properly.
