@@ -903,7 +903,7 @@ def create_estimator_spec_train_op(
           raise ValueError('train_op_fn and optimizer cannot both be set.')
         validate_trainable_variables(trainable_variables)
         # Scale loss by number of replicas.
-        if loss_reduction == losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE:
+        if loss_reduction == tf.compat.v2.keras.losses.Reduction.SUM_OVER_BATCH_SIZE:
           regularized_training_loss = losses_utils.scale_loss_for_distribution(
               regularized_training_loss)
           num_replicas = tf.distribute.get_strategy().num_replicas_in_sync
