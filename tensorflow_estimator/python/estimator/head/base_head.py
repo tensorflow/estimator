@@ -906,6 +906,9 @@ def create_estimator_spec_train_op(
         if loss_reduction == losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE:
           regularized_training_loss = losses_utils.scale_loss_for_distribution(
               regularized_training_loss)
+          num_replicas = tf.distribute.get_strategy().num_replicas_in_sync
+          if num_replicas > 1:
+            regularized_training_loss *= (1. / num_replicas)
         # For Optimizer of type tf.compat.v1.train.Optimizer
         if isinstance(optimizer, tf.compat.v1.train.Optimizer):
           train_op = optimizer.minimize(regularized_training_loss, var_list = trainable_variables)
