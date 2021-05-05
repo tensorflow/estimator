@@ -567,7 +567,10 @@ def dnn_model_fn_v2(features,
   # optimizer.iterations to make global_step increased correctly, as Hooks
   # relies on global step as step counter.
   if mode == ModeKeys.TRAIN:
-    optimizer = optimizers.get_optimizer_instance_v2(optimizer)
+    if isinstance(optimizer, tf.compat.v1.train.Optimizer):
+      optimizer = optimizers.get_optimizer_instance(optimizer)
+    else:
+      optimizer = optimizers.get_optimizer_instance_v2(optimizer)
     optimizer.iterations = tf.compat.v1.train.get_or_create_global_step()
 
   # Create EstimatorSpec.
