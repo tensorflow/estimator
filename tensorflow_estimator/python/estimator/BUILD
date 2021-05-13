@@ -590,6 +590,7 @@ py_test(
     shard_count = 8,
     srcs_version = "PY3",
     tags = [
+        "no_oss",
         "no_pip",
         "notsan",  # b/67510291
     ],
@@ -1754,6 +1755,7 @@ py_test(
     shard_count = 8,
     srcs_version = "PY3",
     tags = [
+        "no_oss",
         "no_windows",
         "notsan",  # b/67510291
     ],
