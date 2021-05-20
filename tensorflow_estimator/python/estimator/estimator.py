@@ -2157,6 +2157,22 @@ def _has_dataset_or_queue_runner(maybe_tensor):
       tf.compat.v1.GraphKeys.QUEUE_RUNNERS)
 
 
+def _is_saved_model(path):
+    """Infer that path is a SavedModel if 'variables/variables.index' exists."""
+    return tf.compat.v1.gfile.Exists(
+        os.path.join(
+            saved_model_utils.get_variables_dir(path),
+            tf.compat.as_text('variables.index')))
+
+
+def _is_saved_model_variables_dir(path):
+  """Infer that path is a SavedModel variables dir if ends with tf.saved_model.VARIABLES_FILENAME
+  and parent directory is a SavedModel"""
+  path = tf.compat.as_text(os.path.normpath(path))
+  return (path.endswith(tf.compat.as_text(tf.saved_model.VARIABLES_FILENAME)) and
+                        _is_saved_model(os.path.dirname(path)))
+
+
 VocabInfo = tf.compat.v1.train.VocabInfo  # pylint: disable=invalid-name
 estimator_export('estimator.VocabInfo')(VocabInfo)
 
@@ -2374,19 +2390,6 @@ def _get_default_warm_start_settings(warm_start_from):
     ValueError: If `warm_start_from` is not `None` but is neither a string nor
     an instance of `WarmStartSettings`.
   """
-  def _is_saved_model(path):
-    """Infer that path is a SavedModel if 'variables/variables.index' exists."""
-    return tf.compat.v1.gfile.Exists(
-        os.path.join(
-            saved_model_utils.get_variables_dir(path),
-            tf.compat.as_text('variables.index')))
-
-  def _is_saved_model_variables_dir(path):
-    """Infer that path is a SavedModel variables dir if ends with 'variables'
-    and parent directory is a SavedModel"""
-    path = tf.compat.as_text(os.path.normpath(path))
-    return path.endswith('variables') and _is_saved_model(os.path.dirname(path))
-
   if warm_start_from is None:
     return None
   if isinstance(warm_start_from, (six.string_types, six.binary_type)):
@@ -2401,7 +2404,7 @@ def _get_default_warm_start_settings(warm_start_from):
       tf.compat.v1.logging.info('Warm-starting from a SavedModel')
       variables_path = os.path.join(
           tf.compat.as_text(warm_start_from.ckpt_to_initialize_from),
-          'variables')
+          tf.compat.as_text(tf.saved_model.VARIABLES_FILENAME))
       warm_start_from = warm_start_from._replace(
           ckpt_to_initialize_from=variables_path)
     return warm_start_from
