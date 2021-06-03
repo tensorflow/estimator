@@ -32,6 +32,7 @@ from tensorflow.python.tpu.tpu_embedding import AdagradParameters
 from tensorflow.python.tpu.tpu_embedding import AdamParameters
 from tensorflow.python.tpu.tpu_embedding import FtrlParameters
 from tensorflow.python.tpu.tpu_embedding import MomentumParameters
+from tensorflow.python.tpu.tpu_embedding import ProximalAdagradParameters
 from tensorflow.python.tpu.tpu_embedding import RMSPropParameters
 from tensorflow.python.tpu.tpu_embedding import StochasticGradientDescentParameters
 from tensorflow.python.util.tf_export import estimator_export
@@ -51,6 +52,7 @@ _EMBEDDING_COLUMN_CLASSES = (core_fc._EmbeddingColumn,
 _SUPPORTED_FEATURE_COLUMNS = (core_fc._NumericColumn, core_fc_lib.NumericColumn)
 
 _SUPPORTED_OPTIMIZERS = (
+    ProximalAdagradParameters,
     AdagradParameters,
     AdamParameters,
     FtrlParameters,
@@ -104,6 +106,10 @@ def _get_slot_variable_names(scope_name, var_name, optimization_parameters):
     return tpu_embedding.RMSPropSlotVariableNames(
         ms='{}{}/RMSProp/ms'.format(scope_name, var_name),
         mom='{}{}/RMSProp/mom'.format(scope_name, var_name),
+    )
+  elif isinstance(optimization_parameters, ProximalAdagradParameters):
+    return tpu_embedding.ProximalAdagradSlotVariableName(
+        '{}{}/ProximalAdagrad'.format(scope_name, var_name)
     )
   elif isinstance(
       optimization_parameters,
