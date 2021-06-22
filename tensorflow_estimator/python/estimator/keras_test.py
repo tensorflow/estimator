@@ -30,7 +30,7 @@ from tensorflow.python.ops.parsing_ops import gen_parsing_ops
 from tensorflow.python.saved_model import utils_impl as saved_model_utils
 from tensorflow.python.saved_model.model_utils import export_output
 from tensorflow.python.training import saver as saver_lib
-from tensorflow_estimator.python.estimator import keras as keras_lib
+from tensorflow_estimator.python.estimator import keras_lib
 from tensorflow_estimator.python.estimator import run_config as run_config_lib
 from tensorflow_estimator.python.estimator.export import export_lib
 from tensorflow_estimator.python.estimator.inputs import numpy_io

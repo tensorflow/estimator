@@ -24,7 +24,7 @@ import tensorflow as tf
 from tensorflow.python.distribute import strategy_combinations
 from tensorflow.python.eager import test
 from tensorflow.python.ops.parsing_ops import gen_parsing_ops
-from tensorflow_estimator.python.estimator import keras as keras_lib
+from tensorflow_estimator.python.estimator import keras_lib
 from tensorflow_estimator.python.estimator import run_config as run_config_lib
 
 _RANDOM_SEED = 1337

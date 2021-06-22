@@ -1734,7 +1734,7 @@ py_test(
 
 py_library(
     name = "keras",
-    srcs = ["keras.py"],
+    srcs = ["keras_lib.py"],
     srcs_version = "PY3",
     deps = [
         ":estimator",

@@ -21,7 +21,7 @@ import os
 
 import numpy as np
 import tensorflow as tf
-from tensorflow_estimator.python.estimator import keras as keras_lib
+from tensorflow_estimator.python.estimator import keras_lib
 from tensorflow_estimator.python.estimator import run_config as run_config_lib
 from tensorflow_estimator.python.estimator.inputs import numpy_io
 
