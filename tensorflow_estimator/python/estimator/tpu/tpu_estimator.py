@@ -312,6 +312,13 @@ class TPUEstimatorSpec(model_fn_lib._TPUEstimatorSpec):  # pylint: disable=prote
   size of the tensors. The `tensors` are concatenated along their major (batch)
   dimension, and so must be >= rank 1. The `host_call` is useful for writing
   summaries with `tf.contrib.summary.create_file_writer`.
+
+  @compatibility(TF2)
+  TPU Estimator manages its own TensorFlow graph and session, so it is not
+  compatible with TF2 behaviors. We recommend that you migrate to the newer
+  `tf.distribute.TPUStrategy`. See the
+  [TPU guide](https://www.tensorflow.org/guide/tpu) for details.
+  @end_compatibility
   """
 
   def __new__(cls,
@@ -2651,6 +2658,13 @@ class TPUEstimator(estimator_lib.Estimator):
   `batch_function()`.
 
   TIP: V2 is recommended as it is more flexible (eg: batching, etc).
+
+  @compatibility(TF2)
+  TPU Estimator manages its own TensorFlow graph and session, so it is not
+  compatible with TF2 behaviors. We recommend that you migrate to the newer
+  `tf.distribute.TPUStrategy`. See the
+  [TPU guide](https://www.tensorflow.org/guide/tpu) for details.
+  @end_compatibility
   """
 
   def __init__(self,

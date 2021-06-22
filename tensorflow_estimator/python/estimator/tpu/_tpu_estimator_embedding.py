@@ -247,6 +247,13 @@ class EmbeddingConfigSpec(
           optimization_parameters=(
               tf.estimator.tpu.experimental.AdagradParameters(0.1))))
   ```
+
+  @compatibility(TF2)
+  TPU Estimator manages its own TensorFlow graph and session, so it is not
+  compatible with TF2 behaviors. We recommend that you migrate to the newer
+  `tf.distribute.TPUStrategy`. See the
+  [TPU guide](https://www.tensorflow.org/guide/tpu) for details.
+  @end_compatibility
   """
 
   def __new__(cls,

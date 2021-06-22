@@ -35,7 +35,15 @@ _TPU_WORKER_JOB_NAME = 'tpu_worker_job_name'
 
 @estimator_export(v1=['estimator.tpu.InputPipelineConfig'])
 class InputPipelineConfig(object):
-  r"""Please see the definition of these values in TPUConfig."""
+  r"""Please see the definition of these values in TPUConfig.
+
+  @compatibility(TF2)
+  TPU Estimator manages its own TensorFlow graph and session, so it is not
+  compatible with TF2 behaviors. We recommend that you migrate to the newer
+  `tf.distribute.TPUStrategy`. See the
+  [TPU guide](https://www.tensorflow.org/guide/tpu) for details.
+  @end_compatibility
+  """
   PER_SHARD_V1 = 1
   PER_HOST_V1 = 2
   PER_HOST_V2 = 3
@@ -138,6 +146,13 @@ class TPUConfig(
 
   Raises:
       ValueError: If `num_cores_per_replica` is not 1, 2, 4, 8, ..., 128.
+
+  @compatibility(TF2)
+  TPU Estimator manages its own TensorFlow graph and session, so it is not
+  compatible with TF2 behaviors. We recommend that you migrate to the newer
+  `tf.distribute.TPUStrategy`. See the
+  [TPU guide](https://www.tensorflow.org/guide/tpu) for details.
+  @end_compatibility
   """
 
   def __new__(cls,
@@ -242,6 +257,13 @@ class RunConfig(run_config_lib.RunConfig):
     Raises:
       ValueError: if cluster is not None and the provided session_config has a
         cluster_def already.
+
+    @compatibility(TF2)
+    TPU Estimator manages its own TensorFlow graph and session, so it is not
+    compatible with TF2 behaviors. We recommend that you migrate to the newer
+    `tf.distribute.TPUStrategy`. See the
+    [TPU guide](https://www.tensorflow.org/guide/tpu) for details.
+    @end_compatibility
     """
     super(RunConfig, self).__init__(**kwargs)
     self._tpu_config = tpu_config or TPUConfig()
