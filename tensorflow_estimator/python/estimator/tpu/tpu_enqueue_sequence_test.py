@@ -16,13 +16,14 @@
 
 import os
 from typing import Dict, List, Text, Tuple
+from absl.testing import parameterized
 import numpy as np
 import tensorflow.compat.v1 as tf
 
 from tensorflow.contrib import summary as contrib_summary
 
 
-class TPUEnqueueSequenceTest(tf.test.TestCase):
+class TPUEnqueueSequenceTest(tf.test.TestCase, parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
@@ -49,6 +50,7 @@ class TPUEnqueueSequenceTest(tf.test.TestCase):
       batch_size: int,
       max_sequence_length: int,
       dimension: int,
+      combiner: Text = 'mean',
   ) -> Tuple[tf.Tensor, tf.Tensor]:
     """Gets the activations and seq lengths for a batch of sparse IDs.
 
@@ -66,6 +68,7 @@ class TPUEnqueueSequenceTest(tf.test.TestCase):
       max_sequence_length:  The size of the second dimension of sparse_ids.
       dimension: The embedding dimension size (number of floats for each
         embedding ID).
+      combiner: The embedding column combiner (used for multivalent features).
 
     Returns:
       A tuple containing:
@@ -88,6 +91,7 @@ class TPUEnqueueSequenceTest(tf.test.TestCase):
         dimension=dimension,
         max_sequence_length=max_sequence_length,
         initializer=tf.constant_initializer(embedding_weights),
+        combiner=combiner,
     )
 
     # Add an SGD optimizer. This choice is arbitrary for computing activations.
@@ -357,6 +361,104 @@ class TPUEnqueueSequenceTest(tf.test.TestCase):
             2,  # Example 1
             3,  # Example 2
             0,  # Example 3
+        ],
+        sequence_lengths,
+    )
+
+  @parameterized.named_parameters(
+      ('sum_combiner', 'sum'),
+      ('mean_combiner', 'mean'),
+  )
+  def test_multivalent_sequence_features(self, combiner: Text):
+    """Tests multivalent sequence embedding features.
+
+    Args:
+      combiner: The combiner used to reduce multivalent features.  A multivalent
+        sequence can have many IDs per sequence index.  The input for
+        multivalent sequence features is a 3D SparseTensor (instead of a 2D
+        SparseTensor for univalent sequence features).  The last dimension
+        represents the index that will be reduced (using the combiner).
+    """
+    batch_size = 4
+    max_sequence_length = 3
+    dimension = 1
+    embedding_weights = np.float32([
+        [-5.],  # embedding ID = 0
+        [10.],  # embedding ID = 1
+        [20.],  # embedding ID = 2
+        [30.],  # embedding ID = 3
+        [40.],  # embedding ID = 4
+        [50.],  # embedding ID = 5
+    ])
+
+    # For multivalent sequence features, IDs are a 3D sparse tensor.
+    # The outer dimension is batch, the middle dimension is sequence, and the
+    # last dimension is the index.
+    sparse_ids = tf.SparseTensorValue(
+        indices=[
+            [0, 0, 0],
+            [0, 0, 1],
+            [1, 0, 0],
+            [1, 1, 0],
+            [3, 0, 0],
+            [3, 2, 0],
+            [3, 2, 1],
+            [3, 3, 0],
+        ],
+        values=[
+            1,  # Example 0, sequence_index 0,  id_index 0.
+            0,  # Example 0, sequence_index 0,  id_index 1.
+            2,  # Example 1, sequence_index 0,  id_index 0.
+            3,  # Example 1, sequence_index 1,  id_index 0.
+            4,  # Example 3, sequence_index 0,  id_index 0.
+            5,  # Example 3, sequence_index 2.  id_index 0.
+            2,  # Example 3, sequence_index 2.  id_index 1.
+            5,  # Example 3, sequence_index 3,  id_index 0.
+        ],
+        dense_shape=[batch_size, max_sequence_length + 1, 2],
+    )
+
+    activations, sequence_lengths = self.get_activations_and_sequence_lengths(
+        embedding_weights,
+        sparse_ids,
+        batch_size,
+        max_sequence_length,
+        dimension,
+        combiner=combiner,
+    )
+
+    self.assertAllEqual(
+        [
+            [  # Example 0
+                [5 if combiner == 'sum' else 2.5],  # Sequence Index = 0.
+                [0.],  # Sequence Index = 1.
+                [0.],  # Sequence Index = 2.
+            ],
+            [  # Example 1
+                [20],  # Sequence Index = 0.
+                [30],  # Sequence Index = 1.
+                [0.],  # Sequence Index = 2.
+            ],
+            [  # Example 2
+                [0.],  # Sequence Index = 0.
+                [0.],  # Sequence Index = 1.
+                [0.],  # Sequence Index = 2.
+            ],
+            [  # Example 3
+                [40],  # Sequence Index = 0.
+                [0.],  # Sequence Index = 1.
+                [70 if combiner == 'sum' else 35],  # Sequence Index = 2.
+            ],
+        ],
+        activations,
+    )
+
+    self.assertAllEqual(
+        [
+            1,  # Example 0
+            2,  # Example 1
+            0,  # Example 2
+            3,  # Example 3
         ],
         sequence_lengths,
     )

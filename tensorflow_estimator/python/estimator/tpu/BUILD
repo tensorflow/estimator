@@ -248,6 +248,7 @@ tpu_py_test(
     srcs_version = "PY3",
     deps = [
         ":tpu_estimator",
+        "//tensorflow_estimator/python/estimator:expect_absl_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//third_party/tensorflow/contrib/summary",
     ],
