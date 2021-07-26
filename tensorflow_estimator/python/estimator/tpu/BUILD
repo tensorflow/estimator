@@ -10,9 +10,6 @@ package(
         "//tensorflow_estimator:internal",
         "//third_party/tensorflow:__subpackages__",
     ],
-    features = [
-        "static_initialization_order_fiasco",  # TODO(b/191807649)
-    ],
 )
 
 py_library(
