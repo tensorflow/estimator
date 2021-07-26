@@ -83,7 +83,6 @@ tpu_py_test(
         "--test_num_shards=2",
     ],
     disable_experimental = True,
-    disable_tfrt = True,  # TFRT does not support estimator
     malloc = "//third_party/tcmalloc:tcmalloc_or_debug",
     shard_count = 2,
     srcs_version = "PY3",
@@ -106,7 +105,7 @@ tpu_py_test(
     ],
     # TODO(b/140117863): Hanging, then timeout
     disable_experimental = True,
-    disable_tfrt = True,  # TFRT does not support estimator
+    disable_tfrt = True,  # TODO(b/192605977): Embedding is not supported in TFRT yet.
     malloc = "//third_party/tcmalloc:tcmalloc_or_debug",
     shard_count = 4,
     srcs_version = "PY3",
@@ -127,7 +126,6 @@ tpu_py_test(
         "--test_num_shards=2",
     ],
     disable_experimental = True,
-    disable_tfrt = True,  # TFRT does not support estimator
     malloc = "//third_party/tcmalloc:tcmalloc_or_debug",
     shard_count = 2,
     srcs_version = "PY3",
@@ -146,7 +144,6 @@ tpu_py_test(
         "--test_num_shards=2",
     ],
     disable_experimental = True,
-    disable_tfrt = True,  # TFRT does not support estimator
     malloc = "//third_party/tcmalloc:tcmalloc_or_debug",
     shard_count = 2,
     srcs_version = "PY3",
@@ -170,7 +167,6 @@ tpu_py_test(
     # TODO(b/140117863): Fatal error from hardware
     disable_experimental = True,
     disable_mlir_bridge = False,
-    disable_tfrt = True,  # TFRT does not support estimator
     malloc = "//third_party/tcmalloc:tcmalloc_or_debug",
     shard_count = 2,
     srcs_version = "PY3",
@@ -185,7 +181,6 @@ tpu_py_test(
     size = "medium",
     srcs = ["tpu_estimator_input_v2_test.py"],
     disable_experimental = True,
-    disable_tfrt = True,  # TFRT does not support estimator
     malloc = "//third_party/tcmalloc:tcmalloc_or_debug",
     srcs_version = "PY3",
     deps = [
@@ -203,7 +198,6 @@ tpu_py_test(
         "--test_num_shards=2",
     ],
     disable_experimental = True,
-    disable_tfrt = True,  # TFRT does not support estimator
     malloc = "//third_party/tcmalloc:tcmalloc_or_debug",
     srcs_version = "PY3",
     deps = [
@@ -219,7 +213,6 @@ tpu_py_test(
     args = [
     ],
     disable_experimental = True,
-    disable_tfrt = True,  # TFRT does not support estimator
     malloc = "//third_party/tcmalloc:tcmalloc_or_debug",
     srcs_version = "PY3",
     deps = [
@@ -243,7 +236,6 @@ tpu_py_test(
     name = "tpu_enqueue_sequence_test",
     size = "medium",
     srcs = ["tpu_enqueue_sequence_test.py"],
-    disable_tfrt = True,  # TFRT does not support estimator
     python_version = "PY3",
     srcs_version = "PY3",
     deps = [

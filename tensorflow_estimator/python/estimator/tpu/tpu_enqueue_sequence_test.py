@@ -16,12 +16,14 @@
 
 import os
 from typing import Dict, List, Text, Tuple
+from absl import flags
 from absl.testing import parameterized
 import numpy as np
 import tensorflow.compat.v1 as tf
 
 from tensorflow.contrib import summary as contrib_summary
 
+FLAGS = flags.FLAGS
 
 class TPUEnqueueSequenceTest(tf.test.TestCase, parameterized.TestCase):
 
@@ -217,6 +219,9 @@ class TPUEnqueueSequenceTest(tf.test.TestCase, parameterized.TestCase):
     A "non-contiguous sequence" is a sequence which has missing values followed
     by actual values.
     """
+    if FLAGS.tpu_use_tfrt:
+      self.skipTest('Embedding is not supported in TFRT yet. '
+                    'See b/192605977')
     batch_size = 4
     max_sequence_length = 3
     dimension = 2
@@ -294,6 +299,9 @@ class TPUEnqueueSequenceTest(tf.test.TestCase, parameterized.TestCase):
     Additionally, this test has a sequence with length > max_sequence_length. In
     this case, we expect the sequence to be truncated from the right.
     """
+    if FLAGS.tpu_use_tfrt:
+      self.skipTest('Embedding is not supported in TFRT yet. '
+                    'See b/192605977')
     batch_size = 4
     max_sequence_length = 3
     dimension = 1
@@ -379,6 +387,9 @@ class TPUEnqueueSequenceTest(tf.test.TestCase, parameterized.TestCase):
         SparseTensor for univalent sequence features).  The last dimension
         represents the index that will be reduced (using the combiner).
     """
+    if FLAGS.tpu_use_tfrt:
+      self.skipTest('Embedding is not supported in TFRT yet. '
+                    'See b/192605977')
     batch_size = 4
     max_sequence_length = 3
     dimension = 1

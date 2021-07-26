@@ -414,6 +414,9 @@ class TPUEstimatorExportTest(parameterized.TestCase):
     gfile.DeleteRecursively(tmpdir)
 
   def test_export_estimator_savedmodel(self):
+    if FLAGS.tpu_use_tfrt:
+      self.skipTest('This test calls TPU ops without initializing TPU system. '
+                    'See b/194549789')
     export_tpu_tensor = True
     export_cpu_tensor = False
 

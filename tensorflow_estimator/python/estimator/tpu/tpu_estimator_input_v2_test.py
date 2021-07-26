@@ -134,6 +134,9 @@ class TpuEstimatorInputV2Test(parameterized.TestCase, tf.test.TestCase):
     self.assertEqual(1, input_fn_call_count[0])
 
   def test_predict_mode(self):
+    if FLAGS.tpu_use_tfrt:
+      self.skipTest('Cancellation is not supported on TFRT yet. '
+                    'See b/194550156')
     input_fn_call_count = [0]
     predict_batch_size = 128
     run_config = create_run_config(
