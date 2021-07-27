@@ -1385,7 +1385,6 @@ class WeightedCategoricalColumnTest(tf.test.TestCase):
 class LinearModelLayerSerializationTest(tf.test.TestCase, parameterized.TestCase):
 
   @parameterized.named_parameters(
-      ('default', 1, 'sum', None, None),
       ('trainable', 6, 'mean', True, 'trainable'),
       ('not_trainable', 10, 'sum', False, 'frozen'))
   def test_get_config(self, units, sparse_combiner, trainable, name):
@@ -1407,7 +1406,6 @@ class LinearModelLayerSerializationTest(tf.test.TestCase, parameterized.TestCase
         config['feature_columns'][1]['class_name'], 'IdentityCategoricalColumn')
 
   @parameterized.named_parameters(
-      ('default', 1, 'sum', None, None),
       ('trainable', 6, 'mean', True, 'trainable'),
       ('not_trainable', 10, 'sum', False, 'frozen'))
   def test_from_config(self, units, sparse_combiner, trainable, name):
