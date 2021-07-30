@@ -49,6 +49,7 @@ from tensorflow.python.util import deprecation
 from tensorflow.python.util import function_utils
 from tensorflow.python.util import tf_contextlib
 from tensorflow.python.util.tf_export import estimator_export
+from tensorflow.tools.docs import doc_controls
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
 from tensorflow_estimator.python.estimator import run_config
 from tensorflow_estimator.python.estimator import util as estimator_util
@@ -66,6 +67,15 @@ _canned_estimator_api_gauge = monitoring.StringGauge(
 
 
 @estimator_export(v1=['estimator.Estimator'])
+@doc_controls.inheritable_header("""\
+  Warning: Estimators are not recommended for new code.  Estimators run
+  `v1.Session`-style code which is more difficult to write correctly, and
+  can behave unexpectedly, especially when combined with TF 2 code. Estimators
+  do fall under our
+  [compatibility guarantees](https://tensorflow.org/guide/versions), but will
+  receive no fixes other than security vulnerabilities. See the
+  [migration guide](https://tensorflow.org/guide/migrate) for details.
+  """)
 class Estimator(object):
   """Estimator class to train and evaluate TensorFlow models.
 
