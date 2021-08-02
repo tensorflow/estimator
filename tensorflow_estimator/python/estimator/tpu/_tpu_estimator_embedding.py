@@ -87,7 +87,7 @@ def _get_slot_variable_names(scope_name, var_name, optimization_parameters):
     scope_name = scope_name + '/'
   if isinstance(optimization_parameters,
                 tf.compat.v1.tpu.experimental.AdagradParameters):
-    return tpu_embedding.AdagradSlotVariableName('{}{}/Adagrad'.format(
+    return tpu_embedding.AdagradSlotVariableNames('{}{}/Adagrad'.format(
         scope_name, var_name))
   elif isinstance(optimization_parameters,
                   tf.compat.v1.tpu.experimental.AdamParameters):
@@ -96,11 +96,11 @@ def _get_slot_variable_names(scope_name, var_name, optimization_parameters):
         '{}{}/Adam/v'.format(scope_name, var_name))
   elif isinstance(optimization_parameters,
                   tf.compat.v1.tpu.experimental.FtrlParameters):
-    return tpu_embedding.FtrlSlotVariableName(
+    return tpu_embedding.FtrlSlotVariableNames(
         '{}{}/Ftrl'.format(scope_name, var_name),  # accumulator
         '{}{}/Ftrl_1'.format(scope_name, var_name))  # linear
   elif isinstance(optimization_parameters, MomentumParameters):
-    return tpu_embedding.MomentumSlotVariableName('{}{}/Momentum'.format(
+    return tpu_embedding.MomentumSlotVariableNames('{}{}/Momentum'.format(
         scope_name, var_name))
   elif isinstance(optimization_parameters, RMSPropParameters):
     return tpu_embedding.RMSPropSlotVariableNames(
@@ -108,9 +108,8 @@ def _get_slot_variable_names(scope_name, var_name, optimization_parameters):
         mom='{}{}/RMSProp/mom'.format(scope_name, var_name),
     )
   elif isinstance(optimization_parameters, ProximalAdagradParameters):
-    return tpu_embedding.ProximalAdagradSlotVariableName(
-        '{}{}/ProximalAdagrad'.format(scope_name, var_name)
-    )
+    return tpu_embedding.ProximalAdagradSlotVariableNames(
+        '{}{}/ProximalAdagrad'.format(scope_name, var_name))
   elif isinstance(
       optimization_parameters,
       tf.compat.v1.tpu.experimental.StochasticGradientDescentParameters):
@@ -297,15 +296,16 @@ class EmbeddingConfigSpec(
         embedding IDs per example and how well the embedding IDs are load
         balanced across the system. The lookup statistics are used during TPU
         initialization for embedding table partitioning. Collection of lookup
-        statistics is done at runtime by  profiling the embedding inputs: only
-        3% of input samples are profiled to minimize host CPU overhead. Once
-        a suitable number of samples are profiled, the lookup statistics are
-        saved to table-specific files in the profile data directory generally
-        at the end of a TPU training loop. The filename corresponding to each
-        table is obtained by hashing table specific parameters (e.g., table
-        name and number of features) and global configuration parameters (e.g.,
-        sharding strategy and task count). The same profile data directory can
-        be shared among several models to reuse embedding lookup statistics.
+        statistics is done at runtime by  profiling the embedding inputs, only a
+        small fraction of input samples are profiled to minimize host CPU
+        overhead. Once a suitable number of samples are profiled, the lookup
+        statistics are saved to table-specific files in the profile data
+        directory generally at the end of a TPU training loop. The filename
+        corresponding to each table is obtained by hashing table specific
+        parameters (e.g., table name and number of features) and global
+        configuration parameters (e.g., sharding strategy and task count). The
+        same profile data directory can be shared among several models to reuse
+        embedding lookup statistics.
 
     Returns:
       An `EmbeddingConfigSpec` instance.
