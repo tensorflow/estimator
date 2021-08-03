@@ -39,7 +39,6 @@ from tensorflow.core.framework.summary_pb2 import Summary
 from tensorflow.core.protobuf.tpu import compilation_result_pb2 as tpu_compilation_result
 from tensorflow.python.data.util import nest as data_nest
 from tensorflow.python.distribute.cluster_resolver import tpu_cluster_resolver
-from tensorflow.python.framework import device as framework_device_lib
 from tensorflow.python.framework import function
 from tensorflow.python.framework import ops
 from tensorflow.python.ops import control_flow_ops
@@ -446,66 +445,7 @@ class _OpSignalOnceQueueContext(_OpQueueContext):
       self._has_signaled = True
 
 
-class TPUInitializeSystemHook(tf.compat.v1.train.SessionRunHook):
-  """A Session hook setting up the TPU initialization."""
-
-  def __init__(self, ctx, master=None, session_config=None):
-    self._master_job = ctx.master_job
-    self._master = master
-    self._session_config = session_config
-    if ctx.embedding_config is None:
-      self._embedding_layer_config = None
-    else:
-      self._embedding_layer_config = (
-          ctx.embedding_config.tpu_embedding.config_proto)
-
-    # When using model parallelism, the TPU is pre-initialized at startup to
-    # fetch mesh information. We skip re-initializing it here for
-    # MeshTensorFlow since it places variables on TPU directly. Reinitialize tpu
-    # is causing the variable corruption since the previous allocated memory
-    # might be overwritten for other purpose.
-    if (ctx.model_parallelism_enabled and
-        (ctx.config.tpu_config.per_host_input_for_training is
-         tpu_config.InputPipelineConfig.BROADCAST)):
-      self._should_initialize_tpu = False
-    else:
-      self._should_initialize_tpu = True
-    self.has_tpu_ = False
-
-  def begin(self):
-    tf.compat.v1.logging.info('TPU job name %s', self._master_job)
-
-  def after_create_session(self, session, coord):
-    if self._should_initialize_tpu:
-      start = time.time()
-      with tf.Graph().as_default():
-        with tf.compat.v1.Session(
-            self._master, config=self._session_config) as sess:
-          for device in sess.list_devices():
-            device_type = framework_device_lib.DeviceSpec.from_string(
-                device.name).device_type
-            if device_type == 'TPU':
-              self.has_tpu_ = True
-              break
-          if self.has_tpu_:
-            tf.compat.v1.logging.info('Init TPU system')
-            sess.run(
-                tf.compat.v1.tpu.initialize_system(
-                    job=self._master_job,
-                    embedding_config=self._embedding_layer_config))
-            tf.compat.v1.logging.info('Initialized TPU in %d seconds',
-                                      time.time() - start)
-
-  def end(self, session):
-    if self.has_tpu_:
-      with tf.Graph().as_default():
-        with tf.compat.v1.Session(
-            self._master, config=self._session_config) as sess:
-          tf.compat.v1.logging.info('Shutdown TPU system.')
-          sess.run(tf.compat.v1.tpu.shutdown_system(job=self._master_job))
-
-
-class TPUInfeedOutfeedSessionHook(TPUInitializeSystemHook):
+class TPUInfeedOutfeedSessionHook(tf.compat.v1.train.SessionRunHook):
   """A Session hook setting up the TPU initialization, infeed, and outfeed.
 
   This hook does two major things:
@@ -525,24 +465,46 @@ class TPUInfeedOutfeedSessionHook(TPUInitializeSystemHook):
                session_config=None,
                tpu_init_ops=None,
                outfeed_every_n_steps=1):
-    super(TPUInfeedOutfeedSessionHook, self).__init__(
-        ctx, master=master, session_config=session_config)
+    self._master_job = ctx.master_job
     self._enqueue_ops = enqueue_ops
     self._dequeue_ops = dequeue_ops
     self._rendezvous = rendezvous
+    self._master = master
     self._session_config = session_config
     self._init_ops = list(tpu_init_ops or [])
+    if ctx.embedding_config is None:
+      self._embedding_layer_config = None
+    else:
+      self._embedding_layer_config = (
+          ctx.embedding_config.tpu_embedding.config_proto)
     self._run_infeed_loop_on_coordinator = run_infeed_loop_on_coordinator
     self._initial_infeed_sleep_secs = (
         ctx.config.tpu_config.initial_infeed_sleep_secs)
     self._tpu_compile_op = tpu_compile_op
+
+    # When using model parallelism, the TPU is pre-initialized at startup to
+    # fetch mesh information. We skip re-initializing it here for
+    # MeshTensorFlow since it places variables on TPU directly. Reinitialize tpu
+    # is causing the variable corruption since the previous allocated memory
+    # might be overwritten for other purpose.
+    if (ctx.model_parallelism_enabled and
+        (ctx.config.tpu_config.per_host_input_for_training is
+         tpu_config.InputPipelineConfig.BROADCAST)):
+      self._should_initialize_tpu = False
+    else:
+      self._should_initialize_tpu = True
     self._outfeed_every_n_steps = outfeed_every_n_steps
 
   def begin(self):
-    super().begin()
+    tf.compat.v1.logging.info('TPU job name %s', self._master_job)
     self._iterations_per_loop_var = _create_or_get_iterations_per_loop()
+    if self._should_initialize_tpu:
+      self._finalize_ops = [
+          tf.compat.v1.tpu.shutdown_system(job=self._master_job)
+      ]
+    else:
+      self._finalize_ops = []
 
-    self._finalize_ops = []
     summary_writer_init_ops = contrib_summary.summary_writer_initializer_op()
     self._init_ops.extend(summary_writer_init_ops)
     # Get all the writer resources from the initializer, so we know what to
@@ -599,7 +561,19 @@ class TPUInfeedOutfeedSessionHook(TPUInitializeSystemHook):
       tf.compat.v1.logging.info('Compilation succeeded')
 
   def after_create_session(self, session, coord):
-    super().after_create_session(session, coord)
+    if self._should_initialize_tpu:
+      tf.compat.v1.logging.info('Init TPU system')
+      start = time.time()
+      with tf.Graph().as_default():
+        with tf.compat.v1.Session(
+            self._master, config=self._session_config) as sess:
+          sess.run(
+              tf.compat.v1.tpu.initialize_system(
+                  job=self._master_job,
+                  embedding_config=self._embedding_layer_config))
+      tf.compat.v1.logging.info('Initialized TPU in %d seconds',
+                                time.time() - start)
+
     session.run(
         self._init_ops,
         options=tf.compat.v1.RunOptions(timeout_in_ms=30 * 60 * 1000))
@@ -640,8 +614,9 @@ class TPUInfeedOutfeedSessionHook(TPUInitializeSystemHook):
     tf.compat.v1.logging.info('Stop output thread controller')
     self._outfeed_controller.join()
     self._rendezvous.record_done('outfeed')
+
+    tf.compat.v1.logging.info('Shutdown TPU system.')
     session.run(self._finalize_ops)
-    super().end(session)
 
 
 class TPUInfeedOutfeedSessionHookForPrediction(TPUInfeedOutfeedSessionHook):
@@ -3213,17 +3188,12 @@ class TPUEstimator(estimator_lib.Estimator):
 
         if ctx.is_running_on_cpu(is_export_mode=is_export_mode):
           tf.compat.v1.logging.info('Running %s on CPU/GPU', mode)
-          init_tpu_hook = TPUInitializeSystemHook(
-              ctx,
-              master=self._config.master,
-              session_config=self._session_config)
           estimator_spec = model_fn_wrapper.call_without_tpu(
               features, labels, is_export_mode=is_export_mode)
           if (self._log_every_n_steps is not None or
               self._log_every_n_secs is not None):
             estimator_spec = estimator_spec._replace(
-                training_hooks=(init_tpu_hook,) +
-                estimator_spec.training_hooks + (examples_hook,))
+                training_hooks=estimator_spec.training_hooks + (examples_hook,))
           return estimator_spec
 
         assert labels is None, '`labels` passed to `model_fn` must be `None`.'
