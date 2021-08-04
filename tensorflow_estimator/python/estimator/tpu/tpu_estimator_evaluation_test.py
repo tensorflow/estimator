@@ -319,9 +319,6 @@ class TPUEstimatorEvaluationTest(tf.test.TestCase):
     est.evaluate(self._create_input_fn(), steps=1)
 
   def test_eval_metrics_with_tensor_list_on_cpu(self):
-    if FLAGS.tpu_use_tfrt:
-      self.skipTest('This test calls TPU ops without initializing TPU system. '
-                    'See b/194549789')
     run_config = create_run_config(iterations_per_loop=2)
     est = tpu_estimator.TPUEstimator(
         model_fn=self._model_fn_with_eval_tensor_list,
@@ -345,9 +342,6 @@ class TPUEstimatorEvaluationTest(tf.test.TestCase):
     est.evaluate(self._create_input_fn(), steps=1)
 
   def test_eval_metrics_with_dict_on_cpu(self):
-    if FLAGS.tpu_use_tfrt:
-      self.skipTest('This test calls TPU ops without initializing TPU system. '
-                    'See b/194549789')
     run_config = create_run_config(iterations_per_loop=2)
     est = tpu_estimator.TPUEstimator(
         model_fn=self._model_fn_with_eval_dict,
@@ -360,9 +354,6 @@ class TPUEstimatorEvaluationTest(tf.test.TestCase):
     est.evaluate(self._create_input_fn(), steps=1)
 
   def test_eval_metrics_ops_cpu_training(self):
-    if FLAGS.tpu_use_tfrt:
-      self.skipTest('This test calls TPU ops without initializing TPU system. '
-                    'See b/194549789')
     run_config = create_run_config(iterations_per_loop=2)
     est = tpu_estimator.TPUEstimator(
         model_fn=self._model_fn_with_eval_metric_ops,
@@ -376,9 +367,6 @@ class TPUEstimatorEvaluationTest(tf.test.TestCase):
     est.evaluate(self._create_input_fn(), steps=1)
 
   def test_eval_metrics_ops_cpu_training_warning(self):
-    if FLAGS.tpu_use_tfrt:
-      self.skipTest('This test calls TPU ops without initializing TPU system. '
-                    'See b/194549789')
     run_config = create_run_config(iterations_per_loop=2)
     est = tpu_estimator.TPUEstimator(
         model_fn=self._model_fn_with_eval_metric_ops,

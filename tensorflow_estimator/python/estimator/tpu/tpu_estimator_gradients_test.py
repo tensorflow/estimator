@@ -797,8 +797,8 @@ class TPUEstimatorGradientsWithIdCollisionTest(tf.test.TestCase):
 
   def test_sgd_opt_embedding_variables_on_cpu(self):
     if FLAGS.tpu_use_tfrt:
-      self.skipTest('This test calls TPU ops without initializing TPU system. '
-                    'See b/194549789')
+      self.skipTest('Embedding is not supported in TFRT yet. '
+                    'See b/192605977')
     use_tpu = False
     per_core_batch_size = 2
     num_shards = FLAGS.test_num_shards

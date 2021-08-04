@@ -2766,9 +2766,6 @@ class TPUEstimatorHostCallTest(test.TestCase):
     return events
 
   def _test_summaries(self, use_tpu, output_every_n_steps=False):
-    if not use_tpu and FLAGS.tpu_use_tfrt:
-      self.skipTest('This test calls TPU ops without initializing TPU system. '
-                    'See b/194549789')
     outfeed_every_n_steps = 2 if output_every_n_steps else 1
     model_dir = tempfile.mkdtemp(dir=self.get_temp_dir())
     run_config = tpu_config.RunConfig(

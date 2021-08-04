@@ -505,9 +505,6 @@ class TPUEstimatorIntegrationTest(tf.test.TestCase):
     self._test_identity_savedmodel(export_dir)
 
   def test_complete_flow_with_no_tpu(self):
-    if FLAGS.tpu_use_tfrt:
-      self.skipTest('This test calls TPU ops without initializing TPU system. '
-                    'See b/194549789')
     # Choose the train_batch_size divisible by 2 and 8 (common shards in test
     # env) and batch_size for eval and predict prime number.
     train_batch_size = 16
