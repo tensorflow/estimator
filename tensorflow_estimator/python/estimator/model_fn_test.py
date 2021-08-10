@@ -509,7 +509,8 @@ class EstimatorSpecInferTest(tf.test.TestCase):
     with tf.Graph().as_default(), self.cached_session():
       predictions = {'loss': tf.constant(1.)}
       classes = tf.constant('hello')
-      with self.assertRaisesRegexp(TypeError, 'export_outputs must be dict'):
+      with self.assertRaisesRegexp(TypeError,
+                                   '[`]*export_outputs[`]* must be dict'):
         model_fn.EstimatorSpec(
             mode=ModeKeys.PREDICT,
             predictions=predictions,
@@ -519,9 +520,8 @@ class EstimatorSpecInferTest(tf.test.TestCase):
     with tf.Graph().as_default(), self.cached_session():
       predictions = {'loss': tf.constant(1.)}
       with self.assertRaisesRegexp(
-          TypeError, r'Values in export_outputs must be ExportOutput objects. '
-          r"Given: {'head_name': {'loss': <tf.Tensor 'Const:0' shape=\(\) "
-          r'dtype=float32>}}'):
+          TypeError,
+          r'Values in [`]*export_outputs[`]* must be ExportOutput objects.'):
         model_fn.EstimatorSpec(
             mode=ModeKeys.PREDICT,
             predictions=predictions,
@@ -580,10 +580,7 @@ class EstimatorSpecInferTest(tf.test.TestCase):
               export_output.PredictOutput(outputs={'some_output_3': output_3})
       }
       with self.assertRaisesRegexp(
-          ValueError,
-          'Multiple export_outputs were provided, but none of them is '
-          'specified as the default.  Do this by naming one of them with '
-          'signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY.'):
+          ValueError, 'Multiple [`]*export_outputs[`]* were provided'):
         model_fn.EstimatorSpec(
             mode=ModeKeys.PREDICT,
             predictions=predictions,
