@@ -773,7 +773,7 @@ def all_class_ids(logits, n_classes):
 def all_classes(logits, n_classes, label_vocabulary=None):
   batch_size = tf.compat.v1.shape(logits)[0]
   if label_vocabulary:
-    classes_list = tf.constant([label_vocabulary])
+    classes_list = tf.convert_to_tensor([label_vocabulary])
   else:
     classes_list = tf.expand_dims(tf.range(n_classes), axis=0)
     classes_list = tf.strings.as_string(classes_list)
