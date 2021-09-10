@@ -773,11 +773,12 @@ def all_class_ids(logits, n_classes):
 def all_classes(logits, n_classes, label_vocabulary=None):
   batch_size = tf.compat.v1.shape(logits)[0]
   if label_vocabulary:
-    classes_list = label_vocabulary
+    classes_list = tf.constant([label_vocabulary])
   else:
-    classes_list = tf.strings.as_string(tf.range(n_classes))
+    classes_list = tf.expand_dims(tf.range(n_classes), axis=0)
+    classes_list = tf.strings.as_string(classes_list)
   return tf.tile(
-      input=tf.compat.v1.expand_dims(input=classes_list, axis=0),
+      input=classes_list,
       multiples=[batch_size, 1])
 
 
