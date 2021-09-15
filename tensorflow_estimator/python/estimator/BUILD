@@ -1680,6 +1680,7 @@ py_library(
     name = "prediction_keys",
     srcs = ["canned/prediction_keys.py"],
     srcs_version = "PY3",
+    visibility = ["//visibility:public"],
     deps = [],
 )
 
