@@ -102,7 +102,6 @@ tpu_py_test(
     ],
     # TODO(b/140117863): Hanging, then timeout
     disable_experimental = True,
-    disable_tfrt = True,  # TODO(b/192605977): Embedding is not supported in TFRT yet.
     malloc = "//third_party/tcmalloc:tcmalloc_or_debug",
     shard_count = 4,
     srcs_version = "PY3",

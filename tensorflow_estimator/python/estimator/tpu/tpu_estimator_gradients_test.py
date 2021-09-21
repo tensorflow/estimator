@@ -334,9 +334,6 @@ class TPUEstimatorGradientsSimpleTest(tf.test.TestCase):
         expected_embedding_slot_var_values, values_in_hook, atol=tol, rtol=tol)
 
   def test_one_sample_per_core(self):
-    if FLAGS.tpu_use_tfrt:
-      self.skipTest('Embedding is not supported in TFRT yet. '
-                    'See b/192605977')
     use_tpu = True
     per_core_batch_size = 1
     num_shards = FLAGS.test_num_shards
@@ -385,9 +382,6 @@ class TPUEstimatorGradientsSimpleTest(tf.test.TestCase):
         tol=DEFAULT_TOL)
 
   def test_one_sample_per_core_tpu_vs_cpu(self):
-    if FLAGS.tpu_use_tfrt:
-      self.skipTest('Embedding is not supported in TFRT yet. '
-                    'See b/192605977')
     use_tpu = True
     per_core_batch_size = 1
     num_shards = FLAGS.test_num_shards
@@ -418,9 +412,6 @@ class TPUEstimatorGradientsSimpleTest(tf.test.TestCase):
         tpu_hook.bias_values, cpu_hook.bias_values, atol=tol, rtol=tol)
 
   def test_multi_samples_per_core(self):
-    if FLAGS.tpu_use_tfrt:
-      self.skipTest('Embedding is not supported in TFRT yet. '
-                    'See b/192605977')
     use_tpu = True
     per_core_batch_size = 2
     num_shards = FLAGS.test_num_shards
@@ -475,9 +466,6 @@ class TPUEstimatorGradientsSimpleTest(tf.test.TestCase):
         tol=DEFAULT_TOL)
 
   def test_multi_samples_per_core_tpu_vs_cpu(self):
-    if FLAGS.tpu_use_tfrt:
-      self.skipTest('Embedding is not supported in TFRT yet. '
-                    'See b/192605977')
     use_tpu = True
     per_core_batch_size = 2
     num_shards = FLAGS.test_num_shards
@@ -588,9 +576,6 @@ class TPUEstimatorGradientsWithIdCollisionTest(tf.test.TestCase):
       self.assertAllEqual([[3], [4]], label)
 
   def test_adagrad_opt_embedding_variables_on_tpu(self):
-    if FLAGS.tpu_use_tfrt:
-      self.skipTest('Embedding is not supported in TFRT yet. '
-                    'See b/192605977')
     use_tpu = True
     per_core_batch_size = 2
     num_shards = FLAGS.test_num_shards
@@ -750,9 +735,6 @@ class TPUEstimatorGradientsWithIdCollisionTest(tf.test.TestCase):
         rtol=tol, atol=tol)
 
   def test_adagrad_opt_embedding_variables_on_cpu(self):
-    if FLAGS.tpu_use_tfrt:
-      self.skipTest('Embedding is not supported in TFRT yet. '
-                    'See b/192605977')
     use_tpu = False
     per_core_batch_size = 2
     num_shards = FLAGS.test_num_shards
@@ -796,9 +778,6 @@ class TPUEstimatorGradientsWithIdCollisionTest(tf.test.TestCase):
           atol=tol, rtol=tol)
 
   def test_sgd_opt_embedding_variables_on_cpu(self):
-    if FLAGS.tpu_use_tfrt:
-      self.skipTest('Embedding is not supported in TFRT yet. '
-                    'See b/192605977')
     use_tpu = False
     per_core_batch_size = 2
     num_shards = FLAGS.test_num_shards
@@ -839,9 +818,6 @@ class TPUEstimatorGradientsWithIdCollisionTest(tf.test.TestCase):
           atol=tol, rtol=tol)
 
   def test_sgd_opt_embedding_variables_cpu_vs_tpu(self):
-    if FLAGS.tpu_use_tfrt:
-      self.skipTest('Embedding is not supported in TFRT yet. '
-                    'See b/192605977')
     # For sgd, cpu and tpu should agree.
     per_core_batch_size = 2
     num_shards = FLAGS.test_num_shards
