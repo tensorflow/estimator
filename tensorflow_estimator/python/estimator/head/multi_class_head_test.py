@@ -302,7 +302,7 @@ class MultiClassHead(tf.test.TestCase):
     # Static shape.
     # Eager mode.
     if tf.executing_eagerly():
-      with self.assertRaisesRegex(ValueError, 'labels shape'):
+      with self.assertRaisesRegexp(ValueError, 'labels shape'):
         head.loss(
             logits=values_2x3,
             labels=values_3x1,
@@ -310,7 +310,11 @@ class MultiClassHead(tf.test.TestCase):
             mode=ModeKeys.EVAL)
       return
     # Graph mode.
-    with self.assertRaisesRegex(ValueError, r'shape.*\(3,\).*\(2, 3\)'):
+    with self.assertRaisesRegexp(
+        ValueError,
+        r'Shape mismatch: The shape of labels \(received \(3,\)\) should equal '
+        r'the shape of logits except for the last dimension '
+        r'\(received \(2, 3\)\)\.'):
       head.loss(
           logits=values_2x3,
           labels=values_3x1,
@@ -326,7 +330,7 @@ class MultiClassHead(tf.test.TestCase):
         features=features,
         mode=ModeKeys.EVAL)
     with self.cached_session():
-      with self.assertRaisesRegex(
+      with self.assertRaisesRegexp(
           tf.errors.InvalidArgumentError,
           r'\[expected_labels_shape: \] \[2 1\] \[labels_shape: \] \[3 1\]'):
         training_loss.eval({
