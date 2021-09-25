@@ -3347,14 +3347,6 @@ class TPUEstimator(estimator_lib.Estimator):
             if self._iterations_per_training_loop.unit == 'count':
               checkpoint_hook._set_steps_per_run(  # pylint: disable=protected-access
                   self._iterations_per_training_loop.value)
-            else:
-              # When estimating iterations_per_loop, set steps_per_run to an
-              # arbitrarily high number to force checking the global step on
-              # every call.
-              # TODO(henrytan): refactor SecondOrStepTimer to do this more
-              # explicitly.
-              checkpoint_hook._set_steps_per_run(  # pylint: disable=protected-access
-                  100000)
             chief_hooks.append(checkpoint_hook)
           else:
             tf.compat.v1.logging.info('Bypassing TPUEstimator hook')
