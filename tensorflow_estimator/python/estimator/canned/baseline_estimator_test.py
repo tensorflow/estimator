@@ -63,7 +63,7 @@ def _baseline_estimator_fn(weight_column=None, label_dimension=1, **kwargs):
       head=regression_head.RegressionHead(
           weight_column=weight_column,
           label_dimension=label_dimension,
-          loss_reduction=tf.compat.v2.keras.losses.Reduction.SUM_OVER_BATCH_SIZE),
+          loss_reduction=tf.losses.Reduction.SUM_OVER_BATCH_SIZE),
       **kwargs)
 
 

@@ -43,7 +43,7 @@ class RegressionHead(tf.test.TestCase):
         ValueError, r'Invalid loss_reduction: invalid_loss_reduction'):
       head_lib.RegressionHead(loss_reduction='invalid_loss_reduction')
     with self.assertRaisesRegexp(ValueError, r'Invalid loss_reduction: none'):
-      head_lib.RegressionHead(loss_reduction=tf.compat.v2.keras.losses.Reduction.NONE)
+      head_lib.RegressionHead(loss_reduction=tf.losses.Reduction.NONE)
 
   def test_loss_fn_arg_labels_missing(self):
 
@@ -533,7 +533,7 @@ class RegressionHead(tf.test.TestCase):
 
   def test_train_create_loss_loss_reduction(self):
     """Tests create_loss with loss_reduction."""
-    head = head_lib.RegressionHead(loss_reduction=tf.compat.v2.keras.losses.Reduction.SUM)
+    head = head_lib.RegressionHead(loss_reduction=tf.losses.Reduction.SUM)
     logits = np.array(((45,), (41,),), dtype=np.float32)
     labels = np.array(((43,), (44,),), dtype=np.int32)
     features = {'x': np.array(((42,),), dtype=np.float32)}

@@ -53,9 +53,9 @@ class LSTMPredictionModel(tf.keras.models.Model):
       num_units: The number of units in the encoder and decoder LSTM cells.
     """
     super(LSTMPredictionModel, self).__init__()
-    self._encoder = tf.compat.v2.keras.layers.LSTM(
+    self._encoder = tf.keras.layers.LSTM(
         num_units, name="encoder", dtype=self.dtype, return_state=True)
-    self._decoder = tf.compat.v2.keras.layers.LSTM(
+    self._decoder = tf.keras.layers.LSTM(
         num_units, name="decoder", dtype=self.dtype, return_sequences=True)
     self._mean_transform = tf.keras.layers.Dense(num_features, name="mean_transform")
     self._covariance_transform = tf.keras.layers.Dense(

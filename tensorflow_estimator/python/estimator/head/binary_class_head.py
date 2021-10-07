@@ -142,7 +142,7 @@ class BinaryClassHead(base_head.Head):
                weight_column=None,
                thresholds=None,
                label_vocabulary=None,
-               loss_reduction=tf.compat.v2.keras.losses.Reduction.SUM_OVER_BATCH_SIZE,
+               loss_reduction=tf.losses.Reduction.SUM_OVER_BATCH_SIZE,
                loss_fn=None,
                name=None):
     if label_vocabulary is not None and not isinstance(label_vocabulary,

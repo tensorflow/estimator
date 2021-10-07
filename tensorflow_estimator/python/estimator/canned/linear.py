@@ -863,7 +863,7 @@ class LinearClassifierV2(estimator.EstimatorV2):
                optimizer='Ftrl',
                config=None,
                warm_start_from=None,
-               loss_reduction=tf.compat.v2.keras.losses.Reduction.SUM_OVER_BATCH_SIZE,
+               loss_reduction=tf.losses.Reduction.SUM_OVER_BATCH_SIZE,
                sparse_combiner='sum'):
     """Construct a `LinearClassifier` estimator object.
 
@@ -1296,7 +1296,7 @@ class LinearRegressorV2(estimator.EstimatorV2):
                optimizer='Ftrl',
                config=None,
                warm_start_from=None,
-               loss_reduction=tf.compat.v2.keras.losses.Reduction.SUM_OVER_BATCH_SIZE,
+               loss_reduction=tf.losses.Reduction.SUM_OVER_BATCH_SIZE,
                sparse_combiner='sum'):
     """Initializes a `LinearRegressor` instance.
 

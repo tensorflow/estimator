@@ -508,7 +508,7 @@ class DNNTrainingMode(tf.test.TestCase):
         x={'x': data}, y=data, batch_size=self._batch_size, shuffle=False)
     est = self._get_estimator()
     with patch.object(
-        tf.compat.v2.keras.layers.DenseFeatures, 'call',
+        tf.keras.layers.DenseFeatures, 'call',
         return_value=data) as mock_dense_features_call:
       est.train(train_input_fn, steps=10)
       est.evaluate(eval_input_fn)

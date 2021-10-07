@@ -83,7 +83,7 @@ class MultiLabelHead(tf.test.TestCase):
           n_classes=3, loss_reduction='invalid_loss_reduction')
     with self.assertRaisesRegexp(ValueError, r'Invalid loss_reduction: none'):
       head_lib.MultiLabelHead(
-          n_classes=3, loss_reduction=tf.compat.v2.keras.losses.Reduction.NONE)
+          n_classes=3, loss_reduction=tf.losses.Reduction.NONE)
 
   def test_loss_fn_arg_labels_missing(self):
 
@@ -753,7 +753,7 @@ class MultiLabelHead(tf.test.TestCase):
     head = head_lib.MultiLabelHead(
         n_classes,
         weight_column='example_weights',
-        loss_reduction=tf.compat.v2.keras.losses.Reduction.SUM)
+        loss_reduction=tf.losses.Reduction.SUM)
 
     logits = np.array([[-10., 10.], [-15., 10.]], dtype=np.float32)
     labels = np.array([[1, 0], [1, 1]], dtype=np.int64)

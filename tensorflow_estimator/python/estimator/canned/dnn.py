@@ -286,7 +286,7 @@ class _DNNModelV2(tf.keras.Model):
         'input_from_feature_columns') as input_feature_column_scope:
       layer_name = input_feature_column_scope + 'input_layer'
       if feature_column_lib.is_feature_column_v2(feature_columns):
-        self._input_layer = tf.compat.v2.keras.layers.DenseFeatures(
+        self._input_layer = tf.keras.layers.DenseFeatures(
             feature_columns=feature_columns, name=layer_name)
       else:
         raise ValueError(
@@ -686,7 +686,7 @@ class DNNClassifierV2(estimator.EstimatorV2):
       dropout=None,
       config=None,
       warm_start_from=None,
-      loss_reduction=tf.compat.v2.keras.losses.Reduction.SUM_OVER_BATCH_SIZE,
+      loss_reduction=tf.losses.Reduction.SUM_OVER_BATCH_SIZE,
       batch_norm=False,
   ):
     """Initializes a `DNNClassifier` instance.
@@ -1106,7 +1106,7 @@ class DNNRegressorV2(estimator.EstimatorV2):
       dropout=None,
       config=None,
       warm_start_from=None,
-      loss_reduction=tf.compat.v2.keras.losses.Reduction.SUM_OVER_BATCH_SIZE,
+      loss_reduction=tf.losses.Reduction.SUM_OVER_BATCH_SIZE,
       batch_norm=False,
   ):
     """Initializes a `DNNRegressor` instance.

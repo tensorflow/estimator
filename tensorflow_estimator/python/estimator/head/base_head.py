@@ -644,8 +644,8 @@ def validate_loss_fn_args(loss_fn):
 
 
 def validate_loss_reduction(loss_reduction):
-  if (loss_reduction not in tf.compat.v2.keras.losses.Reduction.all() or
-      loss_reduction == tf.compat.v2.keras.losses.Reduction.NONE):
+  if (loss_reduction not in tf.losses.Reduction.all() or
+      loss_reduction == tf.losses.Reduction.NONE):
     raise ValueError(
         'Invalid loss_reduction: {}. See `tf.losses.Reduction` for valid '
         'options.'.format(loss_reduction))
@@ -857,7 +857,7 @@ def create_estimator_spec_train_op(
     train_op_fn=None,
     update_ops=None,
     regularized_training_loss=None,
-    loss_reduction=tf.compat.v2.keras.losses.Reduction.SUM_OVER_BATCH_SIZE):
+    loss_reduction=tf.losses.Reduction.SUM_OVER_BATCH_SIZE):
   """Create train_op for estimator_spec.
 
   Args:
@@ -899,7 +899,7 @@ def create_estimator_spec_train_op(
         validate_v2_optimizer(optimizer)
         validate_trainable_variables(trainable_variables)
         # Scale loss by number of replicas.
-        if loss_reduction == tf.compat.v2.keras.losses.Reduction.SUM_OVER_BATCH_SIZE:
+        if loss_reduction == tf.losses.Reduction.SUM_OVER_BATCH_SIZE:
           num_replicas = tf.distribute.get_strategy().num_replicas_in_sync
           if num_replicas > 1:
             regularized_training_loss *= (1. / num_replicas)

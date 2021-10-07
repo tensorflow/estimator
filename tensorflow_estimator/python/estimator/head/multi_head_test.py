@@ -833,9 +833,9 @@ class MultiHeadForEstimator(tf.test.TestCase):
     head1 = multi_label_head.MultiLabelHead(
         n_classes=2,
         name='head1',
-        loss_reduction=tf.compat.v2.keras.losses.Reduction.SUM_OVER_BATCH_SIZE)
+        loss_reduction=tf.losses.Reduction.SUM_OVER_BATCH_SIZE)
     head2 = multi_label_head.MultiLabelHead(
-        n_classes=3, name='head2', loss_reduction=tf.compat.v2.keras.losses.Reduction.AUTO)
+        n_classes=3, name='head2', loss_reduction=tf.losses.Reduction.AUTO)
     multi_head = multi_head_lib.MultiHead([head1, head2])
     logits = {
         'head1':

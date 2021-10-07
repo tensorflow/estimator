@@ -48,7 +48,7 @@ class MultiClassHead(tf.test.TestCase):
           n_classes=3, loss_reduction='invalid_loss_reduction')
     with self.assertRaisesRegexp(ValueError, r'Invalid loss_reduction: none'):
       head_lib.MultiClassHead(
-          n_classes=3, loss_reduction=tf.compat.v2.keras.losses.Reduction.NONE)
+          n_classes=3, loss_reduction=tf.losses.Reduction.NONE)
 
   def test_loss_fn_arg_labels_missing(self):
 
@@ -945,7 +945,7 @@ class MultiClassHead(tf.test.TestCase):
   def test_train_create_loss_loss_reduction(self):
     """Tests create_loss with loss_reduction."""
     head = head_lib.MultiClassHead(
-        n_classes=3, loss_reduction=tf.compat.v2.keras.losses.Reduction.SUM)
+        n_classes=3, loss_reduction=tf.losses.Reduction.SUM)
 
     logits = np.array((
         (10, 0, 0),

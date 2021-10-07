@@ -43,14 +43,14 @@ _LSTM_KEY = 'lstm'
 _GRU_KEY = 'gru'
 
 _CELL_TYPE_TO_LAYER_MAPPING = {
-    _LSTM_KEY: tf.compat.v2.keras.layers.LSTM,
-    _GRU_KEY: tf.compat.v2.keras.layers.GRU,
+    _LSTM_KEY: tf.keras.layers.LSTM,
+    _GRU_KEY: tf.keras.layers.GRU,
     _SIMPLE_RNN_KEY: tf.keras.layers.SimpleRNN
 }
 
 _CELL_TYPES = {
-    _LSTM_KEY: tf.compat.v2.keras.layers.LSTMCell,
-    _GRU_KEY: tf.compat.v2.keras.layers.GRUCell,
+    _LSTM_KEY: tf.keras.layers.LSTMCell,
+    _GRU_KEY: tf.keras.layers.GRUCell,
     _SIMPLE_RNN_KEY: tf.keras.layers.SimpleRNNCell
 }
 
@@ -578,7 +578,7 @@ class RNNClassifier(RNNEstimator):
                weight_column=None,
                label_vocabulary=None,
                optimizer='Adagrad',
-               loss_reduction=tf.compat.v2.keras.losses.Reduction.SUM_OVER_BATCH_SIZE,
+               loss_reduction=tf.losses.Reduction.SUM_OVER_BATCH_SIZE,
                sequence_mask='sequence_mask',
                config=None):
     """Initializes a `RNNClassifier` instance.

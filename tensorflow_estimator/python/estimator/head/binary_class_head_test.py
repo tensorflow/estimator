@@ -47,7 +47,7 @@ class BinaryClassHeadTest(tf.test.TestCase):
         ValueError, r'Invalid loss_reduction: invalid_loss_reduction'):
       head_lib.BinaryClassHead(loss_reduction='invalid_loss_reduction')
     with self.assertRaisesRegexp(ValueError, r'Invalid loss_reduction: none'):
-      head_lib.BinaryClassHead(loss_reduction=tf.compat.v2.keras.losses.Reduction.NONE)
+      head_lib.BinaryClassHead(loss_reduction=tf.losses.Reduction.NONE)
 
   def test_loss_fn_arg_labels_missing(self):
 
@@ -702,7 +702,7 @@ class BinaryClassHeadTest(tf.test.TestCase):
 
   def test_train_create_loss_loss_reduction(self):
     """Tests create_loss with loss_reduction."""
-    head = head_lib.BinaryClassHead(loss_reduction=tf.compat.v2.keras.losses.Reduction.SUM)
+    head = head_lib.BinaryClassHead(loss_reduction=tf.losses.Reduction.SUM)
 
     logits = np.array(((45,), (-41,),), dtype=np.float32)
     labels = np.array(((1,), (1,),), dtype=np.float64)
