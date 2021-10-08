@@ -1251,6 +1251,9 @@ py_test(
     python_version = "PY3",
     shard_count = 4,
     srcs_version = "PY3",
+    tags = [
+        "no_oss",  # TODO(b/202525254): broken on TF 2.7
+    ],
     deps = [
         ":dnn",
         ":head_utils",
