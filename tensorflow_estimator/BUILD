@@ -19,8 +19,6 @@ package_group(
         "//learning/brain/...",
         "//learning/deepmind/research/...",
         "//learning/tfx/models/uplift/estimators/...",
-        "//nlp/nlx/ads/expmatch/model/...",
-        "//nlp/nlx/common/query_bert/...",
         "//nlp/nlx/i18n/pangloss/...",
         "//tensorflow_estimator/...",
         "//third_party/py/tensorflow_privacy/...",
