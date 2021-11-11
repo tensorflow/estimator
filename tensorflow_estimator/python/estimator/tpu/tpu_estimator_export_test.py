@@ -28,7 +28,6 @@ from tensorflow.python.client import session
 from tensorflow.python.data.ops import dataset_ops
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
-from tensorflow.python.layers import layers
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import init_ops
 from tensorflow.python.ops import parsing_ops
@@ -66,7 +65,7 @@ _INPUT_PIPELINE_WITH_QUEUE_RUNNER = (
 
 
 def dense_computation(features):
-  return layers.dense(
+  return tf.layers.dense(
       features['x'], 1, kernel_initializer=init_ops.zeros_initializer())
 
 
@@ -548,7 +547,7 @@ def get_model_fn_v2():
     x2 = features['x'] * 2
 
     def computation(input_tensor):
-      return layers.dense(
+      return tf.layers.dense(
           input_tensor, 1, kernel_initializer=init_ops.zeros_initializer())
 
     if mode != _PREDICT:
