@@ -233,6 +233,7 @@ tpu_py_test(
     name = "tpu_enqueue_sequence_test",
     size = "medium",
     srcs = ["tpu_enqueue_sequence_test.py"],
+    disable_experimental = True,
     python_version = "PY3",
     srcs_version = "PY3",
     deps = [
