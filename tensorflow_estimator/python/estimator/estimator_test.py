@@ -3338,7 +3338,7 @@ class EstimatorExportTest(tf.test.TestCase):
         tf.compat.as_bytes(tmpdir), tf.compat.as_bytes('export'))
 
     export_dir = export_fn(est, export_dir_base, serving_input_receiver_fn)
-    saved_model_pb = loader_impl._parse_saved_model(export_dir)
+    saved_model_pb = loader_impl.parse_saved_model(export_dir)
     self.assertIsNotNone(saved_model_pb)
     meta_graph_def = [
         x for x in saved_model_pb.meta_graphs
