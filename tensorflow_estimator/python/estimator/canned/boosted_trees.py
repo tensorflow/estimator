@@ -34,6 +34,7 @@ from tensorflow.python.ops import boosted_trees_ops
 from tensorflow.python.ops import cond_v2
 from tensorflow.python.ops import lookup_ops
 from tensorflow.python.ops.array_ops import identity as tf_identity
+from tensorflow.python.util import deprecation
 from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator import estimator
 from tensorflow_estimator.python.estimator.canned import boosted_trees_utils
@@ -1929,6 +1930,7 @@ def _validate_input_params(tree_params):
 
 # pylint: disable=protected-access
 @estimator_export('estimator.BoostedTreesClassifier')
+@deprecation.deprecated(None, 'Boosted Trees kernels in TF are deprecated. Please use TensorFlow Decision Forests instead (https://github.com/tensorflow/decision-forests)')
 class BoostedTreesClassifier(_BoostedTreesBase):
   """A Classifier for Tensorflow Boosted Trees models.
 
@@ -2102,6 +2104,7 @@ class BoostedTreesClassifier(_BoostedTreesBase):
 
 
 @estimator_export('estimator.BoostedTreesRegressor')
+@deprecation.deprecated(None, 'Boosted Trees kernels in TF are deprecated. Please use TensorFlow Decision Forests instead (https://github.com/tensorflow/decision-forests)')
 class BoostedTreesRegressor(_BoostedTreesBase):
   """A Regressor for Tensorflow Boosted Trees models.
 
@@ -2253,6 +2256,7 @@ class BoostedTreesRegressor(_BoostedTreesBase):
 
 
 @estimator_export('estimator.BoostedTreesEstimator')
+@deprecation.deprecated(None, 'Boosted Trees kernels in TF are deprecated. Please use TensorFlow Decision Forests instead (https://github.com/tensorflow/decision-forests)')
 class BoostedTreesEstimator(_BoostedTreesBase):  # pylint: disable=protected-access
   """An Estimator for Tensorflow Boosted Trees models."""
 
