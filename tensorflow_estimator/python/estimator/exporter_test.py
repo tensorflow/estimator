@@ -137,7 +137,7 @@ class BestExporterTest(tf.test.TestCase):
 
     export_result = exporter.export(estimator, export_dir_base,
                                     "checkpoint_path", {"loss": 100}, False)
-    self.assertEqual("export_result_path", export_result)
+    self.assertEqual(None, export_result)
 
     export_result = exporter.export(estimator, export_dir_base,
                                     "checkpoint_path", {"loss": 10}, False)
@@ -182,8 +182,8 @@ class BestExporterTest(tf.test.TestCase):
                                     "checkpoint_path", {"loss": 10}, False)
     self.assertEqual("export_result_path", export_result)
 
-  def test_the_first_export(self):
 
+  def test_real_exporter(self):
     def _serving_input_receiver_fn():
       pass
 
@@ -192,21 +192,28 @@ class BestExporterTest(tf.test.TestCase):
     tf.compat.v1.gfile.MkDir(export_dir_base + "/export")
     tf.compat.v1.gfile.MkDir(export_dir_base + "/eval")
 
+    eval_dir_base = os.path.join(export_dir_base, "eval_continuous")
+
     exporter = exporter_lib.BestExporter(
-        name="best_exporter",
-        serving_input_receiver_fn=_serving_input_receiver_fn,
-        event_file_pattern="eval_continuous/*.tfevents.*",
-        assets_extra={"from/path": "to/path"},
-        as_text=False,
-        exports_to_keep=1)
+      name="best_exporter",
+      serving_input_receiver_fn=_serving_input_receiver_fn,
+      event_file_pattern="eval_continuous/*.tfevents.*",
+      assets_extra={"from/path": "to/path"},
+      as_text=False,
+      exports_to_keep=1)
 
     estimator = tf.compat.v1.test.mock.Mock(spec=estimator_lib.Estimator)
     estimator.model_dir = export_dir_base
     estimator.export_saved_model.return_value = "export_result_path"
 
-    # Note that evaluation occurs before export
+    #  --- First Part ---
+    # Don't export model when there is no old metrics for the first comparison after running.
+    # Several scenarios are included:
+    # - First training with new model_dir and no warm start config.
+    # - Continuous training(not online training): Training with new data and new model_dir with warm start config.
+
+    # Note that evaluation(and write to summary) occurs before export
     with context.graph_mode():
-      eval_dir_base = os.path.join(export_dir_base, "eval_continuous")
       first_evaluation_results = {"loss": 60}
       estimator_lib._write_dict_to_summary(eval_dir_base,
                                            first_evaluation_results, 1)
@@ -215,6 +222,49 @@ class BestExporterTest(tf.test.TestCase):
     export_result = exporter.export(estimator, export_dir_base,
                                     "checkpoint_path", first_evaluation_results,
                                     False)
+    self.assertEqual(None, export_result)
+
+    # Note that evaluation(and write to summary) occurs before export
+    with context.graph_mode():
+      second_evaluation_results = {"loss": 50}
+      estimator_lib._write_dict_to_summary(eval_dir_base,
+                                           second_evaluation_results, 2)
+
+    # export the model with the same results computed in the second evaluation
+    export_result = exporter.export(estimator, export_dir_base,
+                                    "checkpoint_path", second_evaluation_results,
+                                    False)
+    self.assertEqual("export_result_path", export_result)
+
+    #  --- Second Part ---
+    # Don't export model when recovering from last fail task.
+    # Simulate new exporter of restarted task
+    exporter = exporter_lib.BestExporter(
+      name="best_exporter",
+      serving_input_receiver_fn=_serving_input_receiver_fn,
+      event_file_pattern="eval_continuous/*.tfevents.*",
+      assets_extra={"from/path": "to/path"},
+      as_text=False,
+      exports_to_keep=1)
+
+    # Note that evaluation(and write to summary) occurs before export
+    with context.graph_mode():
+      first_evaluation_results_after_restarted = {"loss": 200}
+      # step is greater than 2 because step is also recovered from checkpoints.
+      estimator_lib._write_dict_to_summary(eval_dir_base,
+                                           first_evaluation_results_after_restarted, 3)
+    export_result = exporter.export(estimator, export_dir_base,
+                                    "checkpoint_path", first_evaluation_results_after_restarted, False)
+    self.assertEqual(None, export_result)
+
+    # Note that evaluation(and write to summary) occurs before export
+    with context.graph_mode():
+      second_evaluation_results_after_restarted = {"loss": 20}
+      # step is greater than 2 because step is also recovered from checkpoints.
+      estimator_lib._write_dict_to_summary(eval_dir_base,
+                                           second_evaluation_results_after_restarted, 4)
+    export_result = exporter.export(estimator, export_dir_base,
+                                    "checkpoint_path", second_evaluation_results_after_restarted, False)
     self.assertEqual("export_result_path", export_result)
 
   def test_garbage_collect_exports(self):
