@@ -418,7 +418,7 @@ class TestKerasEstimator(tf.test.TestCase, parameterized.TestCase):
     estimator_model.train(input_fn=train_input_fn, steps=5)
     # We assert that we find the embedding_weights variables in the dependencies
     # for the DenseFeatures layer.
-    dependency_names = [x.name for x in df._checkpoint_dependencies]
+    dependency_names = list(df._trackable_children())
     self.assertNotIn('embedding_weights', dependency_names)
     self.assertIn('cp_embedding/embedding_weights', dependency_names)
     self.assertIn('sex_embedding/embedding_weights', dependency_names)
@@ -459,7 +459,7 @@ class TestKerasEstimator(tf.test.TestCase, parameterized.TestCase):
     estimator_model.train(input_fn=train_input_fn, steps=5)
     # We assert that we find the embedding_weights variables in the dependencies
     # for the DenseFeatures layer.
-    dependency_names = [x.name for x in df._checkpoint_dependencies]
+    dependency_names = list(df._trackable_children())
     self.assertNotIn('embedding_weights', dependency_names)
     self.assertIn('cp_embedding/embedding_weights', dependency_names)
     self.assertIn('sex_embedding/embedding_weights', dependency_names)
