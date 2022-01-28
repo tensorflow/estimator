@@ -29,7 +29,6 @@ py_library(
         ":baseline",
         ":basic_session_run_hooks",
         ":binary_class_head",
-        ":boosted_trees",
         ":checkpoint_converter",
         ":dnn",
         ":dnn_linear_combined",
@@ -391,77 +390,6 @@ py_test(
         ":run_config",
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
         "//tensorflow_estimator/python/estimator:expect_six_installed",
-        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
-        "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
-    ],
-)
-
-py_library(
-    name = "boosted_trees",
-    srcs = ["canned/boosted_trees.py"],
-    srcs_version = "PY3",
-    deps = [
-        ":boosted_trees_utils",
-        ":estimator",
-        ":head",
-        ":mode_keys",
-        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
-        "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
-    ],
-)
-
-py_test(
-    name = "boosted_trees_test",
-    size = "medium",
-    srcs = ["canned/boosted_trees_test.py"],
-    python_version = "PY3",
-    shard_count = 32,
-    srcs_version = "PY3",
-    tags = [
-        "manual",
-        "no_oss",
-        "notap",
-        "optonly",
-    ],
-    deps = [
-        ":boosted_trees",
-        ":inputs",
-        ":mode_keys",
-        "//tensorflow_estimator/python/estimator:expect_numpy_installed",
-        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
-        "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
-        "//third_party/tensorflow/python:framework_test_lib",
-        "//third_party/tensorflow/python:parsing_ops",
-    ],
-)
-
-py_library(
-    name = "boosted_trees_utils",
-    srcs = ["canned/boosted_trees_utils.py"],
-    srcs_version = "PY3",
-    deps = [
-        ":estimator",
-        ":head",
-        ":model_fn",
-        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
-        "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
-    ],
-)
-
-py_test(
-    name = "boosted_trees_utils_test",
-    size = "medium",
-    srcs = ["canned/boosted_trees_utils_test.py"],
-    python_version = "PY3",
-    shard_count = 2,
-    srcs_version = "PY3",
-    tags = [
-        "optonly",
-    ],
-    deps = [
-        ":boosted_trees",
-        ":inputs",
-        "//tensorflow_estimator/python/estimator:expect_numpy_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
     ],

@@ -22,8 +22,6 @@ from __future__ import print_function
 from tensorflow_estimator.python.estimator.canned.baseline import BaselineClassifier
 from tensorflow_estimator.python.estimator.canned.baseline import BaselineEstimator
 from tensorflow_estimator.python.estimator.canned.baseline import BaselineRegressor
-from tensorflow_estimator.python.estimator.canned.boosted_trees import BoostedTreesClassifier
-from tensorflow_estimator.python.estimator.canned.boosted_trees import BoostedTreesRegressor
 from tensorflow_estimator.python.estimator.canned.dnn import dnn_logit_fn_builder
 from tensorflow_estimator.python.estimator.canned.dnn import DNNClassifier
 from tensorflow_estimator.python.estimator.canned.dnn import DNNEstimator
