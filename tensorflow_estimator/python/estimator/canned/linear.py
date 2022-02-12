@@ -1465,7 +1465,7 @@ class _LinearModelLayer(tf.keras.layers.Layer):
               trainable=self.trainable)
 
       # Create a bias variable.
-      self.bias = self.add_variable(
+      self.bias = self.add_weight(
           name='bias_weights',
           dtype=tf.float32,
           shape=[self._units],
