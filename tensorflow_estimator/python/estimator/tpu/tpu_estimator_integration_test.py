@@ -308,12 +308,14 @@ class TPUEstimatorIntegrationTest(tf.test.TestCase):
         fetch = metagraph_def.signature_def['predictions'].outputs['outputs']
         feed = metagraph_def.signature_def['predictions'].inputs['inputs']
         for x in self._data:
-          example = example_pb2.Example(features=feature_pb2.Features(
-              feature={
-                  'x':
-                      feature_pb2.Feature(float_list=feature_pb2.FloatList(
-                          value=[x]))
-              })).SerializeToString()
+          example = example_pb2.Example(
+              features=feature_pb2.Features(
+                  feature={
+                      'x':
+                          feature_pb2.Feature(
+                              float_list=feature_pb2.FloatList(
+                                  value=np.ravel(x)))
+                  })).SerializeToString()
           y = sess.run(fetch.name, feed_dict={feed.name: [example]})
           self.assertAlmostEqual(y, x[0], delta=0.01)
 
