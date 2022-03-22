@@ -177,7 +177,6 @@ tpu_py_test(
     size = "medium",
     srcs = ["tpu_estimator_input_v2_test.py"],
     disable_experimental = True,
-    disable_tfrt = True,  # TODO(b/198521331)
     malloc = "//third_party/tcmalloc:tcmalloc_or_debug",
     srcs_version = "PY3",
     deps = [
