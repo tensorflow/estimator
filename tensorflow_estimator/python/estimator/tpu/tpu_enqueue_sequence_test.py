@@ -22,6 +22,9 @@ import numpy as np
 import tensorflow.compat.v1 as tf
 
 from tensorflow.contrib import summary as contrib_summary
+from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
+from tensorflow_estimator.python.estimator.tpu import tpu_config as tpu_config_lib
+from tensorflow_estimator.python.estimator.tpu import tpu_estimator
 
 FLAGS = flags.FLAGS
 
@@ -99,7 +102,7 @@ class TPUEnqueueSequenceTest(tf.test.TestCase, parameterized.TestCase):
     # Add an SGD optimizer. This choice is arbitrary for computing activations.
     # It's only required to avoid an undefined gradients error.
     embedding_opt = tf.tpu.experimental.StochasticGradientDescentParameters(.1)
-    embedding_config_spec = tf.estimator.tpu.experimental.EmbeddingConfigSpec(
+    embedding_config_spec = tpu_estimator.EmbeddingConfigSpec(
         feature_columns=[embedding_column],
         optimization_parameters=embedding_opt,
     )
@@ -147,8 +150,8 @@ class TPUEnqueueSequenceTest(tf.test.TestCase, parameterized.TestCase):
     def _model_fn(
         features: Dict[Text, tf.Tensor],
         params: Dict[Text, int],
-        mode: tf.estimator.ModeKeys,
-    ) -> tf.estimator.tpu.TPUEstimatorSpec:
+        mode: model_fn_lib.ModeKeys,
+    ) -> tpu_estimator.TPUEstimatorSpec:
       """A model which writes activations and sequence lengths to a file.
 
       This method creates a model to extract the activations and sequence
@@ -174,21 +177,21 @@ class TPUEnqueueSequenceTest(tf.test.TestCase, parameterized.TestCase):
       loss = tf.reduce_sum(activations)
       train_op = opt.minimize(loss, global_step=tf.train.get_global_step())
 
-      return tf.estimator.tpu.TPUEstimatorSpec(
+      return tpu_estimator.TPUEstimatorSpec(
           mode=mode,
           loss=loss,
           train_op=train_op,
           host_call=(_host_call, [activations, sequence_lengths]),
       )
 
-    tpu_config = tf.estimator.tpu.TPUConfig(
+    tpu_config = tpu_config_lib.TPUConfig(
         per_host_input_for_training=(
-            tf.estimator.tpu.InputPipelineConfig.PER_HOST_V2),)
-    run_config = tf.estimator.tpu.RunConfig(
+            tpu_config_lib.InputPipelineConfig.PER_HOST_V2),)
+    run_config = tpu_config_lib.RunConfig(
         session_config=tf.ConfigProto(isolate_session_state=True),
         tpu_config=tpu_config,
     )
-    estimator = tf.estimator.tpu.TPUEstimator(
+    estimator = tpu_estimator.TPUEstimator(
         model_fn=_model_fn,
         model_dir=self._model_dir,
         use_tpu=True,
