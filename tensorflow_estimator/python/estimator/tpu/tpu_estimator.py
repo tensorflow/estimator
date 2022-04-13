@@ -44,7 +44,7 @@ from tensorflow.python.framework import ops
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import control_flow_util
 from tensorflow.python.ops import resource_variable_ops
-from tensorflow.python.ops import summary_ops_v2 as contrib_summary
+from tensorflow.python.ops import summary_ops_v2
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.tpu import functional as tpu_functional
 from tensorflow.python.tpu import preempted_hook
@@ -505,12 +505,13 @@ class TPUInfeedOutfeedSessionHook(tf.compat.v1.train.SessionRunHook):
     else:
       self._finalize_ops = []
 
-    summary_writer_init_ops = contrib_summary.summary_writer_initializer_op()
+    summary_writer_init_ops = summary_ops_v2.summary_writer_initializer_op()
     self._init_ops.extend(summary_writer_init_ops)
     # Get all the writer resources from the initializer, so we know what to
     # flush.
     for op in summary_writer_init_ops:
-      self._finalize_ops.append(tf.compat.v2.summary.flush(writer=op.inputs[0]))
+      self._finalize_ops.append(
+        summary_ops_v2.legacy_raw_flush(writer=op.inputs[0]))
 
   def _run_infeed(self, queue_ctx, session):
     tf.compat.v1.logging.info('Starting infeed thread controller.')
@@ -2327,12 +2328,13 @@ class _OutfeedHostCallHook(tf.compat.v1.train.SessionRunHook):
     # create a separate hook to guarantee execution order, because summaries
     # need to be initialized before the outfeed thread starts.
     # TODO(jhseu): Make a wrapper hook instead?
-    self._init_ops = contrib_summary.summary_writer_initializer_op()
+    self._init_ops = summary_ops_v2.summary_writer_initializer_op()
     # Get all the writer resources from the initializer, so we know what to
     # flush.
     self._finalize_ops = []
     for op in self._init_ops:
-      self._finalize_ops.append(tf.compat.v2.summary.flush(writer=op.inputs[0]))
+      self._finalize_ops.append(
+        summary_ops_v2.legacy_raw_flush(writer=op.inputs[0]))
 
   def after_create_session(self, session, coord):
     session.run(self._init_ops)
