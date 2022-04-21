@@ -938,8 +938,14 @@ class Estimator(object):
       input_receiver = input_receiver_fn()
 
       # Call the model_fn and collect the export_outputs.
+      features = {}
+      if isinstance(input_receiver.features, dict):
+        for k, v in six.iteritems(input_receiver.features):
+          features[k] = v
+      else:
+        features = input_receiver.features
       estimator_spec = self._call_model_fn(
-          features=input_receiver.features,
+          features=features,
           labels=getattr(input_receiver, 'labels', None),
           mode=mode,
           config=self.config)
