@@ -23,7 +23,7 @@ import tensorflow as tf
 import os
 # pylint: disable=g-import-not-at-top
 try:
-  from tensorflow.python.training.tracking import util
+  from tensorflow.python.checkpoint import checkpoint as util
 except ImportError:
   # TODO(allenl): Remove this after cl/229814711 syncs
   from tensorflow.python.training.checkpointable import util

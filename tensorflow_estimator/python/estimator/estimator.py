@@ -28,6 +28,9 @@ import six
 import tensorflow as tf
 from google.protobuf import message
 from tensorflow.core.framework import summary_pb2
+from tensorflow.python.checkpoint import checkpoint as trackable_util
+from tensorflow.python.checkpoint import checkpoint_management
+from tensorflow.python.checkpoint import graph_view
 from tensorflow.python.distribute import estimator_training as distribute_coordinator_training
 from tensorflow.python.eager import context
 from tensorflow.python.eager import monitoring
@@ -37,13 +40,10 @@ from tensorflow.python.profiler import trace
 from tensorflow.python.saved_model import utils_impl as saved_model_utils
 from tensorflow.python.summary import summary
 from tensorflow.python.training import basic_session_run_hooks
-from tensorflow.python.training import checkpoint_management
 from tensorflow.python.training import device_setter
 from tensorflow.python.training import evaluation
 from tensorflow.python.training import training
 from tensorflow.python.training import training_util
-from tensorflow.python.training.tracking import graph_view
-from tensorflow.python.training.tracking import util as trackable_util
 from tensorflow.python.util import compat_internal
 from tensorflow.python.util import deprecation
 from tensorflow.python.util import function_utils
