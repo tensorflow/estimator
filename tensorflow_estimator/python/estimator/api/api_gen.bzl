@@ -9,6 +9,8 @@ and it imports TensorFlow code, that installing TensorFlow python package
 is required to Bazel build Estimator.
 """
 
+load("//tensorflow_estimator:estimator.bzl", "if_indexing_source_code")
+
 ESTIMATOR_API_INIT_FILES_V1 = [
     "__init__.py",
     "estimator/__init__.py",
@@ -108,18 +110,30 @@ def gen_api_init_files(
             " --compat_init_template=$(location %s)" % compat_init_template
         )
 
+    flags = [
+        root_init_template_flag,
+        "--apidir=$(@D)" + output_dir,
+        "--apiname=" + api_name,
+        "--apiversion=" + str(api_version),
+        compat_api_version_flags,
+        compat_init_template_flags,
+        "--packages=" + ",".join(packages),
+        "--output_package=" + output_package,
+    ]
+
     native.genrule(
         name = name,
         outs = all_output_files,
-        cmd = (
-            "$(location :" + api_gen_binary_target + ") " +
-            root_init_template_flag + " --apidir=$(@D)" + output_dir +
-            " --apiname=" + api_name + " --apiversion=" + str(api_version) +
-            compat_api_version_flags + " " + compat_init_template_flags +
-            " --packages=" + ",".join(packages) +
-            " --output_package=" + output_package + " $(OUTS)"
+        cmd = if_indexing_source_code(
+            _make_cmd(api_gen_binary_target, flags, loading = "static"),
+            _make_cmd(api_gen_binary_target, flags, loading = "default"),
         ),
         srcs = srcs,
         exec_tools = [":" + api_gen_binary_target],
         visibility = ["//visibility:public"],
     )
+
+def _make_cmd(api_gen_binary_target, flags, loading = "default"):
+    binary = "$(location :" + api_gen_binary_target + ")"
+    flags.append("--loading=" + loading)
+    return " ".join([binary] + flags + ["$(OUTS)"])
