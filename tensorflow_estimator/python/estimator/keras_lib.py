@@ -304,6 +304,17 @@ def _create_keras_model_fn(keras_model,
   Returns:
     The model_fn for a keras Estimator.
   """
+  optimizer = getattr(keras_model, 'optimizer', None)
+  if isinstance(keras_model.optimizer,
+                tf.keras.optimizers.experimental.Optimizer):
+    # Experimental optimizer cannot work with estimator, so we convert it to
+    # legacy optimizer.
+    optimizer_name = tf.keras.utils.get_registered_name(
+        keras_model.optimizer.__class__)
+    optimizer_name = optimizer_name.split('>')[-1]
+    legacy_optimizer = tf.keras.optimizers.get(
+        optimizer_name, use_legacy_optimizer=True)
+    keras_model.optimizer = legacy_optimizer
   # Get optimizer config in the current context (since model_fn is called in the
   # estimator graph and session). OptimizerV2 objects serialize variable/tensor
   # hyperparameters in their configs, resulting to wrong-session errors during
@@ -685,7 +696,6 @@ def model_to_estimator(keras_model=None,
     raise ValueError('The given keras model has not been compiled yet. '
                      'Please compile the model with `model.compile()` '
                      'before calling `model_to_estimator()`.')
-
   keras_model_fn = _create_keras_model_fn(
       keras_model, custom_objects, save_object_ckpt, metric_names_map,
       export_outputs)
