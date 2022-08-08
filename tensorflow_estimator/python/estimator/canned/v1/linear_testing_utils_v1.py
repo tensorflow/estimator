@@ -1758,8 +1758,7 @@ class BaseLinearClassifierPredictTest(object):
     predictions = list(est.predict(input_fn=predict_input_fn))
 
     if n_classes == 2:
-      scalar_logits = np.asscalar(
-          np.reshape(np.array(age_weight) * age + bias, (1,)))
+      scalar_logits = np.reshape(np.array(age_weight) * age + bias, (1,)).item()
       two_classes_logits = [0, scalar_logits]
       two_classes_logits_exp = np.exp(two_classes_logits)
       softmax = two_classes_logits_exp / two_classes_logits_exp.sum()
