@@ -240,7 +240,7 @@ class LinearSDCA(object):
 
 def _get_default_optimizer_v2(feature_columns):
   learning_rate = min(_LEARNING_RATE, 1.0 / math.sqrt(len(feature_columns)))
-  return tf.keras.optimizers.Ftrl(learning_rate=learning_rate)
+  return tf.keras.optimizers.legacy.Ftrl(learning_rate=learning_rate)
 
 
 def _get_default_optimizer(feature_columns):

@@ -107,11 +107,11 @@ HP_IN_GRAPH = {
 
 # optimizer v2 instance.
 OPT_V2_INSTANCE = {
-    'Adagrad': tf.keras.optimizers.Adagrad(),
-    'Adam': tf.keras.optimizers.Adam(),
-    'Ftrl': tf.keras.optimizers.Ftrl(),
-    'RMSProp': tf.keras.optimizers.RMSprop(),
-    'SGD': tf.keras.optimizers.SGD(),
+    'Adagrad': tf.keras.optimizers.legacy.Adagrad(),
+    'Adam': tf.keras.optimizers.legacy.Adam(),
+    'Ftrl': tf.keras.optimizers.legacy.Ftrl(),
+    'RMSProp': tf.keras.optimizers.legacy.RMSprop(),
+    'SGD': tf.keras.optimizers.legacy.SGD(),
 }
 
 
