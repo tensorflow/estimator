@@ -252,7 +252,7 @@ class CreateEstimatorSpecTest(tf.test.TestCase):
     labels = np.array(((1,), (1,),), dtype=np.float64)
     features = {'x': np.array(((42,),), dtype=np.float32)}
 
-    class _Optimizer(tf.keras.optimizers.Optimizer):
+    class _Optimizer(tf.keras.optimizers.legacy.Optimizer):
 
       def init(self, name, **kwargs):
         super(_Optimizer, self).__init__(name, **kwargs)
@@ -295,9 +295,9 @@ class CreateEstimatorSpecTest(tf.test.TestCase):
     labels = np.array(((1,), (1,),), dtype=np.float64)
     features = {'x': np.array(((42,),), dtype=np.float32)}
 
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         ValueError,
-        r'The given optimizer is not a tf.keras.optimizers.Optimizer instance'):
+        'The given optimizer is not a tf.keras.optimizers.Optimizer'):
       # Create estimator spec.
       head.create_estimator_spec(
           features=features,

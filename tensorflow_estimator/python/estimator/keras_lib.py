@@ -21,6 +21,7 @@ from __future__ import print_function
 import collections
 import os
 import re
+from absl import logging
 import tensorflow as tf
 from tensorflow.python.checkpoint import checkpoint as trackable_util
 from tensorflow_estimator.python.estimator import estimator as estimator_lib
@@ -304,17 +305,24 @@ def _create_keras_model_fn(keras_model,
   Returns:
     The model_fn for a keras Estimator.
   """
-  optimizer = getattr(keras_model, 'optimizer', None)
   if isinstance(keras_model.optimizer,
                 tf.keras.optimizers.experimental.Optimizer):
     # Experimental optimizer cannot work with estimator, so we convert it to
     # legacy optimizer.
-    optimizer_name = tf.keras.utils.get_registered_name(
-        keras_model.optimizer.__class__)
-    optimizer_name = optimizer_name.split('>')[-1]
-    legacy_optimizer = tf.keras.optimizers.get(
-        optimizer_name, use_legacy_optimizer=True)
-    keras_model.optimizer = legacy_optimizer
+    if tf.executing_eagerly():
+      logging.warning(
+          'You are using `tf.keras.optimizers.experimental.Optimizer` in TF '
+          'estimator, which only supports '
+          '`tf.keras.optimizers.legacy.Optimizer`. Automatically converting '
+          'your optimizer to `tf.keras.optimizers.legacy.Optimizer`.')
+      opt = tf.keras.__internal__.optimizers.convert_to_legacy_optimizer(
+          keras_model.optimizer)
+      keras_model.optimizer = opt
+    else:
+      raise ValueError('Please set your optimizer as an instance of '
+                       '`tf.keras.optimizers.legacy.Optimizer`, e.g., '
+                       '`tf.keras.optimizers.legacy.Adam`. Received optimizer '
+                       f'type: {type(keras_model.optimizer)}.')
   # Get optimizer config in the current context (since model_fn is called in the
   # estimator graph and session). OptimizerV2 objects serialize variable/tensor
   # hyperparameters in their configs, resulting to wrong-session errors during

@@ -19,6 +19,7 @@ from __future__ import division
 from __future__ import print_function
 
 import inspect
+from absl import logging
 import six
 import tensorflow as tf
 
@@ -133,7 +134,22 @@ def get_optimizer_instance_v2(opt, learning_rate=None):
             opt, tuple(sorted(six.iterkeys(_OPTIMIZER_CLS_NAMES_V2)))))
   if callable(opt):
     opt = opt()
-  if not isinstance(opt, tf.keras.optimizers.Optimizer):
+  if isinstance(opt, tf.keras.optimizers.experimental.Optimizer):
+    if tf.executing_eagerly():
+      logging.warning(
+          'You are using `tf.keras.optimizers.experimental.Optimizer` in TF '
+          'estimator, which only supports '
+          '`tf.keras.optimizers.legacy.Optimizer`. Automatically converting '
+          'your optimizer to `tf.keras.optimizers.legacy.Optimizer`.')
+      opt = tf.keras.__internal__.optimizers.convert_to_legacy_optimizer(opt)
+    else:
+      raise ValueError('Please set your optimizer as an instance of '
+                       '`tf.keras.optimizers.legacy.Optimizer`, e.g., '
+                       '`tf.keras.optimizers.legacy.Adam`. Received optimizer '
+                       f'type: {type(opt)}.')
+  if not isinstance(
+      opt,
+      (tf.keras.optimizers.legacy.Optimizer, tf.keras.optimizers.Optimizer)):
     raise ValueError(
         'The given object is not a tf.keras.optimizers.Optimizer instance.'
         ' Given: {}'.format(opt))

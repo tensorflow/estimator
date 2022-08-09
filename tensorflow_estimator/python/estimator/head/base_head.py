@@ -657,11 +657,13 @@ def validate_update_ops(update_ops=None):
         _VALIDATION_ERROR_MSG.format('update_ops', type(update_ops)))
 
 
-def validate_v2_optimizer(optimzier):
-  if not isinstance(optimzier, tf.keras.optimizers.Optimizer):
+def validate_v2_optimizer(optimizer):
+  if not isinstance(
+      optimizer,
+      (tf.keras.optimizers.Optimizer, tf.keras.optimizers.legacy.Optimizer)):
     raise ValueError(
-        'The given optimizer is not a tf.keras.optimizers.Optimizer instance. '
-        'Given: {}'.format(optimzier))
+        'The given optimizer is not a tf.keras.optimizers.Optimizer '
+        f'instance. Received optimizer of type {type(optimizer)}')
 
 
 def validate_trainable_variables(trainable_variables=None):
