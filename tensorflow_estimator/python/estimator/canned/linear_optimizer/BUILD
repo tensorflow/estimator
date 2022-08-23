@@ -2,7 +2,7 @@ load("//tensorflow_estimator:estimator.bzl", "py_test")
 
 package(default_visibility = ["//tensorflow_estimator:__subpackages__"])
 
-licenses(["notice"])  # Apache 2.0
+licenses(["notice"])
 
 py_test(
     name = "sdca_test",

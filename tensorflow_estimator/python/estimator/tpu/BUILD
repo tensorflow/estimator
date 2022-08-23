@@ -3,7 +3,7 @@
 # INTERNAL TEST RULE PLACEHOLDER
 load("//tensorflow_estimator:estimator.bzl", "py_test", "tpu_py_test")
 
-licenses(["notice"])  # Apache 2.0
+licenses(["notice"])
 
 package(
     default_visibility = [

@@ -2,7 +2,7 @@ load("//tensorflow_estimator:estimator.bzl", "py_test")
 
 package(default_visibility = ["//tensorflow_estimator:internal"])
 
-licenses(["notice"])  # Apache 2.0
+licenses(["notice"])
 
 py_test(
     name = "tf_estimator_doctest",
