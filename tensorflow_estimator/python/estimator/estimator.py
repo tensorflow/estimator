@@ -939,7 +939,7 @@ class Estimator(object):
 
       # Call the model_fn and collect the export_outputs.
       estimator_spec = self._call_model_fn(
-          features=input_receiver.features,
+          features=copy.copy(input_receiver.features),
           labels=getattr(input_receiver, 'labels', None),
           mode=mode,
           config=self.config)
