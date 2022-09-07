@@ -237,8 +237,8 @@ class DNNLinearCombinedEstimatorIntegrationTest(tf.test.TestCase):
         input_dimension=label_dimension,
         label_dimension=label_dimension,
         batch_size=batch_size,
-        dnn_optimizer=tf.keras.optimizers.Adagrad(0.01),
-        linear_optimizer=tf.keras.optimizers.Ftrl(0.01))
+        dnn_optimizer=tf.keras.optimizers.legacy.Adagrad(0.01),
+        linear_optimizer=tf.keras.optimizers.legacy.Ftrl(0.01))
 
 
 if __name__ == '__main__':

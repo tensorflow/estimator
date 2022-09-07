@@ -185,7 +185,7 @@ class LinearEstimatorIntegrationTest(tf.test.TestCase):
         input_dimension=label_dimension,
         label_dimension=label_dimension,
         batch_size=batch_size,
-        optimizer=tf.keras.optimizers.Ftrl(0.01))  # Test with optimizer_v2 instance
+        optimizer=tf.keras.optimizers.legacy.Ftrl(0.01))  # Test with optimizer_v2 instance
 
 
 if __name__ == '__main__':

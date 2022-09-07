@@ -70,7 +70,7 @@ def multi_inputs_multi_outputs_model():
       inputs=[input_a, input_b, input_m], outputs=[output_c, output_d])
   model.compile(
       loss='categorical_crossentropy',
-      optimizer=tf.keras.optimizers.SGD(learning_rate=0.001),
+      optimizer=tf.keras.optimizers.legacy.SGD(learning_rate=0.001),
       metrics={
           'dense_2': 'categorical_accuracy',
           'dense_3': 'categorical_accuracy'
@@ -180,7 +180,7 @@ class TestEstimatorDistributionStrategy(tf.test.TestCase,
     keras_model.compile(
         loss='categorical_crossentropy',
         metrics=[tf.keras.metrics.CategoricalAccuracy()],
-        optimizer=tf.keras.optimizers.RMSprop(learning_rate=0.01),
+        optimizer=tf.keras.optimizers.legacy.RMSprop(learning_rate=0.01),
         cloning=cloning)
     config = run_config_lib.RunConfig(
         tf_random_seed=_RANDOM_SEED,
@@ -213,7 +213,7 @@ class TestEstimatorDistributionStrategy(tf.test.TestCase,
     keras_model.compile(
         loss='categorical_crossentropy',
         metrics=[tf.keras.metrics.CategoricalAccuracy()],
-        optimizer=tf.keras.optimizers.RMSprop(learning_rate=0.01),
+        optimizer=tf.keras.optimizers.legacy.RMSprop(learning_rate=0.01),
         cloning=cloning)
     config = run_config_lib.RunConfig(
         tf_random_seed=_RANDOM_SEED,
