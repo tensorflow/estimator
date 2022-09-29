@@ -1687,7 +1687,6 @@ py_test(
     shard_count = 8,
     srcs_version = "PY3",
     tags = [
-        "no_oss",  # TODO(b/246957744)
         "no_windows",
         "notsan",  # b/67510291
     ],
