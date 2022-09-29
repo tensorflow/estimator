@@ -32,14 +32,30 @@ class _TestOptimizer(tf.compat.v1.train.Optimizer):
 class GetOptimizerInstance(tf.test.TestCase):
 
   def test_unsupported_name(self):
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         ValueError, 'Unsupported optimizer name: unsupported_name'):
       optimizers.get_optimizer_instance('unsupported_name', learning_rate=0.1)
 
   def test_supported_name_but_learning_rate_none(self):
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         ValueError, 'learning_rate must be specified when opt is string'):
       optimizers.get_optimizer_instance('Adagrad', learning_rate=None)
+
+  def test_keras_optimizer_after_tf_2_11(self):
+    new_opt = tf.keras.optimizers.Adagrad()
+
+    # In eager mode it should automatically convert to legacy optimizer.
+    opt = optimizers.get_optimizer_instance_v2(new_opt, learning_rate=0.1)
+    self.assertIsInstance(opt, tf.keras.optimizers.legacy.Adagrad)
+
+    # In graph mode errors should be thrown.
+    @tf.function
+    def foo():
+      with self.assertRaisesRegex(
+          ValueError,
+          r'Please set your.*tf\.keras\.optimizers\.legacy\.Adagrad.*'):
+        optimizers.get_optimizer_instance_v2(new_opt, learning_rate=0.1)
+    foo()
 
   def test_adagrad(self):
     opt = optimizers.get_optimizer_instance('Adagrad', learning_rate=0.1)
@@ -71,7 +87,7 @@ class GetOptimizerInstance(tf.test.TestCase):
     self.assertIsInstance(opt, _TestOptimizer)
 
   def test_object_invalid(self):
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         ValueError, 'The given object is not an Optimizer instance'):
       optimizers.get_optimizer_instance((1, 2, 3))
 
@@ -92,7 +108,7 @@ class GetOptimizerInstance(tf.test.TestCase):
     def _optimizer_fn():
       return (1, 2, 3)
 
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         ValueError, 'The given object is not an Optimizer instance'):
       optimizers.get_optimizer_instance(_optimizer_fn)
 

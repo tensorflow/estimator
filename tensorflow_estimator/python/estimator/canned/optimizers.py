@@ -145,8 +145,8 @@ def get_optimizer_instance_v2(opt, learning_rate=None):
     else:
       raise ValueError('Please set your optimizer as an instance of '
                        '`tf.keras.optimizers.legacy.Optimizer`, e.g., '
-                       '`tf.keras.optimizers.legacy.Adam`. Received optimizer '
-                       f'type: {type(opt)}.')
+                       f'`tf.keras.optimizers.legacy.{opt.__class__.__name__}`.'
+                       f'Received optimizer type: {type(opt)}.')
   if not isinstance(
       opt,
       (tf.keras.optimizers.legacy.Optimizer, tf.keras.optimizers.Optimizer)):
