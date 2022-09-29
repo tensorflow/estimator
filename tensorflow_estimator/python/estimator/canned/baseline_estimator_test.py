@@ -79,7 +79,7 @@ def mock_optimizer_v2(testcase, expected_loss=None):
   """
   expected_var_names = ['%s:0' % BIAS_NAME]
 
-  class _Optimizer(tf.keras.optimizers.Optimizer):
+  class _Optimizer(tf.keras.optimizers.legacy.Optimizer):
 
     def get_updates(self, loss, params):
       trainable_vars = params
