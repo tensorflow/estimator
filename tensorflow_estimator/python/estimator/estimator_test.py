@@ -1247,38 +1247,6 @@ class EstimatorTraceTest(tf.test.TestCase, parameterized.TestCase):
                              EstimatorTraceTest.expected_labels, features,
                              labels, ModeKeys.TRAIN)
 
-  def assert_profiler_captures_steps(self):
-    profile_dir = os.path.join(self._profiler_dir, 'plugins', 'profile')
-    run = gfile.ListDirectory(profile_dir)[0]
-    hostname = socket.gethostname()
-    overview_page = os.path.join(profile_dir, run,
-                                 hostname + '.overview_page.pb')
-    with open(overview_page, 'r', encoding='latin-1') as f:
-      overview_page_content = f.read()
-      # Asserts step time is profiled
-      self.assertIn('PerGenericStepDetails', overview_page_content)
-      self.assertNotIn('No step time measured', overview_page_content)
-
-  @combinations.generate(
-      combinations.combine(use_train_and_evaluate=[True, False]))
-  def test_profiler_traces_steps(self, use_train_and_evaluate):
-    est = estimator.EstimatorV2(
-        model_fn=EstimatorTraceTest.ModelFn(), config=run_config.RunConfig())
-    steps = 1
-    profiler.start(self._profiler_dir)
-    if use_train_and_evaluate:
-      estimator_training.train_and_evaluate(
-          est,
-          estimator_training.TrainSpec(
-              EstimatorTraceTest.input_fn, max_steps=steps),
-          estimator_training.EvalSpec(EstimatorTraceTest.input_fn))
-    else:
-      est.train(input_fn=EstimatorTraceTest.input_fn, steps=steps)
-    profiler.stop()
-    # With https://github.com/tensorflow/estimator/pull/68, estimator should be able to work with profiler
-    self.assert_profiler_captures_steps()
-
-
 class EstimatorDatasetIntegrationTest(tf.test.TestCase):
   """Tests dataset integration."""
 
