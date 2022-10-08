@@ -87,7 +87,7 @@ def get_optimizer_instance(opt, learning_rate=None):
 
 
 def _optimizer_has_default_learning_rate(opt):
-  signature = inspect.getargspec(opt.__init__)
+  signature = inspect.getfullargspec(opt.__init__)
   default_name_to_value = dict(zip(signature.args[::-1], signature.defaults))
   return 'learning_rate' in default_name_to_value
 

@@ -84,7 +84,7 @@ class CannedEstimatorDistributionStrategyTest(tf.test.TestCase,
         'label_dimension': 2,
     }
 
-    cls_args = inspect.getargspec(estimator_cls.__init__).args
+    cls_args = inspect.getfullargspec(estimator_cls.__init__).args
     if 'hidden_units' in cls_args:
       estimator_kw_args['hidden_units'] = [2, 2]
     elif 'dnn_hidden_units' in cls_args:
