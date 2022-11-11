@@ -415,7 +415,6 @@ py_test(
     shard_count = 8,
     srcs_version = "PY3",
     tags = [
-        "no_oss",  # TODO(b/258093499):  Breaking tensorflow kokoro estimator build.
         "notap",  # TODO(b/170974352): Flaky timeout
     ],
     deps = [
