@@ -799,7 +799,8 @@ class TestKerasEstimator(tf.test.TestCase, parameterized.TestCase):
         shuffle=False,
         num_epochs=None,
         batch_size=16)
-    with self.assertRaisesRegex(ValueError, 'custom_relu'):
+    with self.assertRaisesRegex(Exception, 'custom_relu'):
+      # Could be either a TypeError or ValueError
       est = keras_lib.model_to_estimator(
           keras_model=keras_model,
           model_dir=tempfile.mkdtemp(dir=self._base_dir))
