@@ -245,7 +245,7 @@ class TestEstimatorDistributionStrategy(tf.test.TestCase,
       input_dict = {
           'input_a': train_data['input_a'],
           'input_b': train_data['input_b'],
-          'input_m': train_data['input_m'].astype(np.str)
+          'input_m': train_data['input_m'].astype(str)
       }
       output_dict = {
           'dense_2': train_data['output_c'],
@@ -258,7 +258,7 @@ class TestEstimatorDistributionStrategy(tf.test.TestCase,
       input_dict = {
           'input_a': test_data['input_a'],
           'input_b': test_data['input_b'],
-          'input_m': test_data['input_m'].astype(np.str)
+          'input_m': test_data['input_m'].astype(str)
       }
       output_dict = {
           'dense_2': test_data['output_c'],

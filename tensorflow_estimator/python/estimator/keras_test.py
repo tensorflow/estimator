@@ -630,7 +630,7 @@ class TestKerasEstimator(tf.test.TestCase, parameterized.TestCase):
       input_dict = {
           'input_a': train_data['input_a'],
           'input_b': train_data['input_b'],
-          'input_m': train_data['input_m'].astype(np.str)
+          'input_m': train_data['input_m'].astype(str)
       }
       output_dict = {
           'dense_2': train_data['output_c'],
@@ -642,7 +642,7 @@ class TestKerasEstimator(tf.test.TestCase, parameterized.TestCase):
       input_dict = {
           'input_a': test_data['input_a'],
           'input_b': test_data['input_b'],
-          'input_m': test_data['input_m'].astype(np.str)
+          'input_m': test_data['input_m'].astype(str)
       }
       output_dict = {
           'dense_2': test_data['output_c'],
@@ -654,7 +654,7 @@ class TestKerasEstimator(tf.test.TestCase, parameterized.TestCase):
       input_dict = {
           'input_a': test_data['input_a'],
           'input_b': test_data['input_b'],
-          'input_m': test_data['input_m'].astype(np.str)
+          'input_m': test_data['input_m'].astype(str)
       }
       return input_dict
 
@@ -667,7 +667,7 @@ class TestKerasEstimator(tf.test.TestCase, parameterized.TestCase):
     def train_input_fn():
       input_list = [
           train_data['input_a'], train_data['input_b'],
-          train_data['input_m'].astype(np.str)
+          train_data['input_m'].astype(str)
       ]
       output_list = [train_data['output_c'], train_data['output_d']]
       return input_list, output_list
@@ -675,7 +675,7 @@ class TestKerasEstimator(tf.test.TestCase, parameterized.TestCase):
     def eval_input_fn():
       input_list = [
           test_data['input_a'], test_data['input_b'],
-          test_data['input_m'].astype(np.str)
+          test_data['input_m'].astype(str)
       ]
       output_list = [test_data['output_c'], test_data['output_d']]
       return input_list, output_list
@@ -683,7 +683,7 @@ class TestKerasEstimator(tf.test.TestCase, parameterized.TestCase):
     def pred_input_fn():
       input_list = [
           test_data['input_a'], test_data['input_b'],
-          test_data['input_m'].astype(np.str)
+          test_data['input_m'].astype(str)
       ]
       return input_list
 
