@@ -265,7 +265,7 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(tf.test.TestCase):
 
     # Logits should be shape (batch_size, 3).
     # Labels should be shape (batch_size, 1).
-    labels_2x2 = np.array(((45, 44), (41, 42),), dtype=np.int)
+    labels_2x2 = np.array(((45, 44), (41, 42),), dtype=int)
     logits_2x3 = np.array(((1., 2., 3.), (1., 2., 3.),))
     features = {'x': np.array(((42.,),))}
 
@@ -328,8 +328,8 @@ class MultiClassHeadWithSoftmaxCrossEntropyLoss(tf.test.TestCase):
     head = head_lib._multi_class_head_with_softmax_cross_entropy_loss(n_classes)
     self.assertEqual(n_classes, head.logits_dimension)
 
-    labels_2x1_with_large_id = np.array(((45,), (1,),), dtype=np.int)
-    labels_2x1_with_negative_id = np.array(((-5,), (1,),), dtype=np.int)
+    labels_2x1_with_large_id = np.array(((45,), (1,),), dtype=int)
+    labels_2x1_with_negative_id = np.array(((-5,), (1,),), dtype=int)
     logits_2x3 = np.array(((1., 2., 4.), (1., 2., 3.),))
 
     labels_placeholder = tf.compat.v1.placeholder(dtype=tf.dtypes.int64)

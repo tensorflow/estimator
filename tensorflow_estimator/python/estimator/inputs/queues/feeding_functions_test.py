@@ -367,22 +367,22 @@ class _FeedingFunctionsTestCase(tf.test.TestCase):
   def testPadIfNeededSmallWithSpecifiedNonNumericValue(self):
     fill_value = False
     a = (
-        np.ones(shape=[32, 32], dtype=np.bool).tolist() +
-        np.ones(shape=[32, 36], dtype=np.bool).tolist())
+        np.ones(shape=[32, 32], dtype=bool).tolist() +
+        np.ones(shape=[32, 36], dtype=bool).tolist())
     a = list(map(np.array, a))
     actual = ff._pad_if_needed(a, fill_value)
-    expected = np.ones(shape=[64, 36], dtype=np.bool)
+    expected = np.ones(shape=[64, 36], dtype=bool)
     expected[:32, 32:] = fill_value
     self.assertEqual(expected.tolist(), actual.tolist())
 
   def testPadIfNeededLargeWithSpecifiedNonNumericValue(self):
     fill_value = False
     a = (
-        np.ones(shape=[8, 8, 8, 8, 32], dtype=np.bool).tolist() +
-        np.ones(shape=[8, 8, 8, 8, 36], dtype=np.bool).tolist())
+        np.ones(shape=[8, 8, 8, 8, 32], dtype=bool).tolist() +
+        np.ones(shape=[8, 8, 8, 8, 36], dtype=bool).tolist())
     a = list(map(np.array, a))
     actual = ff._pad_if_needed(a, fill_value)
-    expected = np.ones(shape=[16, 8, 8, 8, 36], dtype=np.bool)
+    expected = np.ones(shape=[16, 8, 8, 8, 36], dtype=bool)
     expected[:8, ..., 32:] = fill_value
     self.assertEqual(expected.tolist(), actual.tolist())
 

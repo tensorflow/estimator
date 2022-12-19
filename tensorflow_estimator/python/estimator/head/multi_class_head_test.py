@@ -128,7 +128,7 @@ class MultiClassHead(tf.test.TestCase):
     labels_2x2 = np.array((
         (1, 2),
         (0, 1),
-    ), dtype=np.int)
+    ), dtype=int)
     logits_2x3 = np.array((
         (1., 2., 3.),
         (1., 2., 3.),
@@ -208,11 +208,11 @@ class MultiClassHead(tf.test.TestCase):
     labels_2x1_with_large_id = np.array((
         (45,),
         (1,),
-    ), dtype=np.int)
+    ), dtype=int)
     labels_2x1_with_negative_id = np.array((
         (-5,),
         (1,),
-    ), dtype=np.int)
+    ), dtype=int)
     logits_2x3 = np.array((
         (1., 2., 4.),
         (1., 2., 3.),
