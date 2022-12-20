@@ -310,8 +310,7 @@ class TPUEstimatorSpec(model_fn_lib._TPUEstimatorSpec):  # pylint: disable=prote
   executed on the CPU on every step, so there is communication overhead when
   sending tensors from TPU to CPU. To reduce the overhead, try reducing the
   size of the tensors. The `tensors` are concatenated along their major (batch)
-  dimension, and so must be >= rank 1. The `host_call` is useful for writing
-  summaries with `tf.contrib.summary.create_file_writer`.
+  dimension, and so must be >= rank 1.
 
   @compatibility(TF2)
   TPU Estimator manages its own TensorFlow graph and session, so it is not
