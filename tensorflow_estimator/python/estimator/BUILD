@@ -1864,6 +1864,23 @@ py_test(
 )
 
 py_library(
+    name = "estimator_export",
+    srcs = ["estimator_export.py"],
+    srcs_version = "PY3",
+    deps = [":expect_tensorflow_installed"],
+)
+
+py_test(
+    name = "estimator_export_test",
+    srcs = ["estimator_export_test.py"],
+    srcs_version = "PY3",
+    deps = [
+        ":estimator_export",
+        ":expect_tensorflow_installed",
+    ],
+)
+
+py_library(
     name = "expect_absl_installed",
     srcs_version = "PY3",
     # This is a dummy rule used as a absl dependency in open-source.
