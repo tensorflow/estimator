@@ -48,11 +48,11 @@ from tensorflow.python.util import compat_internal
 from tensorflow.python.util import deprecation
 from tensorflow.python.util import function_utils
 from tensorflow.python.util import tf_contextlib
-from tensorflow.python.util.tf_export import estimator_export
 from tensorflow.tools.docs import doc_controls
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
 from tensorflow_estimator.python.estimator import run_config
 from tensorflow_estimator.python.estimator import util as estimator_util
+from tensorflow_estimator.python.estimator.estimator_export import estimator_export
 from tensorflow_estimator.python.estimator.export import export_lib
 from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 

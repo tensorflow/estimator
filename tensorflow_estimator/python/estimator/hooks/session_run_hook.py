@@ -93,7 +93,7 @@ from tensorflow.python.training.session_run_hook import SessionRunArgs
 from tensorflow.python.training.session_run_hook import SessionRunContext
 from tensorflow.python.training.session_run_hook import SessionRunHook
 from tensorflow.python.training.session_run_hook import SessionRunValues
-from tensorflow.python.util.tf_export import estimator_export
+from tensorflow_estimator.python.estimator.estimator_export import estimator_export
 
 estimator_export("estimator.SessionRunHook")(SessionRunHook)
 estimator_export("estimator.SessionRunArgs")(SessionRunArgs)

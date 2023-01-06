@@ -25,7 +25,7 @@ import tensorflow as tf
 from tensorflow.python.saved_model import model_utils as export_utils
 from tensorflow.python.tpu import tensor_tracer
 from tensorflow.python.util import function_utils
-from tensorflow.python.util.tf_export import estimator_export
+from tensorflow_estimator.python.estimator.estimator_export import estimator_export
 from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 
 LOSS_METRIC_KEY = 'loss'

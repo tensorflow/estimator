@@ -20,8 +20,8 @@ import os
 
 import tensorflow as tf
 from tensorflow.python.platform import tf_logging
-from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator import estimator as estimator_lib
+from tensorflow_estimator.python.estimator.estimator_export import estimator_export
 
 
 _EVENT_FILE_GLOB_PATTERN = 'events.out.tfevents.*'

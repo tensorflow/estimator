@@ -33,8 +33,8 @@ from tensorflow.python.saved_model.model_utils import export_utils
 from tensorflow.python.saved_model.model_utils.export_utils import SINGLE_FEATURE_DEFAULT_NAME
 from tensorflow.python.saved_model.model_utils.export_utils import SINGLE_LABEL_DEFAULT_NAME
 from tensorflow.python.saved_model.model_utils.export_utils import SINGLE_RECEIVER_DEFAULT_NAME
-from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator import util
+from tensorflow_estimator.python.estimator.estimator_export import estimator_export
 
 _SINGLE_TENSOR_DEFAULT_NAMES = {
     'feature': SINGLE_FEATURE_DEFAULT_NAME,

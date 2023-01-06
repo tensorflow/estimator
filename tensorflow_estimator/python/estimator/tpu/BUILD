@@ -27,6 +27,7 @@ py_library(
     deps = [
         "//tensorflow_estimator/python/estimator",
         "//tensorflow_estimator/python/estimator:analytics_tools",
+        "//tensorflow_estimator/python/estimator:estimator_export",
         "//tensorflow_estimator/python/estimator:expect_six_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:export_output",

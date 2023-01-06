@@ -22,7 +22,7 @@ import collections
 
 import numpy as np
 from six import string_types
-from tensorflow.python.util.tf_export import estimator_export
+from tensorflow_estimator.python.estimator.estimator_export import estimator_export
 from tensorflow_estimator.python.estimator.inputs.queues import feeding_functions
 
 # Key name to pack the target into dict of `features`. See

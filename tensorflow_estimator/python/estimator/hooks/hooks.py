@@ -22,8 +22,8 @@ import os
 import time
 import tensorflow as tf
 from tensorflow.python.training import training_util
-from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator import estimator as estimator_lib
+from tensorflow_estimator.python.estimator.estimator_export import estimator_export
 
 
 # pylint: disable=protected-access

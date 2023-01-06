@@ -27,7 +27,7 @@ from tensorflow.python.saved_model.model_utils.export_output import PredictOutpu
 from tensorflow.python.saved_model.model_utils.export_output import RegressionOutput
 from tensorflow.python.saved_model.model_utils.export_output import TrainOutput
 # pylint: enable=unused-import
-from tensorflow.python.util.tf_export import estimator_export
+from tensorflow_estimator.python.estimator.estimator_export import estimator_export
 
 estimator_export('estimator.export.ExportOutput')(ExportOutput)
 estimator_export('estimator.export.ClassificationOutput')(ClassificationOutput)

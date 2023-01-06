@@ -70,6 +70,7 @@ py_library(
     srcs = ["exporter.py"],
     srcs_version = "PY3",
     deps = [
+        ":estimator_export",
         ":gc",
         ":metric_keys",
         ":util",
@@ -98,6 +99,7 @@ py_library(
     srcs_version = "PY3",
     deps = [
         ":estimator",
+        ":estimator_export",
         ":mode_keys",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
@@ -149,6 +151,7 @@ py_library(
     srcs = ["hooks/hooks.py"],
     srcs_version = "PY3",
     deps = [
+        ":estimator_export",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
     ],
@@ -173,6 +176,7 @@ py_library(
     srcs = ["model_fn.py"],
     srcs_version = "PY3",
     deps = [
+        ":estimator_export",
         ":mode_keys",
         "//tensorflow_estimator/python/estimator:expect_six_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
@@ -199,6 +203,7 @@ py_library(
     srcs = ["mode_keys.py"],
     srcs_version = "PY3",
     deps = [
+        ":estimator_export",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
     ],
@@ -210,6 +215,7 @@ py_library(
     srcs_version = "PY3",
     deps = [
         ":estimator",
+        ":estimator_export",
         ":exporter",
         ":run_config",
         "//tensorflow_estimator/python/estimator:expect_six_installed",
@@ -246,6 +252,7 @@ py_library(
     srcs = ["run_config.py"],
     srcs_version = "PY3",
     deps = [
+        ":estimator_export",
         "//tensorflow_estimator/python/estimator:expect_six_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
@@ -271,6 +278,7 @@ py_library(
     srcs_version = "PY3",
     deps = [
         ":estimator",
+        ":estimator_export",
         ":head",
         ":head_utils",
         ":model_fn",
@@ -401,6 +409,7 @@ py_library(
     srcs_version = "PY3",
     deps = [
         ":estimator",
+        ":estimator_export",
         ":head",
         ":model_fn",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
@@ -431,6 +440,7 @@ py_library(
     srcs_version = "PY3",
     deps = [
         ":estimator",
+        ":estimator_export",
         ":head",
         ":head_utils",
         ":mode_keys",
@@ -622,6 +632,7 @@ py_library(
     deps = [
         ":dnn",
         ":estimator",
+        ":estimator_export",
         ":head",
         ":head_utils",
         ":linear",
@@ -814,6 +825,7 @@ py_library(
     ],
     srcs_version = "PY3",
     deps = [
+        ":estimator_export",
         ":export_export",
         ":model_fn",
         ":run_config",
@@ -849,6 +861,7 @@ py_library(
     ],
     srcs_version = "PY3",
     deps = [
+        ":estimator_export",
         ":export",
         ":mode_keys",
         ":model_fn",
@@ -891,6 +904,7 @@ py_library(
     ],
     srcs_version = "PY3",
     deps = [
+        ":estimator_export",
         "//tensorflow_estimator/python/estimator:expect_six_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
@@ -914,6 +928,7 @@ py_library(
     srcs = ["export/export_output.py"],
     srcs_version = "PY3",
     deps = [
+        ":estimator_export",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
     ],
 )
@@ -937,6 +952,7 @@ py_library(
     ],
     srcs_version = "PY3",
     deps = [
+        ":estimator_export",
         ":util",
         "//tensorflow_estimator/python/estimator:expect_six_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
@@ -1041,6 +1057,7 @@ py_library(
     srcs = ["head/base_head.py"],
     srcs_version = "PY3",
     deps = [
+        ":estimator_export",
         ":export_output",
         ":head",
         ":metric_keys",
@@ -1081,6 +1098,7 @@ py_library(
     srcs_version = "PY3",
     deps = [
         ":base_head",
+        ":estimator_export",
         ":export_output",
         ":metric_keys",
         ":mode_keys",
@@ -1124,6 +1142,7 @@ py_library(
     srcs_version = "PY3",
     deps = [
         ":base_head",
+        ":estimator_export",
         ":export_output",
         ":metric_keys",
         ":mode_keys",
@@ -1162,6 +1181,7 @@ py_library(
     srcs_version = "PY3",
     deps = [
         ":base_head",
+        ":estimator_export",
         ":export_output",
         ":metric_keys",
         ":mode_keys",
@@ -1203,6 +1223,7 @@ py_library(
     srcs_version = "PY3",
     deps = [
         ":base_head",
+        ":estimator_export",
         ":export_output",
         ":metric_keys",
         ":mode_keys",
@@ -1241,6 +1262,7 @@ py_library(
     srcs_version = "PY3",
     deps = [
         ":base_head",
+        ":estimator_export",
         ":export_output",
         ":metric_keys",
         ":mode_keys",
@@ -1330,6 +1352,7 @@ py_library(
     deps = [
         ":binary_class_head",
         ":estimator",
+        ":estimator_export",
         ":head",
         ":head_utils",
         ":optimizers",
@@ -1512,6 +1535,7 @@ py_library(
     srcs = ["inputs/numpy_io.py"],
     srcs_version = "PY3",
     deps = [
+        ":estimator_export",
         ":inputs_queues",
     ],
 )
@@ -1586,6 +1610,7 @@ py_library(
     srcs = ["inputs/pandas_io.py"],
     srcs_version = "PY3",
     deps = [
+        ":estimator_export",
         ":inputs_queues",
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
         "//tensorflow_estimator/python/estimator:expect_pandas_installed",
@@ -1742,6 +1767,7 @@ py_library(
     srcs_version = "PY3",
     deps = [
         ":estimator",
+        ":estimator_export",
         ":export",
         ":mode_keys",
         ":model_fn",
@@ -1776,6 +1802,7 @@ py_library(
     srcs = ["hooks/basic_session_run_hooks.py"],
     srcs_version = "PY3",
     deps = [
+        ":estimator_export",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
     ],
@@ -1798,6 +1825,7 @@ py_library(
     srcs = ["hooks/session_run_hook.py"],
     srcs_version = "PY3",
     deps = [
+        ":estimator_export",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
     ],
@@ -1823,6 +1851,7 @@ py_library(
     deps = [
         ":binary_class_head",
         ":estimator",
+        ":estimator_export",
         ":multi_class_head",
         ":optimizers",
         ":sequential_head",

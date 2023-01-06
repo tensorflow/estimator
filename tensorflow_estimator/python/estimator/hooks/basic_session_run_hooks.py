@@ -31,7 +31,7 @@ from tensorflow.python.training.basic_session_run_hooks import SecondOrStepTimer
 from tensorflow.python.training.basic_session_run_hooks import StepCounterHook
 from tensorflow.python.training.basic_session_run_hooks import StopAtStepHook
 from tensorflow.python.training.basic_session_run_hooks import SummarySaverHook
-from tensorflow.python.util.tf_export import estimator_export
+from tensorflow_estimator.python.estimator.estimator_export import estimator_export
 
 estimator_export("estimator.SecondOrStepTimer")(SecondOrStepTimer)
 estimator_export("estimator.LoggingTensorHook")(LoggingTensorHook)

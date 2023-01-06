@@ -27,8 +27,8 @@ from tensorflow.python.feature_column.feature_column import _LazyBuilder
 from tensorflow.python.feature_column.feature_column import _NumericColumn
 from tensorflow.python.framework import ops
 from tensorflow.python.util import function_utils
-from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator.canned import metric_keys
+from tensorflow_estimator.python.estimator.estimator_export import estimator_export
 from tensorflow_estimator.python.estimator.export import export_output
 
 DEFAULT_SERVING_KEY = tf.saved_model.DEFAULT_SERVING_SIGNATURE_DEF_KEY

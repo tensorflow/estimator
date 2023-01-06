@@ -21,10 +21,10 @@ from __future__ import print_function
 import abc
 import os
 import tensorflow as tf
-from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator import gc
 from tensorflow_estimator.python.estimator import util
 from tensorflow_estimator.python.estimator.canned import metric_keys
+from tensorflow_estimator.python.estimator.estimator_export import estimator_export
 
 
 @estimator_export('estimator.Exporter')

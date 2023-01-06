@@ -28,7 +28,7 @@ from tensorflow.core.protobuf import rewriter_config_pb2
 from tensorflow.python.distribute import estimator_training as distribute_coordinator_training
 from tensorflow.python.util import compat_internal
 from tensorflow.python.util import function_utils
-from tensorflow.python.util.tf_export import estimator_export
+from tensorflow_estimator.python.estimator.estimator_export import estimator_export
 
 
 _USE_DEFAULT = object()

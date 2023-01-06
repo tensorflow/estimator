@@ -19,6 +19,6 @@ from __future__ import division
 from __future__ import print_function
 
 from tensorflow.python.saved_model.model_utils.mode_keys import EstimatorModeKeys as ModeKeys
-from tensorflow.python.util.tf_export import estimator_export
+from tensorflow_estimator.python.estimator.estimator_export import estimator_export
 
 estimator_export('estimator.ModeKeys')(ModeKeys)

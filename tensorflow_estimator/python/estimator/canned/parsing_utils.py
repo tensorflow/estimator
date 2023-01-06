@@ -21,7 +21,7 @@ from __future__ import print_function
 import six
 import tensorflow as tf
 from tensorflow.python.feature_column import feature_column_lib as fc
-from tensorflow.python.util.tf_export import estimator_export
+from tensorflow_estimator.python.estimator.estimator_export import estimator_export
 
 
 @estimator_export('estimator.classifier_parse_example_spec', v1=[])

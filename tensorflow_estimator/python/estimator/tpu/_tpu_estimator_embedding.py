@@ -35,8 +35,8 @@ from tensorflow.python.tpu.tpu_embedding import MomentumParameters
 from tensorflow.python.tpu.tpu_embedding import ProximalAdagradParameters
 from tensorflow.python.tpu.tpu_embedding import RMSPropParameters
 from tensorflow.python.tpu.tpu_embedding import StochasticGradientDescentParameters
-from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
+from tensorflow_estimator.python.estimator.estimator_export import estimator_export
 
 # pylint: disable=protected-access
 _TPU_EMBEDDING_COLUMN_CLASSES = (tpu_fc._TPUEmbeddingColumn,

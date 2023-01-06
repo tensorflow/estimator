@@ -59,9 +59,9 @@ from tensorflow.python.tpu.ops import tpu_ops
 from tensorflow.python.training import evaluation
 from tensorflow.python.util import function_utils
 from tensorflow.python.util import tf_inspect
-from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator import estimator as estimator_lib
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
+from tensorflow_estimator.python.estimator.estimator_export import estimator_export
 from tensorflow_estimator.python.estimator.export import export_output as export_output_lib
 from tensorflow_estimator.python.estimator.tpu import _tpu_estimator_embedding
 from tensorflow_estimator.python.estimator.tpu import error_handling

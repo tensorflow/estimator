@@ -29,10 +29,10 @@ from tensorflow.python.distribute import estimator_training as distribute_coordi
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.training import basic_session_run_hooks
 from tensorflow.python.training import server_lib
-from tensorflow.python.util.tf_export import estimator_export
 from tensorflow_estimator.python.estimator import estimator as estimator_lib
 from tensorflow_estimator.python.estimator import exporter as exporter_lib
 from tensorflow_estimator.python.estimator import run_config as run_config_lib
+from tensorflow_estimator.python.estimator.estimator_export import estimator_export
 
 _MAX_DELAY_SECS = 60
 _DELAY_SECS_PER_WORKER = 5
