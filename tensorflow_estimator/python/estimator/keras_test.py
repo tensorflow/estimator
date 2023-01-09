@@ -27,7 +27,7 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.python.framework import test_util
 from tensorflow.python.ops.parsing_ops import gen_parsing_ops
-from tensorflow.python.saved_model import path_helpers
+from tensorflow.python.saved_model import utils_impl as saved_model_utils
 from tensorflow.python.saved_model.model_utils import export_output
 from tensorflow.python.training import saver as saver_lib
 from tensorflow_estimator.python.estimator import keras_lib
@@ -988,7 +988,7 @@ class TestKerasEstimator(tf.test.TestCase, parameterized.TestCase):
     # model directory.
     saved_model_dir = est_keras.export_saved_model(
         tempfile.mkdtemp(dir=self._base_dir), serving_input_receiver_fn())
-    variables_path = path_helpers.get_variables_path(saved_model_dir)
+    variables_path = saved_model_utils.get_variables_path(saved_model_dir)
 
     variable_name = 'dense/bias'
     if checkpoint_format == 'checkpoint':
@@ -1002,7 +1002,7 @@ class TestKerasEstimator(tf.test.TestCase, parameterized.TestCase):
     est_keras.train(input_fn=train_input_fn, steps=_TRAIN_SIZE / 16)
     saved_model_dir = est_keras.export_saved_model(
         tempfile.mkdtemp(dir=self._base_dir), serving_input_receiver_fn())
-    variables_path = path_helpers.get_variables_path(saved_model_dir)
+    variables_path = saved_model_utils.get_variables_path(saved_model_dir)
     self.assertNotAllClose(
         bias_value, tf.train.load_variable(variables_path, variable_name))
 

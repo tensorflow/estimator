@@ -871,7 +871,6 @@ py_library(
         "//tensorflow_estimator/python/estimator:expect_six_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
-        "//tensorflow_estimator/python/estimator:expect_tensorflow_saved_model_installed",
     ],
 )
 
@@ -895,7 +894,6 @@ py_test(
         "//tensorflow_estimator/python/estimator:expect_six_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
-        "//tensorflow_estimator/python/estimator:expect_tensorflow_saved_model_installed",
     ],
 )
 
@@ -1727,7 +1725,6 @@ py_test(
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
-        "//tensorflow_estimator/python/estimator:expect_tensorflow_saved_model_installed",
     ],
 )
 
@@ -1777,7 +1774,6 @@ py_library(
         "//tensorflow_estimator/python/estimator:expect_six_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
-        "//tensorflow_estimator/python/estimator:expect_tensorflow_saved_model_installed",
     ],
 )
 
@@ -1977,15 +1973,6 @@ py_library(
 
 py_library(
     name = "expect_tensorflow_keras_installed",
-    srcs_version = "PY3",
-    # This is a dummy rule used as a numpy dependency in open-source.
-    # We expect tensorflow to already be installed on the system, e.g. via
-    # `pip install tensorflow` or `pip install tensorflow_gpu`
-    visibility = ["//visibility:public"],
-)
-
-py_library(
-    name = "expect_tensorflow_saved_model_installed",
     srcs_version = "PY3",
     # This is a dummy rule used as a numpy dependency in open-source.
     # We expect tensorflow to already be installed on the system, e.g. via

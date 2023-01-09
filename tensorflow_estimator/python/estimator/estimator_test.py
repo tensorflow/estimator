@@ -42,8 +42,8 @@ from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.platform import gfile
 from tensorflow.python.profiler import profiler_v2 as profiler
 from tensorflow.python.saved_model import loader_impl
-from tensorflow.python.saved_model import path_helpers
 from tensorflow.python.saved_model import tag_constants
+from tensorflow.python.saved_model import utils_impl as saved_model_utils
 from tensorflow.python.training import checkpoint_state_pb2
 from tensorflow.python.training import saver_test_utils
 from tensorflow.python.training import training
@@ -3409,7 +3409,7 @@ class EstimatorExportTest(tf.test.TestCase):
         model_fn=_make_model_fn(36.), warm_start_from=est.model_dir)
     saved_model_dir = warm_started_est.export_saved_model(
         tempfile.mkdtemp(), _get_serving_input_receiver_fn())
-    variable_dir = path_helpers.get_variables_path(saved_model_dir)
+    variable_dir = saved_model_utils.get_variables_path(saved_model_dir)
     self.assertEqual(42., tf.train.load_variable(variable_dir, 'x'))
 
   def test_export_saved_model_symbol_deprecated(self):
