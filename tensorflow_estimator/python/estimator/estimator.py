@@ -37,7 +37,7 @@ from tensorflow.python.eager import monitoring
 from tensorflow.python.framework import ops
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.profiler import trace
-from tensorflow.python.saved_model import utils_impl as saved_model_utils
+from tensorflow.python.saved_model import path_helpers
 from tensorflow.python.summary import summary
 from tensorflow.python.training import basic_session_run_hooks
 from tensorflow.python.training import device_setter
@@ -2393,11 +2393,11 @@ def _get_default_warm_start_settings(warm_start_from):
     # (export_path + 'variables/variables').
     if tf.compat.v1.gfile.Exists(
         os.path.join(
-            saved_model_utils.get_variables_dir(warm_start_from),
+            path_helpers.get_variables_dir(warm_start_from),
             tf.compat.as_text('variables.index'))):
       tf.compat.v1.logging.info('Warm-starting from a SavedModel')
       return WarmStartSettings(
-          ckpt_to_initialize_from=saved_model_utils.get_variables_path(
+          ckpt_to_initialize_from=path_helpers.get_variables_path(
               warm_start_from))
     return WarmStartSettings(ckpt_to_initialize_from=warm_start_from)
   elif isinstance(warm_start_from, WarmStartSettings):
