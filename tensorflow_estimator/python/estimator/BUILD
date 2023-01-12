@@ -1900,6 +1900,7 @@ py_library(
     name = "estimator_export",
     srcs = ["estimator_export.py"],
     srcs_version = "PY3",
+    visibility = ["//tensorflow_estimator:internal"],
     deps = [":expect_tensorflow_installed"],
 )
 
