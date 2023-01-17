@@ -54,6 +54,7 @@ from tensorflow.python.tpu import tpu
 from tensorflow.python.tpu import tpu_embedding_gradient
 from tensorflow.python.tpu import tpu_feed
 from tensorflow.python.tpu import tpu_function
+from tensorflow.python.tpu import tpu_replication
 from tensorflow.python.tpu import training_loop
 from tensorflow.python.tpu.ops import tpu_ops
 from tensorflow.python.training import evaluation
@@ -2629,7 +2630,7 @@ class TPUEstimator(estimator_lib.Estimator):
   In V1, the exported CPU graph is `model_fn` as it is. The exported TPU graph
   wraps `tpu.rewrite()` and `TPUPartitionedCallOp` around `model_fn` so
   `model_fn` is on TPU by default. To place ops on CPU,
-  `tpu.outside_compilation(host_call, logits)` can be used.
+  `tpu_replication.outside_compilation(host_call, logits)` can be used.
 
   Example:
   ----------------
@@ -2649,7 +2650,7 @@ class TPUEstimator(estimator_lib.Estimator):
       export_outputs['classes'] =
         export_output_lib.ClassificationOutput(classes=classes)
 
-    tpu.outside_compilation(host_call, logits)
+    tpu_replication.outside_compilation(host_call, logits)
 
     ...
   ```
@@ -3859,7 +3860,7 @@ class _CapturingContext(control_flow_ops.ControlFlowContext):
 
   def AddOp(self, op):  # pylint: disable=invalid-name
     for c in op.inputs:
-      if tpu._TPU_REPLICATE_ATTR in c.op.node_def.attr:  # pylint: disable=protected-access
+      if tpu_replication._TPU_REPLICATE_ATTR in c.op.node_def.attr:  # pylint: disable=protected-access
         raise ValueError('{}: Op {} depends on TPU computation {}, '
                          'which is not allowed.'.format(self._message, op, c))
 
