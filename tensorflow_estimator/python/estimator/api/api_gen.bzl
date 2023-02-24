@@ -39,7 +39,12 @@ def gen_api_init_files(
         compat_api_versions = [],
         compat_init_templates = [],
         packages = ["tensorflow_estimator.python.estimator"],
-        package_deps = ["//tensorflow_estimator/python/estimator:estimator_py"],
+        package_deps = [
+            "//tensorflow_estimator/python/estimator:estimator_py",
+            # "//third_party/tensorflow/lite/python:analyzer",
+            # "//third_party/tensorflow/lite/python:lite",
+            # "//third_party/tensorflow/lite/python/authoring",
+        ],
         output_package = "tensorflow_estimator.python.estimator.api",
         output_dir = "",
         root_file_name = "__init__.py"):
