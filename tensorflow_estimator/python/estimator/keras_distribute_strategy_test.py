@@ -169,11 +169,11 @@ class TestEstimatorDistributionStrategy(tf.test.TestCase,
 
   @tf.compat.v2.__internal__.distribute.combinations.generate(
       tf.compat.v2.__internal__.test.combinations.combine(
-          distribution=[
-              tf.compat.v2.__internal__.distribute.combinations.mirrored_strategy_with_cpu_1_and_2,
-          ],
+          distribution=[strategy_combinations.mirrored_strategy_with_two_cpus],
           mode=['graph'],
-          cloning=[True, False]))
+          cloning=[True, False],
+      )
+  )
   def test_train_functional_with_distribution_strategy(self, distribution,
                                                        cloning):
     keras_model = simple_functional_model()
@@ -202,11 +202,11 @@ class TestEstimatorDistributionStrategy(tf.test.TestCase,
 
   @tf.compat.v2.__internal__.distribute.combinations.generate(
       tf.compat.v2.__internal__.test.combinations.combine(
-          distribution=[
-              tf.compat.v2.__internal__.distribute.combinations.mirrored_strategy_with_cpu_1_and_2,
-          ],
+          distribution=[strategy_combinations.mirrored_strategy_with_two_cpus],
           mode=['graph'],
-          cloning=[True, False]))
+          cloning=[True, False],
+      )
+  )
   def test_train_sequential_with_distribution_strategy(self, distribution,
                                                        cloning):
     keras_model = simple_sequential_model()
@@ -234,10 +234,10 @@ class TestEstimatorDistributionStrategy(tf.test.TestCase,
 
   @tf.compat.v2.__internal__.distribute.combinations.generate(
       tf.compat.v2.__internal__.test.combinations.combine(
-          distribution=[
-              tf.compat.v2.__internal__.distribute.combinations.mirrored_strategy_with_cpu_1_and_2,
-          ],
-          mode=['graph']))
+          distribution=[strategy_combinations.mirrored_strategy_with_two_cpus],
+          mode=['graph'],
+      )
+  )
   def test_multi_inputs_multi_outputs_with_input_fn_as_dict(self, distribution):
     train_data, test_data = get_multi_inputs_multi_outputs_data()
 
