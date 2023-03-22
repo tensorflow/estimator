@@ -288,8 +288,12 @@ class _SDCAModel(object):
           for v in var:
             with ops.colocate_with(v):
               slot_var = tf.Variable(
-                  initial_value=tf.compat.v1.zeros_like(v.initialized_value(),
-                                                        tf.dtypes.float32),
+                  initial_value=tf.compat.v1.zeros_like(
+                      tf.cond(
+                          tf.compat.v1.is_variable_initialized(v),
+                          v.read_value,
+                          lambda: v.initial_value),
+                      tf.dtypes.float32),
                   name=v.op.name + '_unshrunk')
               var_list.append(slot_var)
           self._slots['unshrunk_' + name].append(var_list)
@@ -297,8 +301,12 @@ class _SDCAModel(object):
           with tf.compat.v1.device(var.device):
             self._slots['unshrunk_' + name].append(
                 tf.Variable(
-                    tf.compat.v1.zeros_like(var.initialized_value(),
-                                            tf.dtypes.float32),
+                    tf.compat.v1.zeros_like(
+                        tf.cond(
+                            tf.compat.v1.is_variable_initialized(var),
+                            var.read_value,
+                            lambda: var.initial_value),
+                        tf.dtypes.float32),
                     name=var.op.name + '_unshrunk'))
 
   def _assert_specified(self, items, check_in):

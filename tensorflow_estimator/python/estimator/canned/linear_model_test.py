@@ -727,7 +727,7 @@ class LinearModelTest(tf.test.TestCase):
       }
       model(features)
       for var in model.variables:
-        self.assertIsInstance(var, tf.compat.v1.Variable)
+        self.assertIsInstance(var, tf.Variable)
       variable_names = [var.name for var in model.variables]
       self.assertCountEqual([
           'linear_model/dense_feature_bucketized/weights:0',
