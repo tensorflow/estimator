@@ -43,8 +43,8 @@ from tensorflow.python.framework import function
 from tensorflow.python.framework import ops
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import control_flow_util
-from tensorflow.python.ops import resource_variable_ops
 from tensorflow.python.ops import summary_ops_v2
+from tensorflow.python.ops import variable_scope
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.tpu import functional as tpu_functional
 from tensorflow.python.tpu import preempted_hook
@@ -115,8 +115,8 @@ if ops.get_to_proto_function('{}_{}'.format(_TPU_ESTIMATOR,
   ops.register_proto_function(
       '{}_{}'.format(_TPU_ESTIMATOR, _ITERATIONS_PER_LOOP_VAR),
       proto_type=variable_pb2.VariableDef,
-      to_proto=resource_variable_ops._to_proto_fn,  # pylint: disable=protected-access
-      from_proto=resource_variable_ops._from_proto_fn)  # pylint: disable=protected-access
+      to_proto=variable_scope._to_proto_fn,  # pylint: disable=protected-access
+      from_proto=variable_scope._from_proto_fn)  # pylint: disable=protected-access
 
 
 def _is_iterable(obj):
