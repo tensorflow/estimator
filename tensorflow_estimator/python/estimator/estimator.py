@@ -44,6 +44,7 @@ from tensorflow.python.training import device_setter
 from tensorflow.python.training import evaluation
 from tensorflow.python.training import training
 from tensorflow.python.training import training_util
+from tensorflow.python.util import compat_internal
 from tensorflow.python.util import deprecation
 from tensorflow.python.util import function_utils
 from tensorflow.python.util import tf_contextlib
@@ -1848,7 +1849,7 @@ def maybe_overwrite_model_dir_and_session_config(config, model_dir):
     session_config = run_config.get_default_session_config()
     config = run_config.RunConfig.replace(config, session_config=session_config)
 
-  model_dir = run_config.path_to_str(model_dir)
+  model_dir = compat_internal.path_to_str(model_dir)
   if model_dir is not None:
     if (getattr(config, 'model_dir', None) is not None and
         config.model_dir != model_dir):

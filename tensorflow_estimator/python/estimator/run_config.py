@@ -26,6 +26,7 @@ import six
 import tensorflow as tf
 from tensorflow.core.protobuf import rewriter_config_pb2
 from tensorflow.python.distribute import estimator_training as distribute_coordinator_training
+from tensorflow.python.util import compat_internal
 from tensorflow.python.util import function_utils
 from tensorflow_estimator.python.estimator.estimator_export import estimator_export
 
@@ -547,7 +548,8 @@ class RunConfig(object):
     if tf_config:
       tf.compat.v1.logging.info('TF_CONFIG environment variable: %s', tf_config)
 
-    model_dir = _get_model_dir(tf_config, path_to_str(model_dir))
+    model_dir = _get_model_dir(tf_config,
+                               compat_internal.path_to_str(model_dir))
 
     RunConfig._replace(
         self,
@@ -984,18 +986,3 @@ def _get_model_dir(tf_config, model_dir):
                               model_dir_in_tf_config)
 
   return model_dir or model_dir_in_tf_config
-
-
-def path_to_str(path):
-  """Returns the file system path representation of a `PathLike` object,
-  else as it is.
-
-  Args:
-    path: An object that can be converted to path representation.
-
-  Returns:
-    A `str` object.
-  """
-  if hasattr(path, "__fspath__"):
-    path = as_str_any(path.__fspath__())
-  return path
