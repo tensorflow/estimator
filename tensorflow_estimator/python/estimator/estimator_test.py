@@ -1925,7 +1925,7 @@ class EstimatorPredictTest(tf.test.TestCase):
 
     est = estimator.EstimatorV2(model_fn=_model_fn)
     est.train(dummy_input_fn, steps=1)
-    with tf.test.mock.patch.object(logging, 'warning') as mock_log:
+    with tf.test.mock.patch.object(tf.logging, 'warning') as mock_log:
       next(est.predict(dummy_input_fn))
       self.assertRegexpMatches(
           str(mock_log.call_args),
@@ -1948,7 +1948,7 @@ class EstimatorPredictTest(tf.test.TestCase):
 
     est = estimator.EstimatorV2(model_fn=_model_fn)
     est.train(dummy_input_fn, steps=1)
-    with tf.test.mock.patch.object(logging, 'warning') as mock_log:
+    with tf.test.mock.patch.object(tf.logging, 'warning') as mock_log:
       next(est.predict(_input_fn))
       # The warning should not have keyword QueueRunner.
       self.assertRegexpMatches(str(mock_log.call_args), '^((?!QueueRunner).)*$')
@@ -1971,7 +1971,7 @@ class EstimatorPredictTest(tf.test.TestCase):
 
     est = estimator.EstimatorV2(model_fn=_model_fn)
     est.train(dummy_input_fn, steps=1)
-    with tf.test.mock.patch.object(logging, 'warning') as mock_log:
+    with tf.test.mock.patch.object(tf.logging, 'warning') as mock_log:
       next(est.predict(_input_fn))
       # The warning should not have keyword QueueRunner.
       self.assertRegexpMatches(str(mock_log.call_args), '^((?!QueueRunner).)*$')

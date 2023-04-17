@@ -28,7 +28,6 @@ import time
 
 import numpy as np
 import tensorflow as tf
-from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.training import basic_session_run_hooks
 from tensorflow.python.training import server_lib
 from tensorflow_estimator.python.estimator import estimator as estimator_lib
@@ -1371,7 +1370,7 @@ class TrainingExecutorRunEvaluatorTest(tf.test.TestCase):
         input_fn=lambda: 1, start_delay_secs=0, throttle_secs=2)
 
     executor = training._TrainingExecutor(mock_est, mock_train_spec, eval_spec)
-    with tf.compat.v1.test.mock.patch.object(logging, 'warning') as mock_log:
+    with tf.compat.v1.test.mock.patch.object(tf.compat.v1.logging, 'warning') as mock_log:
       executor.run_evaluator()
 
     # Three checkpoint paths are invalid.
@@ -1399,7 +1398,7 @@ class TrainingExecutorRunEvaluatorTest(tf.test.TestCase):
         input_fn=lambda: 1, start_delay_secs=0, throttle_secs=0)
 
     executor = training._TrainingExecutor(mock_est, mock_train_spec, eval_spec)
-    with tf.compat.v1.test.mock.patch.object(logging, 'warning') as mock_log:
+    with tf.compat.v1.test.mock.patch.object(tf.compat.v1.logging, 'warning') as mock_log:
       executor.run_evaluator()
 
     # First ckpt is invalid.
@@ -1513,7 +1512,7 @@ class TrainingExecutorRunEvaluatorTest(tf.test.TestCase):
 
     executor = training._TrainingExecutor(mock_est, mock_train_spec, eval_spec)
     # Disable logging as it calls time.time also.
-    with tf.compat.v1.test.mock.patch.object(logging, 'info'):
+    with tf.compat.v1.test.mock.patch.object(tf.compat.v1.logging, 'info'):
       executor.run_evaluator()
     mock_sleep.assert_called_with(throttle_secs - operation_secs)
     self.assertTrue(mock_est.evaluate.called)

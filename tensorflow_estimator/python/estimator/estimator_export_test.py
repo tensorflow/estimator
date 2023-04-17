@@ -15,8 +15,8 @@
 """estimator_export tests."""
 
 import sys
+import tensorflow as tf
 
-from tensorflow.python.platform import test
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.util import tf_export
 # pylint: disable=g-deprecated-tf-checker
@@ -27,7 +27,7 @@ class TestClass(object):
   pass
 
 
-class ValidateExportTest(test.TestCase):
+class ValidateExportTest(tf.test.TestCase):
   """Tests for estimator_export class."""
 
   def setUp(self):
@@ -49,7 +49,9 @@ class ValidateExportTest(test.TestCase):
     self.assertNotIn('_tf_api_names', TestClass.__dict__)
     self.assertEqual(['estimator.TestClass'], tf_export.get_v1_names(TestClass))
 
-  @test.mock.patch.object(logging, 'warning', autospec=True)
+  @tf.compat.v1.test.mock.patch.object(
+      logging, 'warning', autospec=True
+  )
   def testExportDeprecated(self, mock_warning):
     export_decorator = estimator_export.estimator_export('estimator.TestClass')
     export_decorator(TestClass)
@@ -63,4 +65,4 @@ class ValidateExportTest(test.TestCase):
 
 
 if __name__ == '__main__':
-  test.main()
+  tf.test.main()

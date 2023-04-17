@@ -19,7 +19,6 @@ import operator
 import os
 
 import tensorflow as tf
-from tensorflow.python.platform import tf_logging
 from tensorflow_estimator.python.estimator import estimator as estimator_lib
 from tensorflow_estimator.python.estimator.estimator_export import estimator_export
 
@@ -578,7 +577,7 @@ class _MultiWorkerEarlyStoppingHook(tf.compat.v1.train.SessionRunHook):
     should_early_stop = run_values.results['stop_var']
 
     if should_early_stop > 0:
-      tf_logging.info('Early stopping requested, suspending run.')
+      tf.compat.v1.logging.info('Early stopping requested, suspending run.')
       run_context.request_stop()
       return
     if self._timer.should_trigger_for_step(global_step):
@@ -586,7 +585,7 @@ class _MultiWorkerEarlyStoppingHook(tf.compat.v1.train.SessionRunHook):
       if self._should_stop_fn():
         run_context.session.run(
             self._stop_op, feed_dict={self._stop_placeholder: 1})
-        tf_logging.info('Requesting early stopping at global step %d',
+        tf.compat.v1.logging.info('Requesting early stopping at global step %d',
                         global_step)
       else:
         run_context.session.run(

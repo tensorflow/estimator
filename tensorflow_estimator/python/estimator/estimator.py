@@ -35,7 +35,6 @@ from tensorflow.python.distribute import estimator_training as distribute_coordi
 from tensorflow.python.eager import context
 from tensorflow.python.eager import monitoring
 from tensorflow.python.framework import ops
-from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.profiler import trace
 from tensorflow.python.saved_model import path_helpers
 from tensorflow.python.summary import summary
@@ -349,7 +348,9 @@ class Estimator(object):
       if max_steps is not None:
         start_step = _load_global_step_from_checkpoint_dir(self._model_dir)
         if max_steps <= start_step:
-          logging.info('Skipping training since max_steps has already saved.')
+          tf.compat.v1.logging.info(
+              'Skipping training since max_steps has already saved.'
+          )
           return self
 
       hooks = _check_hooks_type(hooks)
@@ -357,7 +358,7 @@ class Estimator(object):
 
       saving_listeners = _check_listeners_type(saving_listeners)
       loss = self._train_model(input_fn, hooks, saving_listeners)
-      logging.info('Loss for final step: %s.', loss)
+      tf.compat.v1.logging.info('Loss for final step: %s.', loss)
       return self
 
   def _convert_train_steps_to_hooks(self, steps, max_steps):
@@ -1021,9 +1022,11 @@ class Estimator(object):
 
   def _validate_features_in_predict_input(self, result):
     if not _has_dataset_or_queue_runner(result):
-      logging.warning('Input graph does not use tf.data.Dataset or contain a '
-                      'QueueRunner. That means predict yields forever. '
-                      'This is probably a mistake.')
+      tf.compat.v1.logging.warning(
+          'Input graph does not use tf.data.Dataset or contain a '
+          'QueueRunner. That means predict yields forever. '
+          'This is probably a mistake.'
+      )
 
   def _get_iterator_from_input_fn(self, input_fn, mode, distribution=None):
     """Calls `input_fn` and returns an iterator."""
@@ -1169,9 +1172,9 @@ class Estimator(object):
     if 'config' in model_fn_args:
       kwargs['config'] = config
 
-    logging.info('Calling model_fn.')
+    tf.compat.v1.logging.info('Calling model_fn.')
     model_fn_results = self._model_fn(features=features, **kwargs)
-    logging.info('Done calling model_fn.')
+    tf.compat.v1.logging.info('Done calling model_fn.')
 
     if not isinstance(model_fn_results, model_fn_lib.EstimatorSpec):
       raise ValueError('model_fn should return an EstimatorSpec.')

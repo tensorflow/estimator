@@ -26,7 +26,6 @@ import time
 import six
 import tensorflow as tf
 from tensorflow.python.distribute import estimator_training as distribute_coordinator_training
-from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.training import basic_session_run_hooks
 from tensorflow.python.training import server_lib
 from tensorflow_estimator.python.estimator import estimator as estimator_lib
@@ -851,7 +850,7 @@ class _TrainingExecutor(object):
             tf.compat.v1.GraphKeys.GLOBAL_STEP)
         if (global_step and self._train_spec.max_steps and
             global_step >= self._train_spec.max_steps):
-          logging.info(
+          tf.compat.v1.logging.info(
               'Exiting evaluation, global_step=%s >= train max_steps=%s',
               global_step, self._train_spec.max_steps)
           return
@@ -894,11 +893,13 @@ class _TrainingExecutor(object):
     elapsed_time = time.time() - start
     difference = throttle_secs - elapsed_time
     if difference > 0:
-      logging.info('Waiting %f secs before starting next eval run.', difference)
+      tf.compat.v1.logging.info(
+          'Waiting %f secs before starting next eval run.', difference
+      )
       time.sleep(difference)
     elif (throttle_secs == 0 and eval_result.status != _EvalStatus.EVALUATED):
       # Prints a user-actionable warning to avoid unnecessary load on evaluator.
-      logging.warning(
+      tf.compat.v1.logging.warning(
           'EvalSpec.throttle_secs is set as 0. This might overload the job '
           'before finding (next) new checkpoint. Please consider to increase '
           'it.')
@@ -978,7 +979,7 @@ class _TrainingExecutor(object):
       """Prints warning `message` every 10 mins."""
       current_time = time.time()
       if current_time - self._last_warning_time > 600:
-        logging.warning(message)
+        tf.compat.v1.logging.warning(message)
         self._last_warning_time = current_time
 
     def _export_eval_result(self, eval_result, is_the_final_export):

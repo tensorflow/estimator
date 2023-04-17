@@ -768,6 +768,7 @@ py_library(
     name = "analytics_tools",
     srcs = ["tools/analytics.py"],
     srcs_version = "PY3",
+    deps = ["//tensorflow_estimator/python/estimator:expect_tensorflow_installed"],
 )
 
 py_test(
@@ -1906,7 +1907,7 @@ py_test(
     srcs_version = "PY3",
     deps = [
         ":estimator_export",
-        ":expect_tensorflow_installed",
+        "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
     ],
 )
 
