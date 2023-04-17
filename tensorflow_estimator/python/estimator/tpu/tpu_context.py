@@ -21,7 +21,7 @@ from __future__ import print_function
 from contextlib import contextmanager
 import copy
 import tensorflow as tf
-from tensorflow.python.distribute import distribution_strategy_context
+from tensorflow.python.distribute import distribute_lib
 from tensorflow.python.ops import summary_ops_v2
 from tensorflow.python.tpu import device_assignment as tpu_device_assignment
 from tensorflow.python.tpu import tpu_system_metadata as tpu_system_metadata_lib
@@ -867,7 +867,7 @@ class _TPUEstimatorReplicaContext(tf.distribute.ReplicaContext):
     # Use default strategy and replica context when variables are
     # accessed/watched for backpropagation.
     # pylint: disable=protected-access
-    self._thread_context = distribution_strategy_context._DefaultReplicaThreadMode(
+    self._thread_context = distribute_lib._DefaultReplicaThreadMode(
     )
     self._strategy = self._thread_context.strategy
     # pylint: enable=protected-access
