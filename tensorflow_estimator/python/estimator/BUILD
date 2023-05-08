@@ -175,6 +175,10 @@ py_library(
     name = "model_fn",
     srcs = ["model_fn.py"],
     srcs_version = "PY3",
+    visibility = [
+        "//tensorflow_estimator:internal",
+        "//third_party/tensorflow/python/tpu:__pkg__",
+    ],
     deps = [
         ":estimator_export",
         ":mode_keys",
@@ -861,6 +865,10 @@ py_library(
         "estimator.py",
     ],
     srcs_version = "PY3",
+    visibility = [
+        "//tensorflow_estimator:internal",
+        "//third_party/tensorflow/python/tpu:__pkg__",
+    ],
     deps = [
         ":estimator_export",
         ":export",
