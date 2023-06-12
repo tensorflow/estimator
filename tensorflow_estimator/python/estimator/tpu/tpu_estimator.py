@@ -4229,7 +4229,7 @@ def _verify_cross_hosts_transfer_size(tensor_dict, message):
   tensor_structure = {}
   for key, tensor in tensor_dict.items():
     shape = tensor.shape
-    size = np.product(shape) * tensor.dtype.size
+    size = np.prod(shape) * tensor.dtype.size
     tensor_structure[key] = shape
     total_size += size
   if total_size >= _ONE_GIGABYTE:
