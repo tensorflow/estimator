@@ -192,7 +192,7 @@ class EstimatorSpecFunction(tf.compat.v2.__internal__.function.Function):
         autograph_options=self._experimental_autograph_options)
 
 
-class _EstimatorSpecFunction(function.Function):
+class _EstimatorSpecFunction(tf.compat.v2.__internal__.function.Function):
   """Wraps graph functions defined for a function returning an EstimatorSpec.
 
   This object handles creation of the graph functions.
