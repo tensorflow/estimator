@@ -81,7 +81,6 @@ tpu_py_test(
         "--test_num_shards=2",
     ],
     disable_experimental = True,
-    malloc = "//third_party/tcmalloc:tcmalloc_or_debug",
     shard_count = 2,
     srcs_version = "PY3",
     deps = [
@@ -103,7 +102,6 @@ tpu_py_test(
     ],
     # TODO(b/140117863): Hanging, then timeout
     disable_experimental = True,
-    malloc = "//third_party/tcmalloc:tcmalloc_or_debug",
     shard_count = 4,
     srcs_version = "PY3",
     deps = [
@@ -123,7 +121,6 @@ tpu_py_test(
         "--test_num_shards=2",
     ],
     disable_experimental = True,
-    malloc = "//third_party/tcmalloc:tcmalloc_or_debug",
     shard_count = 2,
     srcs_version = "PY3",
     deps = [
@@ -141,7 +138,6 @@ tpu_py_test(
         "--test_num_shards=2",
     ],
     disable_experimental = True,
-    malloc = "//third_party/tcmalloc:tcmalloc_or_debug",
     shard_count = 2,
     srcs_version = "PY3",
     deps = [
@@ -164,7 +160,6 @@ tpu_py_test(
     # TODO(b/140117863): Fatal error from hardware
     disable_experimental = True,
     disable_mlir_bridge = False,
-    malloc = "//third_party/tcmalloc:tcmalloc_or_debug",
     shard_count = 2,
     srcs_version = "PY3",
     deps = [
@@ -178,7 +173,6 @@ tpu_py_test(
     size = "medium",
     srcs = ["tpu_estimator_input_v2_test.py"],
     disable_experimental = True,
-    malloc = "//third_party/tcmalloc:tcmalloc_or_debug",
     srcs_version = "PY3",
     deps = [
         ":tpu_estimator",
@@ -195,7 +189,6 @@ tpu_py_test(
         "--test_num_shards=2",
     ],
     disable_experimental = True,
-    malloc = "//third_party/tcmalloc:tcmalloc_or_debug",
     srcs_version = "PY3",
     deps = [
         ":tpu_estimator",
@@ -210,7 +203,6 @@ tpu_py_test(
     args = [
     ],
     disable_experimental = True,
-    malloc = "//third_party/tcmalloc:tcmalloc_or_debug",
     srcs_version = "PY3",
     deps = [
         ":tpu_estimator",
