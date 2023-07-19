@@ -1,5 +1,7 @@
 # Description: TPUEstimator
 
+# Placeholder: load py_library
+
 # INTERNAL TEST RULE PLACEHOLDER
 load("//tensorflow_estimator:estimator.bzl", "py_test", "tpu_py_test")
 

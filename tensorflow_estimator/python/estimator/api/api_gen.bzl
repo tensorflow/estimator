@@ -10,6 +10,7 @@ is required to Bazel build Estimator.
 """
 
 load("//tensorflow_estimator:estimator.bzl", "if_indexing_source_code")
+# Placeholder: load aliased py_binary
 
 ESTIMATOR_API_INIT_FILES_V1 = [
     "__init__.py",

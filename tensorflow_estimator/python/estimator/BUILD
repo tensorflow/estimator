@@ -1,3 +1,4 @@
+# Placeholder: load py_library
 load("//tensorflow_estimator:estimator.bzl", "py_test")
 
 package(default_visibility = ["//tensorflow_estimator:internal"])
