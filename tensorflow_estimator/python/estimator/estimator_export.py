@@ -56,14 +56,8 @@ class estimator_export(tf_export.api_export):  # pylint: disable=invalid-name
       **kwargs: Optional keyed arguments.
         v1: Names for the TensorFlow V1 API. If not set, we will use V2 API
           names both for TensorFlow V1 and V2 APIs.
-        overrides: List of symbols that this is overriding
-          (those overrided api exports will be removed). Note: passing overrides
-          has no effect on exporting a constant.
-        allow_multiple_exports: Allow symbol to be exported multiple time under
-          different names.
     """
-    kwargs['api_name'] = tf_export.ESTIMATOR_API_NAME
-    super().__init__(*args, **kwargs)
+    super().__init__(*args, api_name=tf_export.ESTIMATOR_API_NAME, **kwargs)
 
   def __call__(self, func):
     """Calls this decorator.
@@ -74,10 +68,6 @@ class estimator_export(tf_export.api_export):  # pylint: disable=invalid-name
     Returns:
       The input function with _tf_api_names attribute set and marked as
       deprecated.
-
-    Raises:
-      SymbolAlreadyExposedError: Raised when a symbol already has API names
-        and kwarg `allow_multiple_exports` not set.
     """
     func = deprecation.deprecated(None, 'Use tf.keras instead.')(func)
     return super().__call__(func)
