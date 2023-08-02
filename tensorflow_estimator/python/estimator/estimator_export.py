@@ -37,15 +37,19 @@ foo = 1
 estimator_export('consts.foo').export_constant(__name__, 'foo')
 ```
 """
+from collections.abc import Sequence
+from typing import Any, Optional, TypeVar
 
 from tensorflow.python.util import deprecation
 from tensorflow.python.util import tf_export
+
+T = TypeVar('T')
 
 
 class estimator_export(tf_export.api_export):  # pylint: disable=invalid-name
   """Provides ways to export symbols to the TensorFlow Estimator API."""
 
-  def __init__(self, *args, **kwargs):  # pylint: disable=g-doc-args
+  def __init__(self, *args: str, v1: Optional[Sequence[str]] = None):
     """Export under the names *args (first one is considered canonical).
 
     All symbols exported by this decorator are exported under the `estimator`
@@ -53,13 +57,12 @@ class estimator_export(tf_export.api_export):  # pylint: disable=invalid-name
 
     Args:
       *args: API names in dot delimited format.
-      **kwargs: Optional keyed arguments.
-        v1: Names for the TensorFlow V1 API. If not set, we will use V2 API
-          names both for TensorFlow V1 and V2 APIs.
+      v1: Names for the TensorFlow V1 API. If not set, we will use V2 API names
+        both for TensorFlow V1 and V2 APIs.
     """
-    super().__init__(*args, api_name=tf_export.ESTIMATOR_API_NAME, **kwargs)
+    super().__init__(*args, api_name=tf_export.ESTIMATOR_API_NAME, v1=v1)
 
-  def __call__(self, func):
+  def __call__(self, func: T) -> T:
     """Calls this decorator.
 
     Args:
