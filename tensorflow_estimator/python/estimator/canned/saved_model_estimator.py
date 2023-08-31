@@ -28,12 +28,10 @@ from tensorflow.python.saved_model import path_helpers
 from tensorflow.python.saved_model import signature_constants
 from tensorflow_estimator.python.estimator import estimator as estimator_lib
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
-from tensorflow_estimator.python.estimator.estimator_export import estimator_export
 from tensorflow_estimator.python.estimator.export import export_lib
 from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 
 
-@estimator_export('estimator.experimental.SavedModelEstimator')
 class SavedModelEstimator(estimator_lib.EstimatorV2):
   """Create an Estimator from a SavedModel.
 
