@@ -5,7 +5,7 @@ load(
     "//tensorflow_estimator/python/estimator/api:api_gen.bzl",
     "ESTIMATOR_API_INIT_FILES_V1",
     "ESTIMATOR_API_INIT_FILES_V2",
-    "gen_api_init_files",
+    "generate_apis",
 )
 
 licenses(["notice"])
@@ -67,17 +67,17 @@ py_library(
 genrule(
     name = "root_init_gen",
     srcs = select({
-        "api_version_2": [":estimator_python_api_gen_compat_v2"],
-        "//conditions:default": [":estimator_python_api_gen_compat_v1"],
+        "api_version_2": ["_api/v2/v2.py"],
+        "//conditions:default": ["_api/v1/v1.py"],
     }),
     outs = ["__init__.py"],
     cmd = select({
-        "api_version_2": "cp $(@D)/_api/v2/v2.py $(OUTS)",
-        "//conditions:default": "cp $(@D)/_api/v1/v1.py $(OUTS)",
+        "api_version_2": "cp $(location :_api/v2/v2.py) $(OUTS)",
+        "//conditions:default": "cp $(location :_api/v1/v1.py) $(OUTS)",
     }),
 )
 
-gen_api_init_files(
+generate_apis(
     name = "estimator_python_api_gen_compat_v1",
     api_version = 1,
     output_dir = "_api/v1/",
@@ -86,7 +86,7 @@ gen_api_init_files(
     root_file_name = "v1.py",
 )
 
-gen_api_init_files(
+generate_apis(
     name = "estimator_python_api_gen_compat_v2",
     api_version = 2,
     output_dir = "_api/v2/",
