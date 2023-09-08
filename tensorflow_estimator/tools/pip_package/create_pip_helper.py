@@ -35,7 +35,8 @@ PIP_EXCLUDED_FILES = frozenset([
     'tensorflow_estimator/python/estimator/canned/v1/baseline_test_v1.py',
     'tensorflow_estimator/python/estimator/canned/v1/dnn_test_fc_v1_v1.py',
     'tensorflow_estimator/python/estimator/canned/v1/dnn_test_fc_v2_v1.py',
-    'tensorflow_estimator/python/estimator/api/create_python_api_wrapper.py',
+    'tensorflow_estimator/python/estimator/api/extractor_wrapper.py',
+    'tensorflow_estimator/python/estimator/api/generator_wrapper.py',
     'tensorflow_estimator/tools/pip_package/setup.py',
     'tensorflow_estimator/tools/pip_package/create_pip_helper.py',
 ])
