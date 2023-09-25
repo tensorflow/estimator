@@ -525,7 +525,6 @@ def _get_file_from_google_storage(keras_model_path, model_dir):
 
 
 # LINT.IfChange
-# TODO(b/139699640): let model_to_estimator only rely on public Keras APIs.
 def model_to_estimator(keras_model=None,
                        keras_model_path=None,
                        custom_objects=None,
