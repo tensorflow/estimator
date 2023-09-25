@@ -524,7 +524,6 @@ def _get_file_from_google_storage(keras_model_path, model_dir):
   return file_name
 
 
-# LINT.IfChange
 def model_to_estimator(keras_model=None,
                        keras_model_path=None,
                        custom_objects=None,
@@ -534,7 +533,6 @@ def model_to_estimator(keras_model=None,
                        use_v2_estimator=False,
                        metric_names_map=None,
                        export_outputs=None):
-  # LINT.ThenChange(//keras/estimator/__init__.py)
   """Constructs an `Estimator` instance from given keras model.
 
   If you use infrastructure or other tooling that relies on Estimators, you can
