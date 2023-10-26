@@ -19,6 +19,7 @@ from __future__ import division
 from __future__ import print_function
 
 import tensorflow as tf
+from tensorflow_estimator.python.estimator.util import tf_keras
 from tensorflow_estimator.python.estimator.canned import optimizers
 
 
@@ -42,18 +43,18 @@ class GetOptimizerInstance(tf.test.TestCase):
       optimizers.get_optimizer_instance('Adagrad', learning_rate=None)
 
   def test_keras_optimizer_after_tf_2_11(self):
-    new_opt = tf.keras.optimizers.Adagrad()
+    new_opt = tf_keras.optimizers.Adagrad()
 
     # In eager mode it should automatically convert to legacy optimizer.
     opt = optimizers.get_optimizer_instance_v2(new_opt, learning_rate=0.1)
-    self.assertIsInstance(opt, tf.keras.optimizers.legacy.Adagrad)
+    self.assertIsInstance(opt, tf_keras.optimizers.legacy.Adagrad)
 
     # In graph mode errors should be thrown.
     @tf.function
     def foo():
       with self.assertRaisesRegex(
           ValueError,
-          r'Please set your.*tf\.keras\.optimizers\.legacy\.Adagrad.*'):
+          r'Please set your.*tf_keras\.optimizers\.legacy\.Adagrad.*'):
         optimizers.get_optimizer_instance_v2(new_opt, learning_rate=0.1)
     foo()
 

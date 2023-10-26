@@ -22,6 +22,7 @@ import numpy as np
 import six
 import tensorflow as tf
 from tensorflow.python.framework import test_util
+from tensorflow_estimator.python.estimator.util import tf_keras
 from tensorflow_estimator.python.estimator.canned import dnn
 from tensorflow_estimator.python.estimator.canned import dnn_testing_utils
 from tensorflow_estimator.python.estimator.canned import metric_keys
@@ -1432,7 +1433,7 @@ class BinaryClassHeadForEstimator(tf.test.TestCase):
   def test_invalid_trainable_variables(self):
     head = head_lib.BinaryClassHead()
 
-    class _Optimizer(tf.keras.optimizers.Optimizer):
+    class _Optimizer(tf_keras.optimizers.Optimizer):
 
       def get_updates(self, loss, params):
         del params
@@ -1479,7 +1480,7 @@ class BinaryClassHeadForEstimator(tf.test.TestCase):
     #      = sum(0, 41) / 2 = 41 / 2 = 20.5
     expected_loss = 20.5
 
-    class _Optimizer(tf.keras.optimizers.Optimizer):
+    class _Optimizer(tf_keras.optimizers.Optimizer):
 
       def get_updates(self, loss, params):
         del params

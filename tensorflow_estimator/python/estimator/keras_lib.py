@@ -23,11 +23,16 @@ import os
 import re
 from absl import logging
 import tensorflow as tf
+
 from tensorflow.python.checkpoint import checkpoint as trackable_util
 from tensorflow_estimator.python.estimator import estimator as estimator_lib
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
+from tensorflow_estimator.python.estimator.util import tf_keras
 from tensorflow_estimator.python.estimator.export import export_lib
 from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
+from tensorflow_estimator.python.estimator.util import tf_keras_v2
+from tensorflow_estimator.python.estimator.util import tf_keras_v1
+
 
 _DEFAULT_SERVING_KEY = tf.saved_model.DEFAULT_SERVING_SIGNATURE_DEF_KEY
 
@@ -51,10 +56,10 @@ class FormattedKeyError(KeyError):
 
 def _cast_tensor_to_floatx(x):
   """Cast tensor to keras's floatx dtype if it is not already the same dtype."""
-  if x.dtype == tf.keras.backend.floatx():
+  if x.dtype == tf_keras.backend.floatx():
     return x
   else:
-    return tf.cast(x, tf.keras.backend.floatx())
+    return tf.cast(x, tf_keras.backend.floatx())
 
 
 def _convert_tensor(x):
@@ -90,7 +95,7 @@ def _convert_estimator_io_to_keras(keras_model, features, labels):
   """Converts estimator features and labels to keras input and target tensors.
 
   Args:
-    keras_model: a compiled `tf.keras.Model` instance, used to determine the
+    keras_model: a compiled `tf_keras.Model` instance, used to determine the
       order of the returned lists.
     features: Dict of tensors or `None`.
     labels: Dict of tensors, a single tensor, or `None`.
@@ -214,7 +219,7 @@ def _clone_and_build_model(mode,
     The newly built model.
   """
   # Set to True during training, False for inference or testing.
-  tf.keras.backend.set_learning_phase(mode == ModeKeys.TRAIN)
+  tf_keras.backend.set_learning_phase(mode == ModeKeys.TRAIN)
   input_tensors, target_tensors, sample_weight_tensors = (
       _convert_estimator_io_to_keras(keras_model, features, labels))
 
@@ -225,9 +230,9 @@ def _clone_and_build_model(mode,
     # Set iterations to the global step created by tf.train.create_global_step()
     # which is automatically run in the estimator framework.
     global_step = tf.compat.v1.train.get_or_create_global_step()
-    tf.compat.v2.keras.__internal__.backend.track_variable(global_step)
+    tf_keras_v2.__internal__.backend.track_variable(global_step)
 
-  clone = tf.compat.v2.keras.__internal__.models.clone_and_build_model(
+  clone = tf_keras_v2.__internal__.models.clone_and_build_model(
       keras_model,
       input_tensors,
       target_tensors,
@@ -249,7 +254,7 @@ def _convert_keras_metrics_to_estimator(model, metric_names_map=None):
   """Convert metrics from a Keras model to ops used by the Estimator framework.
 
   Args:
-    model: A `tf.keras.Model` object.
+    model: A `tf_keras.Model` object.
     metric_names_map: Optional dictionary mapping Keras model output metric
       names to custom names.
 
@@ -306,22 +311,22 @@ def _create_keras_model_fn(keras_model,
     The model_fn for a keras Estimator.
   """
   if isinstance(keras_model.optimizer,
-                tf.keras.optimizers.experimental.Optimizer):
+                tf_keras.optimizers.experimental.Optimizer):
     # Experimental optimizer cannot work with estimator, so we convert it to
     # legacy optimizer.
     if tf.executing_eagerly():
       logging.warning(
-          'You are using `tf.keras.optimizers.experimental.Optimizer` in TF '
+          'You are using `tf_keras.optimizers.experimental.Optimizer` in TF '
           'estimator, which only supports '
-          '`tf.keras.optimizers.legacy.Optimizer`. Automatically converting '
-          'your optimizer to `tf.keras.optimizers.legacy.Optimizer`.')
-      opt = tf.keras.__internal__.optimizers.convert_to_legacy_optimizer(
+          '`tf_keras.optimizers.legacy.Optimizer`. Automatically converting '
+          'your optimizer to `tf_keras.optimizers.legacy.Optimizer`.')
+      opt = tf_keras.__internal__.optimizers.convert_to_legacy_optimizer(
           keras_model.optimizer)
       keras_model.optimizer = opt
     else:
       raise ValueError('Please set your optimizer as an instance of '
-                       '`tf.keras.optimizers.legacy.Optimizer`, e.g., '
-                       '`tf.keras.optimizers.legacy.Adam`. Received optimizer '
+                       '`tf_keras.optimizers.legacy.Optimizer`, e.g., '
+                       '`tf_keras.optimizers.legacy.Adam`. Received optimizer '
                        f'type: {type(keras_model.optimizer)}.')
   # Get optimizer config in the current context (since model_fn is called in the
   # estimator graph and session). OptimizerV2 objects serialize variable/tensor
@@ -382,7 +387,7 @@ def _create_keras_model_fn(keras_model,
         hasattr(keras_model, '_original_attributes_cache') and
         keras_model._original_attributes_cache is not None):
       # To avoid `model_fn` being destructive for the initial model argument.
-      (tf.compat.v2.keras.__internal__.models.
+      (tf_keras_v2.__internal__.models.
        in_place_subclassed_model_state_restoration(keras_model))
 
     scaffold = None
@@ -471,7 +476,7 @@ def _save_first_checkpoint(keras_model, custom_objects, config,
           model.set_weights(keras_weights)
         # model._make_train_function() will potentially create the optimizer
         # variable, which will require another variable initialization.
-        tf.compat.v2.keras.__internal__.backend.initialize_variables(sess)
+        tf_keras_v2.__internal__.backend.initialize_variables(sess)
 
         if save_object_ckpt:
           model._track_trackable(  # pylint: disable=protected-access
@@ -552,10 +557,10 @@ def model_to_estimator(keras_model=None,
   `features` and `sample_weights`. Example below:
 
   ```python
-  keras_model = tf.keras.Model(...)
+  keras_model = tf_keras.Model(...)
   keras_model.compile(...)
 
-  estimator = tf.keras.estimator.model_to_estimator(keras_model)
+  estimator = tf_keras.estimator.model_to_estimator(keras_model)
 
   def input_fn():
     return dataset_ops.Dataset.from_tensors(
@@ -567,16 +572,16 @@ def model_to_estimator(keras_model=None,
 
   Example with customized export signature:
   ```python
-  inputs = {'a': tf.keras.Input(..., name='a'),
-            'b': tf.keras.Input(..., name='b')}
-  outputs = {'c': tf.keras.layers.Dense(..., name='c')(inputs['a']),
-             'd': tf.keras.layers.Dense(..., name='d')(inputs['b'])}
-  keras_model = tf.keras.Model(inputs, outputs)
+  inputs = {'a': tf_keras.Input(..., name='a'),
+            'b': tf_keras.Input(..., name='b')}
+  outputs = {'c': tf_keras.layers.Dense(..., name='c')(inputs['a']),
+             'd': tf_keras.layers.Dense(..., name='d')(inputs['b'])}
+  keras_model = tf_keras.Model(inputs, outputs)
   keras_model.compile(...)
   export_outputs = {'c': tf.estimator.export.RegressionOutput,
                     'd': tf.estimator.export.ClassificationOutput}
 
-  estimator = tf.keras.estimator.model_to_estimator(
+  estimator = tf_keras.estimator.model_to_estimator(
       keras_model, export_outputs=export_outputs)
 
   def input_fn():
@@ -602,7 +607,7 @@ def model_to_estimator(keras_model=None,
       Defaults to `None`.
     custom_objects: Dictionary for cloning customized objects. This is
       used with classes that is not part of this pip package. For example, if
-      user maintains a `relu6` class that inherits from `tf.keras.layers.Layer`,
+      user maintains a `relu6` class that inherits from `tf_keras.layers.Layer`,
       then pass `custom_objects={'relu6': relu6}`. Defaults to `None`.
     model_dir: Directory to save `Estimator` model parameters, graph, summary
       files for TensorBoard, etc. If unset a directory will be created with
@@ -679,14 +684,14 @@ def model_to_estimator(keras_model=None,
       keras_model_path = _get_file_from_google_storage(keras_model_path,
                                                        config.model_dir)
     tf.compat.v1.logging.info('Loading models from %s', keras_model_path)
-    keras_model = tf.keras.models.load_model(keras_model_path)
+    keras_model = tf_keras.models.load_model(keras_model_path)
   else:
     tf.compat.v1.logging.info('Using the Keras model provided.')
     keras_model = keras_model
 
   if checkpoint_format is None or checkpoint_format == 'checkpoint':
     if not (keras_model._is_graph_network or
-            isinstance(keras_model, tf.keras.models.Sequential)):
+            isinstance(keras_model, tf_keras.models.Sequential)):
       raise ValueError('Object-based checkpoints are currently not supported '
                        'with subclassed models.')
     save_object_ckpt = True
@@ -715,7 +720,7 @@ def model_to_estimator(keras_model=None,
   else:
     # Pass the config into keras backend's default session.
     sess = tf.compat.v1.Session(config=config.session_config)
-    tf.compat.v1.keras.backend.set_session(sess)
+    tf_keras_v1.backend.set_session(sess)
 
   warm_start_path = None
   if keras_model._is_graph_network and config.is_chief:
@@ -745,11 +750,11 @@ def model_to_estimator(keras_model=None,
 
 def _assert_valid_model(model, custom_objects=None):
   is_subclass = (not model._is_graph_network and
-                 not isinstance(model, tf.keras.models.Sequential))
+                 not isinstance(model, tf_keras.models.Sequential))
   if is_subclass:
     try:
       custom_objects = custom_objects or {}
-      with tf.keras.utils.CustomObjectScope(custom_objects):
+      with tf_keras.utils.CustomObjectScope(custom_objects):
         model.__class__.from_config(model.get_config())
     except NotImplementedError:
       raise ValueError(

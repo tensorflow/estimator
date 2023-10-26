@@ -20,6 +20,18 @@ from __future__ import print_function
 
 import time
 import tensorflow as tf
+
+# import keras 2
+version_fn = getattr(tf.keras, 'version', None)
+if version_fn and version_fn().startswith('3.'):
+  import tf_keras  # pylint: disable=g-import-not-at-top,unused-import
+  from tf_keras.api._v1 import keras as tf_keras_v1  # pylint: disable=g-import-not-at-top,unused-import
+  from tf_keras.api._v2 import keras as tf_keras_v2  # pylint: disable=g-import-not-at-top,unused-import
+else:
+  tf_keras = tf.keras  # Keras 2
+  tf_keras_v1 = tf.compat.v1.keras
+  tf_keras_v2 = tf.compat.v2.keras
+
 from tensorflow.python.util import function_utils
 
 fn_args = function_utils.fn_args

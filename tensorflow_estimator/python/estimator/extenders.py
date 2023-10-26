@@ -34,7 +34,7 @@ def add_metrics(estimator, metric_fn):
 
   ```python
     def my_auc(labels, predictions):
-      auc_metric = tf.keras.metrics.AUC(name="my_auc")
+      auc_metric = tf_keras.metrics.AUC(name="my_auc")
       auc_metric.update_state(y_true=labels, y_pred=predictions['logistic'])
       return {'auc': auc_metric}
 
@@ -47,7 +47,7 @@ def add_metrics(estimator, metric_fn):
 
   ```python
     def my_auc(labels, predictions, features):
-      auc_metric = tf.keras.metrics.AUC(name="my_auc")
+      auc_metric = tf_keras.metrics.AUC(name="my_auc")
       auc_metric.update_state(y_true=labels, y_pred=predictions['logistic'],
                               sample_weight=features['weight'])
       return {'auc': auc_metric}

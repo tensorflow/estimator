@@ -52,7 +52,7 @@ class _SequentialHead(base_head.Head):
       feature_layer = tf.feature_column.SequenceFeatureLayer(columns)
       input_layer, sequence_length = feature_layer(features)
       sequence_length_mask = tf.sequence_mask(sequence_length)
-      rnn_layer = tf.keras.layers.RNN(cell=tf.keras.layers.SimpleRNNCell(units),
+      rnn_layer = tf_keras.layers.RNN(cell=tf_keras.layers.SimpleRNNCell(units),
                                       return_sequences=True)
       logits = rnn_layer(input_layer, mask=sequence_length_mask)
       features[sequential_head.input_sequence_mask_key] = sequence_length_mask
@@ -117,8 +117,8 @@ class SequentialHeadWrapper(_SequentialHead):
         feature_layer = tf.feature_column.SequenceFeatureLayer(feature_columns)
         input_layer, sequence_length = feature_layer(features)
         sequence_length_mask = tf.sequence_mask(sequence_length)
-        rnn_layer = tf.keras.layers.RNN(
-            cell=tf.keras.layers.SimpleRNNCell(units),
+        rnn_layer = tf_keras.layers.RNN(
+            cell=tf_keras.layers.SimpleRNNCell(units),
             return_sequences=True)
         logits = rnn_layer(input_layer, mask=sequence_length_mask)
         features['mask'] = sequence_length_mask
@@ -300,7 +300,7 @@ class SequentialHeadWrapper(_SequentialHead):
         D2, ... DN].
       labels: Labels `Tensor` or `SparseTensor` or rank >= 2 and shape
         [batch_size, seq_length, D2, ... DN].
-      optimizer: An `tf.keras.optimizers.Optimizer` instance to optimize the
+      optimizer: An `tf_keras.optimizers.Optimizer` instance to optimize the
         loss in TRAIN mode. Namely, sets
         `train_op = optimizer.get_updates(loss, trainable_variables)`, which
         updates variables to minimize `loss`.

@@ -21,6 +21,7 @@ from __future__ import print_function
 import numpy as np
 import tensorflow as tf
 from tensorflow_estimator.python.estimator import extenders
+from tensorflow_estimator.python.estimator.util import tf_keras
 from tensorflow_estimator.python.estimator import run_config
 from tensorflow_estimator.python.estimator.canned import linear
 
@@ -58,7 +59,7 @@ class AddMetricsTest(tf.test.TestCase):
       self.assertIn('auc', metrics)
 
     def metric_fn(features):
-      metric = tf.keras.metrics.Mean()
+      metric = tf_keras.metrics.Mean()
       metric.update_state(features['x'])
       return {'mean_x': metric}
 
@@ -122,7 +123,7 @@ class AddMetricsTest(tf.test.TestCase):
       self.assertEqual(2., metrics['two'])
 
     def metric_fn():
-      metric = tf.keras.metrics.Mean()
+      metric = tf_keras.metrics.Mean()
       metric.update_state(tf.constant([2.]))
       return {'two': metric}
 
@@ -143,7 +144,7 @@ class AddMetricsTest(tf.test.TestCase):
       self.assertEqual(2., metrics['auc'])
 
     def metric_fn():
-      metric = tf.keras.metrics.Mean()
+      metric = tf_keras.metrics.Mean()
       metric.update_state(tf.constant([2.]))
       return {'auc': metric}
 

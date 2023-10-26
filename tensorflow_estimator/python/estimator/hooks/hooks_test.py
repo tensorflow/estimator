@@ -27,6 +27,7 @@ import tensorflow as tf
 from tensorflow.python.framework import test_util
 from tensorflow_estimator.python.estimator import estimator_lib
 from tensorflow_estimator.python.estimator import run_config as run_config_lib
+from tensorflow_estimator.python.estimator.util import tf_keras
 from tensorflow_estimator.python.estimator.hooks import hooks as hooks_lib
 
 
@@ -75,7 +76,7 @@ class InMemoryEvaluatorHookTest(tf.test.TestCase):
         return estimator_lib.EstimatorSpec(
             mode, loss=tf.constant(3.), train_op=train_op)
       if estimator_lib.ModeKeys.EVAL == mode:
-        mean = tf.keras.metrics.Mean()
+        mean = tf_keras.metrics.Mean()
         mean.update_state(features)
         return estimator_lib.EstimatorSpec(
             mode,
@@ -130,7 +131,7 @@ class InMemoryEvaluatorHookTest(tf.test.TestCase):
         # to consume features, we have control dependency
         with tf.control_dependencies([features]):
           loss = tf.constant(5.)
-        mean = tf.keras.metrics.Mean()
+        mean = tf_keras.metrics.Mean()
         mean.update_state(w)
         return estimator_lib.EstimatorSpec(
             mode,
@@ -238,7 +239,7 @@ class InMemoryEvaluatorHookTest(tf.test.TestCase):
 
     def model_fn(features, labels, mode):
       _, _ = features, labels
-      mean = tf.keras.metrics.Mean()
+      mean = tf_keras.metrics.Mean()
       mean.update_state(tf.constant(2.))
       return estimator_lib.EstimatorSpec(
           mode,
@@ -267,7 +268,7 @@ class InMemoryEvaluatorHookTest(tf.test.TestCase):
       def init_fn(scaffold, session):
         _, _ = scaffold, session
 
-      mean = tf.keras.metrics.Mean()
+      mean = tf_keras.metrics.Mean()
       mean.update_state(tf.constant(2.))
       return estimator_lib.EstimatorSpec(
           mode,
@@ -299,7 +300,7 @@ class InMemoryEvaluatorHookTest(tf.test.TestCase):
           [w.initializer,
            tf.compat.v1.train.get_global_step().initializer])
 
-      mean = tf.keras.metrics.Mean()
+      mean = tf_keras.metrics.Mean()
       mean.update_state(tf.constant(2.))
       return estimator_lib.EstimatorSpec(
           mode,
