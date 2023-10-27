@@ -21,7 +21,6 @@ import os
 import tensorflow as tf
 from tensorflow_estimator.python.estimator import estimator as estimator_lib
 from tensorflow_estimator.python.estimator.estimator_export import estimator_export
-from tensorflow_estimator.python.estimator.util import tf_keras_v1
 
 
 _EVENT_FILE_GLOB_PATTERN = 'events.out.tfevents.*'
@@ -530,7 +529,7 @@ class _MultiWorkerEarlyStoppingHook(tf.compat.v1.train.SessionRunHook):
           name='STOP',
           shape=[],
           dtype=tf.dtypes.int32,
-          initializer=tf_keras_v1.initializers.constant(0),
+          initializer=tf.compat.v1.keras.initializers.constant(0),
           collections=[tf.compat.v1.GraphKeys.GLOBAL_VARIABLES],
           synchronization=tf.VariableSynchronization.ON_WRITE,
           aggregation=tf.compat.v1.VariableAggregation.SUM,

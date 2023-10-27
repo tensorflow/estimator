@@ -27,7 +27,6 @@ from tensorflow.python.feature_column.feature_column import _LazyBuilder
 from tensorflow.python.feature_column.feature_column import _NumericColumn
 from tensorflow.python.framework import ops
 from tensorflow.python.util import function_utils
-from tensorflow_estimator.python.estimator.util import tf_keras
 from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.estimator_export import estimator_export
 from tensorflow_estimator.python.estimator.export import export_output
@@ -68,22 +67,22 @@ class Head(object):
       head = tf.estimator.RegressionHead(...)
 
       feature_columns = tf.feature_column.numeric_column(...)
-      feature_layer = tf_keras.layers.DenseFeatures(feature_columns)
+      feature_layer = tf.keras.layers.DenseFeatures(feature_columns)
       inputs = feature_layer(features)
 
-      # Compute logits with tf_keras.layers API
-      hidden_layer0 = tf_keras.layers.Dense(
+      # Compute logits with tf.keras.layers API
+      hidden_layer0 = tf.keras.layers.Dense(
           units=1000, activation="relu")(inputs)
-      hidden_layer1 = tf_keras.layers.Dense(
+      hidden_layer1 = tf.keras.layers.Dense(
           units=500, activation="relu")(hidden_layer0)
-      logits = tf_keras.layers.Dense(
+      logits = tf.keras.layers.Dense(
           units=head.logits_dimension, activation=None)(hidden_layer1)
 
       # Or use Keras model for logits computation
-      model = tf_keras.Sequential()
-      model.add(tf_keras.layers.Dense(units=1000, activation="relu"))
-      model.add(tf_keras.layers.Dense(units=500, activation="relu"))
-      model.add(tf_keras.layers.Dense(
+      model = tf.keras.Sequential()
+      model.add(tf.keras.layers.Dense(units=1000, activation="relu"))
+      model.add(tf.keras.layers.Dense(units=500, activation="relu"))
+      model.add(tf.keras.layers.Dense(
          units=head.logits_dimension, activation=None))
       logits = model(inputs)
 
@@ -244,7 +243,7 @@ class Head(object):
       logits: Logits `Tensor` to be used by the head.
       labels: Labels `Tensor`, or `dict` mapping string label names to `Tensor`
         objects of the label values.
-      optimizer: An `tf_keras.optimizers.Optimizer` instance to optimize the
+      optimizer: An `tf.keras.optimizers.Optimizer` instance to optimize the
         loss in TRAIN mode. Namely, sets `train_op = optimizer.get_updates(loss,
         trainable_variables)`, which updates variables to minimize `loss`.
       trainable_variables: A list or tuple of `Variable` objects to update to
@@ -314,7 +313,7 @@ class Head(object):
       logits: Logits `Tensor` to be used by the head.
       labels: Labels `Tensor`, or `dict` mapping string label names to `Tensor`
         objects of the label values.
-      optimizer: An `tf_keras.optimizers.Optimizer` instance to optimize the
+      optimizer: An `tf.keras.optimizers.Optimizer` instance to optimize the
         loss in TRAIN mode. Namely, sets `train_op = optimizer.get_updates(loss,
         trainable_variables)`, which updates variables to minimize `loss`.
       trainable_variables: A list or tuple of `Variable` objects to update to
@@ -661,9 +660,9 @@ def validate_update_ops(update_ops=None):
 def validate_v2_optimizer(optimizer):
   if not isinstance(
       optimizer,
-      (tf_keras.optimizers.Optimizer, tf_keras.optimizers.legacy.Optimizer)):
+      (tf.keras.optimizers.Optimizer, tf.keras.optimizers.legacy.Optimizer)):
     raise ValueError(
-        'The given optimizer is not a tf_keras.optimizers.Optimizer '
+        'The given optimizer is not a tf.keras.optimizers.Optimizer '
         f'instance. Received optimizer of type {type(optimizer)}')
 
 
@@ -864,7 +863,7 @@ def create_estimator_spec_train_op(
 
   Args:
     head_name: The name of the head.
-    optimizer: An `tf_keras.optimizers.Optimizer` instance to optimize the loss
+    optimizer: An `tf.keras.optimizers.Optimizer` instance to optimize the loss
       in TRAIN mode. Namely, sets `train_op = optimizer.get_updates(loss,
       trainable_variables)`, which updates variables to minimize `loss`.
     trainable_variables: A list or tuple of `Variable` objects to update to
@@ -884,7 +883,7 @@ def create_estimator_spec_train_op(
       all regularization losses. If you're not using optimizer to generate train
       op, make sure to scale the loss correctly before passing it in. The loss
       typically needs to be scaled down by the number of workers.
-    loss_reduction: One of `tf_keras.losses.Reduction` except `NONE`. Describes
+    loss_reduction: One of `tf.keras.losses.Reduction` except `NONE`. Describes
       how to reduce training loss over batch. Defaults to `SUM_OVER_BATCH_SIZE`.
 
   Returns:

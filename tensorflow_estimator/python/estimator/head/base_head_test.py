@@ -22,7 +22,6 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.python.framework import test_util
 from tensorflow_estimator.python.estimator import model_fn
-from tensorflow_estimator.python.estimator.util import tf_keras
 from tensorflow_estimator.python.estimator.head import base_head
 from tensorflow_estimator.python.estimator.head import binary_class_head as head_lib
 from tensorflow_estimator.python.estimator.head import head_utils as test_lib
@@ -253,7 +252,7 @@ class CreateEstimatorSpecTest(tf.test.TestCase):
     labels = np.array(((1,), (1,),), dtype=np.float64)
     features = {'x': np.array(((42,),), dtype=np.float32)}
 
-    class _Optimizer(tf_keras.optimizers.legacy.Optimizer):
+    class _Optimizer(tf.keras.optimizers.legacy.Optimizer):
 
       def init(self, name, **kwargs):
         super(_Optimizer, self).__init__(name, **kwargs)
@@ -298,7 +297,7 @@ class CreateEstimatorSpecTest(tf.test.TestCase):
 
     with self.assertRaisesRegex(
         ValueError,
-        'The given optimizer is not a tf_keras.optimizers.Optimizer'):
+        'The given optimizer is not a tf.keras.optimizers.Optimizer'):
       # Create estimator spec.
       head.create_estimator_spec(
           features=features,

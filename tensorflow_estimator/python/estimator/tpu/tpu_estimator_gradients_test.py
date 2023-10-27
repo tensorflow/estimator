@@ -19,7 +19,6 @@ import tempfile
 from absl import flags
 import numpy as np
 import tensorflow.compat.v1 as tf
-from tensorflow_estimator.python.estimator.util import tf_keras_v1
 from tensorflow_estimator.python.estimator.tpu import tpu_config
 from tensorflow_estimator.python.estimator.tpu import tpu_estimator
 
@@ -52,9 +51,9 @@ def create_model_fn(feature_columns, optimizer_type='adagrad'):
   def model_fn(features, labels, mode, params):
     del params
 
-    dense_features = tf_keras_v1.layers.DenseFeatures(feature_columns)
+    dense_features = tf.keras.layers.DenseFeatures(feature_columns)
     input_layer = dense_features(features)
-    hidden_layer = tf_keras_v1.__internal__.legacy.layers.dense(
+    hidden_layer = tf.layers.dense(
         input_layer,
         HIDDEN_LAYER_SIZE,
         kernel_initializer=tf.constant_initializer(KERNEL_INIT_VALUE),

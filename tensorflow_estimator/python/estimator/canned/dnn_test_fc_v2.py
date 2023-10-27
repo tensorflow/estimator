@@ -30,7 +30,6 @@ import tensorflow as tf
 from tensorflow.core.example import example_pb2
 from tensorflow.core.example import feature_pb2
 from tensorflow.python.feature_column import feature_column_v2
-from tensorflow_estimator.python.estimator.util import tf_keras
 from tensorflow_estimator.python.estimator.canned import dnn
 from tensorflow_estimator.python.estimator.canned import dnn_testing_utils
 from tensorflow_estimator.python.estimator.canned import prediction_keys
@@ -509,7 +508,7 @@ class DNNTrainingMode(tf.test.TestCase):
         x={'x': data}, y=data, batch_size=self._batch_size, shuffle=False)
     est = self._get_estimator()
     with patch.object(
-        tf_keras.layers.DenseFeatures, 'call',
+        tf.keras.layers.DenseFeatures, 'call',
         return_value=data) as mock_dense_features_call:
       est.train(train_input_fn, steps=10)
       est.evaluate(eval_input_fn)

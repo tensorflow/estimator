@@ -24,8 +24,6 @@ from tensorflow.python.feature_column import feature_column_lib as fc
 from tensorflow.python.framework import ops
 from tensorflow_estimator.python.estimator import estimator
 from tensorflow_estimator.python.estimator import model_fn
-from tensorflow_estimator.python.estimator.util import tf_keras
-from tensorflow_estimator.python.estimator.util import tf_keras_v1
 from tensorflow_estimator.python.estimator.canned import optimizers
 from tensorflow_estimator.python.estimator.estimator_export import estimator_export
 from tensorflow_estimator.python.estimator.head import binary_class_head as binary_head_lib
@@ -45,15 +43,15 @@ _LSTM_KEY = 'lstm'
 _GRU_KEY = 'gru'
 
 _CELL_TYPE_TO_LAYER_MAPPING = {
-    _LSTM_KEY: tf_keras.layers.LSTM,
-    _GRU_KEY: tf_keras.layers.GRU,
-    _SIMPLE_RNN_KEY: tf_keras.layers.SimpleRNN
+    _LSTM_KEY: tf.keras.layers.LSTM,
+    _GRU_KEY: tf.keras.layers.GRU,
+    _SIMPLE_RNN_KEY: tf.keras.layers.SimpleRNN
 }
 
 _CELL_TYPES = {
-    _LSTM_KEY: tf_keras.layers.LSTMCell,
-    _GRU_KEY: tf_keras.layers.GRUCell,
-    _SIMPLE_RNN_KEY: tf_keras.layers.SimpleRNNCell
+    _LSTM_KEY: tf.keras.layers.LSTMCell,
+    _GRU_KEY: tf.keras.layers.GRUCell,
+    _SIMPLE_RNN_KEY: tf.keras.layers.SimpleRNNCell
 }
 
 # Indicates no value was provided by the user to a kwarg.
@@ -102,11 +100,11 @@ def _make_rnn_cell_fn(units, cell_type=_SIMPLE_RNN_KEY):
   return rnn_cell_fn
 
 
-class RNNModel(tf_keras.models.Model):
+class RNNModel(tf.keras.models.Model):
   """A Keras RNN model.
 
   Composition of layers to compute logits from RNN model, along with training
-  and inference features. See `tf_keras.models.Model` for more details on Keras
+  and inference features. See `tf.keras.models.Model` for more details on Keras
   models.
 
   Example of usage:
@@ -115,11 +113,11 @@ class RNNModel(tf_keras.models.Model):
   rating = tf.feature_column.embedding_column(
       tf.feature_column.sequence_categorical_column_with_identity('rating', 5),
       10)
-  rnn_layer = tf_keras.layers.SimpleRNN(20)
+  rnn_layer = tf.keras.layers.SimpleRNN(20)
   rnn_model = RNNModel(rnn_layer, units=1, sequence_feature_columns=[rating])
 
   rnn_model.compile(
-      tf_keras.optimizers.Adam(), loss=tf_keras.losses.MeanSquaredError())
+      tf.keras.optimizers.Adam(), loss=tf.keras.losses.MeanSquaredError())
   rnn_model.fit(generator(), epochs=10, steps_per_epoch=100)
   rnn_model.predict({'rating': np.array([[0, 1], [2, 3]])}, steps=1)
   ```
@@ -151,7 +149,7 @@ class RNNModel(tf_keras.models.Model):
         instances of classes derived from `DenseColumn` such as
         `numeric_column`, not the sequential variants.
       activation: Activation function to apply to the logit layer (for instance
-        `tf_keras.activations.sigmoid`). If you don't specify anything, no
+        `tf.keras.activations.sigmoid`). If you don't specify anything, no
         activation is applied.
       return_sequences: A boolean indicating whether to return the last output
         in the output sequence, or the full sequence.
@@ -167,14 +165,14 @@ class RNNModel(tf_keras.models.Model):
     self._return_sequences = return_sequences
     self._sequence_feature_columns = sequence_feature_columns
     self._context_feature_columns = context_feature_columns
-    self._sequence_features_layer = tf_keras.experimental.SequenceFeatures(
+    self._sequence_features_layer = tf.keras.experimental.SequenceFeatures(
         sequence_feature_columns)
     self._dense_features_layer = None
     if context_feature_columns:
-      self._dense_features_layer = tf_keras_v1.layers.DenseFeatures(
+      self._dense_features_layer = tf.compat.v1.keras.layers.DenseFeatures(
           context_feature_columns)
     self._rnn_layer = rnn_layer
-    self._logits_layer = tf_keras.layers.Dense(
+    self._logits_layer = tf.keras.layers.Dense(
         units=units, activation=activation, name='logits')
 
   def call(self, inputs, training=None):
@@ -233,7 +231,7 @@ class RNNModel(tf_keras.models.Model):
     }
     config['units'] = self._logits_layer.units
     config['return_sequences'] = self._return_sequences
-    config['activation'] = tf_keras.activations.serialize(self._logits_layer.activation)
+    config['activation'] = tf.keras.activations.serialize(self._logits_layer.activation)
     config['sequence_feature_columns'] = fc.serialize_feature_columns(
         self._sequence_feature_columns)
     config['context_feature_columns'] = (
@@ -253,7 +251,7 @@ class RNNModel(tf_keras.models.Model):
     Returns:
       A RNNModel.
     """
-    rnn_layer = tf_keras.layers.deserialize(
+    rnn_layer = tf.keras.layers.deserialize(
         config.pop('rnn_layer'), custom_objects=custom_objects)
     sequence_feature_columns = fc.deserialize_feature_columns(
         config.pop('sequence_feature_columns'), custom_objects=custom_objects)
@@ -261,7 +259,7 @@ class RNNModel(tf_keras.models.Model):
     if context_feature_columns:
       context_feature_columns = fc.deserialize_feature_columns(
           context_feature_columns, custom_objects=custom_objects)
-    activation = tf_keras.activations.deserialize(
+    activation = tf.keras.activations.deserialize(
         config.pop('activation', None), custom_objects=custom_objects)
     return cls(
         rnn_layer=rnn_layer,
@@ -283,7 +281,7 @@ def _get_rnn_estimator_spec(features, labels, mode, head, rnn_model, optimizer,
       `ModeKeys`.
     head: A `Head` instance.
     rnn_model: A Keras model that computes RNN logits from features.
-    optimizer: String, `tf_keras.optimizers.Optimizer` object, or callable that
+    optimizer: String, `tf.keras.optimizers.Optimizer` object, or callable that
       creates the optimizer to use for training. If not specified, will use the
       Adagrad optimizer with a default learning rate of 0.05 and gradient clip
       norm of 5.0.
@@ -348,7 +346,7 @@ def _make_rnn_layer(rnn_cell_fn, units, cell_type, return_sequences):
       in the output sequence, or the full sequence.:
 
   Returns:
-    A tf_keras.layers.RNN layer.
+    A tf.keras.layers.RNN layer.
   """
   _verify_rnn_cell_input(rnn_cell_fn, units, cell_type)
   if cell_type in _CELL_TYPE_TO_LAYER_MAPPING and isinstance(units, int):
@@ -359,7 +357,7 @@ def _make_rnn_layer(rnn_cell_fn, units, cell_type, return_sequences):
       cell_type = _SIMPLE_RNN_KEY
     rnn_cell_fn = _make_rnn_cell_fn(units, cell_type)
 
-  return tf_keras.layers.RNN(cell=rnn_cell_fn(), return_sequences=return_sequences)
+  return tf.keras.layers.RNN(cell=rnn_cell_fn(), return_sequences=return_sequences)
 
 
 @estimator_export('estimator.experimental.RNNEstimator', v1=[])
@@ -379,8 +377,8 @@ class RNNEstimator(estimator.Estimator):
 
   # Or with custom RNN cell:
   def rnn_cell_fn(_):
-    cells = [ tf_keras.layers.LSTMCell(size) for size in [32, 16] ]
-    return tf_keras.layers.StackedRNNCells(cells)
+    cells = [ tf.keras.layers.LSTMCell(size) for size in [32, 16] ]
+    return tf.keras.layers.StackedRNNCells(cells)
 
   estimator = RNNEstimator(
       head=tf.estimator.RegressionHead(),
@@ -457,7 +455,7 @@ class RNNEstimator(estimator.Estimator):
       rnn_cell_fn: A function that returns a RNN cell instance that will be used
         to construct the RNN. If set, `units` and `cell_type` cannot be set.
         This is for advanced users who need additional customization beyond
-        `units` and `cell_type`. Note that `tf_keras.layers.StackedRNNCells` is
+        `units` and `cell_type`. Note that `tf.keras.layers.StackedRNNCells` is
         needed for stacked RNNs.
       return_sequences: A boolean indicating whether to return the last output
         in the output sequence, or the full sequence.
@@ -474,7 +472,7 @@ class RNNEstimator(estimator.Estimator):
       - a `output_size` attribute.
       - a `get_initial_state` method.
 
-    See the documentation on `tf_keras.layers.RNN` for more details.
+    See the documentation on `tf.keras.layers.RNN` for more details.
 
     Raises:
       ValueError: If `units`, `cell_type`, and `rnn_cell_fn` are not
@@ -604,7 +602,7 @@ class RNNClassifier(RNNEstimator):
       rnn_cell_fn: A function that returns a RNN cell instance that will be used
         to construct the RNN. If set, `units` and `cell_type` cannot be set.
         This is for advanced users who need additional customization beyond
-        `units` and `cell_type`. Note that `tf_keras.layers.StackedRNNCells` is
+        `units` and `cell_type`. Note that `tf.keras.layers.StackedRNNCells` is
         needed for stacked RNNs.
       return_sequences: A boolean indicating whether to return the last output
         in the output sequence, or the full sequence. Note that if True,
@@ -647,7 +645,7 @@ class RNNClassifier(RNNEstimator):
       - a `output_size` attribute.
       - a `get_initial_state` method.
 
-    See the documentation on `tf_keras.layers.RNN` for more details.
+    See the documentation on `tf.keras.layers.RNN` for more details.
 
     Raises:
       ValueError: If `units`, `cell_type`, and `rnn_cell_fn` are not

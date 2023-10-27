@@ -25,7 +25,6 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import test_util
-from tensorflow_estimator.python.estimator.util import tf_keras
 from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.canned import prediction_keys
 from tensorflow_estimator.python.estimator.head import binary_class_head as binary_head_lib
@@ -405,7 +404,7 @@ class TestSequentialHead(tf.test.TestCase):
     labels = tf.sparse.SparseTensor(
         indices=((0, 0), (0, 1), (1, 0)), values=(0, 1, 2), dense_shape=(2, 2))
 
-    class _Optimizer(tf_keras.optimizers.Optimizer):
+    class _Optimizer(tf.keras.optimizers.Optimizer):
 
       def get_updates(self, loss, params):
         del params, loss

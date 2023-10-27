@@ -26,8 +26,7 @@ import tempfile
 import numpy as np
 import six
 import tensorflow as tf
-
-from google.protobuf import message  # pylint: disable=g-import-not-at-top
+from google.protobuf import message
 from tensorflow.core.framework import summary_pb2
 from tensorflow.python.checkpoint import checkpoint as trackable_util
 from tensorflow.python.checkpoint import checkpoint_management

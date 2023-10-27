@@ -23,14 +23,12 @@ import tensorflow as tf
 from tensorflow.python.framework import ops
 from tensorflow.python.ops import lookup_ops
 from tensorflow_estimator.python.estimator import model_fn
-from tensorflow_estimator.python.estimator.util import tf_keras
 from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.canned import prediction_keys
 from tensorflow_estimator.python.estimator.estimator_export import estimator_export
 from tensorflow_estimator.python.estimator.export import export_output
 from tensorflow_estimator.python.estimator.head import base_head
 from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
-from tensorflow_estimator.python.estimator.util import tf_keras_v2
 
 
 @estimator_export('estimator.MultiLabelHead')
@@ -108,13 +106,13 @@ class MultiLabelHead(base_head.Head):
   ```python
   def _my_model_fn(features, labels, mode):
     my_head = tf.estimator.MultiLabelHead(n_classes=3)
-    logits = tf_keras.Model(...)(features)
+    logits = tf.keras.Model(...)(features)
 
     return my_head.create_estimator_spec(
         features=features,
         mode=mode,
         labels=labels,
-        optimizer=tf_keras.optimizers.Adagrad(lr=0.1),
+        optimizer=tf.keras.optimizers.Adagrad(lr=0.1),
         logits=logits)
 
   my_estimator = tf.estimator.Estimator(model_fn=_my_model_fn)
@@ -352,7 +350,7 @@ class MultiLabelHead(base_head.Head):
       processed_labels = self._processed_labels(logits, labels)
       unweighted_loss, weights = self._unweighted_loss_and_weights(
           logits, processed_labels, features)
-      training_loss = tf_keras_v2.__internal__.losses.compute_weighted_loss(
+      training_loss = tf.compat.v2.keras.__internal__.losses.compute_weighted_loss(
           unweighted_loss,
           sample_weight=weights,
           reduction=self._loss_reduction)
@@ -404,29 +402,29 @@ class MultiLabelHead(base_head.Head):
     with ops.name_scope(None, 'metrics', (regularization_losses,)):
       # Mean metric.
       eval_metrics = {}
-      eval_metrics[self._loss_mean_key] = tf_keras.metrics.Mean(
+      eval_metrics[self._loss_mean_key] = tf.keras.metrics.Mean(
           name=keys.LOSS_MEAN)
       # The default summation_method is "interpolation" in the AUC metric.
-      eval_metrics[self._auc_key] = tf_keras.metrics.AUC(name=keys.AUC)
-      eval_metrics[self._auc_pr_key] = tf_keras.metrics.AUC(
+      eval_metrics[self._auc_key] = tf.keras.metrics.AUC(name=keys.AUC)
+      eval_metrics[self._auc_pr_key] = tf.keras.metrics.AUC(
           curve='PR', name=keys.AUC_PR)
       if regularization_losses is not None:
-        eval_metrics[self._loss_regularization_key] = tf_keras.metrics.Mean(
+        eval_metrics[self._loss_regularization_key] = tf.keras.metrics.Mean(
             name=keys.LOSS_REGULARIZATION)
       for i, threshold in enumerate(self._thresholds):
-        eval_metrics[self._accuracy_keys[i]] = tf_keras.metrics.BinaryAccuracy(
+        eval_metrics[self._accuracy_keys[i]] = tf.keras.metrics.BinaryAccuracy(
             name=self._accuracy_keys[i], threshold=threshold)
         eval_metrics[self._precision_keys[i]] = (
-            tf_keras.metrics.Precision(
+            tf.keras.metrics.Precision(
                 name=self._precision_keys[i], thresholds=threshold))
-        eval_metrics[self._recall_keys[i]] = tf_keras.metrics.Recall(
+        eval_metrics[self._recall_keys[i]] = tf.keras.metrics.Recall(
             name=self._recall_keys[i], thresholds=threshold)
       for i in range(len(self._classes_for_class_based_metrics)):
-        eval_metrics[self._prob_keys[i]] = tf_keras.metrics.Mean(
+        eval_metrics[self._prob_keys[i]] = tf.keras.metrics.Mean(
             name=self._prob_keys[i])
-        eval_metrics[self._auc_keys[i]] = tf_keras.metrics.AUC(
+        eval_metrics[self._auc_keys[i]] = tf.keras.metrics.AUC(
             name=self._auc_keys[i])
-        eval_metrics[self._auc_pr_keys[i]] = tf_keras.metrics.AUC(
+        eval_metrics[self._auc_pr_keys[i]] = tf.keras.metrics.AUC(
             curve='PR', name=self._auc_pr_keys[i])
     return eval_metrics
 
@@ -504,7 +502,7 @@ class MultiLabelHead(base_head.Head):
         with shape `[D0, D1, ... DN, n_classes]` or `SparseTensor` with
         `dense_shape` `[D0, D1, ... DN, ?]`. `labels` is required argument when
         `mode` equals `TRAIN` or `EVAL`.
-      optimizer: An `tf_keras.optimizers.Optimizer` instance to optimize the
+      optimizer: An `tf.keras.optimizers.Optimizer` instance to optimize the
         loss in TRAIN mode. Namely, sets `train_op = optimizer.get_updates(loss,
         trainable_variables)`, which updates variables to minimize
         `loss`.able_variables)`, which updates variables to minimize `loss`.

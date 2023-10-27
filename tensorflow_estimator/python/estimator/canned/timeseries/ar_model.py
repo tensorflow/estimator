@@ -23,14 +23,13 @@ from tensorflow.python.framework import ops
 from tensorflow.python.ops import distributions
 from tensorflow.python.ops import gen_math_ops
 from tensorflow_estimator.python.estimator import estimator_lib
-from tensorflow_estimator.python.estimator.util import tf_keras
 from tensorflow_estimator.python.estimator.canned.timeseries import model
 from tensorflow_estimator.python.estimator.canned.timeseries import model_utils
 from tensorflow_estimator.python.estimator.canned.timeseries.feature_keys import PredictionFeatures
 from tensorflow_estimator.python.estimator.canned.timeseries.feature_keys import TrainEvalFeatures
 
 
-class LSTMPredictionModel(tf_keras.models.Model):
+class LSTMPredictionModel(tf.keras.models.Model):
   """A simple encoder/decoder model using an LSTM.
 
   This model does not operate on its own, but rather is a plugin to
@@ -54,12 +53,12 @@ class LSTMPredictionModel(tf_keras.models.Model):
       num_units: The number of units in the encoder and decoder LSTM cells.
     """
     super(LSTMPredictionModel, self).__init__()
-    self._encoder = tf_keras.layers.LSTM(
+    self._encoder = tf.keras.layers.LSTM(
         num_units, name="encoder", dtype=self.dtype, return_state=True)
-    self._decoder = tf_keras.layers.LSTM(
+    self._decoder = tf.keras.layers.LSTM(
         num_units, name="decoder", dtype=self.dtype, return_sequences=True)
-    self._mean_transform = tf_keras.layers.Dense(num_features, name="mean_transform")
-    self._covariance_transform = tf_keras.layers.Dense(
+    self._mean_transform = tf.keras.layers.Dense(num_features, name="mean_transform")
+    self._covariance_transform = tf.keras.layers.Dense(
         num_features, name="covariance_transform")
 
   def call(self, input_window_features, output_window_features):
@@ -149,7 +148,7 @@ class ARModel(model.TimeSeriesModel):
       num_features: number of input features per time step.
       prediction_model_factory: A callable taking arguments `num_features`,
         `input_window_size`, and `output_window_size` and returning a
-        `tf_keras.Model`. The `Model`'s `call()` takes two arguments: an input
+        `tf.keras.Model`. The `Model`'s `call()` takes two arguments: an input
         window and an output window, and returns a dictionary of predictions.
         See `LSTMPredictionModel` for an example. The default model computes
         predictions as a linear function of flattened input and output windows.

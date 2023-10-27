@@ -22,7 +22,6 @@ import inspect
 from absl import logging
 import six
 import tensorflow as tf
-from tensorflow_estimator.python.estimator.util import tf_keras
 
 _OPTIMIZER_CLS_NAMES = {
     'Adagrad': tf.compat.v1.train.AdagradOptimizer,
@@ -33,11 +32,11 @@ _OPTIMIZER_CLS_NAMES = {
 }
 
 _OPTIMIZER_CLS_NAMES_V2 = {
-    'Adagrad': tf_keras.optimizers.legacy.Adagrad,
-    'Adam': tf_keras.optimizers.legacy.Adam,
-    'Ftrl': tf_keras.optimizers.legacy.Ftrl,
-    'RMSProp': tf_keras.optimizers.legacy.RMSprop,
-    'SGD': tf_keras.optimizers.legacy.SGD,
+    'Adagrad': tf.keras.optimizers.legacy.Adagrad,
+    'Adam': tf.keras.optimizers.legacy.Adam,
+    'Ftrl': tf.keras.optimizers.legacy.Ftrl,
+    'RMSProp': tf.keras.optimizers.legacy.RMSprop,
+    'SGD': tf.keras.optimizers.legacy.SGD,
 }
 
 # The default learning rate of 0.05 is a historical artifact of the initial
@@ -104,20 +103,20 @@ def get_optimizer_instance_v2(opt, learning_rate=None):
   * A string: Creates an `optimizer_v2.OptimizerV2` subclass with the given
   `learning_rate`.
     Supported strings:
-    * 'Adagrad': Returns an tf_keras.optimizers.Adagrad.
-    * 'Adam': Returns an tf_keras.optimizers.Adam.
-    * 'Ftrl': Returns an tf_keras.optimizers.Ftrl.
-    * 'RMSProp': Returns an tf_keras.optimizers.RMSProp.
-    * 'SGD': Returns a tf_keras.optimizers.SGD.
+    * 'Adagrad': Returns an tf.keras.optimizers.Adagrad.
+    * 'Adam': Returns an tf.keras.optimizers.Adam.
+    * 'Ftrl': Returns an tf.keras.optimizers.Ftrl.
+    * 'RMSProp': Returns an tf.keras.optimizers.RMSProp.
+    * 'SGD': Returns a tf.keras.optimizers.SGD.
 
   Args:
-    opt: An `tf_keras.optimizers.Optimizer` instance, or string, as discussed
+    opt: An `tf.keras.optimizers.Optimizer` instance, or string, as discussed
       above.
     learning_rate: A float. Only used if `opt` is a string. If None, and opt is
       string, it will use the default learning_rate of the optimizer.
 
   Returns:
-    An `tf_keras.optimizers.Optimizer` instance.
+    An `tf.keras.optimizers.Optimizer` instance.
 
   Raises:
     ValueError: If `opt` is an unsupported string.
@@ -138,23 +137,23 @@ def get_optimizer_instance_v2(opt, learning_rate=None):
             opt, tuple(sorted(six.iterkeys(_OPTIMIZER_CLS_NAMES_V2)))))
   if callable(opt):
     opt = opt()
-  if isinstance(opt, tf_keras.optimizers.experimental.Optimizer):
+  if isinstance(opt, tf.keras.optimizers.experimental.Optimizer):
     if tf.executing_eagerly():
       logging.warning(
-          'You are using `tf_keras.optimizers.experimental.Optimizer` in TF '
+          'You are using `tf.keras.optimizers.experimental.Optimizer` in TF '
           'estimator, which only supports '
-          '`tf_keras.optimizers.legacy.Optimizer`. Automatically converting '
-          'your optimizer to `tf_keras.optimizers.legacy.Optimizer`.')
-      opt = tf_keras.__internal__.optimizers.convert_to_legacy_optimizer(opt)
+          '`tf.keras.optimizers.legacy.Optimizer`. Automatically converting '
+          'your optimizer to `tf.keras.optimizers.legacy.Optimizer`.')
+      opt = tf.keras.__internal__.optimizers.convert_to_legacy_optimizer(opt)
     else:
       raise ValueError('Please set your optimizer as an instance of '
-                       '`tf_keras.optimizers.legacy.Optimizer`, e.g., '
-                       f'`tf_keras.optimizers.legacy.{opt.__class__.__name__}`.'
+                       '`tf.keras.optimizers.legacy.Optimizer`, e.g., '
+                       f'`tf.keras.optimizers.legacy.{opt.__class__.__name__}`.'
                        f'Received optimizer type: {type(opt)}.')
   if not isinstance(
       opt,
-      (tf_keras.optimizers.legacy.Optimizer, tf_keras.optimizers.Optimizer)):
+      (tf.keras.optimizers.legacy.Optimizer, tf.keras.optimizers.Optimizer)):
     raise ValueError(
-        'The given object is not a tf_keras.optimizers.Optimizer instance.'
+        'The given object is not a tf.keras.optimizers.Optimizer instance.'
         ' Given: {}'.format(opt))
   return opt

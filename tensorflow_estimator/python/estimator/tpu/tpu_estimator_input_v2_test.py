@@ -23,7 +23,6 @@ from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
 from tensorflow_estimator.python.estimator.export import export_output
 from tensorflow_estimator.python.estimator.tpu import tpu_config
 from tensorflow_estimator.python.estimator.tpu import tpu_estimator
-from tensorflow_estimator.python.estimator.util import tf_keras_v1
 
 FLAGS = flags.FLAGS
 
@@ -42,7 +41,7 @@ def create_run_config(iterations_per_loop, **kwargs):
 
 
 def dense_computation(features):
-  return tf_keras_v1.__internal__.legacy.layers.dense(
+  return tf.layers.dense(
       features, 1, kernel_initializer=tf.zeros_initializer())
 
 

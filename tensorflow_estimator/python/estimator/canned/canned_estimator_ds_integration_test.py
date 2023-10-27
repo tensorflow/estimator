@@ -25,7 +25,6 @@ from absl.testing import parameterized
 import numpy as np
 import tensorflow as tf
 from tensorflow_estimator.python.estimator import run_config
-from tensorflow_estimator.python.estimator.util import tf_keras
 from tensorflow_estimator.python.estimator.canned import dnn
 from tensorflow_estimator.python.estimator.canned import dnn_linear_combined
 from tensorflow_estimator.python.estimator.canned import linear
@@ -104,7 +103,7 @@ class CannedEstimatorDistributionStrategyTest(tf.test.TestCase,
       estimator_kw_args['dnn_feature_columns'] = [fc]
 
     def my_metrics(features):
-      metric = tf_keras.metrics.Mean()
+      metric = tf.keras.metrics.Mean()
       metric.update_state(features['x'])
       return {'mean_x': metric}
 

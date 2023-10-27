@@ -126,7 +126,7 @@ def _dnn_linear_combined_model_fn_v2(
     linear_sparse_combiner: A string specifying how to reduce the linear model
       if a categorical column is multivalent.  One of "mean", "sqrtn", and
       "sum".
-    loss_reduction: One of `tf_keras.losses.Reduction` except `NONE`. Describes
+    loss_reduction: One of `tf.keras.losses.Reduction` except `NONE`. Describes
       how to reduce training loss over batch. Defaults to `SUM_OVER_BATCH_SIZE`.
 
   Returns:
@@ -411,13 +411,13 @@ class DNNLinearCombinedClassifierV2(estimator.EstimatorV2):
   estimator = tf.estimator.DNNLinearCombinedClassifier(
       # wide settings
       linear_feature_columns=[categorical_feature_a_x_categorical_feature_b],
-      linear_optimizer=tf_keras.optimizers.Ftrl(...),
+      linear_optimizer=tf.keras.optimizers.Ftrl(...),
       # deep settings
       dnn_feature_columns=[
           categorical_feature_a_emb, categorical_feature_b_emb,
           numeric_feature],
       dnn_hidden_units=[1000, 500, 100],
-      dnn_optimizer=tf_keras.optimizers.Adagrad(...),
+      dnn_optimizer=tf.keras.optimizers.Adagrad(...),
       # warm-start settings
       warm_start_from="/path/to/checkpoint/dir")
 
@@ -427,7 +427,7 @@ class DNNLinearCombinedClassifierV2(estimator.EstimatorV2):
       l1_regularization_strength=0.001,
       l2_regularization_strength=0.001)
   # To apply learning rate decay, you can set dnn_optimizer to a callable:
-  lambda: tf_keras.optimizers.Adam(
+  lambda: tf.keras.optimizers.Adam(
       learning_rate=tf.compat.v1.train.exponential_decay(
           learning_rate=0.1,
           global_step=tf.compat.v1.train.get_global_step(),
@@ -500,14 +500,14 @@ class DNNLinearCombinedClassifierV2(estimator.EstimatorV2):
       linear_feature_columns: An iterable containing all the feature columns
         used by linear part of the model. All items in the set must be instances
         of classes derived from `FeatureColumn`.
-      linear_optimizer: An instance of `tf_keras.optimizers.*` used to apply
+      linear_optimizer: An instance of `tf.keras.optimizers.*` used to apply
         gradients to the linear part of the model. Can also be a string (one of
         'Adagrad', 'Adam', 'Ftrl', 'RMSProp', 'SGD'), or callable. Defaults to
         FTRL optimizer.
       dnn_feature_columns: An iterable containing all the feature columns used
         by deep part of the model. All items in the set must be instances of
         classes derived from `FeatureColumn`.
-      dnn_optimizer: An instance of `tf_keras.optimizers.*` used to apply
+      dnn_optimizer: An instance of `tf.keras.optimizers.*` used to apply
         gradients to the deep part of the model. Can also be a string (one of
         'Adagrad', 'Adam', 'Ftrl', 'RMSProp', 'SGD'), or callable. Defaults to
         Adagrad optimizer.
@@ -706,13 +706,13 @@ class DNNLinearCombinedEstimatorV2(estimator.EstimatorV2):
       head=tf.estimator.MultiLabelHead(n_classes=3),
       # wide settings
       linear_feature_columns=[categorical_feature_a_x_categorical_feature_b],
-      linear_optimizer=tf_keras.optimizers.Ftrl(...),
+      linear_optimizer=tf.keras.optimizers.Ftrl(...),
       # deep settings
       dnn_feature_columns=[
           categorical_feature_a_emb, categorical_feature_b_emb,
           numeric_feature],
       dnn_hidden_units=[1000, 500, 100],
-      dnn_optimizer=tf_keras.optimizers.Adagrad(...))
+      dnn_optimizer=tf.keras.optimizers.Adagrad(...))
 
   # To apply L1 and L2 regularization, you can set dnn_optimizer to:
   tf.compat.v1.train.ProximalAdagradOptimizer(
@@ -720,7 +720,7 @@ class DNNLinearCombinedEstimatorV2(estimator.EstimatorV2):
       l1_regularization_strength=0.001,
       l2_regularization_strength=0.001)
   # To apply learning rate decay, you can set dnn_optimizer to a callable:
-  lambda: tf_keras.optimizers.Adam(
+  lambda: tf.keras.optimizers.Adam(
       learning_rate=tf.compat.v1.train.exponential_decay(
           learning_rate=0.1,
           global_step=tf.compat.v1.train.get_global_step(),
@@ -791,14 +791,14 @@ class DNNLinearCombinedEstimatorV2(estimator.EstimatorV2):
       linear_feature_columns: An iterable containing all the feature columns
         used by linear part of the model. All items in the set must be instances
         of classes derived from `FeatureColumn`.
-      linear_optimizer: An instance of `tf_keras.optimizers.*` used to apply
+      linear_optimizer: An instance of `tf.keras.optimizers.*` used to apply
         gradients to the linear part of the model. Can also be a string (one of
         'Adagrad', 'Adam', 'Ftrl', 'RMSProp', 'SGD'), or callable. Defaults to
         FTRL optimizer.
       dnn_feature_columns: An iterable containing all the feature columns used
         by deep part of the model. All items in the set must be instances of
         classes derived from `FeatureColumn`.
-      dnn_optimizer: An instance of `tf_keras.optimizers.*` used to apply
+      dnn_optimizer: An instance of `tf.keras.optimizers.*` used to apply
         gradients to the deep part of the model. Can also be a string (one of
         'Adagrad', 'Adam', 'Ftrl', 'RMSProp', 'SGD'), or callable. Defaults to
         Adagrad optimizer.
@@ -917,13 +917,13 @@ class DNNLinearCombinedRegressorV2(estimator.EstimatorV2):
   estimator = tf.estimator.DNNLinearCombinedRegressor(
       # wide settings
       linear_feature_columns=[categorical_feature_a_x_categorical_feature_b],
-      linear_optimizer=tf_keras.optimizers.Ftrl(...),
+      linear_optimizer=tf.keras.optimizers.Ftrl(...),
       # deep settings
       dnn_feature_columns=[
           categorical_feature_a_emb, categorical_feature_b_emb,
           numeric_feature],
       dnn_hidden_units=[1000, 500, 100],
-      dnn_optimizer=tf_keras.optimizers.Adagrad(...),
+      dnn_optimizer=tf.keras.optimizers.Adagrad(...),
       # warm-start settings
       warm_start_from="/path/to/checkpoint/dir")
 
@@ -933,7 +933,7 @@ class DNNLinearCombinedRegressorV2(estimator.EstimatorV2):
       l1_regularization_strength=0.001,
       l2_regularization_strength=0.001)
   # To apply learning rate decay, you can set dnn_optimizer to a callable:
-  lambda: tf_keras.optimizers.Adam(
+  lambda: tf.keras.optimizers.Adam(
       learning_rate=tf.compat.v1.train.exponential_decay(
           learning_rate=0.1,
           global_step=tf.compat.v1.train.get_global_step(),
@@ -1005,14 +1005,14 @@ class DNNLinearCombinedRegressorV2(estimator.EstimatorV2):
       linear_feature_columns: An iterable containing all the feature columns
         used by linear part of the model. All items in the set must be instances
         of classes derived from `FeatureColumn`.
-      linear_optimizer: An instance of `tf_keras.optimizers.*` used to apply
+      linear_optimizer: An instance of `tf.keras.optimizers.*` used to apply
         gradients to the linear part of the model. Can also be a string (one of
         'Adagrad', 'Adam', 'Ftrl', 'RMSProp', 'SGD'), or callable. Defaults to
         FTRL optimizer.
       dnn_feature_columns: An iterable containing all the feature columns used
         by deep part of the model. All items in the set must be instances of
         classes derived from `FeatureColumn`.
-      dnn_optimizer: An instance of `tf_keras.optimizers.*` used to apply
+      dnn_optimizer: An instance of `tf.keras.optimizers.*` used to apply
         gradients to the deep part of the model. Can also be a string (one of
         'Adagrad', 'Adam', 'Ftrl', 'RMSProp', 'SGD'), or callable. Defaults to
         Adagrad optimizer.

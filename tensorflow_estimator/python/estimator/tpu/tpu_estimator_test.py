@@ -74,7 +74,6 @@ from tensorflow.python.training import session_run_hook
 from tensorflow.python.training import training
 from tensorflow_estimator.python.estimator import estimator as estimator_lib
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
-from tensorflow_estimator.python.estimator.util import tf_keras
 from tensorflow_estimator.python.estimator.export import export
 from tensorflow_estimator.python.estimator.export import export_output as export_output_lib
 from tensorflow_estimator.python.estimator.inputs import numpy_io
@@ -2849,11 +2848,11 @@ class TPUEstimatorHostCallTest(test.TestCase):
   def test_keras_tensorflow_op_layer(self):
     def model_fn(features, labels, mode, params):
       del features, labels, params
-      i1 = tf_keras.Input(10)
-      i2 = tf_keras.Input(10)
+      i1 = tf.keras.Input(10)
+      i2 = tf.keras.Input(10)
       out = tf.concat([i1, i2], axis=1)
-      out = tf_keras.layers.Dense(1)(out)
-      model = tf_keras.Model([i1, i2], out)
+      out = tf.keras.layers.Dense(1)(out)
+      model = tf.keras.Model([i1, i2], out)
       x = [tf.ones((5, 10)), tf.ones((5, 10))]
       y = model(x)
       loss = tf.reduce_mean(y)

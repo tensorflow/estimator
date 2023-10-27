@@ -1569,7 +1569,6 @@ py_library(
     srcs = ["canned/optimizers.py"],
     srcs_version = "PY3",
     deps = [
-        ":util",
         "//tensorflow_estimator/python/estimator:expect_six_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
@@ -1908,10 +1907,7 @@ py_library(
     srcs = ["estimator_export.py"],
     srcs_version = "PY3",
     visibility = ["//tensorflow_estimator:internal"],
-    deps = [
-        ":expect_tensorflow_installed",
-        ":util",
-    ],
+    deps = [":expect_tensorflow_installed"],
 )
 
 py_test(

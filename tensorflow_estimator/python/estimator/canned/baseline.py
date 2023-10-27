@@ -250,7 +250,7 @@ def _baseline_model_fn_v2(
       `tf.feature_column.numeric_column` defining feature column representing
       weights. It will be multiplied by the loss of the example.
     config: `RunConfig` object to configure the runtime settings.
-    loss_reduction: One of `tf_keras.losses.Reduction` except `NONE`. Describes
+    loss_reduction: One of `tf.keras.losses.Reduction` except `NONE`. Describes
       how to reduce training loss over batch. Defaults to `SUM_OVER_BATCH_SIZE`.
 
   Raises:
@@ -366,7 +366,7 @@ class BaselineClassifierV2(estimator.EstimatorV2):
         weights. It will be multiplied by the loss of the example.
       label_vocabulary: Optional list of strings with size `[n_classes]`
         defining the label vocabulary. Only supported for `n_classes` > 2.
-      optimizer: String, `tf_keras.optimizers.*` object, or callable that
+      optimizer: String, `tf.keras.optimizers.*` object, or callable that
         creates the optimizer to use for training. If not specified, will use
         `Ftrl` as the default optimizer.
       config: `RunConfig` object to configure the runtime settings.
@@ -489,7 +489,7 @@ class BaselineEstimatorV2(estimator.EstimatorV2):
       model_dir: Directory to save model parameters, graph and etc. This can
         also be used to load checkpoints from the directory into a estimator to
         continue training a previously saved model.
-      optimizer: String, `tf_keras.optimizers.*` object, or callable that
+      optimizer: String, `tf.keras.optimizers.*` object, or callable that
         creates the optimizer to use for training. If not specified, will use
         `Ftrl` as the default optimizer.
       config: `RunConfig` object to configure the runtime settings.
@@ -595,7 +595,7 @@ class BaselineRegressorV2(estimator.EstimatorV2):
       weight_column: A string or a `_NumericColumn` created by
         `tf.feature_column.numeric_column` defining feature column representing
         weights. It will be multiplied by the loss of the example.
-      optimizer: String, `tf_keras.optimizers.*` object, or callable that
+      optimizer: String, `tf.keras.optimizers.*` object, or callable that
         creates the optimizer to use for training. If not specified, will use
         `Ftrl` as the default optimizer.
       config: `RunConfig` object to configure the runtime settings.

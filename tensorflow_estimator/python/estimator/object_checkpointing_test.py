@@ -30,16 +30,15 @@ except ImportError:
 
 from tensorflow_estimator.python.estimator import estimator as estimator_lib
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
-from tensorflow_estimator.python.estimator.util import tf_keras
 from tensorflow_estimator.python.estimator.export import export_lib
 
 
-class SubclassedModel(tf_keras.models.Model):
+class SubclassedModel(tf.keras.models.Model):
 
   def __init__(self):
     super(SubclassedModel, self).__init__()
-    self.dense_one = tf_keras.layers.Dense(5)
-    self.dense_two = tf_keras.layers.Dense(1)
+    self.dense_one = tf.keras.layers.Dense(5)
+    self.dense_two = tf.keras.layers.Dense(1)
 
   def call(self, inputs):
     return self.dense_two(self.dense_one(inputs))
@@ -59,7 +58,7 @@ class ObjectCheckpointingTest(tf.test.TestCase):
     def _model_fn(features, labels, mode):
       del labels
       model = SubclassedModel()
-      optimizer = tf_keras.optimizers.Adam(0.01)
+      optimizer = tf.keras.optimizers.Adam(0.01)
       checkpoint = util.Checkpoint(
           step=tf.compat.v1.train.get_or_create_global_step(),
           optimizer=optimizer,
@@ -105,7 +104,7 @@ class ObjectCheckpointingTest(tf.test.TestCase):
     save_est.train(input_fn, steps=3)
 
     model = SubclassedModel()
-    optimizer = tf_keras.optimizers.Adam(0.01)
+    optimizer = tf.keras.optimizers.Adam(0.01)
     checkpoint = util.Checkpoint(
         step=tf.Variable(0, dtype=tf.dtypes.int64),
         optimizer=optimizer,
@@ -121,7 +120,7 @@ class ObjectCheckpointingTest(tf.test.TestCase):
     status.assert_consumed()
 
     # The optimizer uses this for some reason...
-    tf_keras.backend.clear_session()
+    tf.keras.backend.clear_session()
 
     load_model_dir = os.path.join(self.get_temp_dir(), 'load_model_dir/')
     checkpoint.step.assign(40)

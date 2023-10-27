@@ -46,7 +46,6 @@ from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
 from tensorflow_estimator.python.estimator.export import export_lib
 from tensorflow_estimator.python.estimator.tpu import tpu_config
 from tensorflow_estimator.python.estimator.tpu import tpu_estimator
-from tensorflow_estimator.python.estimator.util import tf_keras_v1
 # pylint: enable=g-direct-tensorflow-import
 
 flags.DEFINE_integer('test_num_shards', 8, 'number of replicas to test')
@@ -66,7 +65,7 @@ _INPUT_PIPELINE_WITH_QUEUE_RUNNER = (
 
 
 def dense_computation(features):
-  return tf_keras_v1.__internal__.legacy.layers.dense(
+  return tf.layers.dense(
       features['x'], 1, kernel_initializer=init_ops.zeros_initializer())
 
 
@@ -548,7 +547,7 @@ def get_model_fn_v2():
     x2 = features['x'] * 2
 
     def computation(input_tensor):
-      return tf_keras_v1.__internal__.legacy.layers.dense(
+      return tf.layers.dense(
           input_tensor, 1, kernel_initializer=init_ops.zeros_initializer())
 
     if mode != _PREDICT:

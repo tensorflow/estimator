@@ -22,7 +22,7 @@ Note that, this converter is not suitable for the case where 'dnn_optimizer'
 and 'linear_optimizer' in DNNLinearCombined model are the same.
 
 If your current canned estimators and checkpoints are from TF 1.x, after you
-migrate the canned estimator to v2 with `tf_keras.optimizers.*`, the converted
+migrate the canned estimator to v2 with `tf.keras.optimizers.*`, the converted
 checkpoint allow you to restore and retrain the model in TF 2.0.
 
 Usage:
@@ -56,7 +56,6 @@ import argparse
 import sys
 import tensorflow as tf
 from google.protobuf import text_format
-from tensorflow_estimator.python.estimator.util import tf_keras
 
 # Optimizer name mapping from v1 to v2.
 OPT_NAME_V1_TO_V2 = {
@@ -108,11 +107,11 @@ HP_IN_GRAPH = {
 
 # optimizer v2 instance.
 OPT_V2_INSTANCE = {
-    'Adagrad': tf_keras.optimizers.legacy.Adagrad(),
-    'Adam': tf_keras.optimizers.legacy.Adam(),
-    'Ftrl': tf_keras.optimizers.legacy.Ftrl(),
-    'RMSProp': tf_keras.optimizers.legacy.RMSprop(),
-    'SGD': tf_keras.optimizers.legacy.SGD(),
+    'Adagrad': tf.keras.optimizers.legacy.Adagrad(),
+    'Adam': tf.keras.optimizers.legacy.Adam(),
+    'Ftrl': tf.keras.optimizers.legacy.Ftrl(),
+    'RMSProp': tf.keras.optimizers.legacy.RMSprop(),
+    'SGD': tf.keras.optimizers.legacy.SGD(),
 }
 
 

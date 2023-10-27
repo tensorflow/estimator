@@ -22,7 +22,6 @@ import numpy as np
 import six
 import tensorflow as tf
 from tensorflow.python.framework import test_util
-from tensorflow_estimator.python.estimator.util import tf_keras
 from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.canned import prediction_keys
 from tensorflow_estimator.python.estimator.head import head_utils as test_lib
@@ -603,7 +602,7 @@ class MultiHeadTest(tf.test.TestCase):
 
     expected_train_result = 'my_train_op'
 
-    class _Optimizer(tf_keras.optimizers.Optimizer):
+    class _Optimizer(tf.keras.optimizers.Optimizer):
 
       def get_updates(self, loss, params):
         del params

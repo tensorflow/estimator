@@ -32,12 +32,9 @@ from tensorflow.python.saved_model.model_utils import export_output
 from tensorflow.python.training import saver as saver_lib
 from tensorflow_estimator.python.estimator import keras_lib
 from tensorflow_estimator.python.estimator import run_config as run_config_lib
-from tensorflow_estimator.python.estimator.util import tf_keras
-from tensorflow_estimator.python.estimator.util import tf_keras_v1
 from tensorflow_estimator.python.estimator.export import export_lib
 from tensorflow_estimator.python.estimator.inputs import numpy_io
 from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
-from tensorflow_estimator.python.estimator.util import tf_keras_v2
 
 try:
   import h5py  # pylint:disable=g-import-not-at-top
@@ -53,31 +50,31 @@ _TMP_DIR = '/tmp'
 
 
 def simple_sequential_model():
-  model = tf_keras.models.Sequential()
-  model.add(tf_keras.layers.Dense(16, activation='relu', input_shape=_INPUT_SIZE))
-  model.add(tf_keras.layers.Dropout(0.1))
-  model.add(tf_keras.layers.Dense(_NUM_CLASS, activation='softmax'))
+  model = tf.keras.models.Sequential()
+  model.add(tf.keras.layers.Dense(16, activation='relu', input_shape=_INPUT_SIZE))
+  model.add(tf.keras.layers.Dropout(0.1))
+  model.add(tf.keras.layers.Dense(_NUM_CLASS, activation='softmax'))
   return model
 
 
 def simple_functional_model(activation='relu'):
-  a = tf_keras.layers.Input(shape=_INPUT_SIZE, name='input_layer')
-  b = tf_keras.layers.Dense(16, activation=activation)(a)
-  b = tf_keras.layers.Dropout(0.1)(b)
-  b = tf_keras.layers.Dense(_NUM_CLASS, activation='softmax')(b)
-  model = tf_keras.models.Model(inputs=[a], outputs=[b])
+  a = tf.keras.layers.Input(shape=_INPUT_SIZE, name='input_layer')
+  b = tf.keras.layers.Dense(16, activation=activation)(a)
+  b = tf.keras.layers.Dropout(0.1)(b)
+  b = tf.keras.layers.Dense(_NUM_CLASS, activation='softmax')(b)
+  model = tf.keras.models.Model(inputs=[a], outputs=[b])
   return model
 
 
 def simple_subclassed_model():
 
-  class SimpleModel(tf_keras.models.Model):
+  class SimpleModel(tf.keras.models.Model):
 
     def __init__(self):
       super(SimpleModel, self).__init__()
-      self.dense1 = tf_keras.layers.Dense(16, activation='relu')
-      self.dp = tf_keras.layers.Dropout(0.1)
-      self.dense2 = tf_keras.layers.Dense(_NUM_CLASS, activation='softmax')
+      self.dense1 = tf.keras.layers.Dense(16, activation='relu')
+      self.dp = tf.keras.layers.Dropout(0.1)
+      self.dense2 = tf.keras.layers.Dense(_NUM_CLASS, activation='softmax')
 
     def call(self, inputs):
       x = self.dense1(inputs)
@@ -126,10 +123,10 @@ def get_multi_inputs_multi_outputs_data():
       num_classes=2,
       random_seed=_RANDOM_SEED)
 
-  c_train = tf_keras.utils.to_categorical(c_train)
-  c_test = tf_keras.utils.to_categorical(c_test)
-  d_train = tf_keras.utils.to_categorical(d_train)
-  d_test = tf_keras.utils.to_categorical(d_test)
+  c_train = tf.keras.utils.to_categorical(c_train)
+  c_test = tf.keras.utils.to_categorical(c_test)
+  d_train = tf.keras.utils.to_categorical(d_train)
+  d_test = tf.keras.utils.to_categorical(d_test)
 
   train_data = {
       'input_a': a_train,
@@ -175,8 +172,8 @@ def get_resource_for_simple_model(
       test_samples=50,
       input_shape=_INPUT_SIZE,
       num_classes=_NUM_CLASS)
-  y_train = tf_keras.utils.to_categorical(y_train)
-  y_test = tf_keras.utils.to_categorical(y_test)
+  y_train = tf.keras.utils.to_categorical(y_train)
+  y_test = tf.keras.utils.to_categorical(y_test)
 
   train_input_fn = gen_input_fn(
       x=randomize_io_type(x_train, input_name),
@@ -209,22 +206,22 @@ def randomize_io_type(array, name):
 
 
 def multi_inputs_multi_outputs_model():
-  input_a = tf_keras.layers.Input(shape=(16,), name='input_a')
-  input_b = tf_keras.layers.Input(shape=(16,), name='input_b')
-  input_m = tf_keras.layers.Input(shape=(8,), dtype='string', name='input_m')
-  dense = tf_keras.layers.Dense(8, name='dense_1')
+  input_a = tf.keras.layers.Input(shape=(16,), name='input_a')
+  input_b = tf.keras.layers.Input(shape=(16,), name='input_b')
+  input_m = tf.keras.layers.Input(shape=(8,), dtype='string', name='input_m')
+  dense = tf.keras.layers.Dense(8, name='dense_1')
 
   interm_a = dense(input_a)
   # Read m
-  interm_m = tf_keras.layers.Lambda(gen_parsing_ops.string_to_number)(input_m)
-  interm_s = tf_keras.layers.Lambda(lambda k: k[0] * k[1])([interm_m, interm_a])
+  interm_m = tf.keras.layers.Lambda(gen_parsing_ops.string_to_number)(input_m)
+  interm_s = tf.keras.layers.Lambda(lambda k: k[0] * k[1])([interm_m, interm_a])
   interm_b = dense(input_b)
-  merged = tf_keras.layers.concatenate([interm_s, interm_b], name='merge')
-  output_c = tf_keras.layers.Dense(3, activation='softmax', name='dense_2')(
+  merged = tf.keras.layers.concatenate([interm_s, interm_b], name='merge')
+  output_c = tf.keras.layers.Dense(3, activation='softmax', name='dense_2')(
       merged)
-  output_d = tf_keras.layers.Dense(2, activation='softmax', name='dense_3')(
+  output_d = tf.keras.layers.Dense(2, activation='softmax', name='dense_3')(
       merged)
-  model = tf_keras.models.Model(
+  model = tf.keras.models.Model(
       inputs=[input_a, input_b, input_m], outputs=[output_c, output_d])
   model.compile(
       loss='categorical_crossentropy',
@@ -256,7 +253,7 @@ class TestKerasEstimator(tf.test.TestCase, parameterized.TestCase):
     tf.compat.v1.summary.FileWriterCache.clear()
     if os.path.isdir(self._base_dir):
       tf.compat.v1.gfile.DeleteRecursively(self._base_dir)
-    tf_keras.backend.clear_session()
+    tf.keras.backend.clear_session()
     super(TestKerasEstimator, self).tearDown()
 
   @parameterized.named_parameters(
@@ -371,15 +368,15 @@ class TestKerasEstimator(tf.test.TestCase, parameterized.TestCase):
               tf.feature_column.categorical_column_with_identity(
                   key=feature_name,
                   num_buckets=np.size(np.unique(data_array)))))
-      input_features[feature_name] = tf_keras.layers.Input(
+      input_features[feature_name] = tf.keras.layers.Input(
           name=feature_name,
           shape=(np.size(np.unique(data_array)),),
           dtype=tf.dtypes.int64)
 
-    x = tf_keras_v1.layers.DenseFeatures(feature_columns)(input_features)
-    x = tf_keras.layers.Dense(16, activation='relu')(x)
-    logits = tf_keras.layers.Dense(1, activation='linear')(x)
-    model = tf_keras.models.Model(inputs=input_features, outputs=logits)
+    x = tf.compat.v1.keras.layers.DenseFeatures(feature_columns)(input_features)
+    x = tf.keras.layers.Dense(16, activation='relu')(x)
+    logits = tf.keras.layers.Dense(1, activation='linear')(x)
+    model = tf.keras.models.Model(inputs=input_features, outputs=logits)
 
     model.compile(
         optimizer='rmsprop', loss='binary_crossentropy', metrics=['accuracy'])
@@ -404,16 +401,16 @@ class TestKerasEstimator(tf.test.TestCase, parameterized.TestCase):
               tf.feature_column.categorical_column_with_identity(
                   key=feature_name, num_buckets=np.size(np.unique(data_array))),
               dimension=3))
-      input_features[feature_name] = tf_keras.layers.Input(
+      input_features[feature_name] = tf.keras.layers.Input(
           name=feature_name,
           shape=(np.size(np.unique(data_array)),),
           dtype=tf.dtypes.int64)
 
-    df = tf_keras_v1.layers.DenseFeatures(feature_columns)
+    df = tf.compat.v1.keras.layers.DenseFeatures(feature_columns)
     x = df(input_features)
-    x = tf_keras.layers.Dense(16, activation='relu')(x)
-    logits = tf_keras.layers.Dense(1, activation='linear')(x)
-    model = tf_keras.models.Model(inputs=input_features, outputs=logits)
+    x = tf.keras.layers.Dense(16, activation='relu')(x)
+    logits = tf.keras.layers.Dense(1, activation='linear')(x)
+    model = tf.keras.models.Model(inputs=input_features, outputs=logits)
 
     model.compile(
         optimizer='rmsprop', loss='binary_crossentropy', metrics=['accuracy'])
@@ -445,16 +442,16 @@ class TestKerasEstimator(tf.test.TestCase, parameterized.TestCase):
               tf.feature_column.categorical_column_with_identity(
                   key=feature_name, num_buckets=np.size(np.unique(data_array))),
               dimension=3))
-      input_features[feature_name] = tf_keras.layers.Input(
+      input_features[feature_name] = tf.keras.layers.Input(
           name=feature_name,
           shape=(np.size(np.unique(data_array)),),
           dtype=tf.dtypes.int64)
 
-    df = tf_keras_v2.layers.DenseFeatures(feature_columns)
+    df = tf.compat.v2.keras.layers.DenseFeatures(feature_columns)
     x = df(input_features)
-    x = tf_keras.layers.Dense(16, activation='relu')(x)
-    logits = tf_keras.layers.Dense(1, activation='linear')(x)
-    model = tf_keras.models.Model(inputs=input_features, outputs=logits)
+    x = tf.keras.layers.Dense(16, activation='relu')(x)
+    logits = tf.keras.layers.Dense(1, activation='linear')(x)
+    model = tf.keras.models.Model(inputs=input_features, outputs=logits)
 
     model.compile(
         optimizer='rmsprop', loss='binary_crossentropy', metrics=['accuracy'])
@@ -510,19 +507,19 @@ class TestKerasEstimator(tf.test.TestCase, parameterized.TestCase):
           (metric_name, keras_eval[i], est_eval[metric_name]))
 
   def test_evaluate_multi_io_model(self):
-    input_a = tf_keras.layers.Input(shape=(16,), name='input_a')
-    input_b = tf_keras.layers.Input(shape=(16,), name='input_b')
-    dense = tf_keras.layers.Dense(8, name='dense_1')
+    input_a = tf.keras.layers.Input(shape=(16,), name='input_a')
+    input_b = tf.keras.layers.Input(shape=(16,), name='input_b')
+    dense = tf.keras.layers.Dense(8, name='dense_1')
     interm_a = dense(input_a)
     interm_b = dense(input_b)
-    merged = tf_keras.layers.concatenate([interm_a, interm_b], name='merge')
-    output_a = tf_keras.layers.Dense(
+    merged = tf.keras.layers.concatenate([interm_a, interm_b], name='merge')
+    output_a = tf.keras.layers.Dense(
         3, activation='softmax', name='dense_2')(
             merged)
-    output_b = tf_keras.layers.Dense(
+    output_b = tf.keras.layers.Dense(
         2, activation='softmax', name='dense_3')(
             merged)
-    keras_model = tf_keras.models.Model(
+    keras_model = tf.keras.models.Model(
         inputs=[input_a, input_b], outputs=[output_a, output_b])
     keras_model.compile(
         loss='categorical_crossentropy',
@@ -543,10 +540,10 @@ class TestKerasEstimator(tf.test.TestCase, parameterized.TestCase):
         test_samples=50,
         input_shape=(16,),
         num_classes=2)
-    y_train_1 = tf_keras.utils.to_categorical(y_train_1)
-    y_test_1 = tf_keras.utils.to_categorical(y_test_1)
-    y_train_2 = tf_keras.utils.to_categorical(y_train_2)
-    y_test_2 = tf_keras.utils.to_categorical(y_test_2)
+    y_train_1 = tf.keras.utils.to_categorical(y_train_1)
+    y_test_1 = tf.keras.utils.to_categorical(y_test_1)
+    y_train_2 = tf.keras.utils.to_categorical(y_train_2)
+    y_test_2 = tf.keras.utils.to_categorical(y_test_2)
 
     keras_model.fit((x_train_1, x_train_2), (y_train_1, y_train_2), epochs=1)
     keras_eval = keras_model.evaluate((x_test_1, x_test_2),
@@ -720,7 +717,7 @@ class TestKerasEstimator(tf.test.TestCase, parameterized.TestCase):
     keras_model.fit(x_train, y_train, epochs=1)
     keras_pred = [np.argmax(y) for y in keras_model.predict(x_test)]
     fname = os.path.join(self._base_dir, 'keras_model.h5')
-    tf_keras.models.save_model(keras_model, fname)
+    tf.keras.models.save_model(keras_model, fname)
 
     keras_est = keras_lib.model_to_estimator(
         keras_model_path=fname, config=self._config)
@@ -750,7 +747,7 @@ class TestKerasEstimator(tf.test.TestCase, parameterized.TestCase):
         test_samples=100,
         input_shape=(10,),
         num_classes=2)
-    y_train = tf_keras.utils.to_categorical(y_train)
+    y_train = tf.keras.utils.to_categorical(y_train)
 
     def invald_input_name_input_fn():
       input_dict = {'invalid_input_name': x_train}
@@ -782,7 +779,7 @@ class TestKerasEstimator(tf.test.TestCase, parameterized.TestCase):
   def test_custom_objects(self):
 
     def custom_relu(x):
-      return tf_keras.backend.relu(x, max_value=6)
+      return tf.keras.backend.relu(x, max_value=6)
 
     keras_model = simple_functional_model(activation=custom_relu)
     keras_model.compile(loss='categorical_crossentropy', optimizer='adam')
@@ -793,7 +790,7 @@ class TestKerasEstimator(tf.test.TestCase, parameterized.TestCase):
         test_samples=50,
         input_shape=(10,),
         num_classes=2)
-    y_train = tf_keras.utils.to_categorical(y_train, 2)
+    y_train = tf.keras.utils.to_categorical(y_train, 2)
     input_name = keras_model.input_names[0]
     output_name = keras_model.output_names[0]
     train_input_fn = gen_input_fn(
@@ -820,7 +817,7 @@ class TestKerasEstimator(tf.test.TestCase, parameterized.TestCase):
     keras_model.compile(
         loss='categorical_crossentropy',
         optimizer='rmsprop',
-        metrics=['mse', tf_keras.metrics.CategoricalAccuracy()])
+        metrics=['mse', tf.keras.metrics.CategoricalAccuracy()])
 
     tf_config = json.dumps({
         'cluster': {
@@ -845,14 +842,14 @@ class TestKerasEstimator(tf.test.TestCase, parameterized.TestCase):
       keras_model.compile(
           loss='categorical_crossentropy',
           optimizer='rmsprop',
-          metrics=['mse', tf_keras.metrics.CategoricalAccuracy()])
+          metrics=['mse', tf.keras.metrics.CategoricalAccuracy()])
 
       gpu_options = tf.compat.v1.GPUOptions(per_process_gpu_memory_fraction=0.3)
       sess_config = tf.compat.v1.ConfigProto(gpu_options=gpu_options)
       self._config._session_config = sess_config
       keras_lib.model_to_estimator(keras_model=keras_model, config=self._config)
       self.assertEqual(
-          tf_keras_v1.backend.get_session(
+          tf.compat.v1.keras.backend.get_session(
           )._config.gpu_options.per_process_gpu_memory_fraction,
           gpu_options.per_process_gpu_memory_fraction)
 
@@ -862,7 +859,7 @@ class TestKerasEstimator(tf.test.TestCase, parameterized.TestCase):
     keras_model.compile(
         loss='categorical_crossentropy',
         optimizer='rmsprop',
-        metrics=['mse', tf_keras.metrics.CategoricalAccuracy()])
+        metrics=['mse', tf.keras.metrics.CategoricalAccuracy()])
 
     est_keras = keras_lib.model_to_estimator(
         keras_model=keras_model,
@@ -890,7 +887,7 @@ class TestKerasEstimator(tf.test.TestCase, parameterized.TestCase):
     keras_model.compile(
         loss='categorical_crossentropy',
         optimizer='rmsprop',
-        metrics=['mse', tf_keras.metrics.CategoricalAccuracy()])
+        metrics=['mse', tf.keras.metrics.CategoricalAccuracy()])
 
     with tf.compat.v1.test.mock.patch.object(
         tempfile, 'mkdtemp', return_value=_TMP_DIR):
@@ -904,7 +901,7 @@ class TestKerasEstimator(tf.test.TestCase, parameterized.TestCase):
     keras_model.compile(
         loss='categorical_crossentropy',
         optimizer='rmsprop',
-        metrics=['mse', tf_keras.metrics.CategoricalAccuracy()])
+        metrics=['mse', tf.keras.metrics.CategoricalAccuracy()])
 
     with self.assertRaisesRegexp(
         ValueError, '`model_dir` are set both in '
@@ -919,7 +916,7 @@ class TestKerasEstimator(tf.test.TestCase, parameterized.TestCase):
     keras_model.compile(
         loss='categorical_crossentropy',
         optimizer=tf.compat.v1.train.RMSPropOptimizer(1e-3),
-        metrics=['mse', tf_keras.metrics.CategoricalAccuracy()])
+        metrics=['mse', tf.keras.metrics.CategoricalAccuracy()])
     keras_model.train_on_batch(
         np.random.random((10,) + _INPUT_SIZE), np.random.random(
             (10, _NUM_CLASS)))
@@ -930,7 +927,7 @@ class TestKerasEstimator(tf.test.TestCase, parameterized.TestCase):
     keras_model.compile(
         loss='categorical_crossentropy',
         optimizer='sgd',
-        metrics=['mse', tf_keras.metrics.CategoricalAccuracy()])
+        metrics=['mse', tf.keras.metrics.CategoricalAccuracy()])
     keras_lib.model_to_estimator(keras_model=keras_model, config=self._config)
 
   def assert_increasing_global_step(self, optimizer):
@@ -939,7 +936,7 @@ class TestKerasEstimator(tf.test.TestCase, parameterized.TestCase):
     keras_model.compile(
         loss='categorical_crossentropy',
         optimizer=optimizer,
-        metrics=['mse', tf_keras.metrics.CategoricalAccuracy()])
+        metrics=['mse', tf.keras.metrics.CategoricalAccuracy()])
     with self.cached_session() as sess:
       keras_model_fn = keras_lib._create_keras_model_fn(keras_model)
       global_step = tf.compat.v1.train.create_global_step()
@@ -973,7 +970,7 @@ class TestKerasEstimator(tf.test.TestCase, parameterized.TestCase):
     keras_model.compile(
         loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
     keras_model.fit(x_train, y_train, epochs=1)
-    bias_value = tf_keras.backend.get_value(keras_model.layers[0].bias)
+    bias_value = tf.keras.backend.get_value(keras_model.layers[0].bias)
 
     est_keras = keras_lib.model_to_estimator(
         keras_model=keras_model,
@@ -1021,12 +1018,12 @@ class TestKerasEstimator(tf.test.TestCase, parameterized.TestCase):
     dataset = tf.data.Dataset.from_tensor_slices((
         {'a': inputs_a, 'b': inputs_b},
         {'c': outputs_c, 'd': outputs_d})).batch(32)
-    keras_inputs_a = tf_keras.Input(shape=(1,), dtype=tf.float32, name='a')
-    keras_inputs_b = tf_keras.Input(shape=(1,), dtype=tf.float32, name='b')
-    keras_outputs_c = tf_keras.layers.Dense(units=1, name='c')(keras_inputs_a)
-    keras_outputs_d = tf_keras.layers.Dense(
+    keras_inputs_a = tf.keras.Input(shape=(1,), dtype=tf.float32, name='a')
+    keras_inputs_b = tf.keras.Input(shape=(1,), dtype=tf.float32, name='b')
+    keras_outputs_c = tf.keras.layers.Dense(units=1, name='c')(keras_inputs_a)
+    keras_outputs_d = tf.keras.layers.Dense(
         units=1, name='d', activation='sigmoid')(keras_inputs_b)
-    keras_model = tf_keras.Model(
+    keras_model = tf.keras.Model(
         inputs={'a': keras_inputs_a, 'b': keras_inputs_b},
         outputs={'c': keras_outputs_c, 'd': keras_outputs_d})
     keras_model.compile('sgd', {'c': 'mse', 'd': 'binary_crossentropy'}, [])
@@ -1067,12 +1064,12 @@ class TestKerasEstimator(tf.test.TestCase, parameterized.TestCase):
     dataset = tf.data.Dataset.from_tensor_slices((
         {'a': inputs_a, 'b': inputs_b},
         {'c': outputs_c, 'd': outputs_d})).batch(32)
-    keras_inputs_a = tf_keras.Input(shape=(1,), dtype=tf.float32, name='a')
-    keras_inputs_b = tf_keras.Input(shape=(1,), dtype=tf.float32, name='b')
-    keras_outputs_c = tf_keras.layers.Dense(units=1, name='c')(keras_inputs_a)
-    keras_outputs_d = tf_keras.layers.Dense(
+    keras_inputs_a = tf.keras.Input(shape=(1,), dtype=tf.float32, name='a')
+    keras_inputs_b = tf.keras.Input(shape=(1,), dtype=tf.float32, name='b')
+    keras_outputs_c = tf.keras.layers.Dense(units=1, name='c')(keras_inputs_a)
+    keras_outputs_d = tf.keras.layers.Dense(
         units=1, name='d', activation='sigmoid')(keras_inputs_b)
-    keras_model = tf_keras.Model(
+    keras_model = tf.keras.Model(
         inputs={'a': keras_inputs_a, 'b': keras_inputs_b},
         outputs={'c': keras_outputs_c, 'd': keras_outputs_d})
     keras_model.compile('sgd', {'c': 'mse', 'd': 'binary_crossentropy'}, [])
@@ -1107,7 +1104,7 @@ class TestKerasEstimator(tf.test.TestCase, parameterized.TestCase):
         loss='categorical_crossentropy',
         metrics=['accuracy'])
     keras_model.fit(x_train, y_train, epochs=1)
-    iterations = tf_keras.backend.get_value(keras_model.optimizer.iterations)
+    iterations = tf.keras.backend.get_value(keras_model.optimizer.iterations)
     optimizer = keras_model.optimizer
     est_keras = keras_lib.model_to_estimator(
         keras_model=keras_model, config=self._config, checkpoint_format='saver')
@@ -1115,7 +1112,7 @@ class TestKerasEstimator(tf.test.TestCase, parameterized.TestCase):
 
     # Subclassed models resets the model object. Assert that attributes are
     # properly restored.
-    iterations_after = tf_keras.backend.get_value(
+    iterations_after = tf.keras.backend.get_value(
         keras_model.optimizer.iterations)
     self.assertEqual(optimizer, keras_model.optimizer)
     self.assertEqual(iterations, iterations_after)
@@ -1148,8 +1145,8 @@ class TestKerasEstimator(tf.test.TestCase, parameterized.TestCase):
 
   def test_sample_weights(self):
     # Create simple pass-through model
-    input_layer = tf_keras.layers.Input(shape=1, name='input_layer')
-    keras_model = tf_keras.models.Model(inputs=input_layer, outputs=input_layer)
+    input_layer = tf.keras.layers.Input(shape=1, name='input_layer')
+    keras_model = tf.keras.models.Model(inputs=input_layer, outputs=input_layer)
 
     keras_model.compile(loss='mean_absolute_error', optimizer='adam')
 
@@ -1174,7 +1171,7 @@ class TestKerasEstimator(tf.test.TestCase, parameterized.TestCase):
     self.assertAllClose(expected_loss, eval_results['loss'])
 
     # Test multiple with outputs and sample weights.
-    keras_model = tf_keras.models.Model(
+    keras_model = tf.keras.models.Model(
         inputs=input_layer, outputs=[input_layer, input_layer])
     keras_model.compile(loss='mean_absolute_error', optimizer='adam')
     expected_loss = keras_model.test_on_batch(
@@ -1197,22 +1194,22 @@ class TestKerasEstimator(tf.test.TestCase, parameterized.TestCase):
     eval_results = est_keras.evaluate(input_fn_multiple_targets, steps=1)
     self.assertAllClose(expected_loss, eval_results['loss'])
 
-  @parameterized.parameters([tf_keras_v2.layers.LSTM, tf_keras_v2.layers.GRU])
+  @parameterized.parameters([tf.compat.v2.keras.layers.LSTM, tf.compat.v2.keras.layers.GRU])
   def test_model_to_estimator_with_rnn(self, layer):
     # See https://github.com/tensorflow/tensorflow/issues/27750 for details.
     timestep = 10
     rnn_cell_size = 8
 
     layers = [
-        tf_keras.layers.Reshape([timestep, 1], input_shape=[
+        tf.keras.layers.Reshape([timestep, 1], input_shape=[
             timestep,
         ]),
         layer(rnn_cell_size, return_sequences=True),
         layer(rnn_cell_size),
-        tf_keras.layers.Dense(1)
+        tf.keras.layers.Dense(1)
     ]
 
-    model = tf_keras.models.Sequential(layers)
+    model = tf.keras.models.Sequential(layers)
     model.compile(loss='mse', optimizer='sgd')
     keras_lib.model_to_estimator(
         keras_model=model,

@@ -23,7 +23,6 @@ import tensorflow.compat.v1 as tf
 
 from tensorflow.contrib import summary as contrib_summary
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
-from tensorflow_estimator.python.estimator.util import tf_keras_v1
 from tensorflow_estimator.python.estimator.tpu import tpu_config as tpu_config_lib
 from tensorflow_estimator.python.estimator.tpu import tpu_estimator
 
@@ -172,7 +171,7 @@ class TPUEnqueueSequenceTest(tf.test.TestCase, parameterized.TestCase):
         run on TPU and the host_call that TPUEstimator will run on the host.
       """
       del params
-      input_layer = tf_keras_v1.experimental.SequenceFeatures([embedding_column])
+      input_layer = tf.keras.experimental.SequenceFeatures([embedding_column])
       activations, sequence_lengths = input_layer(features)
       opt = tf.tpu.CrossShardOptimizer(tf.train.GradientDescentOptimizer(0.1))
       loss = tf.reduce_sum(activations)

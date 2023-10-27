@@ -25,7 +25,6 @@ import tensorflow as tf
 from tensorflow.python.saved_model import model_utils as export_utils
 from tensorflow.python.tpu import tensor_tracer
 from tensorflow.python.util import function_utils
-from tensorflow_estimator.python.estimator.util import tf_keras
 from tensorflow_estimator.python.estimator.estimator_export import estimator_export
 from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
 
@@ -474,7 +473,7 @@ def _validate_eval_metric_ops(eval_metric_ops):
     for key, value in six.iteritems(eval_metric_ops):
       # TODO(psv): When we deprecate the old metrics, throw an error here if
       # the value is not an instance of `Metric` class.
-      if isinstance(value, tf_keras.metrics.Metric):
+      if isinstance(value, tf.keras.metrics.Metric):
         if not value.updates:  # Check if metric updates are available.
           raise ValueError(
               'Please call update_state(...) on the "{metric_name}" metric'
@@ -487,7 +486,7 @@ def _validate_eval_metric_ops(eval_metric_ops):
   # Verify all tensors and ops are from default graph.
   default_graph = tf.compat.v1.get_default_graph()
   for key, value in list(six.iteritems(eval_metric_ops)):
-    if isinstance(value, tf_keras.metrics.Metric):
+    if isinstance(value, tf.keras.metrics.Metric):
       values_to_check = value.updates[:]
       values_to_check.append(value.result())
     else:
@@ -504,7 +503,7 @@ def _validate_eval_metric_ops(eval_metric_ops):
   # collections as long as it supports V1 graph mode.
   vars_to_add = set()
   for key, value in six.iteritems(eval_metric_ops):
-    if isinstance(value, tf_keras.metrics.Metric):
+    if isinstance(value, tf.keras.metrics.Metric):
       vars_to_add.update(value.variables)
       # Convert Metric instances to (value_tensor, update_op) tuple.
       eval_metric_ops[key] = (value.result(), value.updates[0])

@@ -21,7 +21,6 @@ from __future__ import print_function
 import numpy as np
 import tensorflow as tf
 from tensorflow.python.framework import test_util
-from tensorflow_estimator.python.estimator.util import tf_keras
 from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.canned import prediction_keys
 from tensorflow_estimator.python.estimator.head import head_utils as test_lib
@@ -1310,7 +1309,7 @@ class RegressionHeadForEstimator(tf.test.TestCase):
   def test_invalid_trainable_variables(self):
     head = head_lib.RegressionHead()
 
-    class _Optimizer(tf_keras.optimizers.Optimizer):
+    class _Optimizer(tf.keras.optimizers.Optimizer):
 
       def get_updates(self, loss, params):
         del params
@@ -1358,7 +1357,7 @@ class RegressionHeadForEstimator(tf.test.TestCase):
     # loss = ((43-45)^2 + (44-41)^2) / 2 = (4 + 9) / 2 = 13 / 2 = 6.5
     expected_loss = 6.5
 
-    class _Optimizer(tf_keras.optimizers.Optimizer):
+    class _Optimizer(tf.keras.optimizers.Optimizer):
 
       def get_updates(self, loss, params):
         del params

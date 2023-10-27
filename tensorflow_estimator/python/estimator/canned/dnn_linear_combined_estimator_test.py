@@ -24,7 +24,6 @@ import tempfile
 import numpy as np
 import six
 import tensorflow as tf
-from tensorflow_estimator.python.estimator.util import tf_keras
 from tensorflow_estimator.python.estimator.canned import dnn_linear_combined
 from tensorflow_estimator.python.estimator.canned import dnn_testing_utils
 from tensorflow_estimator.python.estimator.canned import linear_testing_utils
@@ -238,8 +237,8 @@ class DNNLinearCombinedEstimatorIntegrationTest(tf.test.TestCase):
         input_dimension=label_dimension,
         label_dimension=label_dimension,
         batch_size=batch_size,
-        dnn_optimizer=tf_keras.optimizers.legacy.Adagrad(0.01),
-        linear_optimizer=tf_keras.optimizers.legacy.Ftrl(0.01))
+        dnn_optimizer=tf.keras.optimizers.legacy.Adagrad(0.01),
+        linear_optimizer=tf.keras.optimizers.legacy.Ftrl(0.01))
 
 
 if __name__ == '__main__':

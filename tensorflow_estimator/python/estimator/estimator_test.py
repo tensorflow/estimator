@@ -50,7 +50,6 @@ from tensorflow.python.training import training
 from tensorflow.python.util import function_utils
 from tensorflow_estimator.python.estimator import training as estimator_training
 from tensorflow_estimator.python.estimator import estimator
-from tensorflow_estimator.python.estimator.util import tf_keras_v1
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
 from tensorflow_estimator.python.estimator import run_config
 from tensorflow_estimator.python.estimator.export import export_lib
@@ -1165,7 +1164,7 @@ def _model_fn_with_eval_metric_ops(features, labels, mode, params):
   metric_tensor = control_flow_ops.with_dependencies(
       [metric_update_op], tf.constant(metric_value_1))
 
-  mean = tf_keras_v1.metrics.Mean()
+  mean = tf.keras.metrics.Mean()
   mean.update_state(metric_value_2)
   return model_fn_lib.EstimatorSpec(
       mode,
@@ -1377,7 +1376,7 @@ class EstimatorEvaluateTest(tf.test.TestCase):
 
     def _model_fn(features, labels, mode, params):
       del features, labels, params
-      mean = tf_keras_v1.metrics.Mean()
+      mean = tf.keras.metrics.Mean()
       mean.update_state(tf.Variable(2.) + 1)
       return model_fn_lib.EstimatorSpec(
           mode,
@@ -1403,7 +1402,7 @@ class EstimatorEvaluateTest(tf.test.TestCase):
         _, _ = features, labels
         x_var = tf.get_variable('x', initializer=x)
         global_step = tf.train.get_global_step()
-        mean = tf_keras_v1.metrics.Mean()
+        mean = tf.keras.metrics.Mean()
         mean.update_state(x_var + 1)
         return model_fn_lib.EstimatorSpec(
             mode,
@@ -2290,7 +2289,7 @@ def _model_fn_with_x_y(features, labels, mode):
 
     multiplied = tf.math.multiply(
         features['x'], features['y'], name='{}multiplied'.format(prefix))
-    mean = tf_keras_v1.metrics.Mean(name='{}mean'.format(prefix))
+    mean = tf.keras.metrics.Mean(name='{}mean'.format(prefix))
     mean.update_state(features['x'] - features['y'])
     eval_metrics = {
         'mean1':
@@ -2661,7 +2660,7 @@ class EstimatorExportTest(tf.test.TestCase):
 
     def _model_fn(features, labels, mode):
       del features, labels  # Unused
-      metric_obj = tf_keras_v1.metrics.Mean()
+      metric_obj = tf.keras.metrics.Mean()
       metric_obj.update_state(tf.constant([0]))
       eval_metrics = {
           'metrics1': (tf.constant([0]), tf.no_op()),
@@ -3464,7 +3463,7 @@ class EstimatorIntegrationTest(tf.test.TestCase):
   def test_complete_flow_with_a_simple_linear_model(self):
 
     def _model_fn(features, labels, mode):
-      predictions = tf_keras_v1.__internal__.legacy.layers.dense(
+      predictions = tf.layers.dense(
           features['x'], 1, kernel_initializer=tf.initializers.zeros())
       export_outputs = {'predictions': export_lib.RegressionOutput(predictions)}
 
@@ -3472,10 +3471,10 @@ class EstimatorIntegrationTest(tf.test.TestCase):
         return model_fn_lib.EstimatorSpec(
             mode, predictions=predictions, export_outputs=export_outputs)
 
-      loss = tf_keras_v1.losses.MeanSquaredError()(labels, predictions)
+      loss = tf.keras.losses.MeanSquaredError()(labels, predictions)
       train_op = tf.train.GradientDescentOptimizer(learning_rate=0.5).minimize(
           loss, tf.train.get_global_step())
-      mean = tf_keras_v1.metrics.Mean()
+      mean = tf.keras.metrics.Mean()
       mean.update_state(loss)
       eval_metric_ops = {
           'absolute_error': tf.metrics.mean_absolute_error(labels, predictions),

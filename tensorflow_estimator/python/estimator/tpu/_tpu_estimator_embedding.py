@@ -234,7 +234,7 @@ class EmbeddingConfigSpec(
   tpu_columns = [tpu_non_shared_column] + tpu_shared_columns
   ...
   def model_fn(features):
-    dense_features = tf_keras.layers.DenseFeature(tpu_columns)
+    dense_features = tf.keras.layers.DenseFeature(tpu_columns)
     embedded_feature = dense_features(features)
     ...
 

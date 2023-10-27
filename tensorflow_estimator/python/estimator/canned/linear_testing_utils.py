@@ -31,7 +31,6 @@ from tensorflow.core.example import feature_pb2
 from tensorflow.python.feature_column import feature_column_v2
 from tensorflow.python.framework import ops
 from tensorflow_estimator.python.estimator import estimator
-from tensorflow_estimator.python.estimator.util import tf_keras
 from tensorflow_estimator.python.estimator.canned import linear
 from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.export import export
@@ -107,7 +106,7 @@ def sigmoid(x):
 def mock_optimizer(testcase, expected_loss=None):
   expected_var_names = ['%s:0' % AGE_WEIGHT_NAME, '%s:0' % BIAS_NAME]
 
-  class _Optimizer(tf_keras.optimizers.legacy.Optimizer):
+  class _Optimizer(tf.keras.optimizers.legacy.Optimizer):
 
     def get_updates(self, loss, params):
       trainable_vars = params
@@ -2040,7 +2039,7 @@ class BaseLinearWarmStartingTest(object):
     warm_started_linear_classifier = self._linear_classifier_fn(
         feature_columns=[age],
         n_classes=4,
-        optimizer=tf_keras.optimizers.legacy.SGD(learning_rate=0.0),
+        optimizer=tf.keras.optimizers.legacy.SGD(learning_rate=0.0),
         warm_start_from=linear_classifier.model_dir)
 
     warm_started_linear_classifier.train(input_fn=self._input_fn, max_steps=1)
@@ -2072,7 +2071,7 @@ class BaseLinearWarmStartingTest(object):
     # accumulator values that change).
     warm_started_linear_regressor = self._linear_regressor_fn(
         feature_columns=[age],
-        optimizer=tf_keras.optimizers.legacy.SGD(learning_rate=0.0),
+        optimizer=tf.keras.optimizers.legacy.SGD(learning_rate=0.0),
         warm_start_from=linear_regressor.model_dir)
 
     warm_started_linear_regressor.train(input_fn=self._input_fn, max_steps=1)
@@ -2106,7 +2105,7 @@ class BaseLinearWarmStartingTest(object):
     warm_started_linear_classifier = self._linear_classifier_fn(
         feature_columns=[age],
         n_classes=4,
-        optimizer=tf_keras.optimizers.legacy.SGD(learning_rate=0.0),
+        optimizer=tf.keras.optimizers.legacy.SGD(learning_rate=0.0),
         # The provided regular expression will only warm-start the age variable
         # and not the bias.
         warm_start_from=estimator.WarmStartSettings(
@@ -2168,7 +2167,7 @@ class BaseLinearWarmStartingTest(object):
     warm_started_linear_classifier = self._linear_classifier_fn(
         feature_columns=[occupation],
         n_classes=4,
-        optimizer=tf_keras.optimizers.legacy.SGD(learning_rate=0.0),
+        optimizer=tf.keras.optimizers.legacy.SGD(learning_rate=0.0),
         warm_start_from=estimator.WarmStartSettings(
             ckpt_to_initialize_from=linear_classifier.model_dir,
             var_name_to_vocab_info={
@@ -2217,7 +2216,7 @@ class BaseLinearWarmStartingTest(object):
     warm_started_linear_classifier = self._linear_classifier_fn(
         feature_columns=[self._fc_lib.numeric_column('age')],
         n_classes=4,
-        optimizer=tf_keras.optimizers.legacy.SGD(learning_rate=0.0),
+        optimizer=tf.keras.optimizers.legacy.SGD(learning_rate=0.0),
         # The 'age' variable correspond to the 'age_in_years' variable in the
         # previous model.
         warm_start_from=estimator.WarmStartSettings(
