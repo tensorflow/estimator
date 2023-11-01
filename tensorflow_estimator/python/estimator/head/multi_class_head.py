@@ -22,12 +22,14 @@ import tensorflow as tf
 from tensorflow.python.framework import ops
 from tensorflow.python.ops import lookup_ops
 from tensorflow_estimator.python.estimator import model_fn
+from tensorflow_estimator.python.estimator.util import tf_keras
 from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.canned import prediction_keys
 from tensorflow_estimator.python.estimator.estimator_export import estimator_export
 from tensorflow_estimator.python.estimator.export import export_output
 from tensorflow_estimator.python.estimator.head import base_head
 from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
+from tensorflow_estimator.python.estimator.util import tf_keras_v2
 
 
 @estimator_export('estimator.MultiClassHead')
@@ -97,13 +99,13 @@ class MultiClassHead(base_head.Head):
   ```python
   def _my_model_fn(features, labels, mode):
     my_head = tf.estimator.MultiClassHead(n_classes=3)
-    logits = tf.keras.Model(...)(features)
+    logits = tf_keras.Model(...)(features)
 
     return my_head.create_estimator_spec(
         features=features,
         mode=mode,
         labels=labels,
-        optimizer=tf.keras.optimizers.Adagrad(lr=0.1),
+        optimizer=tf_keras.optimizers.Adagrad(lr=0.1),
         logits=logits)
 
   my_estimator = tf.estimator.Estimator(model_fn=_my_model_fn)
@@ -273,7 +275,7 @@ class MultiClassHead(base_head.Head):
       label_ids = self._processed_labels(logits, labels)
       unweighted_loss, weights = self._unweighted_loss_and_weights(
           logits, label_ids, features)
-      training_loss = tf.compat.v2.keras.__internal__.losses.compute_weighted_loss(
+      training_loss = tf_keras_v2.__internal__.losses.compute_weighted_loss(
           unweighted_loss,
           sample_weight=weights,
           reduction=self._loss_reduction)
@@ -348,13 +350,13 @@ class MultiClassHead(base_head.Head):
     with ops.name_scope('metrics', values=(regularization_losses,)):
       # Mean metric.
       eval_metrics = {}
-      eval_metrics[self._loss_mean_key] = tf.keras.metrics.Mean(
+      eval_metrics[self._loss_mean_key] = tf_keras.metrics.Mean(
           name=keys.LOSS_MEAN)
       if regularization_losses is not None:
-        eval_metrics[self._loss_regularization_key] = tf.keras.metrics.Mean(
+        eval_metrics[self._loss_regularization_key] = tf_keras.metrics.Mean(
             name=keys.LOSS_REGULARIZATION)
       # Accuracy metric.
-      eval_metrics[self._accuracy_key] = tf.keras.metrics.Accuracy(
+      eval_metrics[self._accuracy_key] = tf_keras.metrics.Accuracy(
           name=keys.ACCURACY)
     return eval_metrics
 
@@ -404,7 +406,7 @@ class MultiClassHead(base_head.Head):
       labels: Labels integer or string `Tensor` with shape matching `logits`,
         namely `[D0, D1, ... DN, 1]` or `[D0, D1, ... DN]`. `labels` is required
         argument when `mode` equals `TRAIN` or `EVAL`.
-      optimizer: An `tf.keras.optimizers.Optimizer` instance to optimize the
+      optimizer: An `tf_keras.optimizers.Optimizer` instance to optimize the
         loss in TRAIN mode. Namely, sets `train_op = optimizer.get_updates(loss,
         trainable_variables)`, which updates variables to minimize `loss`.
       trainable_variables: A list or tuple of `Variable` objects to update to

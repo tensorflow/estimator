@@ -24,6 +24,8 @@ import tensorflow as tf
 from tensorflow.python.tpu import feature_column_v2 as tpu_fc_v2
 from tensorflow.python.tpu import tpu_embedding
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
+from tensorflow_estimator.python.estimator.util import tf_keras
+from tensorflow_estimator.python.estimator.util import tf_keras_v1
 from tensorflow_estimator.python.estimator.export import export
 from tensorflow_estimator.python.estimator.export import export_output as export_output_lib
 from tensorflow_estimator.python.estimator.tpu import _tpu_estimator_embedding
@@ -47,7 +49,7 @@ _VOCAB_NUM_BUCKETS = 5
 
 
 def dense_computation(features):
-  return tf.compat.v1.layers.dense(
+  return tf_keras_v1.__internal__.legacy.layers.dense(
       features['x'], 1, kernel_initializer=tf.compat.v1.zeros_initializer())
 
 
@@ -92,11 +94,11 @@ class TPUEstimatorFeatureColumnTestBase(tf.test.TestCase):
       sequence_columns, non_sequence_columns = (
           tpu_fc_v2.split_sequence_columns_v2(feature_columns))
       if sequence_columns:
-        sequence_layer = tf.keras.experimental.SequenceFeatures(sequence_columns)
+        sequence_layer = tf_keras.experimental.SequenceFeatures(sequence_columns)
         sequence_features, sequence_lengths = sequence_layer(features)
         sequence_lengths = tf.dtypes.cast(sequence_lengths, tf.float32)
       if non_sequence_columns:
-        dense_layer = tf.compat.v1.keras.layers.DenseFeatures(non_sequence_columns)
+        dense_layer = tf_keras_v1.layers.DenseFeatures(non_sequence_columns)
         input_layer = dense_layer(features)
       if numeric_check:
         # Make predictions the same as input_layer. This is used in some tests
@@ -121,7 +123,7 @@ class TPUEstimatorFeatureColumnTestBase(tf.test.TestCase):
           sequence_lengths = tf.compat.v1.expand_dims(sequence_lengths, -1)
           input_layer = tf.concat(
               [input_layer, flattened, sequence_lengths], -1)
-        predictions = tf.compat.v1.layers.dense(
+        predictions = tf_keras_v1.__internal__.legacy.layers.dense(
             input_layer, 1, kernel_initializer=tf.compat.v1.zeros_initializer())
 
       loss = None
@@ -317,7 +319,7 @@ class TPUEstimatorFeatureColumnTest(TPUEstimatorFeatureColumnTestBase,
             tf.dtypes.cast(feature, tf.float32)
             for feature in input_features]
         input_layer = tf.concat(input_features, -1)
-        predictions = tf.compat.v1.layers.dense(
+        predictions = tf_keras_v1.__internal__.legacy.layers.dense(
             input_layer, 1, kernel_initializer=tf.compat.v1.zeros_initializer())
 
       loss = None
@@ -428,7 +430,7 @@ class TPUEstimatorFeatureColumnTest(TPUEstimatorFeatureColumnTestBase,
     embedding_init = np.zeros((_VOCAB_SIZE, _VOCAB_EMBEDDING_DIM))
     for i in range(_VOCAB_SIZE):
       embedding_init[i, i] = i + 1
-    embedding_initializer = tf.compat.v1.keras.initializers.constant(embedding_init)
+    embedding_initializer = tf_keras_v1.initializers.constant(embedding_init)
 
     def input_fn(params):
       # Data index is [3, 2, 1, 0]
@@ -852,9 +854,9 @@ class TPUEstimatorFeatureColumnTest(TPUEstimatorFeatureColumnTestBase,
       del params
       assert mode == model_fn_lib.ModeKeys.TRAIN
 
-      dense_layer = tf.compat.v1.keras.layers.DenseFeatures(feature_columns)
+      dense_layer = tf_keras_v1.layers.DenseFeatures(feature_columns)
       input_layer = dense_layer(features)
-      predictions = tf.compat.v1.layers.dense(
+      predictions = tf_keras_v1.__internal__.legacy.layers.dense(
           input_layer, 1, kernel_initializer=tf.compat.v1.ones_initializer())
 
       loss = tf.compat.v1.losses.mean_squared_error(labels, predictions)
@@ -953,7 +955,7 @@ class TPUEstimatorWeightedFeatureColumnTest(TPUEstimatorFeatureColumnTestBase,
             categorical_column=weighted_sparse_id_column,
             dimension=embedding_dim,
             combiner='mean',
-            initializer=tf.compat.v1.keras.initializers.constant(embedding_init))
+            initializer=tf_keras_v1.initializers.constant(embedding_init))
     ]
 
     def _input_fn(params):
@@ -1015,7 +1017,7 @@ class TPUEstimatorWeightedFeatureColumnTest(TPUEstimatorFeatureColumnTestBase,
         categorical_columns=[weighted_sparse_id_column, sparse_id_column2],
         dimension=embedding_dim,
         combiner='sum',
-        initializer=tf.compat.v1.keras.initializers.constant(embedding_init))
+        initializer=tf_keras_v1.initializers.constant(embedding_init))
 
     def _input_fn(params):
       sample_size = 2
@@ -1077,7 +1079,7 @@ class TPUEstimatorWeightedFeatureColumnTest(TPUEstimatorFeatureColumnTestBase,
     embedding_init = np.zeros((_VOCAB_SIZE, _VOCAB_EMBEDDING_DIM))
     for i in range(_VOCAB_SIZE):
       embedding_init[i, :] = [i] * _VOCAB_EMBEDDING_DIM
-    embedding_initializer = tf.compat.v1.keras.initializers.constant(embedding_init)
+    embedding_initializer = tf_keras_v1.initializers.constant(embedding_init)
 
     feature_columns = [
         tf.compat.v1.tpu.experimental.embedding_column(

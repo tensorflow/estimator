@@ -23,6 +23,8 @@ import numpy as np
 import tensorflow as tf
 from tensorflow_estimator.python.estimator import keras_lib
 from tensorflow_estimator.python.estimator import run_config as run_config_lib
+from tensorflow_estimator.python.estimator.util import tf_keras
+from tensorflow_estimator.python.estimator.util import tf_keras_v1
 from tensorflow_estimator.python.estimator.inputs import numpy_io
 
 _RANDOM_SEED = 1337
@@ -85,7 +87,7 @@ class KerasPremadeModelTest(tf.test.TestCase):
     tf.compat.v1.summary.FileWriterCache.clear()
     if os.path.isdir(self._base_dir):
       tf.compat.v1.gfile.DeleteRecursively(self._base_dir)
-    tf.keras.backend.clear_session()
+    tf_keras.backend.clear_session()
     super(KerasPremadeModelTest, self).tearDown()
 
   def test_train_premade_linear_model_with_dense_features(self):
@@ -100,15 +102,15 @@ class KerasPremadeModelTest(tf.test.TestCase):
     cat_column = tf.feature_column.categorical_column_with_vocabulary_list(
         key='symbol', vocabulary_list=vocab_list)
     ind_column = tf.feature_column.indicator_column(cat_column)
-    keras_input = tf.keras.layers.Input(
+    keras_input = tf_keras.layers.Input(
         name='symbol', shape=3, dtype=tf.dtypes.string)
-    feature_layer = tf.compat.v1.keras.layers.DenseFeatures([ind_column])
+    feature_layer = tf_keras_v1.layers.DenseFeatures([ind_column])
     h = feature_layer({'symbol': keras_input})
-    linear_model = tf.keras.experimental.LinearModel(units=1)
+    linear_model = tf_keras.experimental.LinearModel(units=1)
     h = linear_model(h)
 
-    model = tf.keras.models.Model(inputs=keras_input, outputs=h)
-    opt = tf.keras.optimizers.legacy.SGD(0.1)
+    model = tf_keras.models.Model(inputs=keras_input, outputs=h)
+    opt = tf_keras.optimizers.legacy.SGD(0.1)
     model.compile(opt, 'mse', ['mse'])
     train_input_fn = numpy_io.numpy_input_fn(
         x={'symbol': data}, y=y, num_epochs=20, shuffle=False)
@@ -126,8 +128,8 @@ class KerasPremadeModelTest(tf.test.TestCase):
     (x_train,
      y_train), _, train_inp_fn, eval_inp_fn = get_resource_for_simple_model()
 
-    linear_model = tf.keras.experimental.LinearModel(units=1)
-    opt = tf.keras.optimizers.legacy.SGD(0.1)
+    linear_model = tf_keras.experimental.LinearModel(units=1)
+    opt = tf_keras.optimizers.legacy.SGD(0.1)
     linear_model.compile(opt, 'mse', ['mse'])
     linear_model.fit(x_train, y_train, epochs=10)
 
@@ -155,26 +157,26 @@ class KerasPremadeModelTest(tf.test.TestCase):
     ind_column = tf.feature_column.indicator_column(cat_column)
     # TODO(tanzheny): use emb column for dense part once b/139667019 is fixed.
     # emb_column = feature_column.embedding_column(cat_column, dimension=5)
-    keras_input = tf.keras.layers.Input(
+    keras_input = tf_keras.layers.Input(
         name='symbol', shape=3, dtype=tf.dtypes.string)
 
     # build linear part with feature layer.
-    linear_feature_layer = tf.compat.v1.keras.layers.DenseFeatures([ind_column])
-    linear_model = tf.keras.experimental.LinearModel(
+    linear_feature_layer = tf_keras_v1.layers.DenseFeatures([ind_column])
+    linear_model = tf_keras.experimental.LinearModel(
         units=1, name='Linear', kernel_initializer='zeros')
-    combined_linear = tf.keras.models.Sequential([linear_feature_layer, linear_model])
+    combined_linear = tf_keras.models.Sequential([linear_feature_layer, linear_model])
 
     # build dnn part with feature layer.
-    dnn_feature_layer = tf.compat.v1.keras.layers.DenseFeatures([ind_column])
-    dense_layer = tf.keras.layers.Dense(
+    dnn_feature_layer = tf_keras_v1.layers.DenseFeatures([ind_column])
+    dense_layer = tf_keras.layers.Dense(
         units=1, name='DNNDense', kernel_initializer='zeros')
-    combined_dnn = tf.keras.models.Sequential([dnn_feature_layer, dense_layer])
+    combined_dnn = tf_keras.models.Sequential([dnn_feature_layer, dense_layer])
 
     # build and compile wide deep.
-    wide_deep_model = tf.keras.experimental.WideDeepModel(combined_linear, combined_dnn)
+    wide_deep_model = tf_keras.experimental.WideDeepModel(combined_linear, combined_dnn)
     wide_deep_model._set_inputs({'symbol': keras_input})
-    sgd_opt = tf.keras.optimizers.legacy.SGD(0.1)
-    adam_opt = tf.keras.optimizers.legacy.Adam(0.1)
+    sgd_opt = tf_keras.optimizers.legacy.SGD(0.1)
+    adam_opt = tf_keras.optimizers.legacy.Adam(0.1)
     wide_deep_model.compile([sgd_opt, adam_opt], 'mse', ['mse'])
 
     # build estimator.

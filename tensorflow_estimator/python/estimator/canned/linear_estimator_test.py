@@ -24,6 +24,7 @@ import tempfile
 import numpy as np
 import six
 import tensorflow as tf
+from tensorflow_estimator.python.estimator.util import tf_keras
 from tensorflow_estimator.python.estimator.canned import linear
 from tensorflow_estimator.python.estimator.canned import linear_testing_utils
 from tensorflow_estimator.python.estimator.canned import prediction_keys
@@ -185,7 +186,7 @@ class LinearEstimatorIntegrationTest(tf.test.TestCase):
         input_dimension=label_dimension,
         label_dimension=label_dimension,
         batch_size=batch_size,
-        optimizer=tf.keras.optimizers.legacy.Ftrl(0.01))  # Test with optimizer_v2 instance
+        optimizer=tf_keras.optimizers.legacy.Ftrl(0.01))  # Test with optimizer_v2 instance
 
 
 if __name__ == '__main__':

@@ -28,6 +28,7 @@ from tensorflow_estimator.python.estimator.export import export
 from tensorflow_estimator.python.estimator.export import export_output
 from tensorflow_estimator.python.estimator.tpu import tpu_config
 from tensorflow_estimator.python.estimator.tpu import tpu_estimator
+from tensorflow_estimator.python.estimator.util import tf_keras_v1
 # pylint: enable=g-direct-tensorflow-import
 
 flags.DEFINE_integer('test_num_shards', 8, 'number of replicas to test')
@@ -47,7 +48,7 @@ _INPUT_PIPELINE_WITH_QUEUE_RUNNER = (
 
 
 def dense_computation(features):
-  return tf.layers.dense(
+  return tf_keras_v1.__internal__.legacy.layers.dense(
       features['x'], 1, kernel_initializer=tf.zeros_initializer())
 
 
@@ -267,7 +268,7 @@ class TPUEstimatorIntegrationTest(tf.test.TestCase):
       if features['x'].shape.is_fully_defined():
         self.assertEqual(batch_size_dict[mode], features['x'].shape[0])
 
-      predictions = tf.layers.dense(
+      predictions = tf_keras_v1.__internal__.legacy.layers.dense(
           features['x'], 1,
           kernel_initializer=tf.ones_initializer())
       export_outputs = {

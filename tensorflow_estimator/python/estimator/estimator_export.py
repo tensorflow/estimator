@@ -72,5 +72,5 @@ class estimator_export(tf_export.api_export):  # pylint: disable=invalid-name
       The input function with _tf_api_names attribute set and marked as
       deprecated.
     """
-    func = deprecation.deprecated(None, 'Use tf.keras instead.')(func)
+    func = deprecation.deprecated(None, 'Use tf_keras instead.')(func)
     return super().__call__(func)

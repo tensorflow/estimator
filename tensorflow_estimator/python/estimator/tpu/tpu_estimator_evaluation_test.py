@@ -23,6 +23,7 @@ from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
 from tensorflow_estimator.python.estimator.export import export_output as export_output_lib
 from tensorflow_estimator.python.estimator.tpu import tpu_config
 from tensorflow_estimator.python.estimator.tpu import tpu_estimator
+from tensorflow_estimator.python.estimator.util import tf_keras_v1
 # pylint: enable=g-direct-tensorflow-import
 
 flags.DEFINE_integer('test_num_shards', 8, 'number of replicas to test')
@@ -42,7 +43,7 @@ _INPUT_PIPELINE_WITH_QUEUE_RUNNER = (
 
 
 def dense_computation(features):
-  return tf.compat.v1.layers.dense(
+  return tf_keras_v1.__internal__.legacy.layers.dense(
       features['x'], 1, kernel_initializer=tf.compat.v1.zeros_initializer())
 
 
@@ -183,7 +184,7 @@ class TPUEstimatorEvaluationTest(tf.test.TestCase):
 
   def _model_fn_without_eval_metrics(self, features, labels, mode, params):
     del params  # unused.
-    predictions = tf.compat.v1.layers.dense(
+    predictions = tf_keras_v1.__internal__.legacy.layers.dense(
         features['x'], 1,
         kernel_initializer=tf.compat.v1.zeros_initializer())
     loss = tf.compat.v1.losses.mean_squared_error(labels, predictions)
@@ -192,7 +193,7 @@ class TPUEstimatorEvaluationTest(tf.test.TestCase):
 
   def _model_fn_with_eval_tensor_list(self, features, labels, mode, params):
     del params  # unused.
-    predictions = tf.compat.v1.layers.dense(
+    predictions = tf_keras_v1.__internal__.legacy.layers.dense(
         features['x'], 1,
         kernel_initializer=tf.compat.v1.zeros_initializer())
     loss = tf.compat.v1.losses.mean_squared_error(labels, predictions)
@@ -203,7 +204,7 @@ class TPUEstimatorEvaluationTest(tf.test.TestCase):
 
   def _model_fn_with_eval_dict(self, features, labels, mode, params):
     del params  # unused.
-    predictions = tf.compat.v1.layers.dense(
+    predictions = tf_keras_v1.__internal__.legacy.layers.dense(
         features['x'], 1,
         kernel_initializer=tf.compat.v1.zeros_initializer())
     loss = tf.compat.v1.losses.mean_squared_error(labels, predictions)
@@ -216,7 +217,7 @@ class TPUEstimatorEvaluationTest(tf.test.TestCase):
 
   def _model_fn_with_eval_metric_ops(self, features, labels, mode, params):
     del params  # unused.
-    predictions = tf.compat.v1.layers.dense(
+    predictions = tf_keras_v1.__internal__.legacy.layers.dense(
         features['x'], 1,
         kernel_initializer=tf.compat.v1.zeros_initializer())
     loss = tf.compat.v1.losses.mean_squared_error(labels, predictions)

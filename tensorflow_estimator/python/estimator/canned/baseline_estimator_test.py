@@ -26,6 +26,7 @@ import numpy as np
 import six
 import tensorflow as tf
 from tensorflow.python.framework import ops
+from tensorflow_estimator.python.estimator.util import tf_keras
 from tensorflow_estimator.python.estimator.canned import baseline
 from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.export import export
@@ -79,7 +80,7 @@ def mock_optimizer_v2(testcase, expected_loss=None):
   """
   expected_var_names = ['%s:0' % BIAS_NAME]
 
-  class _Optimizer(tf.keras.optimizers.legacy.Optimizer):
+  class _Optimizer(tf_keras.optimizers.legacy.Optimizer):
 
     def get_updates(self, loss, params):
       trainable_vars = params

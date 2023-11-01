@@ -28,6 +28,7 @@ from tensorflow.python.feature_column import feature_column_v2 as fc_v2
 from tensorflow.python.framework import ops
 from tensorflow.python.ops import variable_scope
 from tensorflow_estimator.python.estimator import estimator
+from tensorflow_estimator.python.estimator.util import tf_keras
 from tensorflow_estimator.python.estimator.canned import head as head_lib
 from tensorflow_estimator.python.estimator.canned import optimizers
 from tensorflow_estimator.python.estimator.canned.linear_optimizer.python.utils import sdca_ops
@@ -240,7 +241,7 @@ class LinearSDCA(object):
 
 def _get_default_optimizer_v2(feature_columns):
   learning_rate = min(_LEARNING_RATE, 1.0 / math.sqrt(len(feature_columns)))
-  return tf.keras.optimizers.legacy.Ftrl(learning_rate=learning_rate)
+  return tf_keras.optimizers.legacy.Ftrl(learning_rate=learning_rate)
 
 
 def _get_default_optimizer(feature_columns):
@@ -790,7 +791,7 @@ class LinearClassifierV2(estimator.EstimatorV2):
   estimator = tf.estimator.LinearClassifier(
       feature_columns=[categorical_column_a,
                        categorical_feature_a_x_categorical_feature_b],
-      optimizer=tf.keras.optimizers.Ftrl(
+      optimizer=tf_keras.optimizers.Ftrl(
         learning_rate=0.1,
         l1_regularization_strength=0.001
       ))
@@ -799,7 +800,7 @@ class LinearClassifierV2(estimator.EstimatorV2):
   estimator = tf.estimator.LinearClassifier(
       feature_columns=[categorical_column_a,
                        categorical_feature_a_x_categorical_feature_b],
-      optimizer=lambda: tf.keras.optimizers.Ftrl(
+      optimizer=lambda: tf_keras.optimizers.Ftrl(
           learning_rate=tf.exponential_decay(
               learning_rate=0.1,
               global_step=tf.get_global_step(),
@@ -892,7 +893,7 @@ class LinearClassifierV2(estimator.EstimatorV2):
         as integer values in {0, 1,..., n_classes-1} for `n_classes`>2 . Also
         there will be errors if vocabulary is not provided and labels are
         string.
-      optimizer: An instance of `tf.keras.optimizers.*` or
+      optimizer: An instance of `tf_keras.optimizers.*` or
         `tf.estimator.experimental.LinearSDCA` used to train the model. Can also
         be a string (one of 'Adagrad', 'Adam', 'Ftrl', 'RMSProp', 'SGD'), or
         callable. Defaults to FTRL optimizer.
@@ -1017,7 +1018,7 @@ class LinearEstimatorV2(estimator.EstimatorV2):
       head=tf.estimator.MultiLabelHead(n_classes=3),
       feature_columns=[categorical_column_a,
                        categorical_feature_a_x_categorical_feature_b],
-      optimizer=lambda: tf.keras.optimizers.Ftrl(
+      optimizer=lambda: tf_keras.optimizers.Ftrl(
           learning_rate=tf.compat.v1.train.exponential_decay(
               learning_rate=0.1,
               global_step=tf.compat.v1.train.get_global_step(),
@@ -1029,7 +1030,7 @@ class LinearEstimatorV2(estimator.EstimatorV2):
       head=tf.estimator.MultiLabelHead(n_classes=3),
       feature_columns=[categorical_column_a,
                        categorical_feature_a_x_categorical_feature_b])
-      optimizer=tf.keras.optimizers.Ftrl(
+      optimizer=tf_keras.optimizers.Ftrl(
           learning_rate=0.1,
           l1_regularization_strength=0.001
       ))
@@ -1093,7 +1094,7 @@ class LinearEstimatorV2(estimator.EstimatorV2):
       model_dir: Directory to save model parameters, graph and etc. This can
         also be used to load checkpoints from the directory into a estimator to
         continue training a previously saved model.
-      optimizer: An instance of `tf.keras.optimizers.*` used to train the model.
+      optimizer: An instance of `tf_keras.optimizers.*` used to train the model.
         Can also be a string (one of 'Adagrad', 'Adam', 'Ftrl', 'RMSProp',
         'SGD'), or callable. Defaults to FTRL optimizer.
       config: `RunConfig` object to configure the runtime settings.
@@ -1224,7 +1225,7 @@ class LinearRegressorV2(estimator.EstimatorV2):
   estimator = tf.estimator.LinearRegressor(
       feature_columns=[categorical_column_a,
                        categorical_feature_a_x_categorical_feature_b],
-      optimizer=tf.keras.optimizers.Ftrl(
+      optimizer=tf_keras.optimizers.Ftrl(
         learning_rate=0.1,
         l1_regularization_strength=0.001
       ))
@@ -1233,7 +1234,7 @@ class LinearRegressorV2(estimator.EstimatorV2):
   estimator = tf.estimator.LinearRegressor(
       feature_columns=[categorical_column_a,
                        categorical_feature_a_x_categorical_feature_b],
-      optimizer=lambda: tf.keras.optimizers.Ftrl(
+      optimizer=lambda: tf_keras.optimizers.Ftrl(
           learning_rate=tf.compat.v1.train.exponential_decay(
               learning_rate=0.1,
               global_step=tf.compat.v1.train.get_global_step(),
@@ -1317,7 +1318,7 @@ class LinearRegressorV2(estimator.EstimatorV2):
         used as a key to fetch weight tensor from the `features`. If it is a
         `NumericColumn`, raw tensor is fetched by key `weight_column.key`, then
         weight_column.normalizer_fn is applied on it to get weight tensor.
-      optimizer: An instance of `tf.keras.optimizers.*` or
+      optimizer: An instance of `tf_keras.optimizers.*` or
         `tf.estimator.experimental.LinearSDCA` used to train the model. Can also
         be a string (one of 'Adagrad', 'Adam', 'Ftrl', 'RMSProp', 'SGD'), or
         callable. Defaults to FTRL optimizer.
@@ -1413,7 +1414,7 @@ class LinearRegressor(estimator.Estimator):
         warm_start_from=warm_start_from)
 
 
-class _LinearModelLayer(tf.keras.layers.Layer):
+class _LinearModelLayer(tf_keras.layers.Layer):
   """Layer that contains logic for `LinearModel`."""
 
   def __init__(self,
@@ -1461,7 +1462,7 @@ class _LinearModelLayer(tf.keras.layers.Layer):
               name='weights',
               dtype=tf.float32,
               shape=(first_dim, self._units),
-              initializer=tf.keras.initializers.zeros(),
+              initializer=tf_keras.initializers.zeros(),
               trainable=self.trainable)
 
       # Create a bias variable.
@@ -1469,7 +1470,7 @@ class _LinearModelLayer(tf.keras.layers.Layer):
           name='bias_weights',
           dtype=tf.float32,
           shape=[self._units],
-          initializer=tf.keras.initializers.zeros(),
+          initializer=tf_keras.initializers.zeros(),
           trainable=self.trainable,
           use_resource=True,
           # TODO(rohanj): Get rid of this hack once we have a mechanism for
@@ -1536,7 +1537,7 @@ class _LinearModelLayer(tf.keras.layers.Layer):
     return cls(feature_columns=columns, **config_cp)
 
 
-class LinearModel(tf.keras.Model):
+class LinearModel(tf_keras.Model):
   """Produces a linear prediction `Tensor` based on given `feature_columns`.
 
   This layer generates a weighted sum based on output dimension `units`.

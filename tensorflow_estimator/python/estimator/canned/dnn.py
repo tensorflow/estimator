@@ -24,6 +24,8 @@ from tensorflow.python.feature_column import feature_column
 from tensorflow.python.feature_column import feature_column_lib
 from tensorflow.python.framework import ops
 from tensorflow_estimator.python.estimator import estimator
+from tensorflow_estimator.python.estimator.util import tf_keras
+from tensorflow_estimator.python.estimator.util import tf_keras_v1
 from tensorflow_estimator.python.estimator.canned import head as head_lib
 from tensorflow_estimator.python.estimator.canned import optimizers
 from tensorflow_estimator.python.estimator.estimator_export import estimator_export
@@ -152,7 +154,7 @@ def _get_previous_name_scope():
   return current_name_scope.rsplit('/', 1)[0] + '/'
 
 
-class _DNNModel(tf.keras.Model):
+class _DNNModel(tf_keras.Model):
   """A DNN Model."""
 
   def __init__(self,
@@ -167,7 +169,7 @@ class _DNNModel(tf.keras.Model):
                **kwargs):
     super(_DNNModel, self).__init__(name=name, **kwargs)
     if feature_column_lib.is_feature_column_v2(feature_columns):
-      self._input_layer = tf.compat.v1.keras.layers.DenseFeatures(
+      self._input_layer = tf_keras_v1.layers.DenseFeatures(
           feature_columns=feature_columns, name='input_layer')
     else:
       self._input_layer = feature_column.InputLayer(
@@ -185,23 +187,27 @@ class _DNNModel(tf.keras.Model):
     self._batch_norm_layers = []
     self._hidden_layer_scope_names = []
     for layer_id, num_hidden_units in enumerate(hidden_units):
-      with tf.compat.v1.variable_scope('hiddenlayer_%d' %
-                                       layer_id) as hidden_layer_scope:
-        hidden_layer = tf.compat.v1.layers.Dense(
+      with tf.compat.v1.variable_scope(
+          'hiddenlayer_%d' % layer_id
+      ) as hidden_layer_scope:
+        hidden_layer = tf_keras_v1.__internal__.legacy.layers.Dense(
             units=num_hidden_units,
             activation=activation_fn,
             kernel_initializer=tf.compat.v1.glorot_uniform_initializer(),
             name=hidden_layer_scope,
-            _scope=hidden_layer_scope)
+            _scope=hidden_layer_scope,
+        )
         self._add_layer(hidden_layer, hidden_layer_scope.name)
         self._hidden_layer_scope_names.append(hidden_layer_scope.name)
         self._hidden_layers.append(hidden_layer)
         if self._dropout is not None:
-          dropout_layer = tf.compat.v1.layers.Dropout(rate=self._dropout)
+          dropout_layer = tf_keras_v1.__internal__.legacy.layers.Dropout(
+              rate=self._dropout
+          )
           self._add_layer(dropout_layer, dropout_layer.name)
           self._dropout_layers.append(dropout_layer)
         if self._batch_norm:
-          batch_norm_layer = tf.compat.v1.layers.BatchNormalization(
+          batch_norm_layer = tf_keras_v1.__internal__.legacy.layers.BatchNormalization(
               # The default momentum 0.99 actually crashes on certain
               # problem, so here we use 0.999, which is the default of
               # tf.contrib.layers.batch_norm.
@@ -213,7 +219,7 @@ class _DNNModel(tf.keras.Model):
           self._batch_norm_layers.append(batch_norm_layer)
 
     with tf.compat.v1.variable_scope('logits') as logits_scope:
-      self._logits_layer = tf.compat.v1.layers.Dense(
+      self._logits_layer = tf_keras_v1.__internal__.legacy.layers.Dense(
           units=units,
           activation=None,
           kernel_initializer=tf.compat.v1.glorot_uniform_initializer(),
@@ -269,7 +275,7 @@ def _name_from_scope_name(name):
   return name[:-1] if (name and name[-1] == '/') else name
 
 
-class _DNNModelV2(tf.keras.Model):
+class _DNNModelV2(tf_keras.Model):
   """A DNN Model."""
 
   def __init__(self,
@@ -286,7 +292,7 @@ class _DNNModelV2(tf.keras.Model):
         'input_from_feature_columns') as input_feature_column_scope:
       layer_name = input_feature_column_scope + 'input_layer'
       if feature_column_lib.is_feature_column_v2(feature_columns):
-        self._input_layer = tf.keras.layers.DenseFeatures(
+        self._input_layer = tf_keras.layers.DenseFeatures(
             feature_columns=feature_columns, name=layer_name)
       else:
         raise ValueError(
@@ -308,7 +314,7 @@ class _DNNModelV2(tf.keras.Model):
       with ops.name_scope('hiddenlayer_%d' % layer_id) as hidden_layer_scope:
         # Get scope name without the trailing slash.
         hidden_shared_name = _name_from_scope_name(hidden_layer_scope)
-        hidden_layer = tf.keras.layers.Dense(
+        hidden_layer = tf_keras.layers.Dense(
             units=num_hidden_units,
             activation=activation_fn,
             kernel_initializer=tf.compat.v1.glorot_uniform_initializer(),
@@ -316,13 +322,13 @@ class _DNNModelV2(tf.keras.Model):
         self._hidden_layer_scope_names.append(hidden_shared_name)
         self._hidden_layers.append(hidden_layer)
         if self._dropout is not None:
-          dropout_layer = tf.keras.layers.Dropout(rate=self._dropout)
+          dropout_layer = tf_keras.layers.Dropout(rate=self._dropout)
           self._dropout_layers.append(dropout_layer)
         if self._batch_norm:
           batch_norm_name = hidden_shared_name + '/batchnorm_%d' % layer_id
           # TODO(scottzhu): Change back to use BatchNormalization when the
           # cleanup is done.
-          batch_norm_layer = tf.keras.layers.BatchNormalization(
+          batch_norm_layer = tf_keras.layers.BatchNormalization(
               # The default momentum 0.99 actually crashes on certain
               # problem, so here we use 0.999, which is the default of
               # tf.contrib.layers.batch_norm.
@@ -333,7 +339,7 @@ class _DNNModelV2(tf.keras.Model):
 
     with ops.name_scope('logits') as logits_scope:
       logits_shared_name = _name_from_scope_name(logits_scope)
-      self._logits_layer = tf.keras.layers.Dense(
+      self._logits_layer = tf_keras.layers.Dense(
           units=units,
           activation=None,
           kernel_initializer=tf.compat.v1.glorot_uniform_initializer(),
@@ -530,7 +536,7 @@ def dnn_model_fn_v2(features,
     head: A `base_head.Head` instance.
     hidden_units: Iterable of integer number of hidden units per layer.
     feature_columns: Iterable of `feature_column._FeatureColumn` model inputs.
-    optimizer: String, `tf.keras.optimizers.Optimizer` object, or callable that
+    optimizer: String, `tf_keras.optimizers.Optimizer` object, or callable that
       creates the optimizer to use for training. If not specified, will use the
       Adagrad optimizer. If it is String, the default learning rate of the
       optimizer will be used. If it is String, and optimizer does not have a
@@ -619,7 +625,7 @@ class DNNClassifierV2(estimator.EstimatorV2):
   estimator = tf.estimator.DNNClassifier(
       feature_columns=[categorical_feature_a_emb, categorical_feature_b_emb],
       hidden_units=[1024, 512, 256],
-      optimizer=lambda: tf.keras.optimizers.Adam(
+      optimizer=lambda: tf_keras.optimizers.Adam(
           learning_rate=tf.compat.v1.train.exponential_decay(
               learning_rate=0.1,
               global_step=tf.compat.v1.train.get_global_step(),
@@ -717,7 +723,7 @@ class DNNClassifierV2(estimator.EstimatorV2):
         as integer values in {0, 1,..., n_classes-1} for `n_classes`>2 . Also
         there will be errors if vocabulary is not provided and labels are
         string.
-      optimizer: An instance of `tf.keras.optimizers.*` used to train the model.
+      optimizer: An instance of `tf_keras.optimizers.*` used to train the model.
         Can also be a string (one of 'Adagrad', 'Adam', 'Ftrl', 'RMSProp',
         SGD'), or callable. Defaults to Adagrad optimizer.
       activation_fn: Activation function applied to each layer. If `None`, will
@@ -847,7 +853,7 @@ class DNNEstimatorV2(estimator.EstimatorV2):
       head=tf.estimator.MultiLabelHead(n_classes=3),
       feature_columns=[sparse_feature_a_emb, sparse_feature_b_emb],
       hidden_units=[1024, 512, 256],
-      optimizer=lambda: tf.keras.optimizers.Adam(
+      optimizer=lambda: tf_keras.optimizers.Adam(
           learning_rate=tf.compat.v1.train.exponential_decay(
               learning_rate=0.1,
               global_step=tf.compat.v1.train.get_global_step(),
@@ -927,7 +933,7 @@ class DNNEstimatorV2(estimator.EstimatorV2):
       model_dir: Directory to save model parameters, graph and etc. This can
         also be used to load checkpoints from the directory into a estimator to
         continue training a previously saved model.
-      optimizer: An instance of `tf.keras.optimizers.*` used to train the model.
+      optimizer: An instance of `tf_keras.optimizers.*` used to train the model.
         Can also be a string (one of 'Adagrad', 'Adam', 'Ftrl', 'RMSProp',
         SGD'), or callable. Defaults to Adagrad optimizer.
       activation_fn: Activation function applied to each layer. If `None`, will
@@ -1040,7 +1046,7 @@ class DNNRegressorV2(estimator.EstimatorV2):
   estimator = tf.estimator.DNNRegressor(
       feature_columns=[categorical_feature_a_emb, categorical_feature_b_emb],
       hidden_units=[1024, 512, 256],
-      optimizer=lambda: tf.keras.optimizers.Adam(
+      optimizer=lambda: tf_keras.optimizers.Adam(
           learning_rate=tf.compat.v1.train.exponential_decay(
               learning_rate=0.1,
               global_step=tf.compat.v1.train.get_global_step(),
@@ -1131,7 +1137,7 @@ class DNNRegressorV2(estimator.EstimatorV2):
         used as a key to fetch weight tensor from the `features`. If it is a
         `NumericColumn`, raw tensor is fetched by key `weight_column.key`, then
         weight_column.normalizer_fn is applied on it to get weight tensor.
-      optimizer: An instance of `tf.keras.optimizers.*` used to train the model.
+      optimizer: An instance of `tf_keras.optimizers.*` used to train the model.
         Can also be a string (one of 'Adagrad', 'Adam', 'Ftrl', 'RMSProp',
         SGD'), or callable. Defaults to Adagrad optimizer.
       activation_fn: Activation function applied to each layer. If `None`, will

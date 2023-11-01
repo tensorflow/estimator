@@ -22,6 +22,7 @@ import six
 import tensorflow as tf
 from tensorflow.python.framework import ops
 from tensorflow_estimator.python.estimator import model_fn
+from tensorflow_estimator.python.estimator.util import tf_keras
 from tensorflow_estimator.python.estimator.canned import metric_keys
 from tensorflow_estimator.python.estimator.estimator_export import estimator_export
 from tensorflow_estimator.python.estimator.export import export_output
@@ -357,12 +358,12 @@ class MultiHead(base_head.Head):
     keys = metric_keys.MetricKeys
     # Add regularization loss metric for multi_head.
     if regularization_losses is not None:
-      eval_metrics[self._loss_regularization_key] = tf.keras.metrics.Mean(
+      eval_metrics[self._loss_regularization_key] = tf_keras.metrics.Mean(
           name=keys.LOSS_REGULARIZATION)
     with ops.name_scope('merge_eval'):
       # Loss metric is not added by default in each head.
       for loss_key in self._loss_keys:
-        eval_metrics[loss_key] = tf.keras.metrics.Mean(name=loss_key)
+        eval_metrics[loss_key] = tf_keras.metrics.Mean(name=loss_key)
     return eval_metrics
 
   def update_metrics(self,
@@ -418,7 +419,7 @@ class MultiHead(base_head.Head):
         can be integer or string `Tensor` with shape matching its corresponding
         `logits`.`labels` is a required argument when `mode` equals `TRAIN` or
         `EVAL`.
-      optimizer: An `tf.keras.optimizers.Optimizer` instance to optimize the
+      optimizer: An `tf_keras.optimizers.Optimizer` instance to optimize the
         loss in TRAIN mode. Namely, sets `train_op = optimizer.get_updates(loss,
         trainable_variables)`, which updates variables to minimize `loss`.
       trainable_variables: A list or tuple of `Variable` objects to update to
