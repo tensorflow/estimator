@@ -9,6 +9,7 @@ and it imports TensorFlow code, that installing TensorFlow python package
 is required to Bazel build Estimator.
 """
 
+# Placeholder: load PyInfo
 load("//tensorflow_estimator:estimator.bzl", "if_indexing_source_code")
 
 _TARGET_PATTERNS = [
