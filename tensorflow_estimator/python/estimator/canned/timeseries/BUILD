@@ -75,6 +75,7 @@ py_test(
         ":saved_model_utils",
         "//tensorflow_estimator/python/estimator:estimator_py",
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_proto_cpp_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
     ],
 )
@@ -108,6 +109,7 @@ py_test(
         "//tensorflow_estimator/python/estimator:estimator_py",
         "//tensorflow_estimator/python/estimator:expect_absl_installed",
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_proto_cpp_installed",
         "//tensorflow_estimator/python/estimator:expect_six_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
     ],
@@ -167,6 +169,7 @@ py_test(
         ":estimators",
         ":feature_keys",
         "//tensorflow_estimator/python/estimator:estimator_py",
+        "//tensorflow_estimator/python/estimator:expect_proto_cpp_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
     ],
 )
@@ -184,6 +187,7 @@ py_test(
         ":estimators",
         ":feature_keys",
         "//tensorflow_estimator/python/estimator:estimator_py",
+        "//tensorflow_estimator/python/estimator:expect_proto_cpp_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
     ],
 )
@@ -210,6 +214,7 @@ py_test(
     deps = [
         ":feature_keys",
         ":math_utils",
+        "//tensorflow_estimator/python/estimator:expect_proto_cpp_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
     ],
 )

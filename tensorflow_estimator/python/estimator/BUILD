@@ -15,7 +15,10 @@ py_test(
         "nomsan",
         "notsan",
     ],
-    deps = [":estimator_py"],
+    deps = [
+        ":estimator_py",
+        "//tensorflow_estimator/python/estimator:expect_proto_cpp_installed",
+    ],
 )
 
 py_library(
@@ -89,6 +92,7 @@ py_test(
     deps = [
         ":estimator",
         ":exporter",
+        "//tensorflow_estimator/python/estimator:expect_proto_cpp_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
     ],
@@ -119,6 +123,7 @@ py_test(
         ":linear",
         ":run_config",
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_proto_cpp_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
     ],
@@ -142,6 +147,7 @@ py_test(
     srcs_version = "PY3",
     deps = [
         ":gc",
+        "//tensorflow_estimator/python/estimator:expect_proto_cpp_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
     ],
@@ -167,6 +173,7 @@ py_test(
         ":estimator_py",
         ":hooks",
         "//tensorflow_estimator/python/estimator",
+        "//tensorflow_estimator/python/estimator:expect_proto_cpp_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
     ],
@@ -198,6 +205,7 @@ py_test(
     deps = [
         ":export_output",
         ":model_fn",
+        "//tensorflow_estimator/python/estimator:expect_proto_cpp_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
     ],
@@ -247,6 +255,7 @@ py_test(
         ":inputs",
         ":run_config",
         ":training",
+        "//tensorflow_estimator/python/estimator:expect_proto_cpp_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
     ],
@@ -272,6 +281,7 @@ py_test(
     srcs_version = "PY3",
     deps = [
         ":run_config",
+        "//tensorflow_estimator/python/estimator:expect_proto_cpp_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
     ],
@@ -318,6 +328,7 @@ py_test(
         ":run_config",
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
         "//tensorflow_estimator/python/estimator:expect_pandas_installed",
+        "//tensorflow_estimator/python/estimator:expect_proto_cpp_installed",
         "//tensorflow_estimator/python/estimator:expect_six_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
@@ -375,6 +386,7 @@ py_test(
         ":regression_head",
         ":run_config",
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_proto_cpp_installed",
         "//tensorflow_estimator/python/estimator:expect_six_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
@@ -435,6 +447,7 @@ py_test(
         ":inputs",
         ":kmeans",
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_proto_cpp_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
     ],
 )
@@ -599,6 +612,7 @@ py_test(
         ":prediction_keys",
         ":regression_head",
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_proto_cpp_installed",
         "//tensorflow_estimator/python/estimator:expect_six_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
@@ -670,6 +684,7 @@ py_test(
         ":prediction_keys",
         ":regression_head",
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_proto_cpp_installed",
         "//tensorflow_estimator/python/estimator:expect_six_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
@@ -725,6 +740,7 @@ py_test(
         "//tensorflow_estimator/python/estimator:expect_absl_installed",
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
         "//tensorflow_estimator/python/estimator:expect_pandas_installed",
+        "//tensorflow_estimator/python/estimator:expect_proto_cpp_installed",
         "//tensorflow_estimator/python/estimator:expect_six_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
@@ -791,6 +807,7 @@ py_test(
         ":numpy_io",
         ":regression_head",
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_proto_cpp_installed",
         "//tensorflow_estimator/python/estimator:expect_six_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
     ],
@@ -818,6 +835,7 @@ py_test(
         ":util",
         "//tensorflow_estimator/python/estimator:expect_absl_installed",
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_proto_cpp_installed",
         "//tensorflow_estimator/python/estimator:expect_six_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
@@ -857,6 +875,7 @@ py_test(
         ":early_stopping",
         "//tensorflow_estimator/python/estimator",
         "//tensorflow_estimator/python/estimator:expect_absl_installed",
+        "//tensorflow_estimator/python/estimator:expect_proto_cpp_installed",
     ],
 )
 
@@ -900,6 +919,7 @@ py_test(
         ":numpy_io",
         ":run_config",
         # Placeholder for an internal build dep disabling tf2 behavior
+        "//tensorflow_estimator/python/estimator:expect_proto_cpp_installed",
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
         "//tensorflow_estimator/python/estimator:expect_six_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
@@ -928,6 +948,7 @@ py_test(
     srcs_version = "PY3",
     deps = [
         ":parsing_utils",
+        "//tensorflow_estimator/python/estimator:expect_proto_cpp_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
     ],
@@ -977,6 +998,7 @@ py_test(
     srcs_version = "PY3",
     deps = [
         ":export_export",
+        "//tensorflow_estimator/python/estimator:expect_proto_cpp_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
     ],
@@ -1004,6 +1026,7 @@ py_test(
     deps = [
         ":export",
         ":function",
+        "//tensorflow_estimator/python/estimator:expect_proto_cpp_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
     ],
 )
@@ -1044,6 +1067,7 @@ py_test(
         ":numpy_io",
         ":prediction_keys",
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_proto_cpp_installed",
         "//tensorflow_estimator/python/estimator:expect_six_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
@@ -1082,7 +1106,10 @@ py_test(
     srcs = ["head/base_head_test.py"],
     python_version = "PY3",
     srcs_version = "PY3",
-    deps = [":base_head_test_lib"],
+    deps = [
+        ":base_head_test_lib",
+        "//tensorflow_estimator/python/estimator:expect_proto_cpp_installed",
+    ],
 )
 
 py_library(
@@ -1141,6 +1168,7 @@ py_test(
         ":model_fn",
         ":prediction_keys",
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_proto_cpp_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
     ],
@@ -1179,6 +1207,7 @@ py_test(
         ":prediction_keys",
         ":regression_head",
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_proto_cpp_installed",
         "//tensorflow_estimator/python/estimator:expect_six_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
@@ -1221,6 +1250,7 @@ py_test(
         ":multi_class_head",
         ":prediction_keys",
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_proto_cpp_installed",
         "//tensorflow_estimator/python/estimator:expect_six_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
@@ -1260,6 +1290,7 @@ py_test(
         ":multi_label_head",
         ":prediction_keys",
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_proto_cpp_installed",
         "//tensorflow_estimator/python/estimator:expect_six_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
@@ -1303,6 +1334,7 @@ py_test(
         ":prediction_keys",
         ":regression_head",
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_proto_cpp_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
     ],
@@ -1339,6 +1371,7 @@ py_test(
         ":sequential_head",
         "//tensorflow_estimator/python/estimator:expect_absl_installed",
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_proto_cpp_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
     ],
 )
@@ -1433,6 +1466,7 @@ py_test(
         ":prediction_keys",
         ":regression_head",
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_proto_cpp_installed",
         "//tensorflow_estimator/python/estimator:expect_six_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
@@ -1477,6 +1511,7 @@ py_test(
     deps = [
         ":linear",
         ":linear_testing_utils",
+        "//tensorflow_estimator/python/estimator:expect_proto_cpp_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
     ],
@@ -1507,6 +1542,7 @@ py_test(
     deps = [
         ":linear",
         ":linear_testing_utils",
+        "//tensorflow_estimator/python/estimator:expect_proto_cpp_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
     ],
@@ -1559,6 +1595,7 @@ py_test(
     deps = [
         ":numpy_io",
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_proto_cpp_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
     ],
@@ -1584,6 +1621,7 @@ py_test(
     srcs_version = "PY3",
     deps = [
         ":optimizers",
+        "//tensorflow_estimator/python/estimator:expect_proto_cpp_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
     ],
@@ -1611,6 +1649,7 @@ py_test(
         ":estimator",
         ":model_fn",
         ":optimizers",
+        "//tensorflow_estimator/python/estimator:expect_proto_cpp_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
     ],
@@ -1638,6 +1677,7 @@ py_test(
         ":pandas_io",
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
         "//tensorflow_estimator/python/estimator:expect_pandas_installed",
+        "//tensorflow_estimator/python/estimator:expect_proto_cpp_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
     ],
@@ -1680,6 +1720,7 @@ py_test(
         ":inputs_queues",
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
         "//tensorflow_estimator/python/estimator:expect_pandas_installed",
+        "//tensorflow_estimator/python/estimator:expect_proto_cpp_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
     ],
@@ -1695,6 +1736,7 @@ py_test(
         ":inputs_queues",
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
         "//tensorflow_estimator/python/estimator:expect_pandas_installed",
+        "//tensorflow_estimator/python/estimator:expect_proto_cpp_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
     ],
@@ -1734,6 +1776,7 @@ py_test(
         ":run_config",
         "//tensorflow_estimator/python/estimator:expect_h5py_installed",
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_proto_cpp_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
     ],
@@ -1753,6 +1796,7 @@ py_test(
         ":run_config",
         "//tensorflow_estimator/python/estimator:expect_h5py_installed",
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_proto_cpp_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
     ],
@@ -1768,6 +1812,7 @@ py_test(
         ":keras",
         ":run_config",
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_proto_cpp_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
     ],
 )
@@ -1803,6 +1848,7 @@ py_test(
         ":mode_keys",
         ":model_fn",
         ":saved_model_estimator",
+        "//tensorflow_estimator/python/estimator:expect_proto_cpp_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
     ],
@@ -1828,6 +1874,7 @@ py_test(
     deps = [
         ":estimator_py",
         ":fake_summary_writer",
+        "//tensorflow_estimator/python/estimator:expect_proto_cpp_installed",
     ],
 )
 
@@ -1897,6 +1944,7 @@ py_test(
         ":sequential_head",
         "//tensorflow_estimator/python/estimator:expect_absl_installed",
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_proto_cpp_installed",
         "//tensorflow_estimator/python/estimator:expect_six_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
@@ -1920,6 +1968,7 @@ py_test(
     srcs_version = "PY3",
     deps = [
         ":estimator_export",
+        "//tensorflow_estimator/python/estimator:expect_proto_cpp_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
     ],
 )
@@ -1995,6 +2044,14 @@ py_library(
     visibility = ["//visibility:public"],
 )
 
+py_library(
+    name = "expect_proto_cpp_installed",
+    srcs_version = "PY3",
+    # This is a dummy rule used as a numpy dependency in open-source.
+    # We expect protobuf cpp python to already be installed on the system.
+    visibility = ["//visibility:public"],
+)
+
 # The following targets are emulating cuda_py_test from //third_party/tensorflow:tensorflow.google.bzl
 # cuda_py_test cannot be used directly because the bzl file cannot be imported into tensorflow_estimator
 
@@ -2012,6 +2069,7 @@ py_test(
         ":estimator_py",
         "//tensorflow_estimator/python/estimator:expect_absl_installed",
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_proto_cpp_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
     ],
 )
@@ -2034,6 +2092,7 @@ py_test(
         ":estimator_py",
         "//tensorflow_estimator/python/estimator:expect_absl_installed",
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_proto_cpp_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
     ],
 )
@@ -2056,6 +2115,7 @@ py_test(
     deps = [
         ":estimator_py",
         # Placeholder for an internal build dep disabling tf2 behavior
+        "//tensorflow_estimator/python/estimator:expect_proto_cpp_installed",
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
     ],
@@ -2082,6 +2142,7 @@ py_test(
     deps = [
         ":estimator_py",
         # Placeholder for an internal build dep disabling tf2 behavior
+        "//tensorflow_estimator/python/estimator:expect_proto_cpp_installed",
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
     ],
@@ -2099,6 +2160,7 @@ py_test(
     deps = [
         ":estimator_py",
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_proto_cpp_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
     ],
 )
@@ -2121,6 +2183,7 @@ py_test(
         ":estimator_py",
         "//tensorflow_estimator/python/estimator:expect_absl_installed",
         "//tensorflow_estimator/python/estimator:expect_numpy_installed",
+        "//tensorflow_estimator/python/estimator:expect_proto_cpp_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
     ],
 )

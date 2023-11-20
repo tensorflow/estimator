@@ -14,6 +14,7 @@ py_test(
     srcs_version = "PY3",
     deps = [
         "//tensorflow_estimator/python/estimator",
+        "//tensorflow_estimator/python/estimator:expect_proto_cpp_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
         "//tensorflow_estimator/python/estimator:linear",
@@ -47,6 +48,7 @@ py_test(
     ],
     deps = [
         ":sdca_ops_py",
+        "//tensorflow_estimator/python/estimator:expect_proto_cpp_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
     ],
@@ -70,6 +72,7 @@ py_test(
     srcs_version = "PY3",
     deps = [
         ":sharded_mutable_dense_hashtable_py",
+        "//tensorflow_estimator/python/estimator:expect_proto_cpp_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_installed",
         "//tensorflow_estimator/python/estimator:expect_tensorflow_keras_installed",
     ],
