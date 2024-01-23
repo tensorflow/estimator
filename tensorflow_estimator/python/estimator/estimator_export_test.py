@@ -44,11 +44,6 @@ class ValidateExportTest(tf.test.TestCase):
     if hasattr(TestClass, '_estimator_api_names_v1'):
       del TestClass._estimator_api_names_v1
 
-  def testExportClassInEstimator(self):
-    estimator_export.estimator_export('estimator.TestClass')(TestClass)
-    self.assertNotIn('_tf_api_names', TestClass.__dict__)
-    self.assertEqual(['estimator.TestClass'], tf_export.get_v1_names(TestClass))
-
   @tf.compat.v1.test.mock.patch.object(
       logging, 'warning', autospec=True
   )

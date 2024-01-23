@@ -38,12 +38,26 @@ estimator_export('consts.foo').export_constant(__name__, 'foo')
 ```
 """
 from collections.abc import Sequence
-from typing import Any, Optional, TypeVar
+from typing import Optional, TypeVar
 
 from tensorflow.python.util import deprecation
 from tensorflow.python.util import tf_export
 
 T = TypeVar('T')
+
+ESTIMATOR_API_NAME = 'estimator'
+
+
+# pylint: disable=protected-access
+if ESTIMATOR_API_NAME not in tf_export.API_ATTRS:
+  tf_export.API_ATTRS[ESTIMATOR_API_NAME] = tf_export._Attributes(
+      '_estimator_api_names', '_estimator_api_constants'
+  )
+if ESTIMATOR_API_NAME not in tf_export.API_ATTRS_V1:
+  tf_export.API_ATTRS_V1[ESTIMATOR_API_NAME] = tf_export._Attributes(
+      '_estimator_api_names_v1', '_estimator_api_constants_v1'
+  )
+# pylint: enable=protected-access
 
 
 class estimator_export(tf_export.api_export):  # pylint: disable=invalid-name
@@ -60,7 +74,7 @@ class estimator_export(tf_export.api_export):  # pylint: disable=invalid-name
       v1: Names for the TensorFlow V1 API. If not set, we will use V2 API names
         both for TensorFlow V1 and V2 APIs.
     """
-    super().__init__(*args, api_name=tf_export.ESTIMATOR_API_NAME, v1=v1)
+    super().__init__(*args, api_name=ESTIMATOR_API_NAME, v1=v1)
 
   def __call__(self, func: T) -> T:
     """Calls this decorator.
