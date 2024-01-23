@@ -67,13 +67,10 @@ _canned_estimator_api_gauge = monitoring.StringGauge(
 
 @estimator_export(v1=['estimator.Estimator'])
 @doc_controls.inheritable_header("""\
-  Warning: Estimators are not recommended for new code.  Estimators run
-  `v1.Session`-style code which is more difficult to write correctly, and
-  can behave unexpectedly, especially when combined with TF 2 code. Estimators
-  do fall under our
-  [compatibility guarantees](https://tensorflow.org/guide/versions), but will
-  receive no fixes other than security vulnerabilities. See the
-  [migration guide](https://tensorflow.org/guide/migrate) for details.
+  Warning: TensorFlow 2.15 included the final release of the `tf-estimator` 
+  package. Estimators will not be available in TensorFlow 2.16 or after. See the
+  [migration guide](https://www.tensorflow.org/guide/migrate/migrating_estimator)
+  for more information about how to convert off of Estimators."
   """)
 class Estimator(object):
   """Estimator class to train and evaluate TensorFlow models.
